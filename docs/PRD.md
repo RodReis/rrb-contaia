@@ -8,6 +8,7 @@
 | **Status** | Aprovado para desenvolvimento |
 | **Data** | 16/09/2026 |
 | **Owner** | Produto |
+| **PI** | Rodrigo Reis |
 
 > **Regra de governança:** este documento é a única fonte de verdade sobre escopo, requisitos e critérios de aceite. Qualquer divergência entre código, protótipos, conversas ou outros artefatos deve ser resolvida **em favor deste PRD** ou formalmente revisada aqui.
 
