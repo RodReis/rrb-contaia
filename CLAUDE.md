@@ -145,7 +145,7 @@ Só vale enquanto houver código a indexar; com o repo só em documentação, le
 - `docs/adr/` — Um arquivo por ADR aceita (`ADR-NNN-titulo.md`), com contexto/decisão/consequências/riscos/evidência.
 - `docs/CONVENTION.md` — Documento de domínio: entidades, estados, invariantes e regras de negócio (o coração do produto).
 - `docs/FRONTEND.md` — Contrato de engenharia da interface web: stack fixada, tipagem, padrão de tela CRUD, estados, performance, prova por tela. Toda tarefa de UI começa por ele.
-- `docs/DESIGN-UI.md` — Documento de direção para criar o DESIGN-SYSTEM em outra ferramenta de designer(claude-design), não de contrato: de onde saíram opção de Carbono Adaptativo e o pipeline de accent.
+- `docs/DESIGN-SYSTEM.md` — Contrato de direção para seguir o DESIGN-SYSTEM e outra ferramenta de designer, contrato da verdade.
 - `docs/GITHUB.md` — Documento de referencia das melhores praticas de commits, merges, branchs.
 - `docs/PRS.md` — Documento de referencia das melhores praticas de PRS.
 - `docs/CI-PR.md`— Documento política de PR rápida: jobs paralelos, gate único, medição de duração e limites. Melhores praticas do GitHub
@@ -157,7 +157,7 @@ Só vale enquanto houver código a indexar; com o repo só em documentação, le
 - `docs/prd/mvp/README.md` — Regra de governança dos MVPs: fatiamento não reduz escopo, matriz obrigatória, registro de fora de escopo e régua Curto/Médio/Grande/Enorme. Ler antes de criar ou alterar MVP/SPEC.
 - `docs/prd/mvp/RASTREABILIDADE.md` — Matriz normativa que prova para onde cada requisito aprovado foi: mantido, transferido, adiado ou excluído. Ausência na matriz bloqueia aprovação documental.
 - `docs/PRIVACIDADE.md` — Documento autônomo de privacidade, **sem efeito sobre produto**. Não é requisito de produto, não referencia o PRD e não é citado por nenhuma SPEC.
-- `docs/prd/ANALISE-AGENTES-IA-AUTONOMOS.md` — Análise estratégica de agentes autônomos. Não altera escopo de MVP por si; qualquer adoção precisa passar por `docs/DECISIONS.md`, `docs/prd/mvp/RASTREABILIDADE.md` e SPEC própria.
+- `docs/AGENTES-IA-AUTONOMOS.md` — Análise estratégica de agentes autônomos que esta no PRD. Não altera escopo de MVP por si; qualquer adoção precisa passar por `docs/DECISIONS.md`, `docs/prd/mvp/RASTREABILIDADE.md` e SPEC própria.
 - `docs/APRENDIZADOS.md` — Documento para guardar o aprendido na implementação do coard.
 - `docs/AUTID.md`— Documento de rotina de autoria, revisão, teste de performance, CI e evidência das PRs deste repositório; distingue orientação operacional de evolução da pipeline.
 - `docs/TESTING.md` — Documento de estratégia de teste, classificação, evidência e relatório por SPEC/issue.
@@ -170,5 +170,5 @@ Só vale enquanto houver código a indexar; com o repo só em documentação, le
 - `docs/prd/mvp/` Documentos de MVPs (épicos) com checklist das fatias previstas.
 - `docs/prd/mvp/plans/` — Documentos de planos de implementação por slice. São **material de apoio do Code/Codex**, não contrato: onde divergirem do PRD, o PRD vence.
 - `docs/prd/mvp/spec/` — Documentos de especificação por slice. São **material de apoio do Code**, não contrato: onde divergirem do PRD, o PRD vence.
-- `docs/historico/` — Documentos superados (backlog e arquitetura originais, brief de design). Referência histórica; **não é contrato**.
+- `docs/prd/historico/` — Documentos superados (backlog e arquitetura originais, brief de design). Referência histórica; **não é contrato**.
 

@@ -10,7 +10,7 @@
 | **Owner** | Produto |
 | **Última revisão** | 15/09/2026 |
 
-> **⚠️ Regra de governança:** Este documento é a única fonte de verdade sobre escopo, requisitos e critérios de aceite. Qualquer divergência entre código, protótipos, conversas ou outros artefatos deve ser resolvida **em favor deste PRD** ou formalmente revisada aqui.
+> **⚠️ Regra de governança:** Este documento é histórico morto e a fonte de verdade sobre escopo PRD.md, requisitos e critérios de aceite. Qualquer divergência entre código, protótipos, conversas ou outros artefatos deve ser resolvida no /prd/PRD.md.
 
 ---
 

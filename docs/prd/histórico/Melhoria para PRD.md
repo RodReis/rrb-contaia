@@ -1,6 +1,6 @@
 # Diagnóstico e Evolução Estratégica do PRD (SaaS Contábil 2027)
 
-Este documento sintetiza a análise crítica, as diretrizes tecnológicas e os ajustes de escopo recomendados para transformar o PRD de um sistema contábil tradicional em uma plataforma SaaS de alta performance e automação inteligente para 2027.
+> **⚠️ Regra de governança:** Este documento é histórico morto e a fonte de verdade sobre escopo PRD.md, requisitos e critérios de aceite. Qualquer divergência entre código, protótipos, conversas ou outros artefatos deve ser resolvida no /prd/PRD.md.
 
 ---
 

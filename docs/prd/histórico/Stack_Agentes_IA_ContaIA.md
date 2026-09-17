@@ -1,4 +1,7 @@
 # 🤖 Stack de Agentes de IA — ContaIA
+
+> **⚠️ Regra de governança:** Este documento é histórico morto e a fonte de verdade sobre escopo PRD.md, requisitos e critérios de aceite. Qualquer divergência entre código, protótipos, conversas ou outros artefatos deve ser resolvida no /prd/PRD.md.
+
 ## Arquitetura Técnica de Agentes Inteligentes para Contabilidade
 
 | Campo | Valor |

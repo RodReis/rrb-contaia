@@ -1,6 +1,6 @@
 # 🔐 Documento de Privacidade, Compliance e Segurança de Dados
 
-## Política de Proteção de Dados Pessoais e Governança de Segurança
+## Política de Proteção de Dados Pessoais e Governança de Segurança não vinculado ao /prd/PRD.md
 
 | Campo | Valor |
 |---|---|
