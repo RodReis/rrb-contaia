@@ -1,28 +1,18 @@
-# CLAUDE.md — rrb-contaIA
-
-#prototipo: 
-	C:\Desenv\Projetos\rrb-contaia\docs\telas\prototipo\index.html 
-
-# Previa
-
-# Repositório
-
-# Stack e ambiente
-
+# AGENTS.md — rrb-contaIA
 
 ## Papéis
 
 **PI — Rodrigo Reis.** Decide escopo, prioridade e trade-off. Responde dúvidas, aprova specs e aceita entregas. Não executa o fluxo: não cria issue, não commita, não abre PR, não faz merge. O aceite é só dele.
 
-**Cowork — planejamento.** Especifica e mantém `CLAUDE.md`, `docs/prd/mvp/spec/`, `docs/prd/`, `docs/adr/` e o Índice Fatia ↔ SPEC do `docs/STATUS.md`. Antes de fechar uma spec, apresenta ao PI as dúvidas abertas em perguntas objetivas (pop-up); só cria a issue com todas resolvidas, para evitar retrabalho. Escreve documento direto na `main`, sem PR. Cria as issues no board na ordem de implementação e mantém os próximos 5 cards em `proplan:todo`. Nunca escreve código — implementação é exclusiva do Code.
+**Codex Cowork — planejamento.** Especifica e mantém `CLAUDE.md`, `docs/prd/mvp/spec/`, `docs/prd/`, `docs/adr/` e o Índice Fatia ↔ SPEC do `docs/STATUS.md`. Antes de fechar uma spec, apresenta ao PI as dúvidas abertas em perguntas objetivas (pop-up); só cria a issue com todas resolvidas, para evitar retrabalho. Escreve documento direto na `main`, sem PR. Cria as issues no board na ordem de implementação e mantém os próximos 5 cards em `proplan:todo`. Nunca escreve código — implementação é exclusiva do Codex.
 
-**Code — Claude Code, , developer.** Pega a issue e coloca para `proplan:doing`, implementa a partir das issues, na ordem do board. Codifica, revisa e testa antes do commit; entrega por PR com CI verde e mergeia ele mesmo. Atualiza a documentação de entrega ao final de cada card, atualiza a issue com a skill `fechar-card` no mesmo PR. Cria a própria issue `[FIX]`. Não cria issue de fatia nem `[INFRA]` — isso é do Cowork. Pode criticar arquitetura e spec; não discute escopo e não descarta escopo, vai para backlog.
+**Code, Codex, developer ** Pega a issue e coloca para `proplan:doing`, implementa a partir das issues, na ordem do board. Codifica, revisa e testa antes do commit; entrega por PR com CI verde e mergeia ele mesmo. Atualiza a documentação de entrega ao final de cada card, atualiza a issue com a skill `fechar-card` no mesmo PR. Cria a própria issue `[FIX]`. Não cria issue de fatia nem `[INFRA]` — isso é do Cowork. Pode criticar arquitetura e spec; não discute escopo e não descarta escopo, vai para backlog.
 
 
 ## Regras do projeto (decididas pelo PI)
 
 - Idioma: documentação, specs, issues, commits e comunicação em PT-BR; código e identificadores em inglês; textos de interface em PT-BR.
-- Privacidade e proteção de dados não pertencem ao contrato de produto nem ao PRD. `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` é um documento autônomo e **sem efeito sobre produto**: não referencia nem altera o PRD, não é citado por nenhuma SPEC, `CONVENTION.md` ou `ARCHITECTURE.md`, e não gera funcionalidade, fatia, critério comercial, controle técnico ou aceite de produto por conta própria. Cowork e Code não inventam regra jurídica: dúvida material é encaminhada ao PI.
+- Privacidade e proteção de dados não pertencem ao contrato de produto nem ao PRD. `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` é um documento autônomo e **sem efeito sobre produto**: não referencia nem altera o PRD, não é citado por nenhuma SPEC, `CONVENTION.md` ou `ARCHITECTURE.md`, e não gera funcionalidade, fatia, critério comercial, controle técnico ou aceite de produto por conta própria. Cowork e Codex não inventam regra jurídica: dúvida material é encaminhada ao PI.
 - Ninguém cria regra de produto — nem Cowork, nem Code. Falta regra → pergunta ao PI (ver "O que bloqueia o Code").
 - Autorizado a subir o docker, se estiver off. Criar sempre um nova instancia na primeira vez, com novas portas, nunca usar as que já estão configurada no docker.
 
@@ -51,21 +41,21 @@
 | → `planejado` | Cowork | spec em rascunho, dúvidas abertas com o PI |
 | `planejado` → `backlog` | Cowork | dúvidas resolvidas; **mesma issue** (troca o label, não cria outra), assignee PI, corpo com link para a Slice do PRD |
 | `backlog` → `todo` | Cowork | os próximos 5 cards da ordem de implementação |
-| `todo` → `doing` | Code | ao iniciar o card — sempre o primeiro `todo` da ordem |
-| `doing` → `done` | Code | após confirmar o merge na origem **e publicar o comentário de encerramento** na issue; link do PR no corpo da issue |
+| `todo` → `doing` | Codex | ao iniciar o card — sempre o primeiro `todo` da ordem |
+| `doing` → `done` | Codex | após confirmar o merge na origem **e publicar o comentário de encerramento** na issue; link do PR no corpo da issue |
 | `done` → `finalizado` + fechar a issue | **PI** | aceite. Só o PI. Nenhuma automação fecha issue |
 
 Não existe label `proplan:next`/`proplan:proximo`: ao terminar um card, o Code apenas **registra em comentário/PR** qual é o próximo `todo` da ordem antes de seguir para ele — não é uma transição de label.
 
 ### Encerramento de card (obrigatório)
 
-Depois do merge confirmado na origem e **antes** de aplicar `proplan:done`, o Code publica na issue do card um comentário de encerramento com três seções: **Resumo da implementação**, **Aprendizado** e **Imprevistos**. Formato, regras de conteúdo e comandos: skill `fechar-card`.
+Depois do merge confirmado na origem e **antes** de aplicar `proplan:done`, o Codex publica na issue do card um comentário de encerramento com três seções: **Resumo da implementação**, **Aprendizado** e **Imprevistos**. Formato, regras de conteúdo e comandos: skill `fechar-card`.
 
 `proplan:done` só pode ser aplicada se esse comentário existir — issue em `proplan:done` sem comentário de encerramento é violação de processo e o PI devolve o card. Seção sem conteúdo real recebe "Nenhum": ninguém inventa aprendizado nem imprevisto para preencher template. Aprendizado só entra com fonte verificável (doc oficial, commit, log, comando). O comentário na issue é a fonte de verdade da entrega; o resumo no chat só aponta para ele. A seção **Aprendizado** é consolidada pelo Cowork em `docs/APRENDIZADOS.md` no fecho de cada MVP — protocolo no cabeçalho daquele arquivo.
 
 Aceite verde para uma entrega é **CI verde** — nada mais.
 
-O Code só para quando `todo` está vazio ou quando cai num dos dois casos abaixo.
+O Codex só para quando `todo` está vazio ou quando cai num dos dois casos abaixo.
 
 ## O que bloqueia o Code — dois casos, não há terceiro
 
@@ -74,19 +64,19 @@ O Code só para quando `todo` está vazio ou quando cai num dos dois casos abaix
 
 Documento faltando não bloqueia. ADR não bloqueia. Falta de spec não bloqueia. Se está parado por qualquer outro motivo, o motivo está errado: implementa e registra a decisão no PR.
 
-Tudo o mais — nome de campo, ordem de implementação interna, estrutura de pasta, dublê de teste, como testar, se cabe refactor junto — **é do Code, decide na hora**. Errou? É reversível: corrige no PR seguinte.
+Tudo o mais — nome de campo, ordem de implementação interna, estrutura de pasta, dublê de teste, como testar, se cabe refactor junto — **é do Codex, decide na hora**. Errou? É reversível: corrige no PR seguinte.
 
-**Bug:** comportamento já documentado (ADR, `ARCHITECTURE.md`, `CONVENTION.md`, `STATUS.md`) que está errado → o Code cria o card `[FIX]` em Backlog, cita a fonte no corpo e segue o fluxo normal, sem esperar ninguém. Se o comportamento correto **ainda não existe** e escolhê-lo é decisão de produto, é o caso 1.
+**Bug:** comportamento já documentado (ADR, `ARCHITECTURE.md`, `CONVENTION.md`, `STATUS.md`) que está errado → o Codex cria o card `[FIX]` em Backlog, cita a fonte no corpo e segue o fluxo normal, sem esperar ninguém. Se o comportamento correto **ainda não existe** e escolhê-lo é decisão de produto, é o caso 1.
 
 ## Git: dois atores escrevem — quem cede no conflito
 
 - O Cowork pusha documento direto na `main`. É o único caminho do processo sem PR, CI ou aceite, e vale **só para os documentos que ele mantém**.
 - **Todo código entra por PR com CI verde, sem exceção.** Nunca commit de código direto na `main`.
 - Divisão **por arquivo**: governança (`CLAUDE.md`, `docs/prd/mvp/spec/`, `docs/prd/`, `docs/adr/`, `docs/APRENDIZADOS.md`, índice do `STATUS.md`) é do Cowork; código, testes, build, CI e documentação de entrega (`docs/DEVELOPMENT.md`, progresso no `STATUS.md`, `docs/TESTING.md`, `docs/CI-PR.md`) são do Code. Cowork precisando tocar algo fora da sua lista → para e pergunta ao PI.
-- Como o Cowork não abre PR, ele nunca vê conflito. Quem colide é o Code, com branch aberta enquanto a `main` andou. Regra: o Code **rebase e reaplica** o próprio trabalho por cima. O Code **nunca desfaz** linha escrita pelo Cowork; se o `STATUS.md` divergiu, a versão da `main` vence e o Code reaplica só o próprio progresso.
+- Como o Cowork não abre PR, ele nunca vê conflito. Quem colide é o Codex, com branch aberta enquanto a `main` andou. Regra: o Codex **rebase e reaplica** o próprio trabalho por cima. O Codex **nunca desfaz** linha escrita pelo Cowork; se o `STATUS.md` divergiu, a versão da `main` vence e o Codex reaplica só o próprio progresso.
 - PR referencia a issue com **`refs #N`**. **Nunca `closes #N`** — forjaria o aceite do PI.
 
-## Rotina do Code por card
+## Rotina do Codex por card
 
 1. Confirmar branch, diff local, issue, SPEC aplicável e base remota. Ler `docs/APRENDIZADOS.md` antes de começar — é curto e é onde moram as armadilhas já pagas. Worktree/branch por card. Preservar mudanças de outros trabalhos; não usar `git add -A` em checkout misto.
 2. Uma finalidade por PR. Código, testes e docs necessários à mesma entrega ficam juntos; escopo oportunista fica fora. Mudança independente vai em PR separada; não partir mudança atômica só para reduzir linhas.
@@ -124,12 +114,12 @@ Tudo o mais — nome de campo, ordem de implementação interna, estrutura de pa
 - Erro de domínio tem código estável; resposta HTTP segue `application/problem+json` com `type`, `title`, `status`, `code`, `correlationId`.
 - Frontend web segue `docs/FRONTEND.md` (contrato de engenharia da interface, UX e UI): máscara e validação em Date, valores R$, CPF, CNPJ, telefone e e-mail; mensagem ao usuário via Toast (Sonner), nunca `alert`; CRUD com confirmação e arquivamento em vez de exclusão física.
 
-## Skills do Code — na ordem de um card
+## Skills do Codex — na ordem de um card
 
 `superpowers:using-git-worktrees` → `superpowers:writing-plans` / `executing-plans` (a Slice do PRD **é** o design; `brainstorming` só quando cair num caso de bloqueio ou em `[FIX]` sem causa clara) → `superpowers:test-driven-development` em feature crítica (isolamento de tenant, decisão de acesso, idempotência financeira) → `engineering:code-review` em toda tarefa → `gstack:qa` → `superpowers:finishing-a-development-branch` → `fechar-card` (encerramento na issue, antes de `proplan:done`).
 Quando a tarefa tem UI: `document-skills:frontend-design` (não cair no shadcn-default genérico), `gstack:design-review`, `impeccable`. Documentação de biblioteca: `context7`. Mobile: `expo`. Smoke ao vivo: Playwright.
 
-`gstack:*`, `fechar-card` e `impeccable` estão instalados globalmente na máquina do PI (Windows) — o Code os usa normalmente lá. Em qualquer ambiente onde uma dessas skills não exista, isso não é desculpa para pular a disciplina que ela representa: aplicar o equivalente manual (revisão de design, acabamento visual, **comentário de encerramento com as três seções**) e registrar na PR.
+`gstack:*`, `fechar-card` e `impeccable` estão instalados globalmente na máquina do PI (Windows) — o Codex os usa normalmente lá. Em qualquer ambiente onde uma dessas skills não exista, isso não é desculpa para pular a disciplina que ela representa: aplicar o equivalente manual (revisão de design, acabamento visual, **comentário de encerramento com as três seções**) e registrar na PR.
 
 skill global: C:\Users\rodri\.claude\skills
 
@@ -151,7 +141,7 @@ Só vale enquanto houver código a indexar; com o repo só em documentação, le
 - `docs/CI-PR.md`— Documento política de PR rápida: jobs paralelos, gate único, medição de duração e limites. Melhores praticas do GitHub
 - `docs/STATUS.md` — Kanban/roadmap deste projeto + **Índice Fatia ↔ SPEC** (fonte única da numeração). Prosa curta, sem detalhe.
 - `docs/STATUS-ARQUIVO.md` — Documento histórico detalhado que complementa o STATUS.md: prosa longa mora aqui, com detalhe.
-- `docs/APRENDIZADOS.md` — Consolidação da seção **Aprendizado** dos comentários de encerramento, mantida pelo Cowork. Curto, com teto e regra de promoção: leitura obrigatória do Code no passo 1 de todo card.
+- `docs/APRENDIZADOS.md` — Consolidação da seção **Aprendizado** dos comentários de encerramento, mantida pelo Cowork. Curto, com teto e regra de promoção: leitura obrigatória do Codex no passo 1 de todo card.
 - `docs/LANDSCAPE.md` — Documento cenário competitivo datado: o que o mercado já faz, o que morreu por causa disso, e os gatilhos que obrigam a revisar. Evita reconstruir o que já existe de graça.
 - `docs/FORA-DE-ESCOPO.md` — Fonte única dos itens adiados ou excluídos por MVP, com motivo, destino e gatilho de retorno; mantido pelo Cowork e sem substituir backlog ou status remoto.
 - `docs/prd/mvp/README.md` — Regra de governança dos MVPs: fatiamento não reduz escopo, matriz obrigatória, registro de fora de escopo e régua Curto/Médio/Grande/Enorme. Ler antes de criar ou alterar MVP/SPEC.
@@ -167,7 +157,7 @@ Só vale enquanto houver código a indexar; com o repo só em documentação, le
 - `docs/telas/DESIGN-ESCURO.md` Documentos de direção para criar as telas da verdade do projeto.
 - `docs/prd/PRD.md` Documentos de requisito da verdade do projeto.
 - `docs/prd/mvp/` Documentos de MVPs (épicos) com checklist das fatias previstas.
-- `docs/prd/mvp/plans/` — Documentos de planos de implementação por slice. São **material de apoio do Code**, não contrato: onde divergirem do PRD, o PRD vence.
+- `docs/prd/mvp/plans/` — Documentos de planos de implementação por slice. São **material de apoio do Codex**, não contrato: onde divergirem do PRD, o PRD vence.
 - `docs/prd/mvp/spec/` — Documentos de especificação por slice. São **material de apoio do Code**, não contrato: onde divergirem do PRD, o PRD vence.
 - `docs/prd/historico/` — Documentos superados (backlog e arquitetura originais, brief de design). Referência histórica; **não é contrato**.
 
