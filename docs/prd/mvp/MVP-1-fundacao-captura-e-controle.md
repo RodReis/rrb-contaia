@@ -1,14 +1,14 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · #1 `[INFRA]` e #2 F1/SPEC-001 em `proplan:todo`
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 aprovada · F2/SPEC-002 em revisão final · F3/SPEC-003 e F4/SPEC-004 planejadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
-> **Ambiente:** Docker local, sem produção e sem dados, certificados ou credenciais reais ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
+> **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
 ## 1. Objetivo
 
 Entregar a primeira operação observável do ContaIA para um escritório contábil: autenticar, cadastrar escritório e empresas, controlar carteira e isolamento, importar a base inicial, capturar e triar documentos fiscais, acompanhar obrigações mínimas e priorizar empresas pelo semáforo operacional.
 
-O MVP prova o comportamento com seeds, fixtures anonimizadas, dublês e, quando aplicável, ambientes oficiais de homologação acessados a partir do Docker local. Não prova operação produtiva nem validação comercial real.
+O MVP prova o comportamento em Docker local com os dados, seeds, fixtures, dublês e integrações necessários. Não prova operação produtiva.
 
 ## 2. Usuários atendidos
 
@@ -28,8 +28,10 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 
 - [ ] `[INFRA]` Fundação local: monorepo, Docker, banco, Redis, Keycloak, storage local, serviços, CI e health checks — pré-requisito sem F/SPEC.
 - [ ] **F1 / SPEC-001:** autenticação OIDC, conclusão obrigatória e edição do cadastro do escritório.
+- [ ] **F2 / SPEC-002:** cadastro básico, consulta CNPJá, retomada e ativação da empresa cliente.
+- [ ] **F3 / SPEC-003:** manutenção da empresa cliente, múltiplos endereços, arquivamento e reativação.
+- [ ] **F4 / SPEC-004:** documentos da empresa, sino e Central de Pendências cadastrais.
 - [ ] Usuários, papéis e permissões.
-- [ ] Cadastro das empresas clientes.
 - [ ] Carteira do colaborador e isolamento por empresa.
 - [ ] RLS de dois níveis, incluindo provas negativas entre tenants e empresas.
 - [ ] Cofre local com certificados exclusivamente de teste.
@@ -83,4 +85,4 @@ O Agente de Captura e o Compliance inicial não são componentes isolados: entra
 
 ## 7. Fora deste MVP
 
-Apuração completa, guias, escrituração, SPED, financeiro, DP/eSocial, portal, mensageria ativa, Copiloto, billing, super-admin completo, produção e dados reais. Todos têm destino explícito nos MVPs seguintes ou no gate produtivo.
+Apuração completa, guias, escrituração, SPED, financeiro, DP/eSocial, portal, mensageria ativa, Copiloto, billing, super-admin completo e produção. Todos têm destino explícito nos MVPs seguintes ou no gate produtivo.

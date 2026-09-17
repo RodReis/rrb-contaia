@@ -135,7 +135,7 @@ Número global de cobertura é métrica ruim: premia testar o que é fácil. **C
 
 ## 6. Dados de teste
 
-- **Nenhum dado real de cliente.** CNPJ, CPF, chave de acesso e XML de fixture são **gerados ou anonimizados**, com DV válido.
+- **Dados reais estão previamente autorizados no ambiente local quando necessários.** Fixtures geradas ou anonimizadas continuam válidas quando forem suficientes para a prova.
 - Fixtures de XML ficam versionadas em `tests/fixtures/`, com a origem documentada (layout, versão, órgão).
 - Fábrica de dados (`factory`) por entidade, com padrão válido e sobrescrita por caso — nada de objeto literal copiado entre testes.
 - **"Agora" injetado**, nunca `new Date()` dentro da função testada (`CLAUDE.md`). Teste de prazo fiscal congela o relógio.

@@ -29,7 +29,7 @@ pnpm dev
 ```
 
 - **Autorizado a subir o Docker se estiver parado.** Na primeira vez, **criar instância nova com portas novas** — nunca reutilizar as portas já configuradas de outro projeto (`CLAUDE.md`).
-- **Nenhum certificado real, XML de cliente ou credencial de órgão no ambiente local.** Fixtures anonimizadas ([`TESTING.md`](TESTING.md) §6).
+- **No ambiente local, está previamente autorizado o uso de qualquer dado real necessário.** Produção continua fora dos MVPs 1–4 ([ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)).
 
 ### 1.3 Comandos
 

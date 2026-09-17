@@ -7,7 +7,7 @@
 
 ## 1. Objetivo
 
-Completar a administração SaaS, as evoluções fiscais e agentic aprovadas e preparar evidência técnica suficiente para abrir, depois do MVP-4, um gate separado de produção. Este MVP não publica o sistema nem usa cliente real.
+Completar a administração SaaS, as evoluções fiscais e agentic aprovadas e preparar evidência técnica suficiente para abrir, depois do MVP-4, um gate separado de produção. Este MVP não publica o sistema.
 
 Toda capacidade com tela entrega a interface final desde sua própria fatia, nos temas CLARO e ESCURO, seguindo [`../../FRONTEND.md`](../../FRONTEND.md) §20.1, [`../../DESIGN-SYSTEM.md`](../../DESIGN-SYSTEM.md), `docs/design-system/` e a tela correspondente em `docs/telas/`. `frontend-design` e `impeccable` são obrigatórias; acabamento visual não pode ser transferido para outro card ou MVP.
 

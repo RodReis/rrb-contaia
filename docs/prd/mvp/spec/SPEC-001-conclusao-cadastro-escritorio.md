@@ -222,7 +222,7 @@ Credencial real, nuvem, alta disponibilidade e comportamento produtivo são `not
 
 - Criar cadastro público ou convite nesta fatia.
 - Antecipar cadastro de empresa cliente, usuários adicionais ou super-admin.
-- Usar infraestrutura produtiva, credencial real ou dado real.
+- Usar infraestrutura produtiva; qualquer dado real necessário permanece restrito ao ambiente local já autorizado.
 - Representar o estado cadastral apenas no cliente.
 
 ## 12. Fora desta fatia e destino

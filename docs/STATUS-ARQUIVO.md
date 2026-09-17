@@ -7,7 +7,7 @@
 
 ## 17/09/2026 — Docker local até o último MVP
 
-**Decisão do PI.** Todo desenvolvimento, integração e homologação dos MVPs 1–4 permanece em Docker local, com seeds, fixtures anonimizadas, dublês e ambientes oficiais de homologação quando aplicável. Produção, piloto real, certificados reais e dados reais ficam para uma etapa própria, posterior ao MVP-4. A revisão formal passou o PRD para **v3.1**.
+**Decisão do PI.** Todo desenvolvimento, integração e homologação dos MVPs 1–4 permanece em Docker local. No ambiente local, está previamente autorizado o uso de qualquer dado real necessário. Produção fica para uma etapa própria, posterior ao MVP-4. A revisão formal passou o PRD para **v3.1**.
 
 **Consequência.** A ADR-012 substituiu a ADR-003 quanto a hospedagem e deploy. Vercel e Railway deixaram de ser destino decidido. KMS/HSM, região, storage, backup/restore, observabilidade, migração e rollback continuam obrigatórios, mas passam a compor o gate produtivo; não foram descartados.
 

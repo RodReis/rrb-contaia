@@ -3,7 +3,7 @@
 > **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · fatias/SPECs ainda não numeradas
 > **Base:** PRD v3.1 §§8, 9.2, 9.3, 10.6, 10.7 e 10.8
 > **Dependência:** MVP-2 finalizado
-> **Ambiente:** Docker local, sem produção nem dados reais ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
+> **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
 ## 1. Objetivo
 

@@ -128,6 +128,6 @@ Os quatro macroescopos foram aprovados pelo PI:
 - [`MVP-3-dp-portal-e-comunicacao.md`](MVP-3-dp-portal-e-comunicacao.md)
 - [`MVP-4-administracao-e-evolucao.md`](MVP-4-administracao-e-evolucao.md)
 
-As capacidades ainda não foram convertidas em fatias Curto/Médio nem receberam F/SPEC. O próximo número livre continua **F1 / SPEC-001**.
+O fatiamento do MVP-1 começou: F1/SPEC-001 e F2/SPEC-002 estão especificadas; F3/SPEC-003 e F4/SPEC-004 estão reservadas para os complementos aprovados do cadastro de empresas. As demais capacidades ainda aguardam decomposição.
 
-Próximo número livre: **F1 / SPEC-001**.
+Próximo número livre: **F5 / SPEC-005**.

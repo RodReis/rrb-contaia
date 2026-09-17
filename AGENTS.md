@@ -15,7 +15,7 @@
 - Privacidade e proteção de dados não pertencem ao contrato de produto nem ao PRD. `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` é um documento autônomo e **sem efeito sobre produto**: não referencia nem altera o PRD, não é citado por nenhuma SPEC, `CONVENTION.md` ou `ARCHITECTURE.md`, e não gera funcionalidade, fatia, critério comercial, controle técnico ou aceite de produto por conta própria. Cowork e Codex não inventam regra jurídica: dúvida material é encaminhada ao PI.
 - Ninguém cria regra de produto — nem Cowork, nem Code. Falta regra → pergunta ao PI (ver "O que bloqueia o Code").
 - Autorizado a subir o docker, se estiver off. Criar sempre um nova instancia na primeira vez, com novas portas, nunca usar as que já estão configurada no docker.
-- **Ambiente até o fim do MVP-4:** todo desenvolvimento, integração e homologação dos MVPs 1–4 roda em Docker local, com seeds, fixtures anonimizadas, dublês e, quando aplicável, ambientes oficiais de homologação acessados a partir do ambiente local. Não há deploy produtivo, piloto com empresa real, certificado real ou dado real durante esses MVPs. Produção é uma etapa própria, posterior ao último MVP, com gate e decisão de infraestrutura específicos.
+- **Ambiente até o fim do MVP-4:** todo desenvolvimento, integração e homologação dos MVPs 1–4 roda em Docker local, com seeds, fixtures, dublês e, quando aplicável, integrações externas acessadas a partir do ambiente local. No ambiente local, está previamente autorizado o uso de qualquer dado real necessário. Não há deploy produtivo durante esses MVPs. Produção é uma etapa própria, posterior ao último MVP, com gate e decisão de infraestrutura específicos.
 
 ## Unidade de trabalho: card = fatia
 

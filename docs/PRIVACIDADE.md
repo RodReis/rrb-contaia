@@ -45,6 +45,9 @@ Cada entrada contém:
 | PRIV-006 | MVP-4 · SPEC/Fatia ainda não alocadas | Transparência, revisão humana e avaliação de impacto para IA | Removido do PRD v3.1 durante o alinhamento documental de 17/09/2026 | Candidato sem efeito sobre produto | Pós-MVP-4 |
 | PRIV-007 | Transversal · SPEC/Fatia não aplicáveis | Conteúdo de dados de clientes em logs de aplicação e console do navegador | Removido dos contratos técnicos durante o alinhamento documental de 17/09/2026 | Candidato sem efeito sobre produto | Pós-MVP-4 |
 | PRIV-008 | MVP-1 · SPEC-001/F1 em especificação | CPF, e-mail e telefone do responsável técnico no cadastro do escritório | Decisão do PI durante a especificação da F1 em 17/09/2026 | Candidato sem efeito sobre produto | Pós-MVP-4 |
+| PRIV-009 | MVP-1 · SPEC-002/F2 em especificação | Telefone e e-mail públicos retornados por consulta de CNPJ e armazenados como contatos opcionais da empresa | Decisão do PI durante a especificação da F2 em 17/09/2026 | Candidato sem efeito sobre produto | Pós-MVP-4 |
+| PRIV-010 | MVP-1 · SPEC-002/F2 em especificação | Retorno da API de CNPJ pode conter dados de sócios e representantes que não são usados pelo produto | Documentação e resposta observada da CNPJá durante a especificação da F2 em 17/09/2026 | Candidato sem efeito sobre produto | Pós-MVP-4 |
+| PRIV-011 | MVP-1 · SPEC-004/F4 planejada | Arquivos enviados no cadastro da empresa podem conter dados pessoais ou documentos de terceiros | Decisão de incluir documentos durante a especificação iniciada na F2 em 17/09/2026; recorte transferido para F4 | Candidato sem efeito sobre produto | Pós-MVP-4 |
 
 ---
 

@@ -638,7 +638,7 @@ Observabilidade de agentes: tracing, custo por requisição e por tenant
 
 ## 16. Roadmap
 
-**Regra de ambiente aprovada pelo PI:** MVP-1, MVP-2, MVP-3 e MVP-4 são desenvolvidos e homologados integralmente em Docker local, com dados sintéticos/anonimizados e credenciais não produtivas. Não há deploy, piloto com empresa real, certificado real ou dado real durante esses MVPs. A **produção é uma etapa posterior ao MVP-4**, com gate próprio para hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração e rollback. Requisitos transferidos para esse gate continuam obrigatórios e não podem ser descartados pelo fatiamento.
+**Regra de ambiente aprovada pelo PI:** MVP-1, MVP-2, MVP-3 e MVP-4 são desenvolvidos e homologados integralmente em Docker local. No ambiente local, está previamente autorizado o uso de qualquer dado real necessário. Não há deploy produtivo durante esses MVPs. A **produção é uma etapa posterior ao MVP-4**, com gate próprio para hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração e rollback. Requisitos transferidos para esse gate continuam obrigatórios e não podem ser descartados pelo fatiamento.
 
 | Fase | Prazo | Entregas de produto | Agentes |
 |---|---|---|---|
