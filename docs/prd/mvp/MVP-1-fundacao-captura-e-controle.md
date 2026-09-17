@@ -18,6 +18,10 @@ O MVP prova o comportamento com seeds, fixtures anonimizadas, dublês e, quando 
 
 `cliente_portal`, DP e super-admin completo não entram neste MVP.
 
+## 2.1 Contrato transversal de UI
+
+Toda capacidade com tela entrega a interface final desde sua própria fatia, nos temas CLARO e ESCURO, seguindo [`../../FRONTEND.md`](../../FRONTEND.md) §20.1, [`../../DESIGN-SYSTEM.md`](../../DESIGN-SYSTEM.md), `docs/design-system/` e a tela correspondente em `docs/telas/`. `frontend-design` e `impeccable` são obrigatórias; acabamento visual não pode ser transferido para outro card ou MVP.
+
 ## 3. Capacidades aprovadas
 
 As capacidades abaixo são o checklist do épico. **Ainda não são fatias numeradas**: cada uma será decomposta em comportamento vertical Curto/Médio antes da reserva de F/SPEC. Itens grandes, como captura e dashboard, não podem virar card monolítico.

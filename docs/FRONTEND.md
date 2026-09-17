@@ -486,6 +486,32 @@ Além do aceite geral (`CLAUDE.md`: CI verde) e do aceite de design ([`DESIGN-SY
 
 Item não verificável no ambiente é **`not_run`** na PR, **nunca** `pass` (`CLAUDE.md`).
 
+### 20.1 Implementação fiel e acabamento obrigatório
+
+Esta regra vale para **toda fatia com UI do MVP-1 ao MVP-4, desde a primeira tela**. Não existe etapa posterior de “aplicar o design”. A própria fatia entrega comportamento, aparência e estados finais nos dois temas.
+
+**Ordem de leitura antes de implementar:**
+
+1. esta SPEC e a Slice do PRD;
+2. [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md), [`design-system/TOKENS.md`](design-system/TOKENS.md), [`COMPONENTS.md`](design-system/COMPONENTS.md), [`PATTERNS.md`](design-system/PATTERNS.md) e [`DEBITO.md`](design-system/DEBITO.md);
+3. este `FRONTEND.md`;
+4. [`telas/DESIGN-CLARO.md`](telas/DESIGN-CLARO.md) e [`telas/DESIGN-ESCURO.md`](telas/DESIGN-ESCURO.md);
+5. `code.html` e `screen.png` da tela correspondente em `docs/telas/`.
+
+**Fidelidade significa:** preservar conteúdo, ordem, hierarquia, densidade, tarefas e identidade reconhecível do protótipo; implementar os temas CLARO e ESCURO com os tokens normativos; e corrigir deliberadamente os defeitos registrados em `DEBITO.md`. Não significa copiar pixel a pixel HTML gerado, classe inválida, hardcode ou comportamento inacessível. Toda divergência visual não coberta pelos documentos precisa ser justificada na PR ou decidida pelo PI quando mudar produto.
+
+**Protocolo obrigatório da fatia:**
+
+1. Usar a skill `frontend-design` antes e durante a implementação para transformar o contrato e o protótipo em interface final de modo **Operate**. A skill não autoriza trocar paleta, tipografia, componentes, direção ou conteúdo já aprovados; o brief e este repositório vencem preferências genéricas da skill.
+2. Construir o shell, componentes, estados e responsividade finais na própria fatia. É proibido entregar wireframe, tela sem tema, shadcn-default genérico ou “funcional primeiro, visual depois”.
+3. Comparar a implementação renderizada com `screen.png`/`code.html` e com os contratos normativos, nos dois temas e em 768, 1024 e 1440 px.
+4. Verificar caminho real com mouse e teclado: carregando, vazio, erro, sucesso, disabled, permissão insuficiente, conteúdo longo e ausência de conteúdo quando aplicável.
+5. Depois de funcionalmente completa, usar a skill `impeccable` para um passe de acabamento: inspecionar desktop e mobile juntos, classificar defeitos, corrigir tudo em um único lote e fazer no máximo uma rodada de confirmação. Polimento preserva identidade, conteúdo e comportamento; não é redesign oculto.
+6. Quando não houver hook automático do `impeccable`, executar uma vez o detector mecânico sobre os alvos alterados após o acabamento; detector limpo não substitui inspeção visual.
+7. Anexar à PR as provas antes/depois ou protótipo/implementação, claro/escuro, viewports verificadas, estados cobertos, achados corrigidos e exceções intencionais estreitas.
+
+**Falha em qualquer etapa acima impede considerar a UI entregue**, mesmo com testes e CI verdes.
+
 ---
 
 ## 21. Proibido

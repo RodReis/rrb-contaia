@@ -98,6 +98,11 @@ Além do aceite geral de `CLAUDE.md` (CI verde), toda fatia de UI prova:
 - [ ] **Componente novo** registrado em [COMPONENTS.md](design-system/COMPONENTS.md) na mesma PR
 - [ ] **Responsivo** em 768 / 1024 / 1440
 - [ ] **Semáforo fiscal** com rótulo textual, não só cor
+- [ ] **Tela final desde a primeira fatia**, sem wireframe, shadcn-default genérico ou dívida visual deliberadamente empurrada para depois
+- [ ] **Fidelidade comprovada ao protótipo correspondente** em conteúdo, fluxo, hierarquia e densidade, corrigindo as divergências catalogadas em `DEBITO.md`
+- [ ] **`frontend-design` aplicada** dentro da direção visual existente; não como autorização para redesign
+- [ ] **`impeccable` aplicada após a conclusão funcional**, com inspeção conjunta de desktop/mobile, correção em lote e no máximo uma confirmação final
+- [ ] **Evidência comparativa** nos temas CLARO e ESCURO e nos viewports exigidos por `FRONTEND.md` §20.1
 
 ### Quando aplicável
 

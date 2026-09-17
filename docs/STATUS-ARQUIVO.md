@@ -13,6 +13,8 @@
 
 **MVPs criados.** O PI aprovou os macroescopos dos MVPs 1–4. Eles foram registrados em `docs/prd/mvp/` com reconciliação item a item e sem reservar F/SPEC prematuramente. A próxima rodada decompõe cada capacidade grande em fatias Curto/Médio, começando em F1/SPEC-001.
 
+**UI desde o início.** O PI tornou obrigatório, em toda fatia com interface dos MVPs 1–4, entregar a tela final nos temas CLARO e ESCURO, fiel ao conteúdo/fluxo/hierarquia dos protótipos e aos contratos normativos de frontend/design system. `frontend-design` passa a ser obrigatória na implementação e `impeccable` no acabamento/refino; dívida visual deliberada não pode ser empurrada para card ou MVP posterior.
+
 ---
 
 ## 17/09/2026 — Contratos de engenharia escritos

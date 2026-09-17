@@ -124,11 +124,13 @@ Tudo o mais — nome de campo, ordem de implementação interna, estrutura de pa
 - Proibido `any` implícito; `unknown` antes de validar dado externo; proibido float para dinheiro.
 - Erro de domínio tem código estável; resposta HTTP segue `application/problem+json` com `type`, `title`, `status`, `code`, `correlationId`.
 - Frontend web segue `docs/FRONTEND.md` (contrato de engenharia da interface, UX e UI): máscara e validação em Date, valores R$, CPF, CNPJ, telefone e e-mail; mensagem ao usuário via Toast (Sonner), nunca `alert`; CRUD com confirmação e arquivamento em vez de exclusão física.
+- **UI desde a primeira fatia, do MVP-1 ao MVP-4:** toda fatia com interface implementa a tela final nos temas CLARO e ESCURO; é proibido entregar wireframe, shell genérico, shadcn-default ou “funcional agora, visual depois”. Conteúdo, fluxo e hierarquia partem da tela correspondente em `docs/telas/`; aparência e comportamento obedecem `docs/DESIGN-SYSTEM.md`, `docs/design-system/` e `docs/FRONTEND.md`, que vencem defeitos conhecidos do protótipo.
+- **Skills obrigatórias em toda fatia com UI:** `frontend-design` antes e durante a implementação, preservando a direção visual já aprovada, e `impeccable` ao final para acabamento/refino. A PR precisa provar o ciclo de comparação com o protótipo, ambos os temas, responsividade, estados, acessibilidade e o passe final de polimento definido em `docs/FRONTEND.md` §20.1. Ausência da skill no ambiente exige aplicar e registrar o protocolo equivalente; não autoriza pular a disciplina.
 
 ## Skills do Code — na ordem de um card
 
 `superpowers:using-git-worktrees` → `superpowers:writing-plans` / `executing-plans` (a Slice do PRD **é** o design; `brainstorming` só quando cair num caso de bloqueio ou em `[FIX]` sem causa clara) → `superpowers:test-driven-development` em feature crítica (isolamento de tenant, decisão de acesso, idempotência financeira) → `engineering:code-review` em toda tarefa → `gstack:qa` → `superpowers:finishing-a-development-branch` → `fechar-card` (encerramento na issue, antes de `proplan:done`).
-Quando a tarefa tem UI: `document-skills:frontend-design` (não cair no shadcn-default genérico), `gstack:design-review`, `impeccable`. Documentação de biblioteca: `context7`. Mobile: `expo`. Smoke ao vivo: Playwright.
+Quando a tarefa tem UI: `frontend-design` (**obrigatória**, sem substituir a direção já fixada), `gstack:design-review`, `impeccable` (**obrigatória para acabamento/refino**) e smoke ao vivo com Playwright. Documentação de biblioteca: `context7`. Mobile: `expo`.
 
 `gstack:*`, `fechar-card` e `impeccable` estão instalados globalmente na máquina do PI (Windows) — o Code os usa normalmente lá. Em qualquer ambiente onde uma dessas skills não exista, isso não é desculpa para pular a disciplina que ela representa: aplicar o equivalente manual (revisão de design, acabamento visual, **comentário de encerramento com as três seções**) e registrar na PR.
 

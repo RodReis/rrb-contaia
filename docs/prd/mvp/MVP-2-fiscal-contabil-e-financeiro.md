@@ -9,6 +9,8 @@
 
 Transformar os documentos e cadastros do MVP-1 em operação fiscal, contábil e financeira determinística: apurar, escriturar, fechar competências, administrar títulos, conciliar transações e detectar inconsistências antes do fechamento.
 
+Toda capacidade com tela entrega a interface final desde sua própria fatia, nos temas CLARO e ESCURO, seguindo [`../../FRONTEND.md`](../../FRONTEND.md) §20.1, [`../../DESIGN-SYSTEM.md`](../../DESIGN-SYSTEM.md), `docs/design-system/` e a tela correspondente em `docs/telas/`. `frontend-design` e `impeccable` são obrigatórias; acabamento visual não pode ser transferido para outro card ou MVP.
+
 ## 2. Capacidades aprovadas
 
 Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reserva de F/SPEC. Nenhum item grande abaixo autoriza uma única issue monolítica.

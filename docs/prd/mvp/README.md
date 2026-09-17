@@ -75,6 +75,7 @@ Uma fatia entrega **comportamento verificável de ponta a ponta**, não uma cama
 5. **Fora de escopo desta fatia**, explícito.
 6. **Dúvidas resolvidas** — a spec só fecha com todas respondidas pelo PI.
 7. **Destino do complemento** — toda redução, versão mínima ou entrega parcial aponta o MVP/fatia que recebe o restante; nada fica apenas como “depois”.
+8. **Contrato de UI**, quando aplicável — tela de referência em `docs/telas/`, estados, temas CLARO/ESCURO, viewports e provas exigidas por [`../../FRONTEND.md`](../../FRONTEND.md) §20.1; `frontend-design` e `impeccable` são obrigatórias na implementação.
 
 **O Cowork apresenta as dúvidas ao PI em perguntas objetivas antes de fechar a spec**, e só cria a issue com tudo resolvido (`CLAUDE.md`). Spec que nasce com pergunta aberta vira retrabalho na implementação.
 
@@ -114,6 +115,7 @@ Um MVP fecha quando, **cumulativamente**:
 - [ ] a matriz de [`RASTREABILIDADE.md`](RASTREABILIDADE.md) não tem requisito sem destino;
 - [ ] os aprendizados foram consolidados em [`../../APRENDIZADOS.md`](../../APRENDIZADOS.md);
 - [ ] [`../../STATUS.md`](../../STATUS.md) e [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) refletem o estado real.
+- [ ] todas as fatias com UI comprovaram fidelidade, os dois temas e acabamento pelo protocolo de [`../../FRONTEND.md`](../../FRONTEND.md) §20.1 — dívida visual não é empurrada para o MVP seguinte.
 
 ---
 

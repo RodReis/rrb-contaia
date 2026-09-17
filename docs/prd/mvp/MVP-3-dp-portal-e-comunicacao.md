@@ -9,6 +9,8 @@
 
 Completar a operação trabalhista, abrir uma superfície segura para a empresa cliente e transformar pendências internas em comunicação ativa e rastreável, preservando decisão humana em toda ação com efeito jurídico.
 
+Toda capacidade com tela entrega a interface final desde sua própria fatia, nos temas CLARO e ESCURO, seguindo [`../../FRONTEND.md`](../../FRONTEND.md) §20.1, [`../../DESIGN-SYSTEM.md`](../../DESIGN-SYSTEM.md), `docs/design-system/` e a tela correspondente em `docs/telas/`. `frontend-design` e `impeccable` são obrigatórias; acabamento visual não pode ser transferido para outro card ou MVP.
+
 ## 2. Capacidades aprovadas
 
 - [ ] Cadastro de empregados, cargos, salários e dependentes.

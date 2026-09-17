@@ -630,6 +630,8 @@ Observabilidade de agentes: tracing, custo por requisição e por tenant
 
 ## 15. UX — Fluxos Principais
 
+**Contrato de entrega da interface:** do MVP-1 ao MVP-4, cada fatia com UI entrega a tela final desde o início, nos temas CLARO e ESCURO. Conteúdo, fluxo e hierarquia seguem as referências de `docs/telas/`; aparência, componentes, tokens, estados, responsividade e acessibilidade seguem `docs/DESIGN-SYSTEM.md`, `docs/design-system/` e `docs/FRONTEND.md`, que corrigem os defeitos catalogados dos protótipos. Não existe etapa posterior de “aplicar o design”. A implementação usa obrigatoriamente `frontend-design`, sem substituir a direção aprovada, e `impeccable` para acabamento e refino antes do aceite.
+
 1. **Onboarding de cliente** — cadastrar CNPJ → vincular certificado A1 ou procuração RFB/e-CAC → importar plano de contas e cadastro de empregados via CSV → primeiro pull de DF-e, até 90 dias retroativos, respeitando o controle de NSU → triagem inicial assistida.
 2. **Dia a dia do contador** — abrir dashboard → resolver alertas priorizados → aprovar manifestações e sugestões do agente → fechar as guias do dia.
 3. **Fechamento fiscal mensal** — malha preventiva cruza SPED × DF-e × extrato → agente gera rascunhos de apuração → contador revisa → transmite → dashboard atualiza o semáforo.

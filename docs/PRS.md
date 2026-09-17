@@ -32,6 +32,16 @@ O que estava errado ou faltando, em uma ou duas frases.
 ## Antes / depois
 Comportamento observável antes e depois. Para UI, screenshot nos dois temas.
 
+## Prova de UI (quando aplicável)
+- tela de referência em `docs/telas/`
+- comparação protótipo × implementação
+- temas CLARO e ESCURO
+- viewports 768 / 1024 / 1440
+- estados exercitados
+- `frontend-design`: aplicada
+- `impeccable`: passe de acabamento aplicado
+- divergências intencionais e origem em `DEBITO.md`
+
 ## Escopo e limites
 O que esta PR faz e o que deliberadamente não faz.
 
@@ -93,9 +103,9 @@ O fluxo é solo: **o autor é o revisor**, e por isso a revisão é mais rígida
 - CI incompleta, vermelha ou de SHA anterior;
 - base não reconciliada.
 
-**Não bloqueiam por si:** preferência de estilo (é trabalho do Prettier), ausência de documento opcional, ausência de skill opcional no ambiente.
+**Não bloqueiam por si:** preferência de estilo (é trabalho do Prettier), ausência de documento opcional ou de skill realmente opcional. Em fatia com UI, `frontend-design`, `impeccable` e o protocolo equivalente de [`FRONTEND.md`](FRONTEND.md) §20.1 são obrigatórios; indisponibilidade da skill não dispensa sua disciplina nem a evidência.
 
-**UI e fluxo crítico** incluem screenshot ou E2E declarando estado, viewport e ambiente — nos dois temas ([`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) §6).
+**UI e fluxo crítico** incluem screenshot ou E2E declarando estado, viewport e ambiente — nos dois temas —, comparação com o protótipo correspondente e evidência do acabamento ([`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) §6; [`FRONTEND.md`](FRONTEND.md) §20.1).
 
 ---
 
