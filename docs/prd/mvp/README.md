@@ -17,6 +17,12 @@
 
 **Requisito que não aparece em nenhum dos quatro sumiu por descuido.** É isso que a matriz de [`RASTREABILIDADE.md`](RASTREABILIDADE.md) existe para impedir: **ausência na matriz bloqueia aprovação documental.**
 
+### 1.1 Escolha mínima não descarta o complemento
+
+Quando o PI escolhe uma alternativa mínima, menor ou recomendada para um MVP, essa escolha define **o que entra agora**, não autoriza apagar o restante do requisito. Todo complemento precisa aparecer nominalmente como **transferido** para outro MVP ou como **adiado/excluído** em [`../../FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md), sempre com destino e gatilho.
+
+Cada documento de MVP e cada SPEC reconciliam o escopo item a item com um destes estados: **entrou**, **entrou parcialmente**, **transferido** ou **adiado/excluído**. Item marcado como “entrou parcialmente” declara obrigatoriamente qual complemento falta e em qual MVP/fatia ele será tratado. “Fora desta fatia” sem destino explícito é inválido.
+
 ---
 
 ## 2. Estrutura
@@ -68,6 +74,7 @@ Uma fatia entrega **comportamento verificável de ponta a ponta**, não uma cama
 4. **Invariantes tocados** ([`../../CONVENTION.md`](../../CONVENTION.md) §2).
 5. **Fora de escopo desta fatia**, explícito.
 6. **Dúvidas resolvidas** — a spec só fecha com todas respondidas pelo PI.
+7. **Destino do complemento** — toda redução, versão mínima ou entrega parcial aponta o MVP/fatia que recebe o restante; nada fica apenas como “depois”.
 
 **O Cowork apresenta as dúvidas ao PI em perguntas objetivas antes de fechar a spec**, e só cria a issue com tudo resolvido (`CLAUDE.md`). Spec que nasce com pergunta aberta vira retrabalho na implementação.
 
@@ -112,6 +119,13 @@ Um MVP fecha quando, **cumulativamente**:
 
 ## 8. Estado atual
 
-**Nenhum MVP fatiado ainda.** O PRD v3.0 está aprovado e os contratos técnicos escritos; o fatiamento é a próxima rodada do Cowork.
+Os quatro macroescopos foram aprovados pelo PI:
+
+- [`MVP-1-fundacao-captura-e-controle.md`](MVP-1-fundacao-captura-e-controle.md)
+- [`MVP-2-fiscal-contabil-e-financeiro.md`](MVP-2-fiscal-contabil-e-financeiro.md)
+- [`MVP-3-dp-portal-e-comunicacao.md`](MVP-3-dp-portal-e-comunicacao.md)
+- [`MVP-4-administracao-e-evolucao.md`](MVP-4-administracao-e-evolucao.md)
+
+As capacidades ainda não foram convertidas em fatias Curto/Médio nem receberam F/SPEC. O próximo número livre continua **F1 / SPEC-001**.
 
 Próximo número livre: **F1 / SPEC-001**.

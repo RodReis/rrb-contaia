@@ -4,7 +4,7 @@
 | Campo | Valor |
 |---|---|
 | **Documento** | PRD — Fonte de Verdade do Produto |
-| **Versão** | 3.0 |
+| **Versão** | 3.1 |
 | **Status** | Aprovado para desenvolvimento |
 | **Data** | 16/09/2026 |
 | **Owner** | Produto |
@@ -640,12 +640,15 @@ Observabilidade de agentes: tracing, custo por requisição e por tenant
 
 ## 16. Roadmap
 
+**Regra de ambiente aprovada pelo PI:** MVP, Fase 2, Fase 3 e Fase 4 são desenvolvidos e homologados integralmente em Docker local, com dados sintéticos/anonimizados e credenciais não produtivas. Não há deploy, piloto com empresa real, certificado real ou dado real durante essas fases. A **produção é uma etapa posterior à Fase 4**, com gate próprio para hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração e rollback. Requisitos transferidos para esse gate continuam obrigatórios e não podem ser descartados pelo fatiamento.
+
 | Fase | Prazo | Entregas de produto | Agentes |
 |---|---|---|---|
 | **MVP** | 3–4 meses | RF-01 completo — multi-tenancy de dois níveis, RLS, cofre A1, Signer, importação de plano de contas e empregados · RF-02 — captura DF-e com fila por NSU, parse com campos IBS/CBS, ciência automática e inbox de aprovação para as demais manifestações · RF-06 — dashboard com semáforo de pendências por CNPJ | Captura (ciência automática e sugestão para os demais tipos) · Compliance (alertas de vencimento) |
 | **Fase 2** | +3 meses | RF-03 completo — motor de regras versionado, apurações, guias, escrituração contábil e ECD · RF-04 — Open Finance, ITP, conciliação assistida, Pix, contas a pagar e receber · Malha fiscal preventiva contínua | Classificador · Conciliador · Compliance completo, com rascunhos de entrega |
 | **Fase 3** | +4 meses | RF-05 — DP e eSocial · Portal do cliente white-label · Canal ativo WhatsApp | DP · Copiloto Contábil · Coletor Ativo |
 | **Fase 4** | contínuo | RF-08 completo — billing, planos e preço · Motor completo de IBS/CBS · API pública · Marketplace · Certificações SOC 2 e ISO 27001 | Multi-agente colaborativo (Captura → Classificador → Conciliador) · Predição de fluxo de caixa e obrigações |
+| **Produção** | após a Fase 4 | Infraestrutura produtiva, KMS/HSM, região, object storage, backup/restore, observabilidade, migração, rollback e piloto controlado com dados reais | Validação operacional dos agentes e métricas reais |
 
 ---
 
@@ -1086,4 +1089,4 @@ Os cortes de 0,90 e 0,60 são valores iniciais, revisados trimestralmente com ba
 
 ---
 
-*ContaIA — PRD versão 3.0, 16/09/2026. Alterações somente mediante revisão formal.*
+*ContaIA — PRD versão 3.1, 17/09/2026. Alterações somente mediante revisão formal.*

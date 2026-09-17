@@ -22,12 +22,12 @@ Tudo abaixo existe para sustentar estes cinco. Proposta que os enfraquece é rej
 
 ```
                     ┌──────────────────────────────┐
-  Contador ────────▶│  Web — Next.js (Vercel)      │
+  Contador ────────▶│  Web — Next.js               │
   Cliente  ────────▶│  shell standard | portal      │
                     └───────────────┬──────────────┘
                                     │ HTTPS · cookie httpOnly
                     ┌───────────────▼──────────────┐      ┌──────────────┐
-                    │  API — NestJS (Railway)      │◀────▶│  Keycloak    │
+                    │  API — NestJS                │◀────▶│  Keycloak    │
                     │  Fiscal│Contábil│Financeiro  │ OIDC │  (OIDC/RBAC) │
                     │  DP│Admin│Agentes            │      └──────────────┘
                     └──┬──────────┬─────────┬──────┘
@@ -61,7 +61,7 @@ Tudo abaixo existe para sustentar estes cinco. Proposta que os enfraquece é rej
                                        └──────────────────────────┘
 ```
 
-**Ambientes:** Docker Compose local (desenvolvimento) · Vercel (web) e Railway (API, workers, Postgres, Redis) em nuvem ([ADR-003](adr/ADR-003-hospedagem-e-deploy.md)).
+**Ambientes:** do MVP-1 ao MVP-4, toda a topologia roda em Docker Compose local, numa instância nova e com portas próprias. Ambientes oficiais de homologação podem ser acessados pelos conectores locais com credenciais não produtivas. Hospedagem e deploy produtivos só são decididos na etapa posterior ao MVP-4 ([ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)).
 
 ---
 
@@ -169,7 +169,7 @@ SET LOCAL app.empresa_id = '<uuid>';
 
 **Nenhum outro serviço lê o certificado.** Nem a API, nem os workers, nem o front, nem o pipeline de IA.
 
-> **Risco aberto, registrado em [ADR-003](adr/ADR-003-hospedagem-e-deploy.md):** Railway não oferece KMS/HSM gerenciado. No MVP o cofre roda como serviço próprio em rede privada com chave mestra em segredo de ambiente. **Requisito de HSM/KMS dedicado é revisto na Fase 2**, antes de escala de base.
+> **Limite dos MVPs, registrado em [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md):** o cofre e o Signer são implementados e provados localmente apenas com material criptográfico de teste. KMS/HSM, segredo real, região e isolamento da rede produtiva são gate obrigatório da etapa de produção, depois do MVP-4 e antes de qualquer piloto real.
 
 ---
 

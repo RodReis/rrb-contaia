@@ -5,6 +5,16 @@
 
 ---
 
+## 17/09/2026 — Docker local até o último MVP
+
+**Decisão do PI.** Todo desenvolvimento, integração e homologação dos MVPs 1–4 permanece em Docker local, com seeds, fixtures anonimizadas, dublês e ambientes oficiais de homologação quando aplicável. Produção, piloto real, certificados reais e dados reais ficam para uma etapa própria, posterior ao MVP-4. A revisão formal passou o PRD para **v3.1**.
+
+**Consequência.** A ADR-012 substituiu a ADR-003 quanto a hospedagem e deploy. Vercel e Railway deixaram de ser destino decidido. KMS/HSM, região, storage, backup/restore, observabilidade, migração e rollback continuam obrigatórios, mas passam a compor o gate produtivo; não foram descartados.
+
+**MVPs criados.** O PI aprovou os macroescopos dos MVPs 1–4. Eles foram registrados em `docs/prd/mvp/` com reconciliação item a item e sem reservar F/SPEC prematuramente. A próxima rodada decompõe cada capacidade grande em fatias Curto/Médio, começando em F1/SPEC-001.
+
+---
+
 ## 17/09/2026 — Contratos de engenharia escritos
 
 **O que aconteceu.** Com o PRD v3.0 aprovado e o design system já escrito, faltava toda a camada de contrato técnico: o repositório tinha PRD, design system e protótipo, mas nenhuma definição de arquitetura, domínio, frontend, git, CI, teste ou revisão. O `CLAUDE.md` listava esses documentos como se existissem.

@@ -11,7 +11,7 @@
 |---|---|---|---|
 | [ADR-001](adr/ADR-001-monorepo.md) | Monorepo pnpm + Turborepo | Aceita | 17/09/2026 |
 | [ADR-002](adr/ADR-002-stack-frontend.md) | Next.js 16 · React 19 · Tailwind v4 · shadcn · TanStack · RHF+Zod · Zustand | Aceita | 17/09/2026 |
-| [ADR-003](adr/ADR-003-hospedagem-e-deploy.md) | Vercel (web) + Railway (back) + Docker local | Aceita, **com risco aberto** | 17/09/2026 |
+| [ADR-003](adr/ADR-003-hospedagem-e-deploy.md) | Vercel (web) + Railway (back) + Docker local | **Substituída por ADR-012** | 17/09/2026 |
 | [ADR-004](adr/ADR-004-acesso-a-dados-e-rls.md) | Drizzle ORM + RLS de dois níveis por `SET LOCAL` | Aceita | 17/09/2026 |
 | [ADR-005](adr/ADR-005-representacao-de-dinheiro.md) | Dinheiro em `BIGINT` de centavos | Aceita | 17/09/2026 |
 | [ADR-006](adr/ADR-006-mascaras-e-validacao-br.md) | `react-imask` + validadores BR próprios em Zod | Aceita | 17/09/2026 |
@@ -20,6 +20,7 @@
 | [ADR-009](adr/ADR-009-ci-runner-e-merge-queue.md) | Runner GitHub-hosted, sem merge queue | Aceita | 17/09/2026 |
 | [ADR-010](adr/ADR-010-vector-db.md) | pgvector no PostgreSQL do produto | Aceita | 17/09/2026 |
 | [ADR-011](adr/ADR-011-autenticacao.md) | Keycloak self-hosted (OIDC); carteira é dado de produto | Aceita | 17/09/2026 |
+| [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) | Docker local até o MVP-4; produção em etapa posterior | Aceita | 17/09/2026 |
 
 ---
 
@@ -67,7 +68,7 @@ Escreve-se ADR quando a decisão:
 
 | Assunto | Quando revisar | Gatilho |
 |---|---|---|
-| Cofre de certificado sem KMS/HSM gerenciado ([ADR-003](adr/ADR-003-hospedagem-e-deploy.md)) | **Fase 2, antes de escala de base** | requisito do PRD §4.5 não cumprido integralmente |
+| Hospedagem, KMS/HSM e operação produtiva ([ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)) | **etapa de produção, após o MVP-4 e antes de qualquer piloto real** | decisão do PI; requisitos produtivos não foram descartados |
 | Merge queue ([ADR-009](adr/ADR-009-ci-runner-e-merge-queue.md)) | quando houver autor concorrente | fila de PRs esperando gate |
 | Vector DB dedicado ([ADR-010](adr/ADR-010-vector-db.md)) | quando a latência de busca vetorial competir com a carga transacional | medição, não impressão |
 | Thresholds de score (0,50 / 0,60 / 0,85 / 0,90) | trimestralmente | PRD §10.1 — dado de produção |

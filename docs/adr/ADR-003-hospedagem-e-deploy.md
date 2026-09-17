@@ -1,6 +1,6 @@
 # ADR-003 — Hospedagem e deploy
 
-- **Status:** Aceita, **com risco aberto** · **Data:** 17/09/2026 · **Decisor:** PI
+- **Status:** Substituída por ADR-012 · **Data:** 17/09/2026 · **Decisor:** PI
 
 ## Contexto
 O PRD exige cofre de certificados com KMS/HSM, Signer em rede privada, RPO ≤ 1h / RTO ≤ 4h e retenção de XML por 5 anos (§§4.5 e 12). O projeto é solo e precisa de operação barata no MVP.

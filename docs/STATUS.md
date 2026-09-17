@@ -14,11 +14,12 @@ Fase de **documentação e contratos**. Não há código de aplicação no repos
 
 | Frente | Situação |
 |---|---|
-| PRD v3.0 | aprovado para desenvolvimento |
+| PRD v3.1 | aprovado para desenvolvimento |
 | Design system | escrito (tokens, componentes, patterns, débito) |
 | Contratos de engenharia | escritos: arquitetura, domínio, frontend, git, PR, CI, teste, revisão, auditoria |
-| Decisões | ADR-001 a ADR-011 aceitas |
-| Fatiamento MVP/SPEC | **não iniciado** — próxima rodada do Cowork |
+| Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
+| MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
+| Fatias/SPECs | não numeradas — próxima rodada do Cowork |
 | Código | não iniciado |
 
 ---
@@ -54,10 +55,11 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 
 | Fase | Entregas | Situação |
 |---|---|---|
-| **MVP** | RF-01 completo · RF-02 (captura DF-e, NSU, ciência automática, inbox) · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance | não iniciado |
-| **Fase 2** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador e Conciliador | não iniciado |
-| **Fase 3** | RF-05 (DP/eSocial) · portal white-label · canal WhatsApp · Copiloto · Coletor | não iniciado |
-| **Fase 4** | RF-08 completo · IBS/CBS completo · API pública · certificações | não iniciado |
+| **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | RF-01 completo · RF-02 (captura DF-e, NSU, ciência automática, inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | macroescopo aprovado; fatias pendentes |
+| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | macroescopo aprovado; fatias pendentes |
+| **[MVP-3](prd/mvp/MVP-3-dp-portal-e-comunicacao.md)** | RF-05 (DP/eSocial) · portal white-label · canal ativo · Copiloto · Coletor | macroescopo aprovado; fatias pendentes |
+| **[MVP-4](prd/mvp/MVP-4-administracao-e-evolucao.md)** | RF-08 completo · IBS/CBS completo · API pública · Marketplace · colaboração multiagente · preparação para certificações | macroescopo aprovado; API e Marketplace têm decisões pendentes |
+| **Produção** | hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração, rollback e piloto real | somente após o MVP-4 |
 
 ---
 
@@ -67,7 +69,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 |---|---|---|---|
 | **P-01** | Biblioteca e tipos de gráfico | Dashboard, Relatórios | **resolvida** — [ADR-007](adr/ADR-007-graficos.md) |
 | **P-02** | Colapso de tabela em mobile: colunas sobreviventes e ação de linha | primeira fatia com tabela que precise de mobile real | **aberta** |
-| **R-01** | Cofre de certificado sem KMS/HSM gerenciado no MVP (PRD §4.5 não cumprido integralmente) | nenhuma fatia; revisão obrigatória na Fase 2 | **aberta** — [ADR-003](adr/ADR-003-hospedagem-e-deploy.md) |
+| **R-01** | Infraestrutura produtiva com KMS/HSM ainda não definida | nenhuma fatia dos MVPs; bloqueia produção e piloto real após o MVP-4 | **transferida para o gate produtivo** — [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) |
 
 ---
 

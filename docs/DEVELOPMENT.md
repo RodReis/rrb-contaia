@@ -7,6 +7,8 @@
 
 ## 1. Ambiente
 
+Do MVP-1 ao MVP-4, existe somente o ambiente Docker local definido na [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md). Build, CI e homologação não publicam aplicação. Produção, piloto real e infraestrutura de nuvem são uma etapa posterior ao último MVP.
+
 ### 1.1 Requisitos
 
 | Item | Versão |

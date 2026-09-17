@@ -30,15 +30,15 @@ Não são "depois": são **não-objetivos declarados**.
 
 | Item | Motivo | Destino | Gatilho |
 |---|---|---|---|
-| Billing, planos e preço (RF-08) | Não é pré-requisito para provar o produto; onboarding do MVP é assistido | **Fase 4** | Primeiro cliente pagante fora do círculo de validação |
+| Billing, planos e preço (RF-08) | Não é pré-requisito para os MVPs anteriores | **MVP-4** | MVP-3 finalizado |
 | Escrituração completa, SPED Fiscal e ECD (RF-03) | Depende do motor de regras e do razão estabilizados | **Fase 2** | MVP homologado |
 | Open Finance, ITP, Pix, conciliação (RF-04) | Depende de lançamento contábil existindo | **Fase 2** | idem |
 | Departamento pessoal e eSocial (RF-05) | Domínio inteiro, com risco de multa próprio | **Fase 3** | Fase 2 entregue |
 | Portal do cliente white-label e Copiloto | Valor depende de já haver dado do cliente na plataforma | **Fase 3** | idem |
 | Canal ativo WhatsApp/Telegram | Depende de conta oficial e de base com pendências reais | **Fase 3** | idem |
-| API pública e marketplace | Sem contrato estável não há API pública | **Fase 4** | Contrato interno estável por um trimestre |
-| Certificações SOC 2 e ISO 27001 | Processo caro e longo; sem base de clientes, não paga | **Fase 4** | Exigência de cliente enterprise |
-| Multi-agente colaborativo e predição de fluxo de caixa | Depende dos agentes individuais medidos em produção | **Fase 4** | Métricas dos agentes dentro do alvo (PRD §17.2) |
+| API pública e Marketplace | O PRD ainda não define consumidores, operações, atores ou critérios de aceite | **MVP-4** | PI fechar as decisões registradas no documento do MVP-4 |
+| Auditoria externa e certificação SOC 2 e ISO 27001 | Não é demonstrável em Docker local; o MVP-4 entrega controles e evidências preparatórias | **Gate de produção após o MVP-4** | Infraestrutura produtiva definida e auditoria externa contratada |
+| Multi-agente colaborativo e predição de fluxo de caixa | Depende dos agentes individuais validados nos MVPs anteriores | **MVP-4** | MVP-3 finalizado e cenários locais dos agentes dentro dos critérios |
 | Suporte a certificado **A3** | Não automatizável sem presença física do token | Fora | Mudança regulatória |
 | Aplicativo mobile nativo | Web responsivo atende o uso do contador | Fora do MVP | Pesquisa mostrando uso móvel relevante |
 | Multi-idioma na interface | Produto é da legislação brasileira | Fora | Nenhum previsto |
@@ -49,7 +49,9 @@ Não são "depois": são **não-objetivos declarados**.
 
 | Item | Motivo | Destino | Gatilho | Origem |
 |---|---|---|---|---|
-| **Cofre com KMS/HSM gerenciado** | Railway não oferece; MVP usa cofre próprio em rede privada. **PRD §4.5 não cumprido integralmente** | **Fase 2, antes de escala de base** | Primeira base de clientes reais | [ADR-003](adr/ADR-003-hospedagem-e-deploy.md) · R-01 |
+| **Hospedagem e deploy produtivos** | Os MVPs provam o produto em Docker local; provedor não é escolhido antes de o produto estar completo | **Etapa de produção após o MVP-4** | MVP-4 encerrado e gate produtivo aberto | [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) |
+| **Cofre com KMS/HSM gerenciado** | Material real é proibido durante os MVPs; o cofre local usa somente segredo e certificado de teste | **Etapa de produção após o MVP-4, antes de qualquer piloto real** | Definição da infraestrutura produtiva | [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) · R-01 |
+| **Piloto com escritório, empresa ou dado real** | Validação real não se confunde com desenvolvimento e homologação local | **Etapa de produção após o MVP-4** | KMS/HSM, região, backup/restore, observabilidade e rollback aprovados | [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) |
 | Merge queue | Fluxo solo; só adicionaria rodada de CI | Quando houver autor concorrente | Fila de PRs esperando gate | [ADR-009](adr/ADR-009-ci-runner-e-merge-queue.md) |
 | Vector DB dedicado | pgvector herda a RLS; isolamento provado pelo mesmo teste | Quando a busca competir com a carga transacional | Medição de latência, não impressão | [ADR-010](adr/ADR-010-vector-db.md) |
 | Sharding da suíte de testes | Sem evidência de qual job é o caminho crítico | Quando o gate estourar 15 min por causa de um job medido | Registro em [`CI-PR.md`](CI-PR.md) §8 | `CLAUDE.md` |

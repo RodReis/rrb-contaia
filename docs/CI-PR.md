@@ -115,11 +115,12 @@ Não é decisão livre do agente (`CLAUDE.md`):
 
 ## 6. CI da `main`
 
-Depois do squash merge, a `main` roda a matriz completa — inclusive o que a PR condicionou — mais build de imagem e deploy.
+Depois do squash merge, a `main` roda a matriz completa — inclusive o que a PR condicionou — e gera os builds e imagens verificáveis.
 
 - **`main` vermelha é interrupção de trabalho.** Corrigir vem antes do próximo card.
-- Deploy: **Vercel** (web) e **Railway** (API, workers) a partir da `main` verde ([ADR-003](adr/ADR-003-hospedagem-e-deploy.md)).
-- Migration roda em passo próprio, antes do deploy da aplicação, e é reversível ou acompanhada de plano de rollback ([`CONVENTION.md`](CONVENTION.md)).
+- **Não há deploy do MVP-1 ao MVP-4.** A `main` não publica em Vercel, Railway nem outro provedor ([ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)).
+- Migration é validada do zero e sobre a versão anterior no PostgreSQL local; reversibilidade ou plano de rollback continuam obrigatórios ([`CONVENTION.md`](CONVENTION.md)).
+- A pipeline produtiva será especificada no gate posterior ao MVP-4, sem reaproveitar resultado local como prova de produção.
 
 ---
 
