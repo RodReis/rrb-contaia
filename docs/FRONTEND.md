@@ -439,8 +439,7 @@ Práticas obrigatórias:
 2. **Token de sessão em cookie `httpOnly`, `Secure`, `SameSite=Lax`.** Nunca `localStorage`.
 3. **Nunca `dangerouslySetInnerHTML`** com conteúdo vindo de documento fiscal, nome de fornecedor ou resposta de LLM. XML e texto de terceiro são dado hostil.
 4. **Escopo de tenant é reforçado no servidor.** Esconder botão não é controle de acesso; a tela reflete a permissão, não a implementa.
-5. **Nenhum `console.log` com dado de cliente** em código de produção — CPF, CNPJ, valor e conteúdo de documento fiscal.
-6. CSP sem `unsafe-eval`; origem externa declarada explicitamente.
+5. CSP sem `unsafe-eval`; origem externa declarada explicitamente.
 
 ---
 

@@ -236,8 +236,6 @@ Detalhe estratégico em [`AGENTES-IA-AUTONOMOS.md`](AGENTES-IA-AUTONOMOS.md) —
 - Métricas obrigatórias em toda integração governamental (PRD §12).
 - Tracing distribuído entre API, workers e pipeline de IA.
 - Alertas operacionais conforme PRD §17.3.
-- **Log nunca carrega CPF, CNPJ, valor ou conteúdo de documento fiscal.**
-
 ---
 
 ## 13. O que esta arquitetura recusa

@@ -6,7 +6,7 @@
 | **Documento** | PRD — Fonte de Verdade do Produto |
 | **Versão** | 3.1 |
 | **Status** | Aprovado para desenvolvimento |
-| **Data** | 16/09/2026 |
+| **Data** | 17/09/2026 |
 | **Owner** | Produto |
 | **PI** | Rodrigo Reis |
 
@@ -183,7 +183,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 
 ## 6. RF-03 — Gestão Fiscal, Tributária e Contábil
 
-**Prioridade:** P0 (motor base) · P1 (apurações e guias) · Fase 2 (escrituração completa)
+**Prioridade:** P0 (motor base) · P1 (apurações e guias) · MVP-2 (escrituração completa)
 
 ### 6.1 Motor de regras tributárias
 - [ ] Regras versionadas por vigência (`vigente_de` / `vigente_ate`), suportando simultaneamente o regime atual e a Reforma Tributária (IBS/CBS), cronograma 2026–2033.
@@ -216,7 +216,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 
 ## 7. RF-04 — Gestão Financeira Integrada
 
-**Prioridade:** P1 — Fase 2
+**Prioridade:** P1 — MVP-2
 
 ### 7.1 Contas a pagar e receber
 - [ ] Importação de boletos por PDF e linha digitável.
@@ -249,7 +249,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 
 ## 8. RF-05 — Departamento Pessoal (eSocial)
 
-**Prioridade:** P2 — Fase 3
+**Prioridade:** P2 — MVP-3
 
 ### 8.1 Cadastros e folha
 - [ ] Cadastro de empregados, cargos, salários e dependentes, também alimentado pela importação de onboarding.
@@ -272,7 +272,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 
 ## 9. RF-06 — Dashboard Multi-empresa e Portal do Cliente
 
-**Prioridade:** P0 (visão consolidada, MVP) · Fase 3 (portal e copiloto)
+**Prioridade:** P0 (visão consolidada, MVP-1) · MVP-3 (portal e copiloto)
 
 ### 9.1 Dashboard consolidado — MVP
 - [ ] Visão de todas as empresas do escritório com **semáforo de saúde** (verde/amarelo/vermelho).
@@ -281,7 +281,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 - [ ] Alertas priorizados por impacto financeiro — multa acima de informativo.
 - [ ] Drill-down por empresa, com ação direta em 1 clique.
 
-### 9.2 Evolução — Fase 3
+### 9.2 Evolução — MVP-3
 - [ ] KPIs de caixa consolidado e eventos eSocial pendentes.
 - [ ] **Portal do cliente white-label:** documentos, guias para pagamento e status de entregas.
 - [ ] **Copiloto Contábil** — chat com RAG sobre os dados do cliente e a legislação (§10.6).
@@ -338,16 +338,13 @@ Regras do HITL:
 **Trilha de auditoria**
 - [ ] Por decisão de agente: prompt, contexto, ferramenta usada, score, custo e aprovador, em storage imutável.
 
-**Segurança e privacidade nos agentes**
+**Segurança nos agentes**
 
 | Controle | Implementação |
 |---|---|
-| Pseudonimização | Dados enviados a LLMs de terceiros têm CPF, CNPJ e nomes mascarados, conforme a lista de campos definida por agente |
 | Isolamento por tenant | Namespace próprio no Vector DB; embeddings de clientes distintos nunca se misturam |
 | Audit trail | Todo prompt, resposta, ferramenta e decisão em storage imutável |
 | Rate limiting | Limite de requisições por tenant |
-| Retenção de logs de IA | 12 meses para prompts e respostas; depois anonimização ou descarte |
-| Uso para treinamento | Dados de clientes não são usados para treinar modelos sem autorização expressa |
 
 **Thresholds:** os cortes de score (0,50 / 0,60 / 0,85 / 0,90) são valores iniciais, revisados trimestralmente com base em dado de produção.
 
@@ -526,7 +523,7 @@ Pergunta → classificador de intenção
 
 ## 11. RF-08 — Administração da Plataforma
 
-**Prioridade:** P3 — Fase 4
+**Prioridade:** P3 — MVP-4
 
 ### 11.1 Funcionalidades
 - [ ] Visão do super-admin sobre todos os tenants.
@@ -539,7 +536,7 @@ Pergunta → classificador de intenção
 
 ### 11.2 Dashboard administrativo
 - [ ] **Métricas de SaaS:** MRR, churn rate, LTV e CAC.
-- [ ] **Saúde da aplicação:** tenants ativos e inativos, novos tenants no mês, DAU/MAU globais — disponível antes da Fase 4, por não depender de cobrança.
+- [ ] **Saúde da aplicação:** tenants ativos e inativos, novos tenants no mês, DAU/MAU globais — disponível no MVP-2, por não depender de cobrança.
 - [ ] **Consumo de recursos por tenant:** banda, processamento e armazenamento, integrado ao custo de IA por tenant, para identificar cliente que custa mais do que paga.
 
 ### 11.3 Relatórios
@@ -562,8 +559,7 @@ Pergunta → classificador de intenção
 | **Escalabilidade** | 1.000 empresas por escritório e 100 escritórios sem re-arquitetura |
 | **Segurança** | TLS 1.3 em trânsito e AES-256 em repouso; cofre de certificados com KMS/HSM; chaves por tenant |
 | **Auditoria** | Logs imutáveis (append-only) de toda ação fiscal, contábil e trabalhista: quem, quando, o quê e de onde |
-| **Retenção** | XMLs fiscais e eventos por no mínimo 5 anos; dados de DP conforme LGPD e normas do eSocial |
-| **LGPD** | consentimento para Open Finance;
+| **Retenção** | XMLs fiscais e eventos por no mínimo 5 anos |
 | **Observabilidade** | Métricas, tracing e alertas em todas as integrações governamentais |
 | **DR/Backup** | RPO ≤ 1h e RTO ≤ 4h; backups diários com teste de restore mensal |
 
@@ -642,15 +638,15 @@ Observabilidade de agentes: tracing, custo por requisição e por tenant
 
 ## 16. Roadmap
 
-**Regra de ambiente aprovada pelo PI:** MVP, Fase 2, Fase 3 e Fase 4 são desenvolvidos e homologados integralmente em Docker local, com dados sintéticos/anonimizados e credenciais não produtivas. Não há deploy, piloto com empresa real, certificado real ou dado real durante essas fases. A **produção é uma etapa posterior à Fase 4**, com gate próprio para hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração e rollback. Requisitos transferidos para esse gate continuam obrigatórios e não podem ser descartados pelo fatiamento.
+**Regra de ambiente aprovada pelo PI:** MVP-1, MVP-2, MVP-3 e MVP-4 são desenvolvidos e homologados integralmente em Docker local, com dados sintéticos/anonimizados e credenciais não produtivas. Não há deploy, piloto com empresa real, certificado real ou dado real durante esses MVPs. A **produção é uma etapa posterior ao MVP-4**, com gate próprio para hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração e rollback. Requisitos transferidos para esse gate continuam obrigatórios e não podem ser descartados pelo fatiamento.
 
 | Fase | Prazo | Entregas de produto | Agentes |
 |---|---|---|---|
-| **MVP** | 3–4 meses | RF-01 completo — multi-tenancy de dois níveis, RLS, cofre A1, Signer, importação de plano de contas e empregados · RF-02 — captura DF-e com fila por NSU, parse com campos IBS/CBS, ciência automática e inbox de aprovação para as demais manifestações · RF-06 — dashboard com semáforo de pendências por CNPJ | Captura (ciência automática e sugestão para os demais tipos) · Compliance (alertas de vencimento) |
-| **Fase 2** | +3 meses | RF-03 completo — motor de regras versionado, apurações, guias, escrituração contábil e ECD · RF-04 — Open Finance, ITP, conciliação assistida, Pix, contas a pagar e receber · Malha fiscal preventiva contínua | Classificador · Conciliador · Compliance completo, com rascunhos de entrega |
-| **Fase 3** | +4 meses | RF-05 — DP e eSocial · Portal do cliente white-label · Canal ativo WhatsApp | DP · Copiloto Contábil · Coletor Ativo |
-| **Fase 4** | contínuo | RF-08 completo — billing, planos e preço · Motor completo de IBS/CBS · API pública · Marketplace · Certificações SOC 2 e ISO 27001 | Multi-agente colaborativo (Captura → Classificador → Conciliador) · Predição de fluxo de caixa e obrigações |
-| **Produção** | após a Fase 4 | Infraestrutura produtiva, KMS/HSM, região, object storage, backup/restore, observabilidade, migração, rollback e piloto controlado com dados reais | Validação operacional dos agentes e métricas reais |
+| **MVP-1** | 3–4 meses | Base operacional de RF-01 — multi-tenancy de dois níveis, RLS, cofre e Signer com material de teste, importação de plano de contas e empregados · RF-02 — captura DF-e com fila por NSU, parse com campos IBS/CBS, ciência automática e inbox de aprovação para as demais manifestações · RF-06 — dashboard com semáforo de pendências por CNPJ | Captura (ciência automática e sugestão para os demais tipos) · Compliance (alertas de vencimento) |
+| **MVP-2** | +3 meses | RF-03 completo — motor de regras versionado, apurações, guias, escrituração contábil e ECD · RF-04 — Open Finance, ITP, conciliação assistida, Pix, contas a pagar e receber · Malha fiscal preventiva contínua | Classificador · Conciliador · Compliance completo, com rascunhos de entrega |
+| **MVP-3** | +4 meses | RF-05 — DP e eSocial · Portal do cliente white-label · Canal ativo WhatsApp | DP · Copiloto Contábil · Coletor Ativo |
+| **MVP-4** | contínuo | RF-08 completo — billing, planos e preço · Motor completo de IBS/CBS · API pública · Marketplace · controles e evidências preparatórias para certificações | Multi-agente colaborativo (Captura → Classificador → Conciliador) · Predição de fluxo de caixa e obrigações |
+| **Produção** | após o MVP-4 | Infraestrutura produtiva, KMS/HSM, região, object storage, backup/restore, observabilidade, migração, rollback, piloto controlado com dados reais e certificações externas | Validação operacional dos agentes e métricas reais |
 
 ---
 
@@ -742,12 +738,12 @@ Tier Contexto Longo: Kimi (Moonshot), Gemini 1.5 Pro
 
 #### Prioridade para: Claude/GPT/Google/Hermes
 
-**O provedor do [Orquestrador / Pipeline Python], tem que ser diferente dos agentes[AI Gateway].
+**O provedor do Orquestrador/Pipeline Python deve ser diferente do provedor dos agentes no AI Gateway.**
 ---
 
-## 19. Riscos e Mitigações
+## 20. Riscos e Mitigações
 
-### 19.1 Produto e integrações
+### 20.1 Produto e integrações
 
 | Risco | Prob. | Impacto | Mitigação |
 |---|---|---|---|
@@ -762,7 +758,7 @@ Tier Contexto Longo: Kimi (Moonshot), Gemini 1.5 Pro
 | Início frio do Classificador e do Conciliador | Média | Médio | Importação de plano de contas e histórico no onboarding |
 | Concorrência em captura fiscal | Alta | Alto | Acompanhamento de mercado contínuo e diferenciação pela automação de ponta a ponta |
 
-### 19.2 Específicos de IA
+### 20.2 Específicos de IA
 
 | Risco | Prob. | Impacto | Mitigação |
 |---|---|---|---|
@@ -771,12 +767,11 @@ Tier Contexto Longo: Kimi (Moonshot), Gemini 1.5 Pro
 | Dependência excessiva de um provedor de LLM | Alta | Alto | Abstração multi-provider e tier self-hosted para casos críticos |
 | Vazamento por prompt injection | Baixa | Alto | Sanitização de inputs, sandboxing e nenhuma execução de código gerado por LLM sem revisão |
 | Custo de LLM inesperado | Média | Médio | Rate limiting, caching, fallback para regras e alertas de custo |
-| Regulamentação de IA (PL 2338/2023) | Média | Alto | HITL obrigatório, transparência, direito de revisão e RIPD para IA |
 | Manifestação automática indevida | Baixa | Crítico | Apenas a Ciência da Emissão é automática; os demais tipos exigem aprovação humana |
 
 ---
 
-## 20. Glossário
+## 21. Glossário
 
 - **DF-e** — Documentos Fiscais Eletrônicos distribuídos pela Sefaz.
 - **Manifestação do Destinatário** — registro do tomador sobre a NF-e recebida, obrigatório para escriturar créditos.

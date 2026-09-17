@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · fatias/SPECs ainda não numeradas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 aprovada; issue pendente
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção e sem dados, certificados ou credenciais reais ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -24,11 +24,10 @@ Toda capacidade com tela entrega a interface final desde sua própria fatia, nos
 
 ## 3. Capacidades aprovadas
 
-As capacidades abaixo são o checklist do épico. **Ainda não são fatias numeradas**: cada uma será decomposta em comportamento vertical Curto/Médio antes da reserva de F/SPEC. Itens grandes, como captura e dashboard, não podem virar card monolítico.
+As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comportamento vertical Curto/Médio antes da reserva de F/SPEC. Itens grandes, como captura e dashboard, não podem virar card monolítico.
 
-- [ ] Fundação local: monorepo, Docker, banco, Redis, Keycloak, serviços, CI e health checks.
-- [ ] Autenticação e sessão OIDC.
-- [ ] Cadastro do escritório contábil.
+- [ ] `[INFRA]` Fundação local: monorepo, Docker, banco, Redis, Keycloak, storage local, serviços, CI e health checks — pré-requisito sem F/SPEC.
+- [ ] **F1 / SPEC-001:** autenticação OIDC, conclusão obrigatória e edição do cadastro do escritório.
 - [ ] Usuários, papéis e permissões.
 - [ ] Cadastro das empresas clientes.
 - [ ] Carteira do colaborador e isolamento por empresa.

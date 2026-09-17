@@ -59,11 +59,12 @@ Não são "depois": são **não-objetivos declarados**.
 
 ---
 
-## 5. Documentos deliberadamente não escritos
+## 5. Registros não normativos
 
-| Item | Motivo |
-|---|---|
-| `docs/PRIVACIDADE.md` | Redigi-lo seria **criar regra jurídica sem autorização**. O material existente está em `prd/histórico/Politica_Privacidade_LGPD_Compliance.md` — documento **autônomo e sem efeito sobre produto** (`CLAUDE.md`). Só o PI decide se, quando e com que conteúdo ele volta. |
+| Item | Papel | Efeito sobre produto |
+|---|---|---|
+| [`PRIVACIDADE.md`](PRIVACIDADE.md) | Registrar achados surgidos nas especificações, com contexto de MVP/SPEC/Fatia, para revisão após o MVP-4 | Nenhum até promoção explícita pelo PI |
+| [`prd/histórico/Politica_Privacidade_LGPD_Compliance.md`](prd/histórico/Politica_Privacidade_LGPD_Compliance.md) | Insumo histórico para a mesma revisão | Nenhum durante os MVPs |
 
 ---
 

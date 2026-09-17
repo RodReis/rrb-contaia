@@ -225,7 +225,6 @@ AGENTE_PROPOE ─▶ PENDENTE_APROVACAO ─┬─ APROVADO  ─▶ EXECUTANDO �
 
 - **LLM não calcula** (I-4). Resultado fiscal vem do motor, mesmo que o modelo devolva outro número.
 - **Saída de LLM é validada por schema** antes de qualquer uso, e nunca executada como código.
-- **Pseudonimização** de CPF, CNPJ e nomes no que sai para provedor de terceiro.
 - **Isolamento vetorial por tenant e empresa** — embeddings de clientes distintos nunca se misturam.
 - **Sugestão sem fonte rastreável não é sugestão**: não se registra e não se renderiza ([`PATTERNS.md`](design-system/PATTERNS.md) §4).
 

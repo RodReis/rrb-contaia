@@ -27,7 +27,9 @@
 | Requisito | Prioridade | Destino | Onde | Fatia / SPEC |
 |---|---|---|---|---|
 | **RF-01** Multi-tenancy, clientes e cofre de certificados | P0 | Mantido | MVP-1 | — |
-| RF-01 §4.1 Cadastro de escritório e empresas (CRUD) | P0 | Mantido | MVP-1 | — |
+| RF-01 §4.1 Cadastro, consulta e edição do escritório | P0 | Mantido | MVP-1 | F1 / SPEC-001 |
+| RF-01 §4.1 Arquivamento/ciclo de vida do tenant | P0 | Transferido | MVP-4, junto ao RF-08 e ao super-admin | — |
+| RF-01 §4.1 Cadastro de empresas clientes (CRUD) | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.2 Onboarding com importação CSV (plano de contas, empregados) | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.3 Usuários, papéis e carteira | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.4 RLS de dois níveis | P0 | Mantido | MVP-1 | — |
@@ -40,20 +42,20 @@
 | RF-02 §5.3 Parse, IBS/CBS, XML original com hash, idempotência | P0 | Mantido | MVP-1 | — |
 | RF-02 §5.1 NFS-e de municípios fora do padrão nacional | — | **Excluído** | PRD §1.5 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §2 | — |
 | **RF-03** Motor de regras tributárias (base) | P0 | Mantido | MVP-1 | — |
-| RF-03 §6.2 Apurações, guias e partidas dobradas | P1 | Transferido | MVP-2 (Fase 2) | — |
-| RF-03 §6.2 SPED Fiscal e SPED Contábil (ECD) | Fase 2 | Transferido | MVP-2 | — |
+| RF-03 §6.2 Apurações, guias e partidas dobradas | P1 | Transferido | MVP-2 | — |
+| RF-03 §6.2 SPED Fiscal e SPED Contábil (ECD) | MVP-2 | Transferido | MVP-2 | — |
 | RF-03 §6.3 Agenda mínima, vencimentos e alertas D-3 | P1 | Mantido | MVP-1 | — |
 | RF-03 §6.3 Motor completo por regime/UF/CNAE, pré-requisitos, penalidades, dependências e sucessão | P1 | Transferido | MVP-2 | — |
-| RF-03 §6.4 Malha fiscal preventiva contínua | Fase 2 | Transferido | MVP-2 | — |
-| **RF-04** Gestão financeira integrada | P1 | Transferido | MVP-2 (Fase 2) | — |
+| RF-03 §6.4 Malha fiscal preventiva contínua | MVP-2 | Transferido | MVP-2 | — |
+| **RF-04** Gestão financeira integrada | P1 | Transferido | MVP-2 | — |
 | RF-04 §7.2 Open Finance e ITP | P1 | Transferido | MVP-2 | — |
 | RF-04 §7.3 Pix via BaaS/PSP | P1 | Transferido | MVP-2 | — |
 | RF-04 §7.4 Conciliação multi-critério | P1 | Transferido | MVP-2 | — |
-| **RF-05** Departamento pessoal e eSocial | P2 | Transferido | MVP-3 (Fase 3) | — |
+| **RF-05** Departamento pessoal e eSocial | P2 | Transferido | MVP-3 | — |
 | **RF-06** Dashboard multi-empresa (visão consolidada) | P0 | Mantido | MVP-1 | — |
-| RF-06 §9.2 Portal do cliente white-label | Fase 3 | Transferido | MVP-3 | — |
-| RF-06 §9.2 Copiloto Contábil | Fase 3 | Transferido | MVP-3 | — |
-| RF-06 §9.3 Canal ativo WhatsApp/Telegram | Fase 3 | Transferido | MVP-3 | — |
+| RF-06 §9.2 Portal do cliente white-label | MVP-3 | Transferido | MVP-3 | — |
+| RF-06 §9.2 Copiloto Contábil | MVP-3 | Transferido | MVP-3 | — |
+| RF-06 §9.3 Canal ativo WhatsApp/Telegram | MVP-3 | Transferido | MVP-3 | — |
 | **RF-07** Agente de Captura | P1 | Mantido | MVP-1 | — |
 | RF-07 §10.5 Compliance inicial (agenda e alertas de vencimento) | P1 | Mantido | MVP-1 | — |
 | RF-07 §10.5 Compliance completo e rascunhos de entrega | P1 | Transferido | MVP-2 | — |
@@ -62,15 +64,15 @@
 | RF-07 §10.6 Agente DP | P2 | Transferido | MVP-3 | — |
 | RF-07 §10.7 Copiloto Contábil | P2 | Transferido | MVP-3 | — |
 | RF-07 §10.8 Agente Coletor Ativo | P2 | Transferido | MVP-3 | — |
-| RF-07 §10.1 Multi-agente colaborativo | Fase 4 | Transferido | MVP-4 | — |
-| **RF-08** Administração da plataforma | P3 | Transferido | MVP-4 (Fase 4) | — |
+| RF-07 §10.1 Multi-agente colaborativo | MVP-4 | Transferido | MVP-4 | — |
+| **RF-08** Administração da plataforma | P3 | Transferido | MVP-4 | — |
 | RF-08 §11.2 Saúde da aplicação (tenants ativos, DAU/MAU) | P3 | Transferido | MVP-2 (não depende de billing) | — |
 | RF-08 §11.1 Planos e billing | P3 | Transferido | MVP-4 | — |
 | Emissão de NF-e em nome do cliente | — | **Excluído** | PRD §1.5 | — |
 | ERP de estoque ou produção | — | **Excluído** | PRD §1.5 | — |
-| API pública e marketplace | Fase 4 | Transferido | MVP-4; SPECs bloqueadas até o PI definir os contratos de produto | — |
-| Controles e evidências preparatórias para SOC 2 e ISO 27001 | Fase 4 | Transferido | MVP-4 | — |
-| Auditoria externa e certificação SOC 2 e ISO 27001 | Fase 4 | **Transferido** | Gate de produção após o MVP-4 | — |
+| API pública e marketplace | MVP-4 | Transferido | MVP-4; SPECs bloqueadas até o PI definir os contratos de produto | — |
+| Controles e evidências preparatórias para SOC 2 e ISO 27001 | MVP-4 | Transferido | MVP-4 | — |
+| Auditoria externa e certificação SOC 2 e ISO 27001 | Produção | **Transferido** | Gate de produção após o MVP-4 | — |
 
 ---
 
@@ -88,7 +90,7 @@ Não são fatia: são **critério de aceite transversal**, verificado em toda fa
 | Retenção ≥ 5 anos de XML | [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §5.2 |
 | Observabilidade em toda integração governamental | [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §12 |
 | DR/Backup (RPO ≤ 1h, RTO ≤ 4h, restore mensal) | contrato e ensaio local nos MVPs; prova da infraestrutura no gate de produção pós-MVP-4 ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)) |
-| LGPD | **fora do contrato de produto** por decisão registrada (`CLAUDE.md`) |
+| Privacidade e proteção de dados | **fora do contrato de produto** por decisão registrada (`CLAUDE.md`); não gera requisito nem controle técnico nesta matriz |
 
 ---
 

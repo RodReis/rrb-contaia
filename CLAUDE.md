@@ -1,15 +1,5 @@
 # CLAUDE.md — rrb-contaIA
 
-#prototipo: 
-	C:\Desenv\Projetos\rrb-contaia\docs\telas\prototipo\index.html 
-
-# Previa
-
-# Repositório
-
-# Stack e ambiente
-
-
 ## Papéis
 
 **PI — Rodrigo Reis.** Decide escopo, prioridade e trade-off. Responde dúvidas, aprova specs e aceita entregas. Não executa o fluxo: não cria issue, não commita, não abre PR, não faz merge. O aceite é só dele.
@@ -22,7 +12,7 @@
 ## Regras do projeto (decididas pelo PI)
 
 - Idioma: documentação, specs, issues, commits e comunicação em PT-BR; código e identificadores em inglês; textos de interface em PT-BR.
-- Privacidade e proteção de dados não pertencem ao contrato de produto nem ao PRD. `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` é um documento autônomo e **sem efeito sobre produto**: não referencia nem altera o PRD, não é citado por nenhuma SPEC, `CONVENTION.md` ou `ARCHITECTURE.md`, e não gera funcionalidade, fatia, critério comercial, controle técnico ou aceite de produto por conta própria. Cowork e Code não inventam regra jurídica: dúvida material é encaminhada ao PI.
+- Privacidade, proteção de dados, LGPD e consentimentos não pertencem ao contrato de produto nem ao PRD durante os MVPs 1–4. Achados surgidos durante a especificação são registrados pelo Cowork em `docs/PRIVACIDADE.md`, com o contexto de MVP/SPEC/Fatia, **sem vínculo normativo com a SPEC** e sem gerar funcionalidade, critério de aceite, controle técnico ou bloqueio. Ao final do MVP-4, o PI revisa esse registro junto com `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` e decide o que, se algo, será promovido ao produto. Cowork e Code não inventam regra jurídica: dúvida material é registrada e encaminhada ao PI.
 - Ninguém cria regra de produto — nem Cowork, nem Code. Falta regra → pergunta ao PI (ver "O que bloqueia o Code").
 - Autorizado a subir o docker, se estiver off. Criar sempre um nova instancia na primeira vez, com novas portas, nunca usar as que já estão configurada no docker.
 - **Ambiente até o fim do MVP-4:** todo desenvolvimento, integração e homologação dos MVPs 1–4 roda em Docker local, com seeds, fixtures anonimizadas, dublês e, quando aplicável, ambientes oficiais de homologação acessados a partir do ambiente local. Não há deploy produtivo, piloto com empresa real, certificado real ou dado real durante esses MVPs. Produção é uma etapa própria, posterior ao último MVP, com gate e decisão de infraestrutura específicos.
@@ -159,7 +149,8 @@ Só vale enquanto houver código a indexar; com o repo só em documentação, le
 - `docs/FORA-DE-ESCOPO.md` — Fonte única dos itens adiados ou excluídos por MVP, com motivo, destino e gatilho de retorno; mantido pelo Cowork e sem substituir backlog ou status remoto.
 - `docs/prd/mvp/README.md` — Regra de governança dos MVPs: fatiamento não reduz escopo, matriz obrigatória, registro de fora de escopo e régua Curto/Médio/Grande/Enorme. Ler antes de criar ou alterar MVP/SPEC.
 - `docs/prd/mvp/RASTREABILIDADE.md` — Matriz normativa que prova para onde cada requisito aprovado foi: mantido, transferido, adiado ou excluído. Ausência na matriz bloqueia aprovação documental.
-- `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` — Documento autônomo de privacidade, **sem efeito sobre produto**. Não é requisito de produto, não referencia o PRD e não é citado por nenhuma SPEC. Não existe `docs/PRIVACIDADE.md`: criá-lo é decisão do PI.
+- `docs/PRIVACIDADE.md` — Registro não normativo de achados sobre privacidade, proteção de dados, LGPD e consentimentos, com contexto de origem. Não é citado por SPEC e não produz requisito ou aceite antes da revisão do PI após o MVP-4.
+- `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` — Documento histórico autônomo, **sem efeito sobre produto** durante os MVPs. É insumo da revisão do PI após o MVP-4 junto com `docs/PRIVACIDADE.md`.
 - `docs/AGENTES-IA-AUTONOMOS.md` — Análise estratégica de agentes autônomos que esta no PRD. Não altera escopo de MVP por si; qualquer adoção precisa passar por `docs/DECISIONS.md`, `docs/prd/mvp/RASTREABILIDADE.md` e SPEC própria.
 - `docs/AUDIT.md` — Documento de rotina de autoria, revisão, teste de performance, CI e evidência das PRs deste repositório; distingue orientação operacional de evolução da pipeline.
 - `docs/TESTING.md` — Documento de estratégia de teste, classificação, evidência e relatório por SPEC/issue.
