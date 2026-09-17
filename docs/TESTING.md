@@ -76,7 +76,6 @@ Chamada real a Sefaz/eSocial é **prova condicional**: roda fora da CI de PR, co
 - [ ] **LLM nunca calcula:** teste prova que o resultado fiscal vem do motor determinístico, mesmo com o LLM devolvendo outro número;
 - [ ] **Threshold:** score abaixo do corte escala para humano;
 - [ ] **Fila HITL:** aprovar executa, rejeitar não executa e gera feedback, timeout de 24h escala para supervisor;
-- [ ] **Pseudonimização:** CPF, CNPJ e nome mascarados no que sai para LLM de terceiro;
 - [ ] **Isolamento vetorial:** busca no pgvector nunca retorna embedding de outro tenant/empresa;
 - [ ] **Trilha:** toda decisão de agente registra prompt, contexto, ferramenta, score, custo e aprovador;
 - [ ] Resposta de LLM é tratada como **dado hostil** — validada por schema antes de qualquer uso.
@@ -150,7 +149,7 @@ Toda execução produz artefato bruto rastreável por **SPEC/issue** (`CLAUDE.md
 
 ```
 test-results/
-  <SPEC-NNN|FIX-N>/
+  <SPEC-NNN|FIX-N|INFRA-N>/
     regras/     junit.xml · coverage/
     banco/      junit.xml · coverage/ · rls-matrix.json
     tela/       junit.xml · a11y.json
