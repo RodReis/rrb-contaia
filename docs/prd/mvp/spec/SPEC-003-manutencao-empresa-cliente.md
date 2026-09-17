@@ -4,7 +4,7 @@
 >
 > **Origem:** PRD v3.1 §§4.1, 4.4 e 15
 >
-> **Estado:** em revisão pelo PI
+> **Estado:** aprovada pelo PI em 17/09/2026
 >
 > **Tamanho:** Grande — mantém coeso o ciclo de manutenção da empresa; documentos e pendências permanecem na F4
 >
@@ -315,4 +315,4 @@ Nenhuma.
 ## 15. Aprovação
 
 - Design funcional aprovado pelo PI durante a especificação em 17/09/2026.
-- Documento completo aguardando revisão do PI.
+- Documento completo aprovado pelo PI em 17/09/2026.
