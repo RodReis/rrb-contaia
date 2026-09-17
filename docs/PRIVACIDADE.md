@@ -4,8 +4,10 @@
 > **Não é citado por SPEC.** Os identificadores de MVP/SPEC/Fatia abaixo registram somente o contexto em que o assunto surgiu.
 > **Decisão:** ao final do MVP-4, o PI revisa este registro junto com [`prd/histórico/Politica_Privacidade_LGPD_Compliance.md`](prd/histórico/Politica_Privacidade_LGPD_Compliance.md) e decide o que, se algo, será promovido formalmente ao produto.
 
-**Mantido por:** Cowork  
-**Revisão decisória:** após o encerramento do MVP-4  
+**Mantido por:** Cowork
+
+**Revisão decisória:** após o encerramento do MVP-4
+
 **Estado de todas as entradas:** candidato sem efeito normativo, salvo decisão posterior registrada pelo PI
 
 ---

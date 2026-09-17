@@ -1,9 +1,13 @@
 # SPEC-001 / F1 — Acesso inicial e conclusão do cadastro do escritório
 
-> **MVP:** MVP-1 — Fundação, captura e controle operacional  
-> **Origem:** PRD v3.1 §§4.1, 4.3, 4.4 e 15; ADR-011; ADR-012  
-> **Estado:** aprovada pelo PI em 17/09/2026  
-> **Tamanho:** Médio  
+> **MVP:** MVP-1 — Fundação, captura e controle operacional
+>
+> **Origem:** PRD v3.1 §§4.1, 4.3, 4.4 e 15; ADR-011; ADR-012
+>
+> **Estado:** aprovada pelo PI em 17/09/2026
+>
+> **Tamanho:** Médio
+>
 > **Dependência:** card `[INFRA] Bootstrap local do MVP-1`, sem F/SPEC
 
 ## 1. Objetivo
