@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "on-secondary-fixed-variant": "#5a4300", "error-container": "#ffdad6", "primary-fixed-dim": "#bec6e0", "surface-container-low": "#eff3ff", "on-primary-fixed": "#131b2e", "surface-container-lowest": "#ffffff", "on-primary": "#ffffff", "tertiary": "#000000", "secondary": "#785a00", "primary": "#000000", "on-tertiary": "#ffffff", "tertiary-fixed-dim": "#b0c6ff", "error": "#ba1a1a", "on-secondary-container": "#705400", "surface-container-high": "#dde9ff", "tertiary-container": "#001944", "on-surface-variant": "#45464d", "on-primary-container": "#7c839b", "secondary-fixed": "#ffdf9a", "on-secondary-fixed": "#251a00", "surface-bright": "#f9f9ff", "inverse-surface": "#253143", "tertiary-fixed": "#d9e2ff", "surface": "#f9f9ff", "on-tertiary-fixed": "#001944", "on-surface": "#101c2d", "outline-variant": "#c6c6cd", "surface-tint": "#565e74", "secondary-fixed-dim": "#f4bf31", "inverse-primary": "#bec6e0", "surface-variant": "#d7e3fb", "on-secondary": "#ffffff", "on-error": "#ffffff", "surface-dim": "#cedbf2", "secondary-container": "#fdc73a", "primary-container": "#131b2e", "outline": "#76777d", "on-tertiary-container": "#5081e5", "primary-fixed": "dae2fd", "on-primary-fixed-variant": "#3f465c", "background": "#f9f9ff", "on-error-container": "#93000a", "inverse-on-surface": "#ebf1ff", "on-tertiary-fixed-variant": "#00429a", "surface-container-highest": "#d7e3fb", "surface-container": "#e6eeff", "on-background": "#101c2d" }, borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, spacing: { "space-xl": "1.75rem", "space-xs": "0.25rem", "space-md": "0.75rem", "space-sm": "0.5rem", "margin-desktop": "2rem", "gutter-desktop": "1.5rem", "margin": "1rem", "gutter": "1rem", "space-lg": "1.25rem" }, fontFamily: { "headline-md": ["Geist"], "code-sm": ["JetBrains Mono"], "code-xs": ["JetBrains Mono"], "title-md": ["Inter"], "title-sm": ["Inter"], "label-sm": ["Inter"], "headline-sm": ["Geist"], "label-md": ["Inter"], "body-md": ["Inter"], "headline-lg": ["Geist"], "body-sm": ["Inter"], "headline-lg-mobile": ["Geist"] }, fontSize: { "headline-md": ["22px", { lineHeight: "28px", letterSpacing: "-0.015em", fontWeight: "600" }], "code-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }], "code-xs": ["11px", { lineHeight: "14px", fontWeight: "400" }], "title-md": ["15px", { lineHeight: "20px", letterSpacing: "-0.005em", fontWeight: "600" }], "title-sm": ["14px", { lineHeight: "20px", letterSpacing: "-0.005em", fontWeight: "600" }], "label-sm": ["11px", { lineHeight: "14px", letterSpacing: "0.02em", fontWeight: "500" }], "headline-sm": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }], "label-md": ["12px", { lineHeight: "16px", fontWeight: "500" }], "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }], "headline-lg": ["30px", { lineHeight: "38px", letterSpacing: "-0.02em", fontWeight: "600" }], "body-sm": ["13px", { lineHeight: "18px", fontWeight: "400" }], "headline-lg-mobile": ["24px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "600" }] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 max-w-7xl mx-auto px-margin lg:px-margin-desktop flex items-center justify-between gap-gutter-desktop"><div class="flex items-center gap-space-md"><img alt="Logotipo institucional moderno do ContaIA com isotipo de IA e precisão contábil e tipografia refinada.. Brand logo. - Primary color: #0f172a
+- Font: geist
+- Mode: light
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WkXvS7ISuPQD6Wx-kmZcTJ55lp20PTURjj1Q332mKtwqmEEioBlLJIooydBu2qcMco3uqvMcpmmujCsR0CVFtAzZ7B8fDRfC1beILlcvvlygVfnUqtKA9WVkg1CecPsrqDaw69qlR7VV22nP0LKpbTAGDyoTgEZ1aT3fkBVY7admU60pJSaGG7xtV30vW5k3oUNTGURF6CvUgd8Sp8jT4geG3qC9mKOi1ps7jnE6jgTHI88tiGcWksyOhx"/><span class="font-headline-sm text-headline-sm tracking-tight text-on-surface">ContaIA</span><span class="hidden md:inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-label-sm text-label-sm border border-outline-variant/40"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Sefaz Nacional Conectada</span></div><nav class="hidden md:flex items-center gap-space-sm" data-active-classes="bg-surface-container text-on-surface font-semibold"><a class="px-space-md py-space-sm rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-title-sm text-title-sm" data-path="inicio" href="#">Início</a><a class="px-space-md py-space-sm rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-title-sm text-title-sm" data-path="recursos" href="#">Recursos</a><a class="px-space-md py-space-sm rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-title-sm text-title-sm" data-path="reforma-tributaria" href="#">Reforma Tributária</a><a class="px-space-md py-space-sm rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-title-sm text-title-sm" data-path="termos-de-uso" href="#">Termos de Uso</a><a aria-current="page" class="px-space-md py-space-sm rounded-DEFAULT transition-colors bg-surface-container text-on-surface font-semibold" data-path="privacidade" href="#">Privacidade</a></nav><div class="flex items-center gap-space-md"><a class="inline-flex items-center justify-center px-space-lg py-space-sm rounded-DEFAULT bg-primary text-on-primary font-title-sm text-title-sm hover:bg-primary-container transition-colors" data-path="login" href="#">Acessar Plataforma</a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 bg-surface min-h-[calc(100vh-16rem)]"><div class="flex flex-col w-full">
+<!-- Top Institutional Bar / Compliance Breadcrumbs & Meta Status -->
+<section class="w-full bg-surface-container-lowest py-space-md shadow-sm">
+<div class="max-w-7xl mx-auto px-margin lg:px-margin-desktop flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm font-label-sm text-label-sm text-on-surface-variant">
+<span class="inline-flex items-center gap-1 text-on-surface">
+<span class="material-symbols-outlined text-[16px] text-primary">gavel</span>
+<span>Governança &amp; Compliance</span>
+</span>
+<span class="text-outline-variant">/</span>
+<span class="font-semibold text-on-surface">Política de Privacidade &amp; Segurança da Informação</span>
+<span class="text-outline-variant">/</span>
+<span class="font-code-xs text-code-xs bg-surface-container px-space-sm py-0.5 rounded-DEFAULT text-on-surface">v3.0.4 (Set/2026)</span>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-1.5 px-space-md py-1 bg-surface-container-low rounded-DEFAULT text-on-surface font-code-xs text-code-xs">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span>Isolamento RLS Ativo: PostgreSQL 16.4 Strict</span>
+</div>
+<div class="hidden sm:flex items-center gap-1 px-space-md py-1 bg-surface-container-low rounded-DEFAULT text-on-surface font-code-xs text-code-xs">
+<span class="material-symbols-outlined text-[14px] text-on-secondary-container">shield_with_heart</span>
+<span>KMS / HSM Brasil Certificado</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Hero Header Block (Regulatory Title, Scope, Quick Anchors) -->
+<section class="w-full bg-surface-container-low py-space-xl">
+<div class="max-w-7xl mx-auto px-margin lg:px-margin-desktop">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter-desktop items-start">
+<div class="lg:col-span-8 space-y-space-md">
+<div class="inline-flex items-center gap-2 px-space-md py-1 rounded-DEFAULT bg-surface-container-high text-on-surface font-label-sm text-label-sm uppercase tracking-wider">
+<span class="material-symbols-outlined text-[15px] text-primary">security</span>
+            Marco Regulatório LGPD (Lei nº 13.709/2018) &amp; Banco Central do Brasil
+          </div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+            Política de Privacidade, Proteção de Dados e Arquitetura de Segurança
+          </h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl leading-relaxed">
+            Esta diretriz institucional detalha com rigor técnico os padrões operacionais, fundamentos jurídicos e garantias criptográficas implementados na plataforma <strong class="text-on-surface">ContaIA v3.0</strong>. Abrange o ciclo integral de tratamento de dados contábeis, eventos trabalhistas eSocial (S-1.3), Open Finance Brasil, isolamento multi-tenant intransponível e salvaguardas de inteligência artificial determinística.
+          </p>
+<div class="pt-space-sm flex flex-wrap items-center gap-space-lg text-on-surface-variant font-label-md text-label-md">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-on-surface">event_available</span>
+<span>Última revisão formal: <strong>16 de Setembro de 2026</strong></span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-on-surface">verified</span>
+<span>DPO / Encarregado Nomeado: <strong>Rodrigo Reis (CIPP/E, CIPM)</strong></span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-on-surface">vpn_key</span>
+<span>Criptografia: <strong>AES-256-GCM / TLS 1.3 Strict</strong></span>
+</div>
+</div>
+</div>
+<!-- KPI Verification Bento Pill -->
+<div class="lg:col-span-4 bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Índice de Conformidade</span>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface font-code-xs text-code-xs font-semibold">ISO 27701 ready</span>
+</div>
+<div class="grid grid-cols-2 gap-space-md">
+<div class="p-space-sm bg-surface-container-low rounded-DEFAULT">
+<p class="font-code-xs text-code-xs text-on-surface-variant">Vazamento Multi-tenant</p>
+<p class="font-headline-md text-headline-md text-on-surface mt-0.5">0.00%</p>
+<p class="font-label-sm text-label-sm text-emerald-600 mt-1 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> 100% RLS Enforcement
+              </p>
+</div>
+<div class="p-space-sm bg-surface-container-low rounded-DEFAULT">
+<p class="font-code-xs text-code-xs text-on-surface-variant">Retenção XML / SHA-256</p>
+<p class="font-headline-md text-headline-md text-on-surface mt-0.5">&gt; 5 Anos</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">history</span> Art. 173 CTN
+              </p>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container rounded-DEFAULT flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px]">fingerprint</span>
+<div class="min-w-0 flex-1">
+<p class="font-title-sm text-title-sm text-on-surface truncate">Signer Microservice Segregado</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Chave A1 isolada em VPC restrita</p>
+</div>
+</div>
+<a class="w-full inline-flex items-center justify-center gap-2 px-space-md py-space-sm rounded-DEFAULT bg-primary text-on-primary font-title-sm text-title-sm hover:bg-primary-container transition-colors" href="#dpo-contact">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+            Falar com o Encarregado (DPO)
+          </a>
+</div>
+</div>
+</div>
+</section>
+<!-- Interactive Policy Content Architecture -->
+<section class="w-full py-space-xl bg-surface">
+<div class="max-w-7xl mx-auto px-margin lg:px-margin-desktop">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter-desktop">
+<!-- Left Navigation / Quick Indices Anchor Bar -->
+<aside class="hidden lg:block lg:col-span-3 space-y-space-md sticky top-24 self-start">
+<div class="p-space-md bg-surface-container-lowest rounded-DEFAULT shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Estrutura Normativa</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">10 Seções</span>
+</div>
+<nav class="space-y-1 font-body-sm text-body-sm">
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface hover:bg-surface-container transition-colors font-medium" href="#secao-1">
+<span class="font-code-xs text-code-xs text-on-surface-variant">01.</span> Papéis &amp; Bases Legais
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-2">
+<span class="font-code-xs text-code-xs text-on-surface-variant">02.</span> Tratamento eSocial (S-1.3)
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-3">
+<span class="font-code-xs text-code-xs text-on-surface-variant">03.</span> RLS &amp; Concorrência Zero
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-4">
+<span class="font-code-xs text-code-xs text-on-surface-variant">04.</span> Cofre A1 &amp; Microserviço Signer
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-5">
+<span class="font-code-xs text-code-xs text-on-surface-variant">05.</span> Open Finance &amp; Pagamentos ITP
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-6">
+<span class="font-code-xs text-code-xs text-on-surface-variant">06.</span> Agentes de IA &amp; Mascaramento
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-7">
+<span class="font-code-xs text-code-xs text-on-surface-variant">07.</span> Ciclo Fiscal 5 Anos &amp; SHA-256
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-8">
+<span class="font-code-xs text-code-xs text-on-surface-variant">08.</span> Direitos do Titular (Art. 18)
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-9">
+<span class="font-code-xs text-code-xs text-on-surface-variant">09.</span> Logs Imutáveis &amp; Impersonation
+              </a>
+<a class="flex items-center gap-2 px-space-sm py-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" href="#secao-10">
+<span class="font-code-xs text-code-xs text-on-surface-variant">10.</span> Canal DPO / Contato Oficial
+              </a>
+</nav>
+</div>
+<!-- Institutional Trust Badge Card -->
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-sm">
+<div class="flex items-center gap-2 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-emerald-600">verified_user</span>
+<span>Garantia de Não-Treinamento</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              O ContaIA estabelece cláusula irrevogável de que os dados fiscais, contábeis e trabalhistas de seus clientes <strong>nunca são utilizados para treinamento de modelos públicos de inteligência artificial</strong>.
+            </p>
+</div>
+</aside>
+<!-- Main Structured Content Column -->
+<main class="lg:col-span-9 space-y-space-xl">
+<!-- SEÇÃO 01: Papéis e Bases Legais -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-1">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">01</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Definição de Papéis e Enquadramento Legal (LGPD)</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Art. 5º e Art. 7º LGPD</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              Na operação do software de automação contábil multi-empresa ContaIA, as atribuições legais sob a Lei Geral de Proteção de Dados Pessoais (Lei 13.709/18) operam segundo modelo dual explícito:
+            </p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-xs">
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-title-sm text-title-sm text-on-surface">Escritório Contábil &amp; Empresa Cliente</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-on-surface font-label-sm text-label-sm uppercase font-semibold">Controladores</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Definem as bases jurídicas para contratação e escrituração de seus colaboradores, clientes e parceiros comerciais, respondendo primariamente pelas diretrizes de folha, retenções e faturamento.
+                </p>
+<div class="font-code-xs text-code-xs text-on-surface-variant pt-1">
+                  Base Legal primária: Art. 7º, II (Cumprimento de Obrigação Legal e Regulatória - RFB, eSocial, Sefaz).
+                </div>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-title-sm text-title-sm text-on-surface">ContaIA Tecnologia Tributária</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-on-surface font-label-sm text-label-sm uppercase font-semibold">Operadora</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Executa o processamento digitalizado, armazenamento de alta densidade, validação determinística e transmissão criptográfica em estrito cumprimento das instruções do Controlador e do contrato de licença.
+                </p>
+<div class="font-code-xs text-code-xs text-on-surface-variant pt-1">
+                  Base Legal: Art. 7º, V (Execução de Contrato) e Art. 11, II, "a" para dados sensíveis em folha.
+                </div>
+</div>
+</div>
+<!-- Taxonomias de Dados Processados -->
+<div class="mt-space-md space-y-space-sm">
+<span class="font-title-sm text-title-sm text-on-surface block">Matriz de Classificação de Dados Tratados na Plataforma</span>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-sm text-body-sm">
+<thead class="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
+<tr>
+<th class="p-space-sm">Categoria de Dado</th>
+<th class="p-space-sm">Exemplos Concretos</th>
+<th class="p-space-sm">Finalidade de Processamento</th>
+<th class="p-space-sm">Base Legal</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<tr class="hover:bg-surface-container-low">
+<td class="p-space-sm font-semibold text-on-surface">Dados Cadastrais Corporativos</td>
+<td class="p-space-sm text-on-surface-variant">CNPJ, Razão Social, CNAE, Inscrições Estaduais/Municipais, CRC.</td>
+<td class="p-space-sm text-on-surface-variant">Configuração do tenant fiscal, determinação de alíquotas do Simples/Presumido/Real.</td>
+<td class="p-space-sm font-code-xs text-code-xs">Execução de Contrato</td>
+</tr>
+<tr class="hover:bg-surface-container-low">
+<td class="p-space-sm font-semibold text-on-surface">Documentos Fiscais (DF-e)</td>
+<td class="p-space-sm text-on-surface-variant">NF-e Mod. 55, CT-e, NFS-e Nacional, XMLs com tags CBS/IBS (Reforma Tributária).</td>
+<td class="p-space-sm text-on-surface-variant">Escrituração digital, cálculo de crédito aproveitável, SPED Fiscal e EFD-Contribuções.</td>
+<td class="p-space-sm font-code-xs text-code-xs">Obrigação Legal (CTN)</td>
+</tr>
+<tr class="hover:bg-surface-container-low">
+<td class="p-space-sm font-semibold text-on-surface">Departamento Pessoal &amp; eSocial</td>
+<td class="p-space-sm text-on-surface-variant">CPF, PIS/PASEP, Salário, Dependentes, ASOs, CAT, Vínculo Empregatício.</td>
+<td class="p-space-sm text-on-surface-variant">Validação e transmissão de eventos S-1.3 (S-2200, S-1200, S-1210, FGTS Digital).</td>
+<td class="p-space-sm font-code-xs text-code-xs">Obrigação Trabalhista/Previdenciária</td>
+</tr>
+<tr class="hover:bg-surface-container-low">
+<td class="p-space-sm font-semibold text-on-surface">Dados Bancários &amp; Open Finance</td>
+<td class="p-space-sm text-on-surface-variant">Extratos, saldos, chave PIX, transações de contas correntes empresariais.</td>
+<td class="p-space-sm text-on-surface-variant">Conciliação contábil assistida por score e geração de partidas dobradas.</td>
+<td class="p-space-sm font-code-xs text-code-xs">Consentimento Específico</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</article>
+<!-- SEÇÃO 02: Tratamento eSocial Layout S-1.3 -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">02</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Tratamento de Dados de Folha e Eventos Trabalhistas eSocial (Layout S-1.3)</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Módulo DP</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              Os dados de recursos humanos e departamento pessoal são tratados como ativos de sensibilidade extrema. A plataforma atua em conformidade com as diretrizes do Manual de Orientação do eSocial (MOS v. S-1.3) e regulamentações do Ministério do Trabalho e Previdência:
+            </p>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-2">
+<div class="flex items-center gap-2 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">badge</span>
+<span>S-2200 (Admissões)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Validação determinística prévia antes de qualquer despacho: bloqueio forçado se a data de início for igual ao dia corrente (exige D-1 legal). Evita aplicação de multa automática a partir de R$ 3.000 por trabalhador não registrado.
+                </p>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-2">
+<div class="flex items-center gap-2 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">payments</span>
+<span>S-1200 / S-1210 (Folha)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Criptografia granular no nível de coluna para remunerações, horas extras, descontos sindicais e rubricas de plano de saúde. Processamento em lote com hash de transmissão individualizado.
+                </p>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-2">
+<div class="flex items-center gap-2 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">health_and_safety</span>
+<span>SST (S-2210 / S-2220 / S-2240)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Dados ocupacionais e atestados de saúde ocupacional recebem salvaguardas adicionais sob o Artigo 11 da LGPD, impedindo qualquer acesso por usuários sem perfil habilitado de SESMT/DP.
+                </p>
+</div>
+</div>
+<div class="p-space-md bg-surface-container rounded-DEFAULT space-y-2">
+<div class="flex items-center gap-2 font-title-sm text-title-sm text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">verified</span>
+<span>Substituição da DIRF pelo EFD-Reinf</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                A partir do ano-calendário de 2025/2026, as retenções de imposto de renda e contribuições previdenciárias deixam a DIRF tradicional e operam via eventos periódicos R-4000 do EFD-Reinf. Os dados bancários e de beneficiários são submetidos a retenção restrita conforme prazo de decadência tributária.
+              </p>
+</div>
+</article>
+<!-- SEÇÃO 03: Row-Level Security (RLS) & Isolamento Concorrente -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">03</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Isolamento Multi-tenant por Row-Level Security (RLS)</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-emerald-100 text-emerald-800 font-code-xs text-code-xs font-semibold">Zero-Cross Leakage</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              O maior risco estrutural em softwares de escritórios contábeis compartilhados reside na contaminação cruzada de informações entre empresas concorrentes. No ContaIA v3.0, o isolamento é executado a nível de motor de banco de dados (PostgreSQL RLS Kernel Engine), desvinculado de filtros manuais da aplicação.
+            </p>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-sm">
+<span class="font-title-sm text-title-sm text-on-surface block">Regra Estrutural de Dois Níveis Obrigatória</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Toda e qualquer tabela transacional do ecossistema (<code class="font-code-xs text-code-xs bg-surface-container px-1 py-0.5 rounded text-on-surface">documento_fiscal</code>, <code class="font-code-xs text-code-xs bg-surface-container px-1 py-0.5 rounded text-on-surface">lancamento_contabil</code>, <code class="font-code-xs text-code-xs bg-surface-container px-1 py-0.5 rounded text-on-surface">empregado</code>, <code class="font-code-xs text-code-xs bg-surface-container px-1 py-0.5 rounded text-on-surface">extrato</code>) carrega obrigatoriamente as chaves discriminantes indexadas:
+              </p>
+<div class="p-space-sm bg-surface-container-lowest rounded-DEFAULT font-code-xs text-code-xs text-on-surface space-y-1">
+<div class="text-on-surface-variant">-- Política de Execução RLS de Baixo Nível (PostgreSQL 16)</div>
+<div><span class="text-primary font-semibold">CREATE POLICY</span> tenant_empresa_isolation_policy <span class="text-primary font-semibold">ON</span> documento_fiscal</div>
+<div class="pl-4"><span class="text-primary font-semibold">AS RESTRICTIVE</span></div>
+<div class="pl-4"><span class="text-primary font-semibold">USING</span> (tenant_id = current_setting('app.current_tenant_id')::uuid</div>
+<div class="pl-8"><span class="text-primary font-semibold">AND</span> empresa_id = current_setting('app.current_empresa_id')::uuid);</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-1.5">
+<div class="flex items-center gap-1.5 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-emerald-600">domain</span>
+<span>Clientes Concorrentes Sob a Mesma Contabilidade</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Ainda que dois postos de combustível ou drogarias concorrentes contratem o mesmo escritório contábil, um usuário com perfil restrito da Empresa A jamais conseguirá forçar leitura de notas, balancetes ou fornecedores da Empresa B. O banco aborta a consulta com zero linhas retornadas.
+                </p>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-1.5">
+<div class="flex items-center gap-1.5 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">supervisor_account</span>
+<span>Carteiras de Alçada e Acesso do Escritório</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Colaboradores do escritório contábil só visualizam empresas expressamente associadas à sua carteira de atendimento. O acesso <code class="font-code-xs text-code-xs">cliente_portal</code> fica permanentemente circunscrito ao CNPJ único contratante.
+                </p>
+</div>
+</div>
+</article>
+<!-- SEÇÃO 04: Cofre de Certificados A1 & Microserviço Signer -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">04</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Cofre Criptográfico de Certificados A1 e Isolamento do Signer</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Zero API Key Leak</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              O Certificado Digital ICP-Brasil padrão A1 carrega a personalidade jurídica e fé pública da entidade empresarial. O ContaIA implementou arquitetura de segregação estrita baseada em Hardware Security Module (HSM) e Key Management Service (KMS):
+            </p>
+<!-- Visual Flowchart of Signer Isolation -->
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-md">
+<span class="font-title-sm text-title-sm text-on-surface block">Diagrama de Fluxo: A Chave Privada Nunca Sai do Cofre</span>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm text-center">
+<div class="p-space-sm bg-surface-container-lowest rounded-DEFAULT space-y-1">
+<div class="w-8 h-8 mx-auto rounded-full bg-surface-container flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[18px]">dns</span>
+</div>
+<span class="font-title-sm text-title-sm text-on-surface block">1. API Principal</span>
+<p class="font-code-xs text-code-xs text-on-surface-variant">Submete payload XML em aberto para assinar. Não possui chave privada.</p>
+</div>
+<div class="p-space-sm bg-primary text-on-primary rounded-DEFAULT space-y-1">
+<div class="w-8 h-8 mx-auto rounded-full bg-primary-container flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[18px]">lock</span>
+</div>
+<span class="font-title-sm text-title-sm block">2. Microserviço Signer (VPC Fechada)</span>
+<p class="font-code-xs text-code-xs opacity-80">Único serviço com acesso transitório ao KMS/Vault. Assina o XML e encerra mTLS.</p>
+</div>
+<div class="p-space-sm bg-surface-container-lowest rounded-DEFAULT space-y-1">
+<div class="w-8 h-8 mx-auto rounded-full bg-surface-container flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[18px]">cloud_upload</span>
+</div>
+<span class="font-title-sm text-title-sm text-on-surface block">3. Gateway Governamental</span>
+<p class="font-code-xs text-code-xs text-on-surface-variant">Sefaz Nacional / eSocial recebem requisição segura com certificado ICP-Brasil.</p>
+</div>
+</div>
+</div>
+<div class="space-y-2 font-body-sm text-body-sm text-on-surface-variant">
+<p>• <strong>Sem exposição a agentes de IA ou logs:</strong> O microserviço <em>Signer</em> atua em rede interna sem IP público atribuído. A chave privada descompactada nunca é inserida em variáveis de ambiente, caches de banco ou respostas da API.</p>
+<p>• <strong>Procurações Eletrônicas RFB / e-CAC:</strong> Para escritórios que gerenciam centenas de CNPJs, a plataforma permite a utilização da procuração digital do e-CNPJ do escritório contábil, eliminando a transmissão massiva de certificados de terceiros desnecessários.</p>
+</div>
+</article>
+<!-- SEÇÃO 05: Open Finance Brasil & Iniciação de Pagamentos (ITP) -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">05</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Consentimento Open Finance Brasil e Iniciação de Pagamentos (ITP)</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Resolução Conjunta nº 1 Bacen/CVM</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              A integração de contas correntes e cartões corporativos via Open Finance opera estritamente sob as diretrizes do Banco Central do Brasil, observando consentimento informado, específico e revogável:
+            </p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-xs">
+<div class="flex items-center gap-2 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">sync_alt</span>
+<span>Captura de Extratos por Webhook</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Substitui a importação manual e insegura de arquivos OFX via download em desktop. Os dados de saldo e movimentação chegam via conexões criptografadas com validade de consentimento limitada a no máximo 12 meses, com renovação ativa pelo cliente.
+                </p>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-xs">
+<div class="flex items-center gap-2 text-on-surface font-title-sm text-title-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">touch_app</span>
+<span>Iniciação de Transação de Pagamentos (ITP)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  O ContaIA agenda os pagamentos das guias de tributos federais (DAS, DARF, FGTS Digital) na instituição bancária homologada. O sistema <strong>jamais realiza movimentação unilateral</strong>: a liquidação financeira exige biometria ou duplo fator (2FA) do titular no aplicativo do banco de origem.
+                </p>
+</div>
+</div>
+</article>
+<!-- SEÇÃO 06: Agentes de IA & Pseudonimização Rigorosa -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">06</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Processamento de Inteligência Artificial: Pseudonimização &amp; HITL</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-amber-100 text-amber-900 font-code-xs text-code-xs font-semibold">Human-in-the-Loop</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              O ContaIA utiliza arquitetura híbrida de IA: regras determinísticas e embeddings locais processam 90% das rotinas (sem envio a LLMs externos). Nos casos de exceção e RAG normativo, são aplicadas salvaguardas de mascaramento conforme regulamentações globais e da ANPD:
+            </p>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-title-sm text-title-sm text-on-surface">Tabela de Sanitização de Payloads para Modelos de Terceiros</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Pré-envio ao Gateway AI</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm text-on-surface font-code-xs text-code-xs">
+<div class="p-space-sm bg-surface-container-lowest rounded-DEFAULT">
+<div class="text-on-surface-variant">Dado Bruto</div>
+<div class="font-semibold mt-1">CPF: 123.456.789-00</div>
+<div class="text-emerald-700 font-semibold mt-1">Transformação: CPF_HASH_8F2A</div>
+</div>
+<div class="p-space-sm bg-surface-container-lowest rounded-DEFAULT">
+<div class="text-on-surface-variant">Dado Bruto</div>
+<div class="font-semibold mt-1">Nome: João da Silva Gomes</div>
+<div class="text-emerald-700 font-semibold mt-1">Transformação: EMPREGADO_REF_912</div>
+</div>
+<div class="p-space-sm bg-surface-container-lowest rounded-DEFAULT">
+<div class="text-on-surface-variant">Dado Bruto</div>
+<div class="font-semibold mt-1">Salário Base: R$ 4.500,00</div>
+<div class="text-emerald-700 font-semibold mt-1">Transformação: FAIXA_REMUNERAT_CAT3</div>
+</div>
+</div>
+</div>
+<div class="space-y-space-xs">
+<span class="font-title-sm text-title-sm text-on-surface block">Garantias Éticas e Arquiteturais de IA:</span>
+<ul class="space-y-1.5 font-body-sm text-body-sm text-on-surface-variant">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary mt-0.5">check_circle</span>
+<span><strong>Determinismo em Cálculos:</strong> LLMs nunca calculam alíquotas ou impostos. Todo número gerado decorre do motor determinístico versionado com vigência estrita.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary mt-0.5">check_circle</span>
+<span><strong>HITL Mandatório perante o Fisco:</strong> Nenhuma manifestação conclusiva (Confirmação, Desconhecimento de Operação) ou evento eSocial é transmitido ao governo sem validação expressa e assinada de um profissional humano. A Ciência da Emissão automática atua somente para resguardar o download do XML.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary mt-0.5">check_circle</span>
+<span><strong>Namespaces Isolados no Vector DB:</strong> Embeddings vetoriais possuem particionamento físico por <code class="font-code-xs text-code-xs">tenant_id</code> e <code class="font-code-xs text-code-xs">empresa_id</code>. Dados históricos de um cliente não enriquecem respostas de outro usuário.</span>
+</li>
+</ul>
+</div>
+</article>
+<!-- SEÇÃO 07: Retenção Mínima 5 Anos & SHA-256 -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-7">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">07</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Ciclo de Retenção Fiscal de 5 Anos e Integridade Criptográfica SHA-256</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Art. 173 do CTN &amp; Ajuste SINIEF</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              Em consonância com o Artigo 16, inciso I da LGPD, a eliminação de dados pessoais sofre mitigação diante da exigência legal de guarda de documentos fiscais e contábeis:
+            </p>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-title-sm text-title-sm text-on-surface">Garantia de Não-Repúdio e Prova em Juízo</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Armazenamento Append-Only (WORM)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Todos os arquivos XML originais capturados do Web Service de Distribuição DF-e ou emitidos pela plataforma recebem digest criptográfico gerado no momento do recebimento. O hash SHA-256 é armazenado em banco imutável indexado por chave de acesso de 44 dígitos.
+              </p>
+<div class="p-space-sm bg-surface-container-lowest rounded-DEFAULT font-code-xs text-code-xs flex flex-wrap items-center justify-between gap-2">
+<span class="text-on-surface-variant">Exemplo de Registro de Integridade:</span>
+<span class="text-on-surface select-all">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Ao término do período prescricional de 5 anos fiscais (ou 30 anos para certidões previdenciárias de FGTS e vínculos trabalhistas), os dados são expurgados com sobrescrita criptográfica auditada ou mantidos mediante técnica irrevogável de anonimização para elaboração de estatísticas analíticas de mercado.
+            </p>
+</article>
+<!-- SEÇÃO 08: Direitos dos Titulares (Art. 18 LGPD) -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-8">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">08</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Direitos dos Titulares de Dados (Artigo 18 da LGPD)</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Procedimento Automatizado</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              O ContaIA assegura os mecanismos técnicos para que titulares (sócios, funcionários, contadores ou representantes legais) exerçam seus direitos com rapidez e segurança:
+            </p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-1">
+<div class="flex items-center gap-1.5 font-title-sm text-title-sm text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
+<span>Confirmação &amp; Acesso aos Dados</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Geração de dossiê completo de tratamento em formato aberto JSON/CSV em até 48 horas úteis através do Portal do Cliente.
+                </p>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-1">
+<div class="flex items-center gap-1.5 font-title-sm text-title-sm text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-primary">edit_note</span>
+<span>Correção de Dados Incompletos</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Atualização cadastral imediata de empregados ou parceiros, com propagação automática para retificação no eSocial e Sefaz.
+                </p>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-1">
+<div class="flex items-center gap-1.5 font-title-sm text-title-sm text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-primary">move_down</span>
+<span>Portabilidade de Dados Contábeis</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Exportação integral de balancetes, livros diários, plano de contas e XMLs originais com hashes para migração sem vendor lock-in.
+                </p>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-1">
+<div class="flex items-center gap-1.5 font-title-sm text-title-sm text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-primary">delete_forever</span>
+<span>Eliminação e Revogação</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Exclusão de contas inativas e revogação imediata de Open Finance, ressalvadas as obrigações fiscais mandatórias de 5 anos.
+                </p>
+</div>
+</div>
+</article>
+<!-- SEÇÃO 09: Trilha de Auditoria & Sessões de Impersonation -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-9">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">09</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Auditoria Contínua, Observabilidade e Sessões de Impersonation</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Append-Only Ledger</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              Todas as transações que impactam esferas tributárias ou alteram parametrizações críticas são inseridas em tabela <code class="font-code-xs text-code-xs bg-surface-container px-1 py-0.5 rounded text-on-surface">log_auditoria</code> protegida contra deleção ou edição retrospectiva (inclusive por administradores de banco).
+            </p>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-sm">
+<div class="flex items-center gap-2 font-title-sm text-title-sm text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">admin_panel_settings</span>
+<span>Rigor na Sessão de Impersonation ("Logar Como" do Suporte)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Nos casos em que o suporte técnico nível 3 necessita diagnosticar problemas complexos em nome do cliente, o mecanismo de impersonation nunca emprega a sessão comum de usuário. Utiliza uma <em>role de serviço dedicada</em>, exigindo autorização prévia por chamado, gerando entrada de log global contendo: autor, CNPJ afetado, IP de origem, duração da sessão e todos os registros lidos.
+              </p>
+</div>
+</article>
+<!-- SEÇÃO 10: Canal Oficial do Encarregado de Dados (DPO) -->
+<article class="bg-surface-container-lowest p-space-lg rounded-DEFAULT shadow-sm space-y-space-md" id="secao-10">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-xs text-code-xs font-semibold">10</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Canal Oficial de Atendimento e Encarregado de Dados (DPO)</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-DEFAULT bg-surface-container text-on-surface-variant font-code-xs text-code-xs">Art. 41 LGPD</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter-desktop" id="dpo-contact">
+<div class="md:col-span-6 space-y-space-sm">
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                  Para comunicações regulatórias da ANPD, requisições de titulares de dados ou auditorias de segurança de escritórios parceiros, contate diretamente nossa equipe de governança:
+                </p>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT space-y-2">
+<div class="flex items-center gap-2 font-title-sm text-title-sm text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">badge</span>
+<span>Encarregado pelo Tratamento de Dados (DPO)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-semibold">Rodrigo Reis, CIPP/E</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Diretor de Conformidade e Proteção de Dados</p>
+<div class="pt-2 font-code-xs text-code-xs space-y-1 text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">mail</span>
+<span>dpo@contaia.com.br</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">schedule</span>
+<span>Atendimento em até 2 dias úteis</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Request Simulator / Ticket Drawer -->
+<div class="md:col-span-6 p-space-md bg-surface-container-low rounded-DEFAULT space-y-space-sm">
+<span class="font-title-sm text-title-sm text-on-surface block">Submissão Rápida de Chamado de Privacidade</span>
+<form class="space-y-space-xs" id="dpoForm" onsubmit="event.preventDefault(); document.getElementById('successFeedback').classList.remove('hidden');">
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface mb-1">Seu Nome Completo</label>
+<input class="w-full px-space-sm py-1.5 text-body-sm bg-surface-container-lowest text-on-surface rounded-DEFAULT focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Dra. Mariana Silveira" required="" type="text"/>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface mb-1">E-mail Profissional / Vinculado ao CNPJ</label>
+<input class="w-full px-space-sm py-1.5 text-body-sm bg-surface-container-lowest text-on-surface rounded-DEFAULT focus:outline-none focus:ring-1 focus:ring-primary" placeholder="mariana@escritoriocontabil.com.br" required="" type="email"/>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface mb-1">Tipo de Solicitação LGPD</label>
+<select class="w-full px-space-sm py-1.5 text-body-sm bg-surface-container-lowest text-on-surface rounded-DEFAULT focus:outline-none">
+<option>Relatório de Acesso e Tratamento (Art. 18, II)</option>
+<option>Revogação de Consentimento Open Finance</option>
+<option>Esclarecimento sobre Pseudonimização de IA</option>
+<option>Portabilidade de Balancetes e XMLs</option>
+<option>Outra demanda regulatória formal</option>
+</select>
+</div>
+<div class="pt-space-xs">
+<button class="w-full py-space-sm px-space-md bg-primary text-on-primary rounded-DEFAULT font-title-sm text-title-sm hover:bg-primary-container transition-colors flex items-center justify-center gap-2" type="submit">
+<span class="material-symbols-outlined text-[16px]">send</span>
+                      Encaminhar ao DPO Oficial
+                    </button>
+</div>
+</form>
+<div class="hidden p-space-sm bg-emerald-100 text-emerald-900 rounded-DEFAULT font-body-sm text-body-sm flex items-center gap-2" id="successFeedback">
+<span class="material-symbols-outlined text-[18px] text-emerald-700">task_alt</span>
+<span>Protocolo LGPD registrado com sucesso. Resposta será enviada ao seu e-mail funcional.</span>
+</div>
+</div>
+</div>
+</article>
+</main>
+</div>
+</div>
+</section>
+<!-- Bottom Certificate Verification Strip -->
+<section class="w-full bg-surface-container-lowest py-space-lg shadow-sm">
+<div class="max-w-7xl mx-auto px-margin lg:px-margin-desktop flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<span class="w-9 h-9 rounded-DEFAULT bg-surface-container flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[22px]">policy</span>
+</span>
+<div>
+<span class="font-title-sm text-title-sm text-on-surface block">Compromisso com o Código de Ética Profissional do Contador (CFC nº 803/96)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Garantia absoluta de sigilo operacional em auditorias fiscais, DF-e e conciliações bancárias.</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm font-code-xs text-code-xs text-on-surface-variant">
+<span>Assinatura Digital de Documento:</span>
+<span class="px-space-sm py-1 bg-surface-container rounded-DEFAULT text-on-surface font-semibold">ContaIA-Secured-2026-v3</span>
+</div>
+</div>
+</section>
+</div></main><footer class="w-full bg-surface-container-low border-t border-outline-variant/30 text-on-surface"><div class="max-w-7xl mx-auto px-margin lg:px-margin-desktop py-space-xl"><div class="grid grid-cols-1 md:grid-cols-4 gap-gutter-desktop mb-space-xl"><div class="space-y-space-sm"><div class="flex items-center gap-space-sm"><span class="font-headline-sm text-headline-sm text-on-surface">ContaIA</span></div><p class="font-body-sm text-body-sm text-on-surface-variant">Inteligência fiscal e contábil em tempo real para conformidade automatizada no Brasil. Integração homologada SPED, NFS-e nacional, eSocial e CBS/IBS.</p><div class="flex items-center gap-2 text-on-surface-variant font-code-xs text-code-xs pt-space-xs"><span class="material-symbols-outlined text-[16px] text-emerald-600">verified_user</span><span>Certificação Digital ICP-Brasil A1 / A3</span></div></div><div><p class="font-title-sm text-title-sm text-on-surface mb-space-sm uppercase tracking-wide">Plataforma &amp; Motor Fiscal</p><ul class="space-y-2 font-body-sm text-body-sm text-on-surface-variant"><li><a class="hover:text-on-surface transition-colors" data-path="recursos" href="#">Auditoria Contínua SPED</a></li><li><a class="hover:text-on-surface transition-colors" data-path="recursos" href="#">Automação NF-e, NFS-e e CT-e</a></li><li><a class="hover:text-on-surface transition-colors" data-path="reforma-tributaria" href="#">Motor Dual CBS / IBS / IS 2026</a></li><li><a class="hover:text-on-surface transition-colors" data-path="recursos" href="#">Conciliação Bancária OFX/PIX</a></li></ul></div><div><p class="font-title-sm text-title-sm text-on-surface mb-space-sm uppercase tracking-wide">Segurança &amp; Compliance</p><ul class="space-y-2 font-body-sm text-body-sm text-on-surface-variant"><li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">lock</span><span>Criptografia Ponta a Ponta TLS 1.3</span></li><li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">gavel</span><span>Conformidade LGPD (Lei 13.709/18)</span></li><li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">badge</span><span>Certificado A1 em HSM em Nuvem</span></li><li class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">cloud_done</span><span>SLA Contratual de 99.98%</span></li></ul></div><div><p class="font-title-sm text-title-sm text-on-surface mb-space-sm uppercase tracking-wide">Políticas &amp; Jurídico</p><ul class="space-y-2 font-body-sm text-body-sm text-on-surface-variant"><li><a class="hover:text-on-surface transition-colors" data-path="termos-de-uso" href="#">Termos de Uso e Licenciamento</a></li><li><a class="hover:text-on-surface transition-colors" data-path="privacidade" href="#">Política de Privacidade e Dados</a></li><li><a class="hover:text-on-surface transition-colors" data-path="login" href="#">Portal do Contador (Acesso Seguro)</a></li></ul></div></div><div class="pt-space-md border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-space-sm text-on-surface-variant font-label-sm text-label-sm"><span>© 2026 ContaIA Tecnologia Tributária Ltda. CNPJ 42.108.921/0001-84. Todos os direitos reservados.</span><div class="flex items-center gap-space-md"><span class="font-code-xs text-code-xs">TLS 1.3 Strict Enforced</span><span class="font-code-xs text-code-xs">Ambiente Regulatório RFB / CFC</span></div></div></div></footer></body></html>

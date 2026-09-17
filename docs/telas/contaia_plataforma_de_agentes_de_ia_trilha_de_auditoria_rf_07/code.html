@@ -1,0 +1,1176 @@
+<!DOCTYPE html><html class="light" lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>RF-07 — Plataforma de Agentes de IA, Trilha de Auditoria &amp; Governança HITL | ContaIA v3.0</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&amp;family=Be+Vietnam+Pro:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "error": "#ba1a1a",
+            "tertiary-fixed": "#d9e2ff",
+            "on-secondary-container": "#705400",
+            "on-surface": "#101c2d",
+            "tertiary-fixed-dim": "#b0c6ff",
+            "surface-container-highest": "#d7e3fb",
+            "surface-container-lowest": "#ffffff",
+            "background": "#f9f9ff",
+            "on-tertiary-container": "#5081e5",
+            "surface-container-high": "#dde9ff",
+            "tertiary-container": "#001944",
+            "inverse-primary": "#bec6e0",
+            "outline-variant": "#c6c6cd",
+            "secondary-fixed": "#ffdf9a",
+            "primary-container": "#131b2e",
+            "surface-container": "#e6eeff",
+            "on-surface-variant": "#45464d",
+            "primary-fixed": "#dae2fd",
+            "surface-dim": "#cedbf2",
+            "primary": "#000000",
+            "secondary-container": "#fdc73a",
+            "tertiary": "#000000",
+            "on-primary-fixed": "#131b2e",
+            "secondary-fixed-dim": "#f4bf31",
+            "secondary": "#785a00",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed-variant": "#3f465c",
+            "surface-variant": "#d7e3fb",
+            "on-tertiary-fixed-variant": "#00429a",
+            "outline": "#76777d",
+            "on-primary": "#ffffff",
+            "on-error-container": "#93000a",
+            "inverse-on-surface": "#ebf1ff",
+            "surface-bright": "#f9f9ff",
+            "inverse-surface": "#253143",
+            "surface-container-low": "#eff3ff",
+            "on-secondary-fixed": "#251a00",
+            "primary-fixed-dim": "#bec6e0",
+            "surface": "#f9f9ff",
+            "on-background": "#101c2d",
+            "on-primary-container": "#7c839b",
+            "on-tertiary-fixed": "#001944",
+            "surface-tint": "#565e74",
+            "on-tertiary": "#ffffff",
+            "error-container": "#ffdad6",
+            "on-error": "#ffffff",
+            "on-secondary-fixed-variant": "#5a4300"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-lg": "1.25rem",
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "space-xl": "1.75rem",
+            "margin-desktop": "2rem",
+            "gutter": "1rem",
+            "gutter-desktop": "1.5rem",
+            "margin": "1rem"
+          },
+          "fontFamily": {
+            "label-sm": ["Inter", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "label-md": ["Inter", "sans-serif"],
+            "headline-lg-mobile": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "title-sm": ["Inter", "sans-serif"],
+            "title-md": ["Inter", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-xs": ["JetBrains Mono", "monospace"],
+            "body-md": ["Inter", "sans-serif"]
+          },
+          "fontSize": {
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+            "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "title-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "title-md": ["15px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "code-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "code-xs": ["11px", { "lineHeight": "14px", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      vertical-align: middle;
+      display: inline-block;
+      line-height: 1;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen selection:bg-surface-variant">
+<!-- Top Global Bar ContaIA v3.0 -->
+<header class="w-full bg-surface-container-lowest border-b border-outline-variant/40 px-6 py-2.5 flex items-center justify-between sticky top-0 z-40">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded bg-primary flex items-center justify-center text-surface-container-lowest font-headline-sm font-bold text-xs">
+          C
+        </div>
+<span class="font-headline-sm text-sm font-semibold tracking-tight text-on-surface">ContaIA <span class="text-xs font-normal text-on-surface-variant">v3.0 Enterprise</span></span>
+</div>
+<div class="h-4 w-px bg-outline-variant/50"></div>
+<div class="flex items-center gap-2 text-xs font-label-md text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="">Gateway Multi-Agent: <strong class="text-on-surface font-medium">Online (7/7 Ativos)</strong></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-xs font-label-md">
+<div class="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded border border-outline-variant/30 text-on-surface">
+<span class="material-symbols-outlined text-xs">domain</span>
+<span class="">Tenant: <span class="font-semibold">escritorio_001 (Auditoria São Paulo)</span></span>
+</div>
+<div class="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container rounded border border-outline-variant/30 text-on-surface">
+<span class="material-symbols-outlined text-xs">verified_user</span>
+<span class="">CRC-SP: <span class="font-semibold">1SP298311/O-4</span></span>
+</div>
+</div>
+</header>
+<!-- Main Container -->
+<main class="max-w-[1580px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+<!-- 1. CABEÇALHO DA SEÇÃO / BREADCRUMB (SHARED ANCHOR ADAPTED WITH IDENTITY) -->
+<section class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 shadow-sm">
+<div class="flex flex-wrap items-center gap-2 text-xs font-label-md text-on-surface-variant mb-2">
+<a class="hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-sm">shield</span>
+          Governança &amp; IA
+        </a>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-semibold">RF-07: Plataforma de Agentes de IA, Trilha de Auditoria &amp; Custos</span>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+<div class="flex flex-col gap-1.5 max-w-4xl">
+<div class="flex items-center gap-3">
+<h1 class="text-on-surface text-2xl lg:text-3xl font-headline-lg font-black tracking-tight">
+              Plataforma de Agentes de IA &amp; Trilha de Auditoria (RF-07)
+            </h1>
+<span class="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-surface-container text-on-surface-variant border border-outline-variant/40">PRD</span>
+</div>
+<p class="text-on-surface-variant text-sm font-body-sm leading-relaxed">
+            Monitoramento em tempo real dos 7 agentes autônomos, esteira HITL (Human-in-the-Loop), observabilidade de custos por tenant, inspeção de prompts/vetores e trilha de auditoria imutável (<span class="font-mono text-xs text-on-surface">append-only</span>).
+          </p>
+</div>
+<div class="flex flex-wrap items-center gap-2.5">
+<button class="flex items-center gap-2 cursor-pointer rounded-lg h-9 px-3.5 bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-title-sm border border-outline-variant/40 transition-colors">
+<span class="material-symbols-outlined text-sm">download</span>
+<span class="">Exportar Trilha (JSON/CSV)</span>
+</button>
+<button class="flex items-center gap-2 cursor-pointer rounded-lg h-9 px-3.5 bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-title-sm border border-outline-variant/40 transition-colors">
+<span class="material-symbols-outlined text-sm">sync</span>
+<span class="">Forçar Sincronização Vector DB</span>
+</button>
+<button class="flex items-center gap-2 cursor-pointer rounded-lg h-9 px-3.5 bg-primary text-on-primary hover:bg-primary/90 text-xs font-title-sm transition-colors shadow-sm">
+<span class="material-symbols-outlined text-sm">tune</span>
+<span class="">Ajustar Thresholds HITL</span>
+</button>
+</div>
+</div>
+<!-- Compliance & Arch Badges -->
+<div class="flex gap-2.5 mt-4 pt-4 border-t border-outline-variant/20 flex-wrap items-center">
+<span class="text-xs font-label-md text-on-surface-variant uppercase tracking-wider font-semibold mr-1">Compliance:</span>
+<div class="flex h-7 shrink-0 items-center justify-center gap-x-1.5 rounded-md bg-surface-container px-3 text-on-surface text-xs font-medium border border-outline-variant/20">
+<span class="material-symbols-outlined text-xs text-blue-600">layers</span>
+<span class="">Arquitetura 4 Camadas</span>
+</div>
+<div class="flex h-7 shrink-0 items-center justify-center gap-x-1.5 rounded-md bg-surface-container px-3 text-on-surface text-xs font-medium border border-outline-variant/20">
+<span class="material-symbols-outlined text-xs text-emerald-600">verified</span>
+<span class="">RLS Nível 2 Ativo</span>
+</div>
+<div class="flex h-7 shrink-0 items-center justify-center gap-x-1.5 rounded-md bg-surface-container px-3 text-on-surface text-xs font-medium border border-outline-variant/20">
+<span class="material-symbols-outlined text-xs text-amber-600">key</span>
+<span class="">Vault/KMS Integrado</span>
+</div>
+<div class="flex h-7 shrink-0 items-center justify-center gap-x-1.5 rounded-md bg-surface-container px-3 text-on-surface text-xs font-medium border border-outline-variant/20">
+<span class="material-symbols-outlined text-xs text-purple-600">gavel</span>
+<span class="">PL 2338/2023 Conforme</span>
+</div>
+<div class="flex h-7 shrink-0 items-center justify-center gap-x-1.5 rounded-md bg-surface-container px-3 text-on-surface text-xs font-medium border border-outline-variant/20">
+<span class="material-symbols-outlined text-xs text-indigo-600">lock</span>
+<span class="">Pseudonimização LGPD</span>
+</div>
+</div>
+</section>
+<!-- 2. CARDS DE KPIS & MÉTRICAS GLOBAIS DE IA (§10, §17.2 e §18) -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- KPI 1 -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/30 flex flex-col justify-between shadow-sm relative overflow-hidden">
+<div class="flex items-center justify-between text-on-surface-variant mb-1">
+<span class="text-xs font-label-md font-semibold">Taxa Intervenção HITL</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="material-symbols-outlined text-xs">check_circle</span> Conforme
+          </span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-headline-lg font-bold text-on-surface">34,8%</span>
+<span class="text-xs font-medium text-emerald-600 font-label-md">-5.2% vs mês ant.</span>
+</div>
+<p class="text-xs text-on-surface-variant font-body-sm mt-1">
+            Meta PRD &lt; 40% · <strong>65,2%</strong> auto-homologado em baixo risco.
+          </p>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-2 overflow-hidden">
+<div class="bg-emerald-600 h-1.5 rounded-full" style="width: 34.8%"></div>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/30 flex flex-col justify-between shadow-sm relative overflow-hidden">
+<div class="flex items-center justify-between text-on-surface-variant mb-1">
+<span class="text-xs font-label-md font-semibold">Custo Médio / Req.</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+            Teto: R$ 0,50
+          </span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-headline-lg font-bold text-on-surface">R$ 0,18</span>
+<span class="text-xs font-medium text-amber-600 font-label-md">+0.01% estável</span>
+</div>
+<p class="text-xs text-on-surface-variant font-body-sm mt-1">
+            Acumulado: <strong>R$ 14.320,00</strong> / R$ 20.000 teto (1.000 empresas).
+          </p>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-2 overflow-hidden">
+<div class="bg-blue-600 h-1.5 rounded-full" style="width: 36%"></div>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/30 flex flex-col justify-between shadow-sm relative overflow-hidden">
+<div class="flex items-center justify-between text-on-surface-variant mb-1">
+<span class="text-xs font-label-md font-semibold">Taxa de Alucinação</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Tol.: &lt; 0,5%
+          </span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-headline-lg font-bold text-on-surface">0,12%</span>
+<span class="text-xs font-medium text-emerald-600 font-label-md">-0.04% zero crítico</span>
+</div>
+<p class="text-xs text-on-surface-variant font-body-sm mt-1">
+            Determinismo tributário 100% rígido sem LLM em cálculos fiscais.
+          </p>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-2 overflow-hidden">
+<div class="bg-emerald-600 h-1.5 rounded-full" style="width: 24%"></div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/30 flex flex-col justify-between shadow-sm relative overflow-hidden">
+<div class="flex items-center justify-between text-on-surface-variant mb-1">
+<span class="text-xs font-label-md font-semibold">Latência p95 Agentes</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Meta &lt; 5,0s
+          </span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-headline-lg font-bold text-on-surface">2,4s</span>
+<span class="text-xs font-medium text-emerald-600 font-label-md">-0.3s otimizado</span>
+</div>
+<p class="text-xs text-on-surface-variant font-body-sm mt-1">
+<strong>3.412</strong> execuções nas últimas 24h · 0 falhas de infra.
+          </p>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mt-2 overflow-hidden">
+<div class="bg-emerald-600 h-1.5 rounded-full" style="width: 48%"></div>
+</div>
+</div>
+</section>
+<!-- 3. BARRA DE STATUS DA ARQUITETURA DE MODELOS POR TIER (§19 DO PRD) -->
+<section class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4 pb-3 border-b border-outline-variant/20">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base">neurology</span>
+<h2 class="text-sm font-headline-sm font-bold text-on-surface">
+            Arquitetura de Modelos por Tier (§19) &amp; Roteamento Inteligente
+          </h2>
+</div>
+<div class="flex items-center gap-2 text-xs font-mono text-on-surface-variant">
+<span class="px-2 py-0.5 bg-surface-container rounded border border-outline-variant/30">Orquestrador Python Isolado</span>
+<span class="">→</span>
+<span class="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-200 font-semibold">Gateway LLM com Failover</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+<!-- Tier 1 -->
+<div class="bg-surface-container-low p-3.5 rounded-lg border border-outline-variant/30 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-semibold text-on-surface">Tier Raciocínio</span>
+<span class="text-[10px] font-mono px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded">18% Tráfego</span>
+</div>
+<p class="text-xs font-mono text-on-surface font-medium">Claude 3.5 Sonnet / GPT-4o</p>
+<p class="text-[11px] text-on-surface-variant mt-1 leading-snug">Triagem complexa, auditoria fiscal e exceções HITL.</p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-outline-variant/20 text-[11px]">
+<span class="text-emerald-700 font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Ativo</span>
+<span class="text-on-surface-variant font-mono">1.820 ms avg</span>
+</div>
+</div>
+<!-- Tier 2 -->
+<div class="bg-surface-container-low p-3.5 rounded-lg border border-outline-variant/30 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-semibold text-on-surface">Tier Rápido / Baixa Latência</span>
+<span class="text-[10px] font-mono px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">64% Tráfego</span>
+</div>
+<p class="text-xs font-mono text-on-surface font-medium">Gemini 1.5 Flash / Haiku</p>
+<p class="text-[11px] text-on-surface-variant mt-1 leading-snug">Classificação em lote, extração e sumarização rápida.</p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-outline-variant/20 text-[11px]">
+<span class="text-emerald-700 font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Ativo</span>
+<span class="text-on-surface-variant font-mono">420 ms avg</span>
+</div>
+</div>
+<!-- Tier 3 -->
+<div class="bg-surface-container-low p-3.5 rounded-lg border border-outline-variant/30 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-semibold text-on-surface">Tier Embeddings &amp; RAG</span>
+<span class="text-[10px] font-mono px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded">Vector DB</span>
+</div>
+<p class="text-xs font-mono text-on-surface font-medium">text-embedding-3 / BGE-M3</p>
+<p class="text-[11px] text-on-surface-variant mt-1 leading-snug">Vector DB contábil (42.180 vetores indexados).</p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-outline-variant/20 text-[11px]">
+<span class="text-purple-700 font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-purple-600"></span> 100% Sync</span>
+<span class="text-on-surface-variant font-mono">110 ms avg</span>
+</div>
+</div>
+<!-- Tier 4 -->
+<div class="bg-surface-container-low p-3.5 rounded-lg border border-outline-variant/30 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-xs font-semibold text-on-surface">Tier Soberano / Privado</span>
+<span class="text-[10px] font-mono px-1.5 py-0.5 bg-gray-200 text-gray-800 rounded">VPC Privada</span>
+</div>
+<p class="text-xs font-mono text-on-surface font-medium">Hermes 3 / Llama 3.1 70B</p>
+<p class="text-[11px] text-on-surface-variant mt-1 leading-snug">Dados ultra-sensíveis e sigilo fiscal sem egress público.</p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-outline-variant/20 text-[11px]">
+<span class="text-emerald-700 font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Operacional</span>
+<span class="text-on-surface-variant font-mono">Zero Egress</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. MATRIZ DOS 7 AGENTES AUTÔNOMOS EM EXECUÇÃO (§10.2 a §10.8) -->
+<section class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base">smart_toy</span>
+<h2 class="text-sm font-headline-sm font-bold text-on-surface">Matriz Operacional dos 7 Agentes Autônomos ContaIA</h2>
+</div>
+<span class="text-xs font-mono text-on-surface-variant">Heartbeat: Todos saudáveis (2s atrás)</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+<!-- Agente 1: Captura DF-e -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col justify-between hover:border-outline transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-blue-600">receipt_long</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Agente Captura DF-e</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">SEFAZ &amp; Prefeituras</p>
+<div class="mt-3 space-y-1.5 text-xs font-label-md">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Modelo:</span>
+<span class="font-mono text-on-surface font-medium">Gemini Flash / Regras</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Execuções 24h:</span>
+<span class="font-mono text-on-surface font-semibold">3.412</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Fila HITL:</span>
+<span class="font-mono text-amber-700 font-semibold">14 pendentes</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+<span class="text-emerald-700 font-medium">Ciência Automática Ativa</span>
+<span class="text-on-surface-variant">v3.0</span>
+</div>
+</div>
+<!-- Agente 2: Classificador -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col justify-between hover:border-outline transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-indigo-600">category</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Agente Classificador</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">Plano Contas + NCM</p>
+<div class="mt-3 space-y-1.5 text-xs font-label-md">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Modelo:</span>
+<span class="font-mono text-on-surface font-medium">Vector DB + Sonnet</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Acurácia Top-1:</span>
+<span class="font-mono text-emerald-700 font-semibold">89,4% (Meta &gt;=85%)</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Classificações:</span>
+<span class="font-mono text-on-surface font-semibold">1.482</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+<span class="text-emerald-700 font-medium">Feedback Loop OK</span>
+<span class="text-on-surface-variant">v3.0</span>
+</div>
+</div>
+<!-- Agente 3: Conciliador -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col justify-between hover:border-outline transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-teal-600">account_balance</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Agente Conciliador</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">Extratos &amp; OFX/PDF</p>
+<div class="mt-3 space-y-1.5 text-xs font-label-md">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Motor:</span>
+<span class="font-mono text-on-surface font-medium">Multi-critério Anexo C</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Auto-conciliação:</span>
+<span class="font-mono text-emerald-700 font-semibold">88,4% (Meta &gt;=85%)</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Total Matches:</span>
+<span class="font-mono text-on-surface font-semibold">2.450 pares</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+<span class="text-emerald-700 font-medium">Auto Tolerance: 1%</span>
+<span class="text-on-surface-variant">v3.0</span>
+</div>
+</div>
+<!-- Agente 4: Compliance -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col justify-between hover:border-outline transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-purple-600">rule</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Agente Compliance</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">SPED / DCTFWeb / EFD</p>
+<div class="mt-3 space-y-1.5 text-xs font-label-md">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Motor:</span>
+<span class="font-mono text-on-surface font-medium">JSON Normativo + RAG</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Alertas Gerados:</span>
+<span class="font-mono text-on-surface font-semibold">18 notificações</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Multas Bloqueadas:</span>
+<span class="font-mono text-emerald-700 font-semibold">R$ 14.850,00</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+<span class="text-purple-700 font-medium">100% Determinístico</span>
+<span class="text-on-surface-variant">v3.0</span>
+</div>
+</div>
+<!-- Agente 5: DP & eSocial -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col justify-between hover:border-outline transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-rose-600">badge</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Agente DP &amp; eSocial</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">S-1200 / S-2200 / CLT</p>
+<div class="mt-3 space-y-1.5 text-xs font-label-md">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Validador:</span>
+<span class="font-mono text-on-surface font-medium">Rígido Pré-envio</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Bloqueio Preventivo:</span>
+<span class="font-mono text-rose-700 font-semibold">1 (Art. 47 CLT)</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Taxa Rejeição:</span>
+<span class="font-mono text-emerald-700 font-semibold">0,48% (Meta &lt; 2%)</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+<span class="text-rose-700 font-medium">100% HITL Obrigatório</span>
+<span class="text-on-surface-variant">v3.0</span>
+</div>
+</div>
+<!-- Agente 6: Copiloto Contábil -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col justify-between hover:border-outline transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-amber-600">support_agent</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Copiloto Contábil</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">RAG Factual Normativo</p>
+<div class="mt-3 space-y-1.5 text-xs font-label-md">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Modelo:</span>
+<span class="font-mono text-on-surface font-medium">Claude 3.5 Sonnet RAG</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Citação Explícita:</span>
+<span class="font-mono text-emerald-700 font-semibold">100% Obrigatória</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Satisfação Usuários:</span>
+<span class="font-mono text-on-surface font-semibold">4,8 / 5.0</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+<span class="text-emerald-700 font-medium">Zero Egress VPC</span>
+<span class="text-on-surface-variant">v3.0</span>
+</div>
+</div>
+<!-- Agente 7: Coletor Ativo -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col justify-between hover:border-outline transition-colors">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-cyan-600">contactless</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Agente Coletor Ativo</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">Cobrança Ativa D-2</p>
+<div class="mt-3 space-y-1.5 text-xs font-label-md">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Canais:</span>
+<span class="font-mono text-on-surface font-medium">WhatsApp / E-mail</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Taxa Recuperação:</span>
+<span class="font-mono text-emerald-700 font-semibold">78% documentos</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Pendências D-0:</span>
+<span class="font-mono text-on-surface font-semibold">12 empresas</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+<span class="text-emerald-700 font-medium">Tom Personalizado</span>
+<span class="text-on-surface-variant">v3.0</span>
+</div>
+</div>
+<!-- Resumo / Orquestração Global -->
+<div class="p-3.5 bg-surface-container-high/50 rounded-lg border border-outline-variant/40 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base text-primary">hub</span>
+<span class="font-headline-sm text-xs font-bold text-on-surface">Gateway Orquestrador</span>
+</div>
+<span class="px-1.5 py-0.5 text-[10px] font-mono bg-emerald-100 text-emerald-800 rounded font-semibold">Sync</span>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-1">Fila Redis + Celery Async</p>
+<div class="mt-3 space-y-1 text-xs">
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Throughput:</span>
+<span class="font-mono font-medium text-on-surface">142 req/min</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="">Fila Global HITL:</span>
+<span class="font-mono font-bold text-amber-700">18 tarefas</span>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/30 flex items-center justify-between text-[11px]">
+<span class="text-on-surface font-medium">Circuit Breaker: OK</span>
+<button class="text-xs font-semibold text-primary hover:underline">Ver Fila</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. TABELA DENSA DE TRILHA DE AUDITORIA & EXECUÇÕES DE AGENTES (Append-only) -->
+<section class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+<div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base">history</span>
+<h2 class="text-sm font-headline-sm font-bold text-on-surface">
+              Trilha de Auditoria Imutável (Append-Only Audit Trail)
+            </h2>
+<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-container text-on-surface border border-outline-variant/30">
+              SHA-256 Verificado
+            </span>
+</div>
+<p class="text-xs text-on-surface-variant mt-0.5 font-body-sm">
+            Registro criptograficamente seguro para conformidade PL 2338/2023 e responsabilização profissional do CRC.
+          </p>
+</div>
+<!-- Filtros Rápidos -->
+<div class="flex flex-wrap items-center gap-2 text-xs">
+<select class="rounded-lg h-8 px-2.5 bg-surface-container-low border border-outline-variant/40 text-on-surface text-xs focus:ring-1 focus:ring-primary">
+<option>Agente: Todos (7 agentes)</option>
+<option>Agente Captura DF-e</option>
+<option>Agente Classificador Contábil</option>
+<option>Agente Conciliador Bancário</option>
+<option>Agente Compliance Fiscal</option>
+<option>Agente DP &amp; eSocial</option>
+<option>Copiloto Contábil</option>
+</select>
+<select class="rounded-lg h-8 px-2.5 bg-surface-container-low border border-outline-variant/40 text-on-surface text-xs focus:ring-1 focus:ring-primary">
+<option>Status: Todos</option>
+<option>Auto-aprovado (&gt;0.90)</option>
+<option>HITL Pendente</option>
+<option>Homologado pelo Contador</option>
+<option>Bloqueado (Determinístico)</option>
+<option>Rejeitado / Feedback Loop</option>
+</select>
+<div class="relative">
+<input class="rounded-lg h-8 pl-8 pr-3 text-xs bg-surface-container-low border border-outline-variant/40 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary w-56" placeholder="Filtrar por ID, CNPJ ou NF-e..." type="text">
+<span class="material-symbols-outlined text-sm absolute left-2.5 top-2 text-outline">search</span>
+</div>
+<button class="h-8 px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high border border-outline-variant/40 text-xs font-medium flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-xs">filter_list</span>
+<span class="">Filtros Avançados</span>
+</button>
+</div>
+</div>
+<!-- Tabela Densa -->
+<div class="overflow-x-auto border border-outline-variant/30 rounded-lg custom-scroll">
+<table class="w-full text-left text-xs border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-md uppercase tracking-wider text-[11px]">
+<th class="py-2.5 px-3 font-semibold">Execução ID &amp; Data</th>
+<th class="py-2.5 px-3 font-semibold">Agente</th>
+<th class="py-2.5 px-3 font-semibold">Tarefa / Fato Gerador</th>
+<th class="py-2.5 px-3 font-semibold">Tier &amp; Modelo</th>
+<th class="py-2.5 px-3 font-semibold">Score Confiança</th>
+<th class="py-2.5 px-3 font-semibold">Status Governança</th>
+<th class="py-2.5 px-3 font-semibold">Custo / Tokens</th>
+<th class="py-2.5 px-3 font-semibold text-right">Ação</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/20 font-body-sm text-on-surface">
+<!-- Linha 1 (Inspecionada) -->
+<tr class="bg-surface-container-low/60 hover:bg-surface-container transition-colors">
+<td class="py-3 px-3">
+<div class="font-mono font-medium text-primary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+<span class="">exec_9841af</span>
+</div>
+<div class="text-[11px] text-on-surface-variant font-mono">14/11/2026 14:22:04</div>
+</td>
+<td class="py-3 px-3">
+<div class="font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-indigo-600">category</span>
+<span class="">Agente Classificador</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-mono">v3.0.4-prod</div>
+</td>
+<td class="py-3 px-3 max-w-xs">
+<div class="font-medium text-on-surface truncate">Classificação NCM 4802.56 Papel A4</div>
+<div class="text-[11px] text-on-surface-variant truncate">Vanguarda Logística · NF-e 089.124</div>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="text-on-surface font-medium">Vector DB + Sonnet</div>
+<div class="text-on-surface-variant text-[10px]">Tier Rápido / RAG</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    0.92
+                  </span>
+<span class="text-[10px] text-emerald-700 font-medium">Alto</span>
+</div>
+</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="material-symbols-outlined text-xs">check_circle</span> Auto-aprovado (&gt;0.90)
+                </span>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="">R$ 0,024</div>
+<div class="text-on-surface-variant text-[10px]">1.240 tokens</div>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 font-title-sm text-xs transition-colors">
+<span class="material-symbols-outlined text-xs">visibility</span>
+<span class="">Inspecionar</span>
+</button>
+</td>
+</tr>
+<!-- Linha 2 -->
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3 px-3">
+<div class="font-mono font-medium text-on-surface">exec_9841ae</div>
+<div class="text-[11px] text-on-surface-variant font-mono">14/11/2026 14:18:12</div>
+</td>
+<td class="py-3 px-3">
+<div class="font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-rose-600">badge</span>
+<span class="">Agente DP &amp; eSocial</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-mono">v3.0.1-prod</div>
+</td>
+<td class="py-3 px-3 max-w-xs">
+<div class="font-medium text-on-surface truncate">S-2200 - Admissão Prazo CLT Art. 47</div>
+<div class="text-[11px] text-on-surface-variant truncate">Delta Engenharia · CPF Mascarado</div>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="text-on-surface font-medium">Tier Determinístico</div>
+<div class="text-on-surface-variant text-[10px]">Validador Python Local</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-rose-100 text-rose-800 border border-rose-300">
+                    0.00
+                  </span>
+<span class="text-[10px] text-rose-700 font-medium">Falha</span>
+</div>
+</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+<span class="material-symbols-outlined text-xs">block</span> Bloqueado (Determinístico)
+                </span>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="">R$ 0,000</div>
+<div class="text-on-surface-variant text-[10px]">0 tokens (Local)</div>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 font-title-sm text-xs transition-colors">
+<span class="material-symbols-outlined text-xs">visibility</span>
+<span class="">Inspecionar</span>
+</button>
+</td>
+</tr>
+<!-- Linha 3 -->
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3 px-3">
+<div class="font-mono font-medium text-on-surface">exec_9841ad</div>
+<div class="text-[11px] text-on-surface-variant font-mono">14/11/2026 14:15:30</div>
+</td>
+<td class="py-3 px-3">
+<div class="font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-blue-600">receipt_long</span>
+<span class="">Agente Captura DF-e</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-mono">v3.0.4-prod</div>
+</td>
+<td class="py-3 px-3 max-w-xs">
+<div class="font-medium text-on-surface truncate">NF-e 0041 - Suspeita de Nota Fria</div>
+<div class="text-[11px] text-on-surface-variant truncate">Fornecedor sem atividade cadastrada</div>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="text-on-surface font-medium">Claude 3.5 Sonnet</div>
+<div class="text-on-surface-variant text-[10px]">Tier Raciocínio</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-amber-100 text-amber-800 border border-amber-300">
+                    0.74
+                  </span>
+<span class="text-[10px] text-amber-700 font-medium">Médio</span>
+</div>
+</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+<span class="material-symbols-outlined text-xs">pending</span> HITL Pendente
+                </span>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="">R$ 0,038</div>
+<div class="text-on-surface-variant text-[10px]">2.190 tokens</div>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 font-title-sm text-xs transition-colors">
+<span class="material-symbols-outlined text-xs">visibility</span>
+<span class="">Inspecionar</span>
+</button>
+</td>
+</tr>
+<!-- Linha 4 -->
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3 px-3">
+<div class="font-mono font-medium text-on-surface">exec_9841ac</div>
+<div class="text-[11px] text-on-surface-variant font-mono">14/11/2026 14:02:51</div>
+</td>
+<td class="py-3 px-3">
+<div class="font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-teal-600">account_balance</span>
+<span class="">Agente Conciliador</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-mono">v3.0.2-prod</div>
+</td>
+<td class="py-3 px-3 max-w-xs">
+<div class="font-medium text-on-surface truncate">Conciliação Extrato Itaú R$ 14.850,00</div>
+<div class="text-[11px] text-on-surface-variant truncate">Match com duplicata #983321</div>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="text-on-surface font-medium">Motor Multi-critério</div>
+<div class="text-on-surface-variant text-[10px]">Tier Algorítmico + Embeddings</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    0.96
+                  </span>
+<span class="text-[10px] text-emerald-700 font-medium">Exato</span>
+</div>
+</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+<span class="material-symbols-outlined text-xs">verified</span> Homologado por Rodrigo Reis
+                </span>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="">R$ 0,008</div>
+<div class="text-on-surface-variant text-[10px]">420 tokens</div>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 font-title-sm text-xs transition-colors">
+<span class="material-symbols-outlined text-xs">visibility</span>
+<span class="">Inspecionar</span>
+</button>
+</td>
+</tr>
+<!-- Linha 5 -->
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3 px-3">
+<div class="font-mono font-medium text-on-surface">exec_9841ab</div>
+<div class="text-[11px] text-on-surface-variant font-mono">14/11/2026 13:58:20</div>
+</td>
+<td class="py-3 px-3">
+<div class="font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-purple-600">rule</span>
+<span class="">Agente Compliance</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-mono">v3.0.3-prod</div>
+</td>
+<td class="py-3 px-3 max-w-xs">
+<div class="font-medium text-on-surface truncate">Cruzamento EFD Contribuições vs DCTF</div>
+<div class="text-[11px] text-on-surface-variant truncate">Divergência de Base PIS/COFINS R$ 220,00</div>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="text-on-surface font-medium">BGE-M3 + Regras JSON</div>
+<div class="text-on-surface-variant text-[10px]">Tier Soberano Local</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    0.99
+                  </span>
+<span class="text-[10px] text-emerald-700 font-medium">Regra</span>
+</div>
+</td>
+<td class="py-3 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="material-symbols-outlined text-xs">check_circle</span> Auto-aprovado (&gt;0.90)
+                </span>
+</td>
+<td class="py-3 px-3 font-mono text-[11px]">
+<div class="">R$ 0,005</div>
+<div class="text-on-surface-variant text-[10px]">260 tokens</div>
+</td>
+<td class="py-3 px-3 text-right">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 font-title-sm text-xs transition-colors">
+<span class="material-symbols-outlined text-xs">visibility</span>
+<span class="">Inspecionar</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Paginação da Trilha -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-outline-variant/20 text-xs text-on-surface-variant">
+<div class="">Mostrando 5 de 3.412 execuções nas últimas 24h</div>
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 rounded border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container text-on-surface disabled:opacity-50" disabled="">Anterior</button>
+<span class="font-mono text-on-surface">Página 1 de 682</span>
+<button class="px-2.5 py-1 rounded border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container text-on-surface">Próxima</button>
+</div>
+</div>
+</section>
+<!-- 6. PAINEL DE INSPEÇÃO DETALHADA DA EXECUÇÃO (DRAWER / CARD EXPANDIDO - ANEXOS A & B DO PRD) -->
+<section class="bg-surface-container-lowest border-2 border-primary/20 rounded-xl p-6 shadow-md relative">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-outline-variant/30">
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<span class="material-symbols-outlined text-primary text-lg">policy</span>
+<h2 class="text-base font-headline-sm font-bold text-on-surface">
+              Inspeção Forense da Execução: <span class="font-mono text-primary">exec_9841af</span>
+</h2>
+<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">shield_person</span> Dados Sensíveis Mascarados (LGPD Art. 13)
+            </span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-label-md mt-1">
+<span class="">Tenant: <strong class="text-on-surface">escritorio_001</strong></span>
+<span class="">•</span>
+<span class="">Empresa: <strong class="text-on-surface">Vanguarda Logística S/A</strong> (CNPJ 18.***.***/0001-44)</span>
+<span class="">•</span>
+<span class="">RLS Context: <code class="font-mono text-[11px] bg-surface-container px-1 py-0.5 rounded">session_user_id=usr_7182a</code></span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-mono text-on-surface-variant">Hash SHA-256: <code class="text-on-surface font-semibold">e3b0c44298fc1c149...</code></span>
+<button class="p-1.5 text-on-surface-variant hover:text-on-surface rounded bg-surface-container">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-5">
+<!-- Coluna Esquerda: Prompt Enviado (Anexo A.2) -->
+<div class="lg:col-span-6 flex flex-col gap-2">
+<div class="flex items-center justify-between text-xs font-label-md">
+<span class="font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-blue-600">terminal</span>
+              Prompt Estruturado Enviado ao Agente (Anexo A.2)
+            </span>
+<span class="text-[11px] font-mono text-on-surface-variant">482 tokens input</span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-3.5 border border-outline-variant/30 font-code-sm text-xs leading-relaxed text-on-surface overflow-x-auto max-h-72 custom-scroll">
+<span class="text-outline"># Role: Classificador Contábil Sênior ContaIA</span><br>
+<span class="text-outline"># Contexto RAG Recuperado do Vector DB:</span><br>
+<span class="text-blue-700">"similaridade_cosseno"</span>: 0.941,<br>
+<span class="text-blue-700">"historico_empresa"</span>: "3 compras anteriores do mesmo fornecedor classificadas na conta 3.1.01.01",<br>
+<span class="text-outline">----------------------------------------</span><br>
+<span class="text-purple-700">INPUT DOCUMENTO PSEUDONIMIZADO:</span><br>
+            {<br>
+            &nbsp;&nbsp;<span class="text-on-surface-variant">"tipo_documento"</span>: <span class="text-emerald-700">"NF-e_55"</span>,<br>
+            &nbsp;&nbsp;<span class="text-on-surface-variant">"ncm"</span>: <span class="text-emerald-700">"4802.56.10"</span>,<br>
+            &nbsp;&nbsp;<span class="text-on-surface-variant">"descricao_item"</span>: <span class="text-emerald-700">"PAPEL SULFITE A4 75G 500 FLS REPORT"</span>,<br>
+            &nbsp;&nbsp;<span class="text-on-surface-variant">"cfop"</span>: <span class="text-emerald-700">"5102"</span>,<br>
+            &nbsp;&nbsp;<span class="text-on-surface-variant">"valor_total"</span>: <span class="text-emerald-700">890.00</span>,<br>
+            &nbsp;&nbsp;<span class="text-on-surface-variant">"destinacao_declarada"</span>: <span class="text-emerald-700">"Uso e consumo administrativo da matriz"</span><br>
+            }
+          </div>
+</div>
+<!-- Coluna Direita: Resposta Estruturada JSON (Anexo A.3) -->
+<div class="lg:col-span-6 flex flex-col gap-2">
+<div class="flex items-center justify-between text-xs font-label-md">
+<span class="font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-emerald-600">data_object</span>
+              Payload JSON de Resposta Validada (Anexo A.3)
+            </span>
+<span class="text-[11px] font-mono text-emerald-700 font-semibold">Schema Validado (Zod/Pydantic)</span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-3.5 border border-outline-variant/30 font-code-sm text-xs leading-relaxed text-on-surface overflow-x-auto max-h-72 custom-scroll">
+            {<br>
+            &nbsp;&nbsp;<span class="text-blue-700">"conta_contabil"</span>: <span class="text-emerald-700">"3.1.01.01 - Material de Escritório"</span>,<br>
+            &nbsp;&nbsp;<span class="text-blue-700">"codigo_conta"</span>: <span class="text-emerald-700">"310101"</span>,<br>
+            &nbsp;&nbsp;<span class="text-blue-700">"centro_custo"</span>: <span class="text-emerald-700">"Administrativo Central"</span>,<br>
+            &nbsp;&nbsp;<span class="text-blue-700">"natureza"</span>: <span class="text-emerald-700">"Despesa Operacional"</span>,<br>
+            &nbsp;&nbsp;<span class="text-blue-700">"credito_recuperavel"</span>: {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-on-surface-variant">"icms"</span>: <span class="text-rose-700">false</span>,<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-on-surface-variant">"pis"</span>: <span class="text-emerald-700">true</span>,<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-on-surface-variant">"cofins"</span>: <span class="text-emerald-700">true</span><br>
+            &nbsp;&nbsp;},<br>
+            &nbsp;&nbsp;<span class="text-blue-700">"score_confianca"</span>: <span class="text-emerald-700 font-bold">0.92</span>,<br>
+            &nbsp;&nbsp;<span class="text-blue-700">"justificativa"</span>: <span class="text-on-surface-variant">"Insumo de expediente para uso interno contínuo, sem crédito de ICMS pelo regime de consumo."</span><br>
+            }
+          </div>
+</div>
+</div>
+<!-- Representação no Vector DB (Anexo B.2) -->
+<div class="mt-4 p-3 bg-surface-container rounded-lg border border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-purple-700 text-base">grain</span>
+<div>
+<span class="font-semibold text-on-surface">Embeddings no Vector DB (Anexo B.2):</span>
+<span class="font-mono text-[11px] text-on-surface-variant ml-1">[0.0234, -0.1561, 0.0891, -0.0042, ... 1536 dimensões]</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs">
+<span class="text-on-surface-variant">Coleção: <code class="font-mono font-medium text-on-surface">vanguarda_plano_contas_v2</code></span>
+<span class="text-emerald-700 font-medium">Cosine Sim: 0.941</span>
+</div>
+</div>
+<!-- Ciclo de Feedback e Aprendizado Ativo (Contador CRC) -->
+<div class="mt-5 pt-4 border-t border-outline-variant/30 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-2 text-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-base text-emerald-600">model_training</span>
+<span class=""><strong>Human-in-the-Loop Feedback:</strong> A validação humana re-indexa automaticamente o vetor no banco corporativo da empresa.</span>
+</div>
+<div class="flex items-center gap-2.5">
+<button class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 text-xs font-medium text-on-surface transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs text-amber-600">edit</span>
+<span class="">Corrigir Conta (Treinar Feedback)</span>
+</button>
+<button class="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-on-primary text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs">done_all</span>
+<span class="">Confirmar Classificação (Alimenta Vector DB)</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 7. PAINEL INFERIOR: CONFIGURAÇÃO DE THRESHOLDS HITL & GOVERNANÇA (§10.1) -->
+<section class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-outline-variant/20">
+<div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base">tune</span>
+<h2 class="text-sm font-headline-sm font-bold text-on-surface">Configuração de Thresholds de Confiança HITL &amp; Escalonamento</h2>
+</div>
+<p class="text-xs text-on-surface-variant font-body-sm mt-0.5">
+            Régua determinística de decisão autônoma vs. intervenção humana obrigatória para blindagem do contador.
+          </p>
+</div>
+<div class="flex items-center gap-2 text-xs">
+<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">Políticas Ativas</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Regra Alto Risco -->
+<div class="p-4 rounded-lg bg-rose-50/60 border border-rose-200 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">emergency</span>
+                Tarefas de Alto Risco
+              </span>
+<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-200 text-rose-900">
+                100% HITL
+              </span>
+</div>
+<p class="text-xs text-rose-950 leading-relaxed font-body-sm">
+              Manifestação de Destinatário SEFAZ, Desligamento eSocial (S-2299), Emissão de Guia de Recolhimento e Transmissão de SPEDs.
+            </p>
+</div>
+<div class="mt-4 pt-2 border-t border-rose-200/80 text-[11px] font-medium text-rose-900 flex justify-between items-center">
+<span class="">Qualquer score LLM</span>
+<span class="">Homologação Manual Obrigatória</span>
+</div>
+</div>
+<!-- Regra Médio Risco -->
+<div class="p-4 rounded-lg bg-amber-50/60 border border-amber-200 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">filter_center_focus</span>
+                Score 0.60 a 0.89
+              </span>
+<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-200 text-amber-900">
+                HITL em 1 Clique
+              </span>
+</div>
+<p class="text-xs text-amber-950 leading-relaxed font-body-sm">
+              Classificação contábil com ambiguidade, fornecedores novos sem histórico no Vector DB e conciliação bancária com variação de até R$ 2,00.
+            </p>
+</div>
+<div class="mt-4 pt-2 border-t border-amber-200/80 text-[11px] font-medium text-amber-900 flex justify-between items-center">
+<span class="">Fila de Revisão Rápida</span>
+<span class="">Sugestão Pré-preenchida</span>
+</div>
+</div>
+<!-- Regra Baixo Risco -->
+<div class="p-4 rounded-lg bg-emerald-50/60 border border-emerald-200 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+                Score &gt;= 0.90
+              </span>
+<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-200 text-emerald-900">
+                Auto-aprovação
+              </span>
+</div>
+<p class="text-xs text-emerald-950 leading-relaxed font-body-sm">
+              Tarefas operacionais de baixo risco, captura recorrente de serviços públicos (água, luz, telecom), folha espelhada sem alteração salarial.
+            </p>
+</div>
+<div class="mt-4 pt-2 border-t border-emerald-200/80 text-[11px] font-medium text-emerald-900 flex justify-between items-center">
+<span class="">Escrita direta contábil</span>
+<span class="">Notificação Append-only</span>
+</div>
+</div>
+</div>
+<!-- Timeout e Escalonamento -->
+<div class="mt-4 p-3 rounded-lg bg-surface-container border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-label-md">
+<div class="flex items-center gap-2 text-on-surface">
+<span class="material-symbols-outlined text-amber-600 text-sm">alarm</span>
+<span class=""><strong>Política de Timeout (24h):</strong> Tarefas sem homologação são escalonadas automaticamente ao Supervisor Contábil do escritório.</span>
+</div>
+<span class="font-mono text-on-surface-variant">Tolerância Máxima: 0 pendências críticas em D-1 de fechamento fiscal</span>
+</div>
+</section>
+</main>
+<!-- Rodapé Institucional -->
+<footer class="w-full bg-surface-container-lowest border-t border-outline-variant/30 py-4 px-6 mt-8">
+<div class="max-w-[1580px] mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant font-label-md">
+<div class="flex items-center gap-4">
+<span class="">© 2026 ContaIA v3.0 Enterprise · Todos os direitos reservados.</span>
+<span class="hidden md:inline">•</span>
+<span class="">Conformidade com Normas Brasileiras de Contabilidade (NBC TG) &amp; Marco Legal da IA (PL 2338/2023).</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="inline-flex items-center gap-1 text-emerald-700">
+<span class="w-2 h-2 rounded-full bg-emerald-600"></span> Sistema de IA Operacional
+        </span>
+</div>
+</div>
+</footer>
+
+
+</body></html>

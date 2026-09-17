@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-tertiary-container": "#613b00", "secondary-fixed": "#6ffbbe", "background": "#0f131c", "error-container": "#93000a", "outline-variant": "#3e484f", "primary-fixed-dim": "#7bd0ff", "primary-container": "#38bdf8", "surface-tint": "#7bd0ff", "surface-variant": "#31353f", "on-tertiary-fixed": "#2a1700", "surface-container-highest": "#31353f", "on-secondary": "#003824", "on-tertiary": "#472a00", "tertiary-container": "#f59e0b", "on-error": "#690005", "on-background": "#dfe2ef", "on-secondary-container": "#00311f", "on-tertiary-fixed-variant": "#653e00", "outline": "#87929a", "secondary": "#4edea3", "surface": "#0f131c", "primary-fixed": "#c4e7ff", "on-primary": "#00354a", "surface-dim": "#0f131c", "secondary-fixed-dim": "#4edea3", "surface-container": "#1c1f29", "on-primary-fixed": "#001e2c", "on-surface": "#dfe2ef", "tertiary": "#ffc174", "inverse-primary": "#00668a", "tertiary-fixed-dim": "#ffb95f", "secondary-container": "#00a572", "inverse-on-surface": "#2c303a", "surface-container-low": "#181b25", "on-error-container": "#ffdad6", "surface-bright": "#353943", "on-primary-container": "#004965", "error": "#ffb4ab", "on-surface-variant": "#bdc8d1", "on-secondary-fixed": "#002113", "on-secondary-fixed-variant": "#005236", "inverse-surface": "#dfe2ef", "surface-container-high": "#262a34", "primary": "#8ed5ff", "surface-container-lowest": "#0a0e17", "tertiary-fixed": "#ffddb8", "on-primary-fixed-variant": "#004c69" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-xl": "1.75rem", "gutter-tablet": "1.25rem", "margin-desktop": "2rem", "margin": "1rem", "space-md": "0.75rem", "margin-tablet": "1.5rem", "space-xs": "0.25rem", "gutter": "1rem", "space-sm": "0.5rem", "gutter-desktop": "1.5rem", "space-lg": "1.25rem" }, "fontFamily": { "headline-lg-mobile": ["Geist"], "label-sm": ["Geist"], "display-lg-mobile": ["Geist"], "body-sm": ["Inter"], "body-lg": ["Inter"], "code-sm": ["Geist"], "body-md": ["Inter"], "display-lg": ["Geist"], "headline-lg": ["Geist"], "headline-md": ["Geist"], "headline-sm": ["Geist"], "label-md": ["Geist"] }, "fontSize": { "headline-lg-mobile": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }], "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }], "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }], "code-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" }], "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }], "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "600" }], "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }] } } } };</script></head><body class="bg-surface font-body-md text-on-surface min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.25)]"><div class="h-20 w-full px-gutter-desktop flex items-center justify-between"><div class="flex items-center gap-space-md"><img alt="Logotipo institucional moderno do ContaIA com isotipo de IA e precisão contábil e tipografia refinada.. Brand logo. - Primary color: #0f172a - Font: geist - Mode: light - Roundness: rounded-sm" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WkXvS7ISuPQD6Wx-kmZcTJ55lp20PTURjj1Q332mKtwqmEEioBlLJIooydBu2qcMco3uqvMcpmmujCsR0CVFtAzZ7B8fDRfC1beILlcvvlygVfnUqtKA9WVkg1CecPsrqDaw69qlR7VV22nP0LKpbTAGDyoTgEZ1aT3fkBVY7admU60pJSaGG7xtV30vW5k3oUNTGURF6CvUgd8Sp8jT4geG3qC9mKOi1ps7jnE6jgTHI88tiGcWksyOhx"/><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight">ContaIA</span><span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-primary uppercase">Portal de Governança Fiscal</span></div><nav class="hidden md:flex items-center gap-space-lg" data-active-classes="text-primary font-semibold"><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="transparencia-fiscal" href="#">Transparência Fiscal</a><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="certificacoes-seguranca" href="#">Certificações &amp; Segurança</a><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="status-sefaz" href="#">Status Sefaz Nacional</a><a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="central-de-ajuda" href="#">Central de Ajuda</a></nav><div class="flex items-center gap-space-sm"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-surface px-gutter-desktop"><div class="flex flex-col w-full">
+<!-- BANNER REGIME DE TRANSIÇÃO TRIBUTÁRIA IBS/CBS -->
+<div class="w-full bg-surface-container-lowest py-space-sm px-gutter-desktop shadow-md flex flex-col md:flex-row items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-md">
+<div class="relative flex items-center justify-center">
+<span class="w-2.5 h-2.5 rounded-full bg-tertiary animate-pulse"></span>
+<span class="absolute w-5 h-5 rounded-full bg-tertiary opacity-25 animate-ping"></span>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-code-sm text-code-sm uppercase tracking-wider text-tertiary font-semibold">Regime de Transição Ativo:</span>
+<span class="font-body-sm text-body-sm text-on-surface">Motor de Cálculo Dual IBS / CBS 2026 homologado e sincronizado com o SPED Nacional</span>
+</div>
+</div>
+<div class="flex items-center gap-space-md">
+<span class="font-code-sm text-code-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-primary text-[14px]">verified</span>
+        Emissão Paritária PIS/COFINS e IBS/CBS
+      </span>
+<a class="font-label-sm text-label-sm text-primary hover:underline flex items-center gap-0.5" href="#motor-dual">
+        Relatório de Validação
+        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- HERO PRINCIPAL & PORTAL DE ACESSO -->
+<div class="w-full py-space-xl grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- Lado Esquerdo: Posicionamento & Ações -->
+<div class="lg:col-span-7 flex flex-col gap-space-lg">
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="px-2.5 py-1 rounded bg-surface-container-high text-primary font-code-sm text-code-sm flex items-center gap-1.5 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+          INFRAESTRUTURA DE AUDITORIA CONTÁBIL EM TEMPO REAL
+        </span>
+<span class="px-2 py-0.5 rounded bg-surface-container text-secondary font-label-sm text-label-sm">
+          SLA 99.98%
+        </span>
+</div>
+<div class="flex flex-col gap-space-md">
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight leading-tight">
+          Orquestração Contábil Autônoma com Determinismo Legal e Auditoria Contínua
+        </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl leading-relaxed">
+          Plataforma multi-empresa desenhada para escritórios estratégicos e corporações que gerenciam centenas de pessoas jurídicas sob malhas fiscais estaduais, municipais e federais. Segurança criptográfica ponta a ponta com paridade de razão contábil e zero tolerância a desvios.
+        </p>
+</div>
+<!-- Botões de Ação Dark Carbon -->
+<div class="flex flex-wrap items-center gap-space-md pt-space-xs">
+<button class="px-6 py-3.5 rounded bg-primary-container text-on-primary-container font-headline-sm text-headline-sm hover:bg-primary transition-all shadow-md flex items-center gap-space-sm active:scale-95">
+<span class="material-symbols-outlined text-[20px]">vpn_key</span>
+          Iniciar Onboarding com Certificado A1
+        </button>
+<button class="px-5 py-3.5 rounded bg-surface-container-high text-on-surface hover:bg-surface-bright font-headline-sm text-headline-sm transition-all shadow-sm flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+          Arquitetura de Segurança
+        </button>
+</div>
+<!-- Badges de Conformidade Normativa -->
+<div class="pt-space-md flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">
+          Conformidade e Protocolos Normativos Verificados
+        </span>
+<div class="flex flex-wrap gap-2">
+<div class="px-3 py-1.5 rounded bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[16px]">gavel</span>
+            Lei Geral de Proteção de Dados (LGPD)
+          </div>
+<div class="px-3 py-1.5 rounded bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-primary text-[16px]">smart_toy</span>
+            Marco Regulatório Governança IA
+          </div>
+<div class="px-3 py-1.5 rounded bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-[16px]">badge</span>
+            eSocial Layout S-1.3 Homologado
+          </div>
+<div class="px-3 py-1.5 rounded bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[16px]">receipt_long</span>
+            EFD-Reinf 2026 Ready
+          </div>
+</div>
+</div>
+</div>
+<!-- Lado Direito: Portal de Acesso Workspace -->
+<div class="lg:col-span-5 w-full">
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-xl relative overflow-hidden backdrop-blur-md">
+<div class="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-2xl pointer-events-none"></div>
+<!-- Cabeçalho do Card -->
+<div class="flex items-center justify-between pb-space-md">
+<div class="flex flex-col">
+<span class="font-headline-md text-headline-md text-on-surface">Portal Unificado</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Acesso Seguro ao Workspace Corporativo</span>
+</div>
+<div class="flex items-center gap-1 px-2.5 py-1 rounded bg-secondary/10 text-secondary font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            mTLS Ativo
+          </div>
+</div>
+<!-- Seletor de Perfil (Tabs) -->
+<div class="flex p-1 rounded bg-surface-container-lowest gap-1 mb-space-md">
+<button class="flex-1 py-2 text-center rounded bg-surface-container font-label-md text-label-md text-on-surface font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5" id="tab-escritorio">
+<span class="material-symbols-outlined text-[16px] text-primary">domain</span>
+            Escritório Contábil
+          </button>
+<button class="flex-1 py-2 text-center rounded text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all flex items-center justify-center gap-1.5" id="tab-empresa">
+<span class="material-symbols-outlined text-[16px]">corporate_fare</span>
+            Empresa Cliente
+          </button>
+</div>
+<!-- Formulário de Autenticação -->
+<form class="flex flex-col gap-space-sm" onsubmit="event.preventDefault();">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider flex justify-between">
+<span>Identificador Raiz (CNPJ Matriz)</span>
+<span class="text-primary font-code-sm text-code-sm lowercase cursor-pointer hover:underline">Autodetectar</span>
+</label>
+<div class="flex items-center bg-surface-container rounded px-3 py-2.5 focus-within:ring-1 focus-within:ring-primary shadow-sm">
+<span class="material-symbols-outlined text-outline text-[18px] mr-2">pin</span>
+<input class="w-full bg-transparent text-on-surface placeholder-outline font-code-sm text-code-sm focus:outline-none" placeholder="00.000.000/0001-00" type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+              E-mail Corporativo Autorizado
+            </label>
+<div class="flex items-center bg-surface-container rounded px-3 py-2.5 focus-within:ring-1 focus-within:ring-primary shadow-sm">
+<span class="material-symbols-outlined text-outline text-[18px] mr-2">alternate_email</span>
+<input class="w-full bg-transparent text-on-surface placeholder-outline font-body-sm text-body-sm focus:outline-none" placeholder="controladoria@escritorio.cnt.br" type="email"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                Chave de Acesso / Senha
+              </label>
+<a class="font-label-sm text-label-sm text-primary hover:underline" href="#">Redefinir credencial</a>
+</div>
+<div class="flex items-center bg-surface-container rounded px-3 py-2.5 focus-within:ring-1 focus-within:ring-primary shadow-sm">
+<span class="material-symbols-outlined text-outline text-[18px] mr-2">password</span>
+<input class="w-full bg-transparent text-on-surface placeholder-outline font-code-sm text-code-sm focus:outline-none" placeholder="••••••••••••••••" type="password"/>
+</div>
+</div>
+<button class="mt-2 w-full py-3 rounded bg-primary text-on-primary font-headline-sm text-headline-sm hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-md" type="submit">
+<span>Acessar Painel Unificado</span>
+<span class="material-symbols-outlined text-[18px]">login</span>
+</button>
+</form>
+<div class="my-space-md flex items-center justify-center relative">
+<div class="w-full h-px bg-surface-container-high"></div>
+<span class="absolute px-3 bg-surface-container-low font-label-sm text-label-sm text-outline uppercase tracking-wider">
+            Autenticação Governamental
+          </span>
+</div>
+<!-- Opções Governamentais Gov.br & HSM -->
+<div class="grid grid-cols-2 gap-space-sm">
+<button class="flex items-center justify-center gap-2 py-2.5 px-3 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-all shadow-sm">
+<span class="material-symbols-outlined text-primary text-[18px]">account_balance</span>
+<span>Gov.br OIDC</span>
+</button>
+<button class="flex items-center justify-center gap-2 py-2.5 px-3 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-all shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[18px]">security</span>
+<span>Certificado A1 HSM</span>
+</button>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between text-outline font-code-sm text-code-sm">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">lock</span>
+            Sessão Criptografada AES-256
+          </span>
+<span>Ledger SHA-256</span>
+</div>
+</div>
+</div>
+</div>
+<!-- TELEMETRIA EM TEMPO REAL (STREAMING BAR) -->
+<div class="w-full py-space-sm px-gutter-desktop rounded-lg bg-surface-container-low shadow-sm my-space-md flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-2 h-2 rounded-full bg-secondary animate-ping"></div>
+<span class="font-code-sm text-code-sm text-secondary font-semibold uppercase tracking-wider">Telemetria Sefaz Ativa</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-xl">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[16px]">sync_alt</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Ingestão Contínua DF-e:</span>
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">14.892 docs/min</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[16px]">hourglass_top</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Ciência da Operação (NSU):</span>
+<span class="font-code-sm text-code-sm text-primary font-semibold">NSU #9482103 (0s lag)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[16px]">speed</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Latência Média Sefaz Nacional:</span>
+<span class="font-code-sm text-code-sm text-secondary font-semibold">184ms</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[16px]">hub</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Uptime Sincronizador:</span>
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">99.992%</span>
+</div>
+</div>
+</div>
+<!-- SEMÁFORO FISCAL DE PRIORIDADE MULTI-EMPRESA -->
+<div class="w-full py-space-xl flex flex-col gap-space-md">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-sm">
+<div class="flex flex-col gap-1">
+<span class="font-code-sm text-code-sm text-primary uppercase tracking-wider font-semibold">
+          Visão Geral Operacional
+        </span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">
+          Semáforo Fiscal de Prioridade e Risco em Lote
+        </h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+          Classificação automatizada em três zonas térmicas com disparo preemptivo de alertas antes da consolidação de multas tributárias ou inconsistências de fechamento.
+        </p>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="px-3 py-1 rounded bg-surface-container font-code-sm text-code-sm text-on-surface-variant">
+          Total Ativo: 842 CNPJs Monitorados
+        </span>
+</div>
+</div>
+<!-- Grid com as 3 Empresas Representativas -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Card 1: Crítico / EFD-Reinf -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-lg flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-error"></div>
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">CNPJ 41.802.914/0001-88</span>
+<span class="px-2 py-0.5 rounded bg-error/15 text-error font-label-sm text-label-sm font-semibold uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+              Crítico
+            </span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Vanguarda Logística S.A.</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Lucro Real • Regime Mensal</span>
+</div>
+<div class="p-space-sm rounded bg-surface-container flex flex-col gap-1.5">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-error font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+              Alerta EFD-Reinf Série R-4000
+            </span>
+<span class="text-outline font-code-sm">Prazo D-1</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface">
+            Retenções de IRRF/PCC não conciliadas sobre 14 notas de frete tomadas.
+          </p>
+</div>
+<div class="flex items-center justify-between pt-space-xs font-code-sm text-code-sm">
+<span class="text-outline">Delta Paridade:</span>
+<span class="text-error font-semibold tabular-nums">R$ 48.910,22</span>
+</div>
+<button class="w-full py-2 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-md text-label-md transition-all flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-error">build_circle</span>
+          Resolver Inconsistência
+        </button>
+</div>
+<!-- Card 2: Atenção / D-3 DAS -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-lg flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-tertiary"></div>
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">CNPJ 19.340.582/0001-12</span>
+<span class="px-2 py-0.5 rounded bg-tertiary/15 text-tertiary font-label-sm text-label-sm font-semibold uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+              Atenção
+            </span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Solaris Bioenergia Ltda.</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Lucro Presumido • Regime Caixa</span>
+</div>
+<div class="p-space-sm rounded bg-surface-container flex flex-col gap-1.5">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-tertiary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+              Vencimento DAS / PGDAS
+            </span>
+<span class="text-outline font-code-sm">Prazo D-3</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface">
+            Extratos Open Finance em conciliação. 92% dos créditos já processados.
+          </p>
+</div>
+<div class="flex items-center justify-between pt-space-xs font-code-sm text-code-sm">
+<span class="text-outline">Delta Paridade:</span>
+<span class="text-tertiary font-semibold tabular-nums">R$ 1.420,00</span>
+</div>
+<button class="w-full py-2 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-md text-label-md transition-all flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-tertiary">fact_check</span>
+          Validar Fechamento
+        </button>
+</div>
+<!-- Card 3: Conforme / PGDA-D -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-lg flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-secondary"></div>
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-outline">CNPJ 32.109.445/0001-90</span>
+<span class="px-2 py-0.5 rounded bg-secondary/15 text-secondary font-label-sm text-label-sm font-semibold uppercase flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+              Conforme
+            </span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Nexus Cloud Computing</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Simples Nacional • Anexo III</span>
+</div>
+<div class="p-space-sm rounded bg-surface-container flex flex-col gap-1.5">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-secondary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+              PGDAS-D Transmitido
+            </span>
+<span class="text-secondary font-code-sm">Recibo OK</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface">
+            Todas as guias emitidas e conciliadas via BaaS Pix. Livros Razão arquivados.
+          </p>
+</div>
+<div class="flex items-center justify-between pt-space-xs font-code-sm text-code-sm">
+<span class="text-outline">Delta Paridade:</span>
+<span class="text-secondary font-semibold tabular-nums">R$ 0,00</span>
+</div>
+<button class="w-full py-2 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-md text-label-md transition-all flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-secondary">receipt</span>
+          Ver Recibo de Entrega
+        </button>
+</div>
+</div>
+</div>
+<!-- GRID: OS 4 PILARES DE ENGENHARIA & COMPLIANCE -->
+<div class="w-full py-space-xl flex flex-col gap-space-lg">
+<div class="flex flex-col gap-1">
+<span class="font-code-sm text-code-sm text-primary uppercase tracking-wider font-semibold">
+        Arquitetura de Nível Institucional
+      </span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">
+        Quatro Pilares de Engenharia &amp; Compliance Fiscal
+      </h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+        Garantias estruturais desenvolvidas para proteger a governança contábil, isolar ativos jurídicos e certificar cada escrituração com imutabilidade.
+      </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- Pilar 1 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-md flex flex-col justify-between gap-space-md hover:bg-surface-container transition-all">
+<div class="flex flex-col gap-space-sm">
+<div class="w-12 h-12 rounded bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[28px]">shield_person</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Multi-tenant RLS Nível 2</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Isolamento de dados a nível de banco de dados (Row Level Security) impedindo vazamento cruzado de lançamentos contábeis e fiscais entre diferentes CNPJs de clientes.
+          </p>
+</div>
+<div class="pt-space-xs font-code-sm text-code-sm text-primary flex items-center gap-1">
+<span>Isolamento Criptográfico</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+</div>
+</div>
+<!-- Pilar 2 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-md flex flex-col justify-between gap-space-md hover:bg-surface-container transition-all">
+<div class="flex flex-col gap-space-sm">
+<div class="w-12 h-12 rounded bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]">key</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Cofre de Certificados A1 &amp; Signer</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Custódia em Módulo de Segurança de Hardware (HSM em nuvem FIPS 140-2 Nível 3). Assinatura automatizada de lotes DF-e e eSocial sem exposição das chaves privadas.
+          </p>
+</div>
+<div class="pt-space-xs font-code-sm text-code-sm text-secondary flex items-center gap-1">
+<span>HSM FIPS 140-2</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+</div>
+</div>
+<!-- Pilar 3 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-md flex flex-col justify-between gap-space-md hover:bg-surface-container transition-all">
+<div class="flex flex-col gap-space-sm">
+<div class="w-12 h-12 rounded bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[28px]">rule_folder</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Motor HITL Determinístico</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Human-in-the-loop compulsório: transações com grau de confiança estatística inferior a 99.4% são encaminhadas ao revisor contábil antes da gravação definitiva no razão.
+          </p>
+</div>
+<div class="pt-space-xs font-code-sm text-code-sm text-tertiary flex items-center gap-1">
+<span>Zero Alucinação</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+</div>
+</div>
+<!-- Pilar 4 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-md flex flex-col justify-between gap-space-md hover:bg-surface-container transition-all">
+<div class="flex flex-col gap-space-sm">
+<div class="w-12 h-12 rounded bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[28px]">account_balance_wallet</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Open Finance ITP &amp; Pix BaaS</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Extratos bancários liquidados diretamente pelo Banco Central do Brasil em D-0. Conciliação bancária instantânea com matching unívoco de End-to-End IDs.
+          </p>
+</div>
+<div class="pt-space-xs font-code-sm text-code-sm text-primary flex items-center gap-1">
+<span>BaaS D-0 Bacen</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- COMPARATIVO DE DESEMPENHO VALIDADO PARA ALTOS VOLUMES -->
+<div class="w-full py-space-xl flex flex-col gap-space-lg">
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-xl flex flex-col gap-space-lg">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
+<div class="flex flex-col gap-1">
+<span class="font-code-sm text-code-sm text-secondary uppercase tracking-wider font-semibold">
+            Benchmarks Contábeis Comprovados
+          </span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">
+            Métricas de Desempenho para Carteiras de Alta Complexidade
+          </h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">Amostragem: 2.180.000 lançamentos/mês</span>
+</div>
+<!-- Grid de KPIs Comparativos -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<div class="p-space-md rounded bg-surface-container flex flex-col gap-2">
+<span class="font-label-sm text-label-sm uppercase text-outline">Captura Universal DF-e</span>
+<div class="flex items-baseline gap-2">
+<span class="font-display-lg text-display-lg text-on-surface tabular-nums">≤ 1h</span>
+<span class="font-code-sm text-code-sm text-secondary">vs. 48h manual</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[96%]"></div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Distribuição imediata da manifestação e download do XML</span>
+</div>
+<div class="p-space-md rounded bg-surface-container flex flex-col gap-2">
+<span class="font-label-sm text-label-sm uppercase text-outline">Conciliação Automatizada</span>
+<div class="flex items-baseline gap-2">
+<span class="font-display-lg text-display-lg text-primary tabular-nums">≥ 85%</span>
+<span class="font-code-sm text-code-sm text-primary">Direto ao Razão</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[88%]"></div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Partidas dobradas validadas com delta zero de reconciliação</span>
+</div>
+<div class="p-space-md rounded bg-surface-container flex flex-col gap-2">
+<span class="font-label-sm text-label-sm uppercase text-outline">Obrigações Acessórias Perdidas</span>
+<div class="flex items-baseline gap-2">
+<span class="font-display-lg text-display-lg text-secondary tabular-nums">Zero</span>
+<span class="font-code-sm text-code-sm text-secondary">100% no prazo</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[100%]"></div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Eliminação total de multas por intempestividade fiscal</span>
+</div>
+<div class="p-space-md rounded bg-surface-container flex flex-col gap-2">
+<span class="font-label-sm text-label-sm uppercase text-outline">Prevenção de Multa eSocial</span>
+<div class="flex items-baseline gap-2">
+<span class="font-display-lg text-display-lg text-on-surface tabular-nums">&lt; 2%</span>
+<span class="font-code-sm text-code-sm text-secondary">Risco Residual</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[98%]"></div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Pré-auditoria de eventos S-1200 e S-2200 antes do envio</span>
+</div>
+</div>
+<!-- Tabela Resumo Auditoria -->
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left font-body-sm text-body-sm">
+<thead>
+<tr class="bg-surface-container text-outline font-label-sm text-label-sm uppercase tracking-wider">
+<th class="py-3 px-4">Operação Contábil / Fiscal</th>
+<th class="py-3 px-4">Método Tradicional</th>
+<th class="py-3 px-4">ContaIA Orquestração Autônoma</th>
+<th class="py-3 px-4 text-right">Eficácia Verificada</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-transparent">
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-3 px-4 font-semibold text-on-surface">Escrituração e Lançamento de NF-e / NFS-e</td>
+<td class="py-3 px-4 text-outline">Digitação e conferência por lote (15-20 min/lote)</td>
+<td class="py-3 px-4 text-primary font-medium">Extração OCR e matching por CFOP/NCM em 1.4s</td>
+<td class="py-3 px-4 text-right font-code-sm text-secondary font-semibold">99.8% acurácia</td>
+</tr>
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-3 px-4 font-semibold text-on-surface">Fechamento de Folha eSocial Eventos Periódicos</td>
+<td class="py-3 px-4 text-outline">Validação manual de rubricas e dependentes</td>
+<td class="py-3 px-4 text-primary font-medium">Cruzamento automático com convenção coletiva e tabela S-1010</td>
+<td class="py-3 px-4 text-right font-code-sm text-secondary font-semibold">100% compliance</td>
+</tr>
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-3 px-4 font-semibold text-on-surface">Apuração de Crédito PIS/COFINS &amp; IBS/CBS Dual</td>
+<td class="py-3 px-4 text-outline">Planilhas complexas com alto risco de glosa fiscal</td>
+<td class="py-3 px-4 text-primary font-medium">Cálculo determinístico com rastreabilidade documento a documento</td>
+<td class="py-3 px-4 text-right font-code-sm text-secondary font-semibold">R$ 0,00 divergência</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- ESQUADRÃO ESPECIALIZADO DE AGENTES DE IA -->
+<div class="w-full py-space-xl flex flex-col gap-space-lg">
+<div class="flex flex-col gap-1">
+<span class="font-code-sm text-code-sm text-primary uppercase tracking-wider font-semibold">
+        Inteligência Artificial Aplicada
+      </span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">
+        Esquadrão Especializado de Agentes Autônomos
+      </h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+        Modelos dedicados com arquitetura RAG (Retrieval-Augmented Generation) ancorados na legislação contábil e fiscal do Brasil para atuar em cada esteira operacional.
+      </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Agente 1: Captura -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[24px]">cloud_download</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Agente de Captura</span>
+<span class="font-code-sm text-code-sm text-outline">Omnichannel DF-e</span>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded bg-secondary/10 text-secondary font-label-sm text-label-sm">Ativo</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+          Monitora Sefaz de 27 Unidades Federativas e mais de 1.800 prefeituras homologadas para captura contínua de NF-e, CT-e, NFS-e e MDF-e com aplicação automática de ciência e download completo dos pacotes XML.
+        </p>
+<div class="pt-space-xs flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container font-code-sm text-code-sm text-on-surface">Varredura NSU</span>
+<span class="px-2 py-0.5 rounded bg-surface-container font-code-sm text-code-sm text-on-surface">OCR Multimodal</span>
+</div>
+</div>
+<!-- Agente 2: Classificador Contábil RAG -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[24px]">account_tree</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Classificador Contábil</span>
+<span class="font-code-sm text-code-sm text-outline">Motor RAG Normativo</span>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded bg-secondary/10 text-secondary font-label-sm text-label-sm">Ativo</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+          Interpreta a natureza econômica do lançamento à luz do plano de contas de cada empresa, aplicando normas NBC TG, correlação de contas de ativo/passivo e determinismo para partidas dobradas balanceadas.
+        </p>
+<div class="pt-space-xs flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container font-code-sm text-code-sm text-on-surface">NBC TG Alinhado</span>
+<span class="px-2 py-0.5 rounded bg-surface-container font-code-sm text-code-sm text-on-surface">Zero Desbalanceamento</span>
+</div>
+</div>
+<!-- Agente 3: Compliance & DP -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[24px]">verified_user</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Compliance &amp; DP</span>
+<span class="font-code-sm text-code-sm text-outline">Auditoria Trabalhista</span>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded bg-secondary/10 text-secondary font-label-sm text-label-sm">Ativo</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+          Audita bases de cálculo de INSS patronal, FGTS Digital e retenções de terceiros. Detecta incongruências de admissões e afastamentos previamente ao envio dos eventos para o eSocial Nacional.
+        </p>
+<div class="pt-space-xs flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container font-code-sm text-code-sm text-on-surface">FGTS Digital</span>
+<span class="px-2 py-0.5 rounded bg-surface-container font-code-sm text-code-sm text-on-surface">Consistência S-1200</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SEÇÃO DE TRANSPARÊNCIA E COMPROMISSO REGULATÓRIO -->
+<div class="w-full py-space-xl my-space-md rounded-xl bg-surface-container-low p-space-lg shadow-xl flex flex-col md:flex-row items-center justify-between gap-space-lg">
+<div class="flex flex-col gap-space-xs max-w-2xl">
+<span class="font-headline-md text-headline-md text-on-surface">
+        Compromisso Irrestrito com a Soberania e Sigilo dos Dados Fiscais
+      </span>
+<p class="font-body-md text-body-md text-on-surface-variant">
+        Todos os dados contábeis de nossos parceiros residem exclusivamente em datacenters com certificação Tier IV em território brasileiro, com chaves de criptografia sob custódia direta do cliente.
+      </p>
+</div>
+<div class="flex flex-wrap items-center gap-space-md">
+<button class="px-6 py-3 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-headline-sm text-headline-sm transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">download</span>
+        Baixar Relatório SOC 2 Tipo II
+      </button>
+<button class="px-6 py-3 rounded bg-primary text-on-primary font-headline-sm text-headline-sm hover:bg-primary-container transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">handshake</span>
+        Agendar Auditoria Técnica
+      </button>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const tabEscritorio = document.getElementById('tab-escritorio');
+    const tabEmpresa = document.getElementById('tab-empresa');
+
+    if (tabEscritorio && tabEmpresa) {
+      tabEscritorio.addEventListener('click', function() {
+        tabEscritorio.classList.add('bg-surface-container', 'text-on-surface', 'font-semibold');
+        tabEscritorio.classList.remove('text-on-surface-variant');
+        tabEmpresa.classList.remove('bg-surface-container', 'text-on-surface', 'font-semibold');
+        tabEmpresa.classList.add('text-on-surface-variant');
+      });
+
+      tabEmpresa.addEventListener('click', function() {
+        tabEmpresa.classList.add('bg-surface-container', 'text-on-surface', 'font-semibold');
+        tabEmpresa.classList.remove('text-on-surface-variant');
+        tabEscritorio.classList.remove('bg-surface-container', 'text-on-surface', 'font-semibold');
+        tabEscritorio.classList.add('text-on-surface-variant');
+      });
+    }
+  })();
+</script></main><footer class="w-full bg-surface-container-lowest py-space-lg px-gutter-desktop mt-auto"><div class="w-full flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex flex-col gap-1"><span class="font-label-md text-label-md text-on-surface font-semibold">ContaIA SaaS Contábil Corporativo</span><p class="font-body-sm text-body-sm text-outline">Infraestrutura auditável em tempo real com trilha append-only e conformidade NBC TG.</p></div><div class="flex flex-col md:items-end gap-1"><span class="font-code-sm text-code-sm text-outline">Hash Ledger: SHA-256 Validado</span><p class="font-body-sm text-body-sm text-outline">© 2025 ContaIA. Todos os direitos reservados.</p></div></div></footer></body></html>

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 80" width="340" height="80" fill="none">
+  <defs>
+    <!-- Background Card Subtle Gradient -->
+    <linearGradient id="shieldGrad" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#090D16"/>
+    </linearGradient>
+
+    <!-- Glowing Cyan/Emerald AI Arc Gradient -->
+    <linearGradient id="aiCyanGrad" x1="14" y1="18" x2="38" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+
+    <linearGradient id="emeraldGrad" x1="32" y1="20" x2="40" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+
+    <filter id="neonGlow" x="0" y="0" width="60" height="60" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent background for seamless insertion into Dark UI -->
+  <rect width="340" height="80" fill="transparent"/>
+
+  <!-- Icon Symbol: Stylized Double-Entry Shield & AI Node -->
+  <g transform="translate(14, 14)">
+    <!-- Outer Shield with sleek border -->
+    <rect x="0" y="0" width="52" height="52" rx="14" fill="url(#shieldGrad)" stroke="#334155" stroke-width="1.5"/>
+    <rect x="1" y="1" width="50" height="50" rx="13" fill="none" stroke="#38BDF8" stroke-opacity="0.2" stroke-width="1"/>
+
+    <!-- Double-entry ledger bars in high contrast on dark -->
+    <path d="M14 18H30" stroke="url(#aiCyanGrad)" stroke-width="2.75" stroke-linecap="round"/>
+    <path d="M14 26H24" stroke="#CBD5E1" stroke-width="2.75" stroke-linecap="round"/>
+    <path d="M14 34H32" stroke="#64748B" stroke-width="2.75" stroke-linecap="round"/>
+
+    <!-- Dynamic AI Spark & Balanced Ledger Node -->
+    <circle cx="36" cy="26" r="8" stroke="#10B981" stroke-width="1.5" stroke-opacity="0.4"/>
+    <circle cx="36" cy="26" r="4.5" fill="url(#emeraldGrad)"/>
+    <path d="M36 17V20" stroke="#38BDF8" stroke-width="2" stroke-linecap="round"/>
+    <path d="M29 26H31" stroke="#38BDF8" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Typography: ContaIA optimized for Dark Mode -->
+  <!-- "Conta" in Crisp Pure White with -0.03em tracking -->
+  <text x="80" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Geist', 'Inter', Roboto, sans-serif" font-size="31" font-weight="800" fill="#FFFFFF" letter-spacing="-0.03em">
+    Conta<tspan fill="#38BDF8" font-weight="900">IA</tspan>
+  </text>
+
+  <!-- Subtitle Tagline with tracking and crisp cyan tint on dark -->
+  <text x="81" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Geist', 'Inter', Roboto, sans-serif" font-size="9" font-weight="700" fill="#94A3B8" letter-spacing="0.16em">
+    CONTABILIDADE INTELIGENTE
+  </text>
+
+  <!-- Live Pulse Dot for Dark Mode Active Telemetry -->
+  <circle cx="288" cy="38" r="3.5" fill="#10B981"/>
+  <circle cx="288" cy="38" r="7" stroke="#10B981" stroke-width="1.5" stroke-opacity="0.3"/>
+</svg>

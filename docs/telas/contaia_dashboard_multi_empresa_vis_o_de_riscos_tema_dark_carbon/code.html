@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-tertiary-container": "#613b00", "secondary-fixed": "#6ffbbe", "background": "#0f131c", "error-container": "#93000a", "outline-variant": "#3e484f", "primary-fixed-dim": "#7bd0ff", "primary-container": "#38bdf8", "surface-tint": "#7bd0ff", "surface-variant": "#31353f", "on-tertiary-fixed": "#2a1700", "surface-container-highest": "#31353f", "on-secondary": "#003824", "on-tertiary": "#472a00", "tertiary-container": "#f59e0b", "on-error": "#690005", "on-background": "#dfe2ef", "on-secondary-container": "#00311f", "on-tertiary-fixed-variant": "#653e00", "outline": "#87929a", "secondary": "#4edea3", "surface": "#0f131c", "primary-fixed": "#c4e7ff", "on-primary": "#00354a", "surface-dim": "#0f131c", "secondary-fixed-dim": "#4edea3", "surface-container": "#1c1f29", "on-primary-fixed": "#001e2c", "on-surface": "#dfe2ef", "tertiary": "#ffc174", "inverse-primary": "#00668a", "tertiary-fixed-dim": "#ffb95f", "secondary-container": "#00a572", "inverse-on-surface": "#2c303a", "surface-container-low": "#181b25", "on-error-container": "#ffdad6", "surface-bright": "#353943", "on-primary-container": "#004965", "error": "#ffb4ab", "on-surface-variant": "#bdc8d1", "on-secondary-fixed": "#002113", "on-secondary-fixed-variant": "#005236", "inverse-surface": "#dfe2ef", "surface-container-high": "#262a34", "primary": "#8ed5ff", "surface-container-lowest": "#0a0e17", "tertiary-fixed": "#ffddb8", "on-primary-fixed-variant": "#004c69" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-xl": "1.75rem", "gutter-tablet": "1.25rem", "margin-desktop": "2rem", "margin": "1rem", "space-md": "0.75rem", "margin-tablet": "1.5rem", "space-xs": "0.25rem", "gutter": "1rem", "space-sm": "0.5rem", "gutter-desktop": "1.5rem", "space-lg": "1.25rem" }, "fontFamily": { "headline-lg-mobile": ["Geist"], "label-sm": ["Geist"], "display-lg-mobile": ["Geist"], "body-sm": ["Inter"], "body-lg": ["Inter"], "code-sm": ["Geist"], "body-md": ["Inter"], "display-lg": ["Geist"], "headline-lg": ["Geist"], "headline-md": ["Geist"], "headline-sm": ["Geist"], "label-md": ["Geist"] }, "fontSize": { "headline-lg-mobile": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }], "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }], "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }], "code-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" }], "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }], "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "600" }], "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }] } } } };</script></head><body class="bg-surface font-body-md text-on-surface min-h-screen"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-lowest z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.3)]"><div class="flex flex-col"><div class="h-20 px-space-md flex items-center gap-space-sm bg-surface-container-lowest"><img alt="Logotipo institucional moderno do ContaIA com isotipo de IA e precisão contábil e tipografia refinada.. Brand logo. - Primary color: #0f172a - Font: geist - Mode: light - Roundness: rounded-sm" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WkXvS7ISuPQD6Wx-kmZcTJ55lp20PTURjj1Q332mKtwqmEEioBlLJIooydBu2qcMco3uqvMcpmmujCsR0CVFtAzZ7B8fDRfC1beILlcvvlygVfnUqtKA9WVkg1CecPsrqDaw69qlR7VV22nP0LKpbTAGDyoTgEZ1aT3fkBVY7admU60pJSaGG7xtV30vW5k3oUNTGURF6CvUgd8Sp8jT4geG3qC9mKOi1ps7jnE6jgTHI88tiGcWksyOhx"/><div class="flex flex-col"><div class="flex items-center gap-space-xs"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight">ContaIA</span><span class="px-1.5 py-0.5 rounded bg-surface-container-highest font-label-sm text-label-sm text-primary uppercase">Core</span></div><span class="font-label-sm text-label-sm text-on-surface-variant">Arquitetura Fiscal Multi-Tenant</span></div></div><div class="px-space-md py-space-sm"><div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between"><div class="flex items-center gap-space-xs"><div class="w-2 h-2 rounded-full bg-secondary animate-pulse"></div><div class="flex flex-col"><span class="font-label-sm text-label-sm text-on-surface font-semibold">Escritório Ativo</span><span class="font-code-sm text-code-sm text-on-surface-variant">Matriz Audit Contábil SP</span></div></div><span class="material-symbols-outlined text-outline text-[18px]">expand_more</span></div></div><nav class="px-space-sm py-space-xs space-y-1" data-active-classes="bg-surface-container-high text-primary font-semibold"><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg transition-all group bg-surface-container-high text-primary font-semibold" data-path="dashboard-multi-empresa" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">grid_view</span><span class="font-label-md text-label-md">Dashboard Multi-empresa</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="triagem-dfe" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">receipt_long</span><span class="font-label-md text-label-md">Triagem DF-e</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="apuracao-fiscal" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">calculate</span><span class="font-label-md text-label-md">Apuração Fiscal</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="financeiro-open-finance" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">account_balance</span><span class="font-label-md text-label-md">Financeiro &amp; Open Finance</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="departamento-pessoal" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">badge</span><span class="font-label-md text-label-md">Departamento Pessoal</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="agentes-ia-copiloto" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">smart_toy</span><span class="font-label-md text-label-md">Agentes de IA &amp; Copiloto</span><span class="ml-auto px-1.5 py-0.5 rounded bg-surface-container-highest font-label-sm text-label-sm text-secondary">7/7</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="governanca-executiva" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">shield</span><span class="font-label-md text-label-md">Governança Executiva</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="configuracoes-cofre" href="#"><span class="material-symbols-outlined text-[20px] text-outline group-hover:text-primary transition-colors">lock</span><span class="font-label-md text-label-md">Configurações &amp; Cofre</span></a></nav></div><div class="p-space-md space-y-space-sm bg-surface-container-lowest"><div class="p-space-sm rounded-lg bg-surface-container-low"><div class="flex items-center justify-between mb-1"><span class="font-label-sm text-label-sm text-on-surface-variant">Integridade NBC TG</span><span class="font-code-sm text-code-sm text-secondary font-semibold">100% AUDITADO</span></div><div class="w-full h-1 bg-surface-container rounded-full overflow-hidden"><div class="w-full h-full bg-secondary"></div></div><p class="font-code-sm text-code-sm text-outline mt-1.5 truncate">SHA-256: 4f89...b92e</p></div><div class="text-center"><p class="font-label-sm text-label-sm text-outline">ContaIA Enterprise v3.0</p></div></div></aside><div class="pl-72 flex flex-col min-h-screen"><header class="fixed top-0 left-72 right-0 h-20 bg-surface-container-lowest/90 backdrop-blur-xl z-40 px-space-lg flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.25)]"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-primary font-semibold tracking-wide uppercase">v3.0 RELEASE - CARBON</span></div><div class="hidden xl:flex items-center gap-space-md px-space-md py-1.5 rounded-lg bg-surface-container-low"><div class="flex items-center gap-1.5"><div class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></div><span class="font-code-sm text-code-sm text-on-surface-variant">Sefaz Fila NSU: <span class="text-secondary font-medium">Online (184ms)</span></span></div><span class="text-outline-variant">|</span><div class="flex items-center gap-1.5"><span class="font-code-sm text-code-sm text-on-surface-variant">Gateway IA: <span class="text-primary font-medium">7/7 Ativos</span></span></div><span class="text-outline-variant">|</span><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-tertiary text-[16px]">verified</span><span class="font-code-sm text-code-sm text-on-surface-variant">Certificação: <span class="text-tertiary font-medium">Nível Ouro AAA</span></span></div></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-space-sm py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"><span class="material-symbols-outlined text-[18px] text-outline">search</span><span class="font-body-sm text-body-sm text-outline">Buscar CNPJ, NF-e, Razão Social...</span><span class="ml-space-sm px-1.5 py-0.5 rounded bg-surface-container-high font-code-sm text-code-sm text-outline">Ctrl+K</span></div><div class="relative p-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-tertiary"></span></div><div class="flex items-center gap-space-sm pl-space-sm"><div class="flex flex-col text-right hidden sm:flex"><span class="font-label-md text-label-md text-on-surface font-semibold leading-tight">Dra. Renata Silveira</span><span class="font-code-sm text-code-sm text-primary leading-tight">Sócia-Auditora (CRC 1SP248910/O-2)</span><span class="font-code-sm text-code-sm text-outline leading-tight">CNPJ: 14.285.901/0001-**</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-surface flex-1 px-gutter-desktop"><div class="flex flex-col w-full pb-space-xl">
+<!-- Operational Header -->
+<div class="flex flex-col xl:flex-row xl:items-end justify-between gap-space-md pt-space-md mb-space-lg">
+<div class="flex flex-col gap-space-xs max-w-3xl">
+<div class="flex items-center gap-space-sm">
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-secondary font-semibold uppercase tracking-wider flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+          RF-06 • Monitoramento Contínuo
+        </span>
+<span class="font-code-sm text-code-sm text-outline">Cluster SP-EAST-1</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+        Dashboard Multi-empresa: Monitoramento de Carteira &amp; Semáforo Fiscal
+      </h1>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+        Visão consolidada de 88 clientes ativos sob alçada do escritório. Priorização determinística orientada ao risco financeiro de multas e batimento estrito NBC TG.
+      </p>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm">
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface transition-all font-label-md text-label-md shadow-sm">
+<span class="material-symbols-outlined text-[18px] text-tertiary">warning</span>
+        Filtrar por Risco Iminente
+      </button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface transition-all font-label-md text-label-md shadow-sm">
+<span class="material-symbols-outlined text-[18px] text-outline">file_download</span>
+        Exportar Relatório Consolidado
+      </button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded bg-primary-container text-on-primary-container hover:bg-primary transition-all font-label-md text-label-md font-semibold shadow-sm">
+<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+        Sincronizar NSU Sefaz Agora
+      </button>
+</div>
+</div>
+<!-- Portfolio Health Metrics / Telemetry Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-space-md mb-space-lg">
+<!-- Metric 1: Carteira Isolada -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Empresas Monitoradas</span>
+<span class="material-symbols-outlined text-primary text-[20px]">corporate_fare</span>
+</div>
+<div class="mt-space-sm">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-display-lg text-display-lg text-on-surface font-semibold tracking-tight">88</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">CNPJs</span>
+</div>
+<div class="mt-space-xs flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span class="font-code-sm text-code-sm font-medium">100% isolamento RLS KMS</span>
+</div>
+</div>
+<div class="w-full bg-surface-container mt-space-sm h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- Metric 2: Semáforo Fiscal -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Status Semáforo</span>
+<span class="material-symbols-outlined text-tertiary text-[20px]">traffic</span>
+</div>
+<div class="mt-space-sm">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-display-lg text-display-lg text-error font-semibold tracking-tight">4</span>
+<span class="font-code-sm text-code-sm text-outline">Críticos</span>
+<span class="font-body-md text-body-md text-outline px-1">/</span>
+<span class="font-headline-md text-headline-md text-tertiary font-semibold">12</span>
+<span class="font-code-sm text-code-sm text-outline">Atenção</span>
+</div>
+<p class="font-code-sm text-code-sm text-secondary mt-space-xs">72 Conformes (D+0)</p>
+</div>
+<div class="flex gap-1 mt-space-sm h-1 w-full rounded-full overflow-hidden bg-surface-container">
+<div class="bg-error h-full" style="width: 5%"></div>
+<div class="bg-tertiary h-full" style="width: 14%"></div>
+<div class="bg-secondary h-full" style="width: 81%"></div>
+</div>
+</div>
+<!-- Metric 3: Multas Evitadas -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Multas Evitadas (Mês)</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">verified_user</span>
+</div>
+<div class="mt-space-sm">
+<div class="flex items-baseline gap-1">
+<span class="font-code-sm text-code-sm text-outline">R$</span>
+<span class="font-headline-lg text-headline-lg text-secondary font-semibold tracking-tight">382.400,00</span>
+</div>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-space-xs">Prevenção ativa RFB / Sefaz</p>
+</div>
+<div class="flex items-center gap-1 mt-space-sm text-secondary font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[15px]">trending_up</span>
+<span>+14.8% vs. mês anterior</span>
+</div>
+</div>
+<!-- Metric 4: Batimento Contábil Paridade Zero -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Batimento Contábil</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">balance</span>
+</div>
+<div class="mt-space-sm">
+<div class="flex items-baseline gap-1">
+<span class="font-code-sm text-code-sm text-outline">Delta</span>
+<span class="font-headline-lg text-headline-lg text-secondary font-semibold tracking-tight">R$ 0,00</span>
+</div>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-space-xs">Partidas dobradas 100% reconciliadas</p>
+</div>
+<div class="flex items-center gap-1.5 mt-space-sm">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-code-sm text-code-sm text-secondary font-medium">Equilíbrio Dív/Créd Rigoroso</span>
+</div>
+</div>
+<!-- Metric 5: Certificados Digitais A1 -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Certificados A1</span>
+<span class="material-symbols-outlined text-primary text-[20px]">badge</span>
+</div>
+<div class="mt-space-sm">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-display-lg text-display-lg text-on-surface font-semibold tracking-tight">0</span>
+<span class="font-code-sm text-code-sm text-secondary">em risco (&lt; 30d)</span>
+</div>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-space-xs">88 Chaves operacionais no cofre</p>
+</div>
+<div class="flex items-center gap-1 text-primary font-code-sm text-code-sm mt-space-sm">
+<span class="material-symbols-outlined text-[15px]">security</span>
+<span>Hardware Security Module Ativo</span>
+</div>
+</div>
+</div>
+<!-- Filter and Search Bar Controller -->
+<div class="p-space-md rounded-xl bg-surface-container-low mb-space-lg shadow-sm flex flex-col lg:flex-row gap-space-md items-stretch lg:items-center justify-between">
+<div class="flex-1 flex items-center gap-space-sm bg-surface-container-lowest px-space-md py-2 rounded-lg">
+<span class="material-symbols-outlined text-outline text-[20px]">search</span>
+<input class="w-full bg-transparent text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none" id="tableSearch" placeholder="Buscar por Razão Social, CNPJ com ou sem máscara, Inscrição Estadual ou Responsável Fiscal..." type="text"/>
+<span class="hidden sm:inline font-code-sm text-code-sm text-outline px-1.5 py-0.5 rounded bg-surface-container-high">Ctrl+F</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm">
+<div class="flex items-center bg-surface-container-lowest rounded-lg p-1">
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm bg-surface-container-high text-primary font-semibold">Todos (88)</button>
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors">Simples Nacional (34)</button>
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors">Lucro Presumido (31)</button>
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors">Lucro Real (23)</button>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-1.5 rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px] text-outline">tune</span>
+<select class="bg-transparent text-on-surface font-label-md text-label-md focus:outline-none cursor-pointer">
+<option class="bg-surface-container text-on-surface" value="all">Alçada: Todos os Sócios</option>
+<option class="bg-surface-container text-on-surface" value="renata">Carteira: Dra. Renata Silveira</option>
+<option class="bg-surface-container text-on-surface" value="carlos">Carteira: Dr. Carlos Mendes</option>
+</select>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-1.5 rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px] text-error">flag</span>
+<select class="bg-transparent text-on-surface font-label-md text-label-md focus:outline-none cursor-pointer">
+<option class="bg-surface-container text-on-surface" value="risk-desc">Ordenar: Maior Risco de Multa</option>
+<option class="bg-surface-container text-on-surface" value="deadline-asc">Ordenar: Vencimento Mais Próximo</option>
+<option class="bg-surface-container text-on-surface" value="dfe-desc">Ordenar: DF-e Pendentes</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Primary Density Risk Table & Inspection Area -->
+<div class="rounded-xl bg-surface-container-low shadow-sm overflow-hidden mb-space-lg">
+<div class="p-space-md bg-surface-container flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px]">table_rows</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Semáforo de Risco por Cliente da Carteira</h2>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-code-sm text-code-sm text-on-surface-variant">5 de 88 exibidos em foco prioritário</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-code-sm text-code-sm text-outline">Atualizado há 42 segundos</span>
+<button class="p-1 rounded hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Recarregar tabela">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest text-outline font-label-sm text-label-sm uppercase tracking-wider">
+<th class="py-space-sm px-space-md w-12 text-center">Status</th>
+<th class="py-space-sm px-space-md">Empresa / CNPJ / Regime</th>
+<th class="py-space-sm px-space-md">Próxima Obrigação Crítica</th>
+<th class="py-space-sm px-space-md text-right">Multa Calculada Estimada</th>
+<th class="py-space-sm px-space-md text-center">DF-e Sem Manifestação</th>
+<th class="py-space-sm px-space-md text-center">Equilíbrio Fiscal</th>
+<th class="py-space-sm px-space-md text-right">Ação Resolutiva Rápida</th>
+</tr>
+</thead>
+<tbody class="divide-y-0 text-on-surface font-body-md text-body-md">
+<!-- Row 1: Crítico (Vanguarda Logística) -->
+<tr class="hover:bg-surface-container-high/60 transition-colors bg-surface-container-low group">
+<td class="py-space-sm px-space-md text-center">
+<div class="inline-flex items-center justify-center relative">
+<span class="w-3 h-3 rounded-full bg-error"></span>
+<span class="w-3 h-3 rounded-full bg-error absolute animate-ping opacity-75"></span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-label-md text-on-surface font-semibold group-hover:text-primary transition-colors">Vanguarda Logística Intermodal Ltda.</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-highest font-code-sm text-code-sm text-primary">Lucro Real</span>
+</div>
+<div class="flex items-center gap-space-sm mt-0.5">
+<span class="font-code-sm text-code-sm text-on-surface-variant">CNPJ: 08.412.983/0001-44</span>
+<span class="text-outline">•</span>
+<span class="font-code-sm text-code-sm text-outline">IE: 114.892.401.110</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1 text-error font-semibold">
+<span class="material-symbols-outlined text-[16px]">alarm</span>
+<span class="font-label-md text-label-md">DCTFWeb Previdenciária</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">Vencimento: Amanhã às 18:00 (D-1)</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right font-code-sm text-code-sm">
+<div class="flex flex-col items-end">
+<span class="text-error font-semibold font-headline-sm text-headline-sm">R$ 3.840,00</span>
+<span class="text-outline text-label-sm font-label-sm">Risco Art. 32-A Lei 8.212</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-1 rounded bg-error-container/30 text-error font-code-sm text-code-sm font-semibold inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">priority_high</span>
+                14 pendentes
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-tertiary font-code-sm text-code-sm">
+                Delta R$ 412,80
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<button class="px-space-md py-1.5 rounded bg-error-container text-on-error-container hover:bg-error font-label-sm text-label-sm font-semibold transition-all inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">bolt</span>
+                Resolver Imediato
+              </button>
+</td>
+</tr>
+<!-- Row 2: Crítico (Solaris Bioenergia) -->
+<tr class="hover:bg-surface-container-high/60 transition-colors bg-surface-container-lowest/40 group">
+<td class="py-space-sm px-space-md text-center">
+<div class="inline-flex items-center justify-center relative">
+<span class="w-3 h-3 rounded-full bg-error"></span>
+<span class="w-3 h-3 rounded-full bg-error absolute animate-ping opacity-60"></span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-label-md text-on-surface font-semibold group-hover:text-primary transition-colors">Solaris Bioenergia do Brasil S.A.</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-highest font-code-sm text-code-sm text-primary">Lucro Real</span>
+</div>
+<div class="flex items-center gap-space-sm mt-0.5">
+<span class="font-code-sm text-code-sm text-on-surface-variant">CNPJ: 19.330.124/0001-92</span>
+<span class="text-outline">•</span>
+<span class="font-code-sm text-code-sm text-outline">IE: 341.002.910.012</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1 text-error font-semibold">
+<span class="material-symbols-outlined text-[16px]">person_add</span>
+<span class="font-label-md text-label-md">eSocial S-2200 (Admissão)</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">Exigência D-1 retroativa (Hoje 23:59)</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right font-code-sm text-code-sm">
+<div class="flex flex-col items-end">
+<span class="text-error font-semibold font-headline-sm text-headline-sm">R$ 3.000,00</span>
+<span class="text-outline text-label-sm font-label-sm">Multa CLT Art. 47-A</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-1 rounded bg-surface-container-high text-on-surface-variant font-code-sm text-code-sm">
+                0 pendentes
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm font-semibold">
+                Delta R$ 0,00
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<button class="px-space-md py-1.5 rounded bg-surface-container-high hover:bg-surface-bright text-primary font-label-sm text-label-sm font-semibold transition-all inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">send</span>
+                Transmitir eSocial
+              </button>
+</td>
+</tr>
+<!-- Row 3: Atenção (Nexus Cloud Technologies) -->
+<tr class="hover:bg-surface-container-high/60 transition-colors bg-surface-container-low group">
+<td class="py-space-sm px-space-md text-center">
+<div class="inline-flex items-center justify-center">
+<span class="w-3 h-3 rounded-full bg-tertiary"></span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-label-md text-on-surface font-semibold group-hover:text-primary transition-colors">Nexus Cloud Technologies Serviços Ltda.</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-highest font-code-sm text-code-sm text-tertiary">Simples Nacional</span>
+</div>
+<div class="flex items-center gap-space-sm mt-0.5">
+<span class="font-code-sm text-code-sm text-on-surface-variant">CNPJ: 32.890.112/0001-08</span>
+<span class="text-outline">•</span>
+<span class="font-code-sm text-code-sm text-outline">Anexo III / Fator R 31,4%</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1 text-tertiary font-semibold">
+<span class="material-symbols-outlined text-[16px]">calendar_month</span>
+<span class="font-label-md text-label-md">Guia PGDAS-D Competência</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">Prazo regular em 3 dias úteis</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right font-code-sm text-code-sm">
+<div class="flex flex-col items-end">
+<span class="text-tertiary font-semibold font-headline-sm text-headline-sm">R$ 750,00</span>
+<span class="text-outline text-label-sm font-label-sm">Juros e Mora Estimados</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-1 rounded bg-tertiary-container/20 text-tertiary font-code-sm text-code-sm font-semibold inline-flex items-center gap-1">
+                6 aguardando
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm font-semibold">
+                Delta R$ 0,00
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<button class="px-space-md py-1.5 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm font-semibold transition-all inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                Verificar Guias
+              </button>
+</td>
+</tr>
+<!-- Row 4: Conforme (Alpha Fiscal Consultoria) -->
+<tr class="hover:bg-surface-container-high/60 transition-colors bg-surface-container-lowest/40 group">
+<td class="py-space-sm px-space-md text-center">
+<div class="inline-flex items-center justify-center">
+<span class="w-3 h-3 rounded-full bg-secondary"></span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-label-md text-on-surface font-semibold group-hover:text-primary transition-colors">Alpha Indústria e Comércio de Válvulas S.A.</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-highest font-code-sm text-code-sm text-primary">Lucro Real</span>
+</div>
+<div class="flex items-center gap-space-sm mt-0.5">
+<span class="font-code-sm text-code-sm text-on-surface-variant">CNPJ: 45.109.844/0001-19</span>
+<span class="text-outline">•</span>
+<span class="font-code-sm text-code-sm text-outline">IE: 221.789.330.119</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1 text-secondary font-semibold">
+<span class="material-symbols-outlined text-[16px]">task_alt</span>
+<span class="font-label-md text-label-md">EFD Contribuições PIS/COFINS</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">Transmitida e Chave SPED autenticada</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right font-code-sm text-code-sm">
+<div class="flex flex-col items-end">
+<span class="text-secondary font-semibold font-headline-sm text-headline-sm">R$ 0,00</span>
+<span class="text-secondary font-code-sm text-code-sm">Risco Zero Concluído</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-1 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm">
+                0 pendentes
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm font-semibold">
+                Delta R$ 0,00
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<button class="px-space-md py-1.5 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label-sm text-label-sm transition-all inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+                Ver Recibo
+              </button>
+</td>
+</tr>
+<!-- Row 5: Conforme (Audicon Gestão Hospitalar) -->
+<tr class="hover:bg-surface-container-high/60 transition-colors bg-surface-container-low group">
+<td class="py-space-sm px-space-md text-center">
+<div class="inline-flex items-center justify-center">
+<span class="w-3 h-3 rounded-full bg-secondary"></span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-label-md text-on-surface font-semibold group-hover:text-primary transition-colors">Audicon Gestão Hospitalar &amp; Diagnósticos</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-highest font-code-sm text-code-sm text-primary">Lucro Presumido</span>
+</div>
+<div class="flex items-center gap-space-sm mt-0.5">
+<span class="font-code-sm text-code-sm text-on-surface-variant">CNPJ: 54.001.993/0001-71</span>
+<span class="text-outline">•</span>
+<span class="font-code-sm text-code-sm text-outline">ISS Retido Tomador SP</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1 text-secondary font-semibold">
+<span class="material-symbols-outlined text-[16px]">task_alt</span>
+<span class="font-label-md text-label-md">Reinf Série R-4000 (Retenções)</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">Conciliado e fechado na fonte</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right font-code-sm text-code-sm">
+<div class="flex flex-col items-end">
+<span class="text-secondary font-semibold font-headline-sm text-headline-sm">R$ 0,00</span>
+<span class="text-secondary font-code-sm text-code-sm">Risco Zero Concluído</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-1 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm">
+                0 pendentes
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-center">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm font-semibold">
+                Delta R$ 0,00
+              </span>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<button class="px-space-md py-1.5 rounded bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label-sm text-label-sm transition-all inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+                Ver Recibo
+              </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-space-md bg-surface-container flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+<span class="font-code-sm text-code-sm text-outline">Exibindo 1 a 5 de 88 clientes ativos</span>
+<div class="flex items-center gap-space-xs">
+<button class="px-space-sm py-1 rounded bg-surface-container-high text-outline hover:text-on-surface font-code-sm text-code-sm">Anterior</button>
+<button class="px-space-sm py-1 rounded bg-primary text-on-primary font-code-sm text-code-sm font-bold">1</button>
+<button class="px-space-sm py-1 rounded bg-surface-container-high text-on-surface hover:text-primary font-code-sm text-code-sm">2</button>
+<button class="px-space-sm py-1 rounded bg-surface-container-high text-on-surface hover:text-primary font-code-sm text-code-sm">3</button>
+<span class="text-outline px-1">...</span>
+<button class="px-space-sm py-1 rounded bg-surface-container-high text-on-surface hover:text-primary font-code-sm text-code-sm">18</button>
+<button class="px-space-sm py-1 rounded bg-surface-container-high text-outline hover:text-on-surface font-code-sm text-code-sm">Próxima</button>
+</div>
+</div>
+</div>
+<!-- Bottom Workspace Grid: AI Copilot Alerts, HITL Queue & Realtime Ledger Log -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
+<!-- Card 1: Alertas Críticos Iminentes (Agente Compliance) -->
+<div class="lg:col-span-4 rounded-xl bg-surface-container-low p-space-md shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-space-sm border-b-0">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-error text-[20px]">notification_important</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Alertas Iminentes</h3>
+</div>
+<span class="px-2 py-0.5 rounded bg-error-container text-on-error-container font-label-sm text-label-sm font-bold">Vencimento &lt; 24h</span>
+</div>
+<div class="mt-space-md space-y-space-sm">
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">DCTFWeb • Vanguarda Logística</span>
+<span class="font-code-sm text-code-sm text-error font-bold">18h restantes</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+              Guia previdenciária não encerrada. Sem transmissão, bloqueio de CND imediato na RFB.
+            </p>
+<div class="mt-space-xs flex items-center justify-between pt-1">
+<span class="font-code-sm text-code-sm text-outline">Impacto: R$ 3.840,00</span>
+<button class="font-label-sm text-label-sm text-primary hover:underline font-semibold">Executar Fechamento →</button>
+</div>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Admissão eSocial • Solaris Bio</span>
+<span class="font-code-sm text-code-sm text-error font-bold">Hoje 23:59</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+              Evento S-2200 colaborador 'Marcos E. Peixoto' sem envio prévio. Risco de multa CLT automática.
+            </p>
+<div class="mt-space-xs flex items-center justify-between pt-1">
+<span class="font-code-sm text-code-sm text-outline">Impacto: R$ 3.000,00</span>
+<button class="font-label-sm text-label-sm text-primary hover:underline font-semibold">Disparar XML eSocial →</button>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm flex items-center justify-between bg-surface-container p-space-sm rounded-lg">
+<span class="font-code-sm text-code-sm text-on-surface-variant">Agente Fiscal Autônomo: <strong class="text-secondary">Ativo</strong></span>
+<span class="material-symbols-outlined text-secondary text-[18px]">verified</span>
+</div>
+</div>
+<!-- Card 2: Fila HITL de Supervisão Humana -->
+<div class="lg:col-span-4 rounded-xl bg-surface-container-low p-space-md shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[20px]">supervised_user_circle</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Fila HITL (Humano no Circuito)</h3>
+</div>
+<span class="px-2 py-0.5 rounded bg-tertiary-container/30 text-tertiary font-label-sm text-label-sm font-semibold">3 para Aprovação</span>
+</div>
+<div class="mt-space-md space-y-space-sm">
+<!-- HITL Item 1 -->
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Manifestação NF-e Desconhecida</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high font-code-sm text-code-sm text-tertiary">Análise Risco</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+              Fornecedor emissor não usual emitiu NF-e de R$ 94.200,00 contra Vanguarda Logística. Suspeita de fraude na SEFAZ-GO.
+            </p>
+<div class="mt-space-sm flex items-center gap-space-sm">
+<button class="flex-1 py-1 rounded bg-error-container text-on-error-container font-label-sm text-label-sm font-semibold hover:bg-error transition-all">
+                Desconhecer Operação
+              </button>
+<button class="flex-1 py-1 rounded bg-surface-container-high text-on-surface font-label-sm text-label-sm font-semibold hover:bg-surface-bright transition-all">
+                Confirmar
+              </button>
+</div>
+</div>
+<!-- HITL Item 2 -->
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Classificação Fiscal CFOP 6.108</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high font-code-sm text-code-sm text-primary">DIFAL Interestadual</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+              Nexus Cloud: venda interestadual para não contribuinte. Confirmar alíquota interna destino (18% vs 17%).
+            </p>
+<div class="mt-space-sm flex items-center gap-space-sm">
+<button class="w-full py-1 rounded bg-primary-container text-on-primary-container font-label-sm text-label-sm font-semibold hover:bg-primary transition-all">
+                Validar Alíquota Automática
+              </button>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm flex items-center justify-between bg-surface-container p-space-sm rounded-lg">
+<span class="font-code-sm text-code-sm text-outline">Tempo médio de resposta HITL: <strong>4.2 min</strong></span>
+<span class="material-symbols-outlined text-outline text-[18px]">timer</span>
+</div>
+</div>
+<!-- Card 3: Auditoria Append-Only Imutável ao Vivo -->
+<div class="lg:col-span-4 rounded-xl bg-surface-container-low p-space-md shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[20px]">security_update_good</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Ledger de Auditoria Imutável</h3>
+</div>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-code-sm text-code-sm text-secondary font-semibold">SHA-256 Validado</span>
+</div>
+<div class="mt-space-md space-y-space-sm">
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-secondary">NSU #1948209 Sincronizado</span>
+<span class="font-code-sm text-code-sm text-outline">14:02:18</span>
+</div>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-1">
+              Captura NF-e 3525 0108 4129 8300 0144 5500 1000 0419 8219 9281 9012 via SEFAZ Nacional.
+            </p>
+<span class="font-code-sm text-code-sm text-outline truncate block mt-1">HASH: 8e41a...bf92 (Zero-knowledge proof)</span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-primary">Cálculo Determinístico de Mora</span>
+<span class="font-code-sm text-code-sm text-outline">13:58:44</span>
+</div>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-1">
+              Selic acumulada projetada: 10,75% a.a. Multa diária calibrada em 0,33% até limite legal de 20%.
+            </p>
+<span class="font-code-sm text-code-sm text-outline truncate block mt-1">HASH: 402fd...318e (RFC 3161 Timestamp)</span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-secondary">Assinatura Certificado A1 HSM</span>
+<span class="font-code-sm text-code-sm text-outline">13:45:02</span>
+</div>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-1">
+              Evento EFD-Reinf autenticado por autoridade certificadora ICP-Brasil com token efêmero.
+            </p>
+<span class="font-code-sm text-code-sm text-outline truncate block mt-1">HASH: c104e...769b (Audit Trail Append-Only)</span>
+</div>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm flex items-center justify-between bg-surface-container p-space-sm rounded-lg">
+<span class="font-code-sm text-code-sm text-outline">Integridade Criptográfica: <strong class="text-secondary">100% Inviolável</strong></span>
+<span class="material-symbols-outlined text-secondary text-[18px]">verified</span>
+</div>
+</div>
+</div>
+</div>
+<script>
+  // Simple table row search filter micro-interaction
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('tableSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+          const text = row.innerText.toLowerCase();
+          if (text.includes(query)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      });
+    }
+  });
+</script></main><footer class="w-full bg-surface-container-lowest py-space-md px-gutter-desktop mt-auto"><div class="flex flex-col md:flex-row items-center justify-between gap-space-sm text-on-surface-variant"><div class="flex items-center gap-space-sm"><span class="font-label-sm text-label-sm text-on-surface font-semibold">ContaIA Platform</span><span class="text-outline-variant">•</span><span class="font-body-sm text-body-sm text-outline">Conformidade Estrita NBC TG, CFC &amp; RFB</span><span class="text-outline-variant">•</span><span class="font-code-sm text-code-sm text-secondary">Log Append-Only Imutável</span></div><div class="flex items-center gap-space-md"><span class="font-code-sm text-code-sm text-outline">SHA-256 Ledger Audit Key: 9b2d8e41a87c104e76</span><span class="font-body-sm text-body-sm text-outline">© 2025 ContaIA SaaS Contábil. Todos os direitos reservados.</span></div></div></footer></div></body></html>

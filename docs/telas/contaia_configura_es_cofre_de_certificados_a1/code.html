@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-tertiary": "#ffffff", "on-secondary-fixed": "#251a00", "on-secondary-fixed-variant": "#5a4300", "on-error": "#ffffff", "surface-container-highest": "#d7e3fb", "outline": "#76777d", "surface-bright": "#f9f9ff", "on-primary": "#ffffff", "surface-container": "#e6eeff", "on-secondary-container": "#705400", "on-surface": "#101c2d", "inverse-on-surface": "#ebf1ff", "surface-container-high": "#dde9ff", "inverse-surface": "#253143", "tertiary": "#000000", "tertiary-container": "#001944", "on-surface-variant": "#45464d", "on-primary-fixed": "#131b2e", "on-primary-container": "#7c839b", "surface-container-lowest": "#ffffff", "surface-dim": "#cedbf2", "on-background": "#101c2d", "background": "#f9f9ff", "primary-fixed": "dae2fd", "on-tertiary-fixed-variant": "#00429a", "error": "#ba1a1a", "on-tertiary-fixed": "#001944", "secondary-fixed": "#ffdf9a", "error-container": "#ffdad6", "tertiary-fixed-dim": "#b0c6ff", "on-tertiary-container": "#5081e5", "secondary": "#785a00", "surface-variant": "#d7e3fb", "secondary-container": "#fdc73a", "primary-fixed-dim": "#bec6e0", "on-secondary": "#ffffff", "surface": "#f9f9ff", "tertiary-fixed": "#d9e2ff", "outline-variant": "#c6c6cd", "secondary-fixed-dim": "#f4bf31", "primary": "#000000", "primary-container": "#131b2e", "surface-container-low": "#eff3ff", "surface-tint": "#565e74", "on-error-container": "#93000a", "inverse-primary": "#bec6e0", "on-primary-fixed-variant": "#3f465c" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter": "1rem", "space-md": "0.75rem", "margin-desktop": "2rem", "margin": "1rem", "gutter-desktop": "1.5rem", "space-sm": "0.5rem", "space-lg": "1.25rem", "space-xl": "1.75rem", "space-xs": "0.25rem" }, "fontFamily": { "label-sm": ["Inter"], "headline-md": ["Geist"], "headline-lg": ["Geist"], "body-md": ["Inter"], "title-sm": ["Inter"], "code-sm": ["JetBrains Mono"], "code-xs": ["JetBrains Mono"], "label-md": ["Inter"], "headline-lg-mobile": ["Geist"], "headline-sm": ["Geist"], "title-md": ["Inter"], "body-sm": ["Inter"] }, "fontSize": { "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }], "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "headline-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "title-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }], "code-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "code-xs": ["11px", { "lineHeight": "14px", "fontWeight": "400" }], "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }], "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "title-md": ["15px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }], "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low z-50 flex flex-col justify-between overflow-y-auto shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col"><div class="h-16 px-space-md flex items-center justify-between bg-surface-container-low"><div class="flex items-center gap-space-xs"><img alt="Logotipo institucional moderno do ContaIA com isotipo de IA e precisão contábil e tipografia refinada.. Brand logo. - Primary color: #0f172a
+- Font: geist
+- Mode: light
+- Roundness: rounded-sm
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WkXvS7ISuPQD6Wx-kmZcTJ55lp20PTURjj1Q332mKtwqmEEioBlLJIooydBu2qcMco3uqvMcpmmujCsR0CVFtAzZ7B8fDRfC1beILlcvvlygVfnUqtKA9WVkg1CecPsrqDaw69qlR7VV22nP0LKpbTAGDyoTgEZ1aT3fkBVY7admU60pJSaGG7xtV30vW5k3oUNTGURF6CvUgd8Sp8jT4geG3qC9mKOi1ps7jnE6jgTHI88tiGcWksyOhx"/><div class="flex flex-col pl-space-xs"><span class="font-headline-sm text-headline-sm text-on-surface leading-none tracking-tight">ContaIA</span><span class="font-code-xs text-code-xs text-on-surface-variant leading-none pt-space-xs">v3.0 - Motor IBS/CBS</span></div></div><span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-on-surface">dock_to_right</span></div><nav class="flex flex-col gap-space-xs px-space-sm pt-space-sm" data-active-classes="bg-primary text-on-primary font-bold shadow-sm"><div class="px-space-sm pt-space-xs pb-space-xs"><span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Visão Geral</span></div><a class="flex items-center justify-between px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="dashboard-multi-empresa" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">dashboard</span><span class="font-body-sm text-body-sm">Dashboard Multi-empresa</span></div><span class="flex h-2 w-2 rounded-full bg-secondary"></span></a><div class="px-space-sm pt-space-sm pb-space-xs"><span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Fiscal & Tributário</span></div><a class="flex items-center justify-between px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="captura-dfe-e-triagem-hitl" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">document_scanner</span><span class="font-body-sm text-body-sm">Captura DF-e & HITL</span></div><span class="bg-secondary-container text-on-secondary-container font-code-xs text-code-xs px-1.5 py-0.5 rounded">5</span></a><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="apuracao-ibs-cbs-icms" href="#"><span class="material-symbols-outlined text-[18px]">account_balance</span><span class="font-body-sm text-body-sm">Apuração IBS / CBS / ICMS</span></a><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="obrigacoes-e-guias" href="#"><span class="material-symbols-outlined text-[18px]">receipt_long</span><span class="font-body-sm text-body-sm">Obrigações & Guias</span></a><div class="px-space-sm pt-space-sm pb-space-xs"><span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Módulo Contábil</span></div><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="plano-de-contas-e-partidas-dobradas" href="#"><span class="material-symbols-outlined text-[18px]">account_tree</span><span class="font-body-sm text-body-sm">Plano & Partidas Dobradas</span></a><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="sped-e-razao-contabil" href="#"><span class="material-symbols-outlined text-[18px]">menu_book</span><span class="font-body-sm text-body-sm">SPED & Razão Contábil</span></a><div class="px-space-sm pt-space-sm pb-space-xs"><span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Módulo Financeiro</span></div><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="extratos-e-open-finance" href="#"><span class="material-symbols-outlined text-[18px]">sync_alt</span><span class="font-body-sm text-body-sm">Extratos & Open Finance</span></a><a class="flex items-center justify-between px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="conciliacao-assistida-ia" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">auto_fix_high</span><span class="font-body-sm text-body-sm">Conciliação Assistida (IA)</span></div><span class="bg-primary-container text-on-primary-container font-code-xs text-code-xs px-1.5 py-0.5 rounded">Auto</span></a><div class="px-space-sm pt-space-sm pb-space-xs"><span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Departamento Pessoal</span></div><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="esocial-e-validacao-previa-dp" href="#"><span class="material-symbols-outlined text-[18px]">verified</span><span class="font-body-sm text-body-sm">eSocial & Validação Prévia</span></a><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="folha-e-admissoes" href="#"><span class="material-symbols-outlined text-[18px]">badge</span><span class="font-body-sm text-body-sm">Folha & Admissões</span></a><div class="px-space-sm pt-space-sm pb-space-xs"><span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Relatórios & BI</span></div><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="relatorios-gerenciais" href="#"><span class="material-symbols-outlined text-[18px]">analytics</span><span class="font-body-sm text-body-sm">Relatórios Gerenciais</span></a><a class="flex items-center justify-between px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="malha-fiscal-preventiva" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">security</span><span class="font-body-sm text-body-sm">Malha Preventiva</span></div><span class="bg-error text-on-error font-code-xs text-code-xs px-1.5 py-0.5 rounded">2</span></a><div class="px-space-sm pt-space-sm pb-space-xs"><span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Governança</span></div><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="configuracoes-e-cofre-a1" href="#"><span class="material-symbols-outlined text-[18px]">key</span><span class="font-body-sm text-body-sm">Configurações & Cofre A1</span></a><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="usuarios-e-alcadas" href="#"><span class="material-symbols-outlined text-[18px]">group</span><span class="font-body-sm text-body-sm">Usuários & Alçadas</span></a><a class="flex items-center gap-space-sm px-space-sm py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="logs-de-auditoria-e-agentes" href="#"><span class="material-symbols-outlined text-[18px]">manage_search</span><span class="font-body-sm text-body-sm">Logs & Auditoria IA</span></a></nav></div><div class="p-space-sm mt-space-md bg-surface-container"><div class="flex items-center gap-space-xs pb-space-xs"><span class="material-symbols-outlined text-[16px] text-on-surface-variant">lock</span><span class="font-code-xs text-code-xs text-on-surface-variant">TLS 1.3 | PostgreSQL RLS | HSM</span></div><div class="flex items-center justify-between pt-space-xs"><button class="flex items-center gap-space-xs text-on-surface-variant hover:text-on-surface" type="button"><span class="material-symbols-outlined text-[16px]">switch_account</span><span class="font-label-sm text-label-sm">Trocar Perfil</span></button><button class="flex items-center gap-space-xs text-on-surface-variant hover:text-on-surface" type="button"><span class="material-symbols-outlined text-[16px]">help</span><span class="font-label-sm text-label-sm">Normativas</span></button></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-md z-40 flex items-center justify-between px-space-lg shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-sm bg-surface-container-low px-space-sm py-1.5 rounded cursor-pointer hover:bg-surface-container transition-colors"><div class="flex flex-col"><div class="flex items-center gap-space-xs"><span class="font-title-sm text-title-sm text-on-surface font-semibold truncate max-w-[260px]">Vanguarda Logística & Armazéns</span><span class="material-symbols-outlined text-[16px] text-on-surface-variant">expand_more</span></div><div class="flex items-center gap-space-xs"><span class="font-code-xs text-code-xs text-on-surface-variant">18.420.911/0001-44</span><span class="font-label-sm text-label-sm bg-surface-container-high text-on-surface px-1 py-0.2 rounded">Lucro Real</span><span class="font-code-xs text-code-xs text-on-surface-variant flex items-center gap-0.5"><span class="inline-block w-1.5 h-1.5 rounded-full bg-secondary"></span> RLS Nível 2</span></div></div></div><div class="hidden xl:flex items-center gap-space-md pl-space-sm"><div class="flex items-center gap-space-xs"><span class="inline-block w-2 h-2 rounded-full bg-on-secondary-container"></span><span class="font-code-xs text-code-xs text-on-surface-variant">Sefaz DF-e Conectado (ultNSU: 089124)</span></div><div class="flex items-center gap-space-xs"><span class="inline-block w-2 h-2 rounded-full bg-on-secondary-container"></span><span class="font-code-xs text-code-xs text-on-surface-variant">eSocial S-1.3 Online</span></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[14px] text-on-surface-variant">shield</span><span class="font-code-xs text-code-xs text-on-surface-variant">Signer mTLS (HSM/KMS)</span></div></div></div><div class="flex items-center gap-space-md"><button class="flex items-center gap-space-xs bg-secondary-container text-on-secondary-container px-space-sm py-1 rounded hover:bg-secondary hover:text-on-secondary transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">task_alt</span><span class="font-label-md text-label-md">Fila HITL</span><span class="bg-surface-container-lowest text-on-surface font-code-xs text-code-xs px-1.5 py-0.2 rounded-full font-bold">5</span></button><button class="relative p-1 text-on-surface-variant hover:text-on-surface" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-0 right-0 h-4 w-4 bg-error text-on-error font-code-xs text-code-xs rounded-full flex items-center justify-center font-bold">2</span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="flex flex-col text-right"><span class="font-label-md text-label-md text-on-surface font-semibold">Rodrigo Reis, CRC-SP</span><span class="font-code-xs text-code-xs text-on-surface-variant">admin_escritorio</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><span class="material-symbols-outlined text-[16px] text-on-surface-variant cursor-pointer hover:text-on-surface">keyboard_arrow_down</span></div></div></header><main class="relative pt-16 bg-surface min-h-screen w-full px-space-lg"><div class="flex flex-col w-full pb-space-xl">
+<!-- Page Header & Global Tenant Controls -->
+<div class="py-space-md flex flex-col xl:flex-row xl:items-center xl:justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<a class="hover:text-on-surface transition-colors" href="#">Início</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<a class="hover:text-on-surface transition-colors" href="#">Configurações</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-on-surface font-medium">Cofre de Certificados & Tenants</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+        Configurações do Escritório & Governança Multi-tenant
+      </h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-4xl">
+        Gestão da assinatura corporativa raiz (Tenant), controle de empresas clientes (Sub-tenants), cofre de certificados digitais ICP-Brasil A1 e políticas de alçada de colaboradores.
+      </p>
+</div>
+<!-- Action Toolbar -->
+<div class="flex flex-wrap items-center gap-space-sm self-start xl:self-auto">
+<button class="flex items-center gap-space-xs bg-surface-container-high text-on-surface hover:bg-surface-container-highest px-space-md py-2 rounded-lg font-label-md text-label-md transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span>Exportar Relatório RLS</span>
+</button>
+<button class="flex items-center gap-space-xs bg-surface-container-high text-on-surface hover:bg-surface-container-highest px-space-md py-2 rounded-lg font-label-md text-label-md transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">domain_add</span>
+<span>+ Cadastrar Nova Empresa</span>
+</button>
+<button class="flex items-center gap-space-xs bg-primary text-on-primary hover:bg-primary-container px-space-md py-2 rounded-lg font-label-md text-label-md transition-all shadow-sm" onclick="document.getElementById('upload-a1-panel').scrollIntoView({behavior: 'smooth'})" type="button">
+<span class="material-symbols-outlined text-[18px]">add_moderator</span>
+<span>+ Conectar Novo Certificado A1</span>
+</button>
+</div>
+</div>
+<!-- High-Density Navigation Tabs -->
+<div class="mt-space-sm bg-surface-container-low p-1 rounded-xl flex items-center gap-1 overflow-x-auto">
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg bg-surface-container-lowest text-on-surface font-title-sm text-title-sm shadow-sm transition-all whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">vpn_key</span>
+<span>Cofre de Certificados A1 & mTLS</span>
+<span class="ml-1 bg-secondary-container text-on-secondary-container font-code-xs text-code-xs px-1.5 py-0.5 rounded-full font-semibold">488</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all font-body-md text-body-md whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">apartment</span>
+<span>Empresas Clientes & Sub-tenants</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">(488)</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all font-body-md text-body-md whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">shield_person</span>
+<span>Usuários, Papéis & Alçadas de Carteira</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all font-body-md text-body-md whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+<span>Parâmetros de IA & Limiares HITL</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all font-body-md text-body-md whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">history</span>
+<span>Logs de Auditoria & Impersonation</span>
+</button>
+</div>
+<!-- Metric KPI Cards: Hardware HSM & Certificate Status -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md mt-space-lg">
+<!-- Metric 1: Ativos no Cofre -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Certificados no Cofre</span>
+<span class="p-1.5 rounded-lg bg-surface-container-high text-on-surface">
+<span class="material-symbols-outlined text-[18px]">enhanced_encryption</span>
+</span>
+</div>
+<div class="my-space-xs">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-on-surface font-semibold">472</span>
+<span class="font-body-md text-body-md text-on-surface-variant">/ 488 empresas</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">96,7% blindados em AWS KMS / HSM</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-high rounded-full h-1.5 mt-space-xs overflow-hidden">
+<div class="bg-secondary h-1.5 rounded-full" style="width: 96.7%"></div>
+</div>
+</div>
+<!-- Metric 2: Alertas de Vencimento -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">A Vencer em < 30 dias</span>
+<span class="p-1.5 rounded-lg bg-secondary-container text-on-secondary-container">
+<span class="material-symbols-outlined text-[18px]">alarm</span>
+</span>
+</div>
+<div class="my-space-xs">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-secondary font-semibold">4</span>
+<span class="font-body-md text-body-md text-on-surface-variant">certificados</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="w-2 h-2 rounded-full bg-secondary animate-ping"></span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">1 crítico expira em 12 dias</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<button class="font-label-sm text-label-sm text-on-surface hover:text-secondary flex items-center gap-0.5 transition-colors" type="button">
+<span>Ver lista prioritária</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Metric 3: Microserviço Signer mTLS -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Microserviço Signer</span>
+<span class="p-1.5 rounded-lg bg-surface-container-high text-on-surface">
+<span class="material-symbols-outlined text-[18px]">cloud_sync</span>
+</span>
+</div>
+<div class="my-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="inline-block w-2.5 h-2.5 rounded-full bg-on-secondary-container"></span>
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">mTLS Operacional</span>
+</div>
+<p class="font-code-xs text-code-xs text-on-surface-variant mt-1">
+          VPC Privada sem IP público • Latência SVN: 42ms
+        </p>
+</div>
+<div class="flex items-center gap-2 pt-space-xs font-code-xs text-code-xs text-on-surface-variant">
+<span>TLS 1.3</span>
+<span>•</span>
+<span>AES-256-GCM</span>
+<span>•</span>
+<span class="text-on-secondary-container font-medium">99.99% Uptime</span>
+</div>
+</div>
+<!-- Metric 4: Procurações e-CAC -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Procurações e-CAC / RFB</span>
+<span class="p-1.5 rounded-lg bg-surface-container-high text-on-surface">
+<span class="material-symbols-outlined text-[18px]">badge</span>
+</span>
+</div>
+<div class="my-space-xs">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-on-surface font-semibold">16</span>
+<span class="font-body-md text-body-md text-on-surface-variant">empresas autorizadas</span>
+</div>
+<p class="font-code-xs text-code-xs text-on-surface-variant mt-1">
+          Assinadas via e-CNPJ do Escritório Contábil
+        </p>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Dispensam A1 local</span>
+<span class="font-code-xs text-code-xs bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface">Conforme</span>
+</div>
+</div>
+</div>
+<!-- Immediate Action Panel: Drag & Drop A1 Ingestion Vault -->
+<div class="mt-space-lg bg-surface-container-lowest rounded-xl shadow-sm p-space-lg" id="upload-a1-panel">
+<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between pb-space-md gap-space-xs">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[20px] text-on-surface">lock</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">
+            Conectar & Blindar Novo Certificado Digital ICP-Brasil A1
+          </h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Ingestão criptográfica em módulo isolado HSM (Hardware Security Module). A chave privada nunca transita em requisições web.
+        </p>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container px-space-sm py-1.5 rounded-lg text-on-surface font-code-xs text-code-xs">
+<span class="material-symbols-outlined text-[16px] text-secondary">security</span>
+<span>Padrão PKCS#12 (.pfx / .p12) com assinatura SHA-256</span>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg mt-space-sm">
+<!-- Drag & Drop Dropzone -->
+<div class="lg:col-span-5 flex flex-col justify-center items-center bg-surface-container-low rounded-xl p-space-lg text-center cursor-pointer hover:bg-surface-container transition-colors group">
+<div class="w-14 h-14 rounded-full bg-surface-container-lowest flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform mb-space-sm">
+<span class="material-symbols-outlined text-[28px] text-on-surface">cloud_upload</span>
+</div>
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">Arraste seu arquivo .PFX ou .P12 aqui</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1">ou clique para localizar no seu computador</span>
+<div class="mt-space-md flex items-center gap-space-xs">
+<span class="font-code-xs text-code-xs bg-surface-container-high text-on-surface px-2 py-0.5 rounded">Tamanho máx: 10MB</span>
+<span class="font-code-xs text-code-xs bg-surface-container-high text-on-surface px-2 py-0.5 rounded">ICP-Brasil v2/v5</span>
+</div>
+</div>
+<!-- Credential Mapping Form -->
+<div class="lg:col-span-7 flex flex-col gap-space-md">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Company Select -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-1">
+<span>Empresa Cliente (Sub-tenant)</span>
+<span class="text-error">*</span>
+</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest px-space-sm py-2 rounded-lg font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container-low shadow-sm" placeholder="Buscar por Razão Social ou CNPJ..." type="text" value="Solaris Bioenergia do Brasil Ltda (09.112.871/0002-88)"/>
+<span class="material-symbols-outlined absolute right-2.5 top-2 text-on-surface-variant text-[18px]">search</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Regime tributário: Lucro Presumido • Matriz SP</span>
+</div>
+<!-- Certificate Password -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-1">
+<span>Senha do Arquivo PFX/P12</span>
+<span class="text-error">*</span>
+</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest px-space-sm py-2 rounded-lg font-code-sm text-code-sm text-on-surface focus:outline-none focus:bg-surface-container-low shadow-sm" type="password" value="Certificado@2026Secure!"/>
+<span class="material-symbols-outlined absolute right-2.5 top-2 text-on-surface-variant text-[18px] cursor-pointer">visibility</span>
+</div>
+<div class="flex items-center gap-1 mt-0.5">
+<div class="h-1 flex-1 bg-secondary rounded-full"></div>
+<div class="h-1 flex-1 bg-secondary rounded-full"></div>
+<div class="h-1 flex-1 bg-secondary rounded-full"></div>
+<div class="h-1 flex-1 bg-surface-container-high rounded-full"></div>
+<span class="font-code-xs text-code-xs text-on-surface-variant ml-1">Forte</span>
+</div>
+</div>
+</div>
+<!-- Notification channels -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface font-semibold">
+              Destinatário dos Alertas D-30 / D-15
+            </label>
+<input class="w-full bg-surface-container-lowest px-space-sm py-2 rounded-lg font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container-low shadow-sm" type="email" value="fiscal@solarisbio.com.br, controller@escritorio.com.br"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface font-semibold">
+              Alçada Contábil Responsável
+            </label>
+<select class="w-full bg-surface-container-lowest px-space-sm py-2 rounded-lg font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container-low shadow-sm">
+<option>Ana Lima (Gerente Tributária - Carteira Energia)</option>
+<option>Dr. M. Prado (Sócio Auditor)</option>
+<option>Roberto F. (Coordenador Fiscal)</option>
+</select>
+</div>
+</div>
+<!-- Custody Disclaimer & Submission -->
+<div class="p-space-sm bg-surface-container-low rounded-lg flex items-start gap-space-sm">
+<input checked="" class="mt-1 h-4 w-4 rounded accent-primary text-on-primary cursor-pointer" id="terms-vault" type="checkbox"/>
+<label class="font-body-sm text-body-sm text-on-surface-variant cursor-pointer" for="terms-vault">
+<strong class="text-on-surface font-medium">Declaração de Custódia Blindada:</strong> Autorizo o armazenamento deste par de chaves no microserviço isolado de assinatura digital mTLS do ContaIA. Estou ciente de que as chaves privadas são criptografadas com chave mestra KMS Envelope e utilizadas estritamente para consulta a WebServices (Sefaz, eSocial, Prefeituras e e-CAC).
+          </label>
+</div>
+<div class="flex items-center justify-end gap-space-sm">
+<button class="px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors" type="button">
+            Cancelar
+          </button>
+<button class="flex items-center gap-space-xs bg-primary text-on-primary hover:bg-primary-container px-space-lg py-2 rounded-lg font-label-md text-label-md transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Validar & Criptografar no Cofre</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Search and Filter Bar -->
+<div class="mt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-sm">
+<div class="relative w-full md:w-96">
+<input class="w-full bg-surface-container-lowest pl-9 pr-space-sm py-2 rounded-lg font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container-low shadow-sm" placeholder="Filtrar por Razão Social, CNPJ ou AC..." type="text"/>
+<span class="material-symbols-outlined absolute left-2.5 top-2 text-on-surface-variant text-[18px]">search</span>
+</div>
+<div class="flex items-center gap-space-xs w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+<!-- Status Filter -->
+<div class="flex items-center bg-surface-container-low p-0.5 rounded-lg">
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm bg-surface-container-lowest text-on-surface font-medium shadow-sm" type="button">
+          Todos (488)
+        </button>
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors" type="button">
+          Válidos (468)
+        </button>
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm text-secondary hover:text-on-surface transition-colors flex items-center gap-1" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+          Expira D-30 (4)
+        </button>
+<button class="px-space-sm py-1 rounded font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors" type="button">
+          Procuração (16)
+        </button>
+</div>
+<!-- Regime Selector -->
+<select class="bg-surface-container-lowest px-space-sm py-1.5 rounded-lg font-label-sm text-label-sm text-on-surface focus:outline-none shadow-sm">
+<option>Todos os Regimes</option>
+<option>Lucro Real</option>
+<option>Lucro Presumido</option>
+<option>Simples Nacional</option>
+</select>
+</div>
+</div>
+<!-- Certificate Ledger Data Table -->
+<div class="mt-space-sm bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+<th class="py-space-sm px-space-md">Empresa / CNPJ / Regime</th>
+<th class="py-space-sm px-space-md">Vínculo Criptográfico</th>
+<th class="py-space-sm px-space-md">Autoridade Certificadora (AC)</th>
+<th class="py-space-sm px-space-md">Validade / Vencimento</th>
+<th class="py-space-sm px-space-md">Signer mTLS</th>
+<th class="py-space-sm px-space-md">Alçada Responsável</th>
+<th class="py-space-sm px-space-md text-right">Ações Rápidas</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container font-body-sm text-body-sm text-on-surface">
+<!-- Row 1: Vanguarda Logística -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">Vanguarda Logística & Armazéns S/A</span>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-code-xs text-code-xs text-on-surface-variant">18.420.911/0001-44</span>
+<span class="font-label-sm text-label-sm bg-surface-container-high text-on-surface px-1.5 py-0.2 rounded font-medium">Lucro Real</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface">key</span>
+<span class="font-body-sm text-body-sm">A1 Próprio (PFX)</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Hash: e3b0c44...891f</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm font-medium">Certisign Múltipla G7</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">ICP-Brasil v5</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-on-secondary-container"></span>
+<span class="font-code-sm text-code-sm font-medium">14/11/2026</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-secondary-container">Válido (618 dias restantes)</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="inline-flex items-center gap-1 bg-surface-container-high text-on-surface px-2 py-0.5 rounded font-code-xs text-code-xs">
+<span class="material-symbols-outlined text-[14px] text-on-secondary-container">check_circle</span>
+<span>Conectado (42ms)</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-code-xs text-code-xs font-bold text-on-surface">
+                  MP
+                </div>
+<span class="font-body-sm text-body-sm">Dr. M. Prado</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Testar Conexão mTLS Sefaz" type="button">
+<span class="material-symbols-outlined text-[18px]">network_ping</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Histórico de Assinaturas" type="button">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Solaris Bioenergia (Expiring Critical Alert) -->
+<tr class="bg-secondary-container/10 hover:bg-secondary-container/20 transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">Solaris Bioenergia do Brasil Ltda</span>
+<span class="bg-secondary-container text-on-secondary-container font-label-sm text-label-sm px-1.5 py-0.2 rounded font-semibold">Expiração Crítica</span>
+</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-code-xs text-code-xs text-on-surface-variant">09.112.871/0002-88</span>
+<span class="font-label-sm text-label-sm bg-surface-container-high text-on-surface px-1.5 py-0.2 rounded font-medium">Lucro Presumido</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-secondary">vpn_key</span>
+<span class="font-body-sm text-body-sm">A1 Próprio (PFX)</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-surface-variant">KMS ARN: 9021-solaris</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm font-medium">Valid Certificadora v10</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">ICP-Brasil v2</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary animate-ping"></span>
+<span class="font-code-sm text-code-sm font-bold text-secondary">28/09/2026</span>
+</div>
+<span class="font-code-xs text-code-xs text-secondary font-medium">Restam apenas 12 dias!</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="inline-flex items-center gap-1 bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded font-code-xs text-code-xs font-semibold">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+<span>Renovação Pendente</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-code-xs text-code-xs font-bold text-on-surface">
+                  AL
+                </div>
+<span class="font-body-sm text-body-sm">Ana Lima</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="bg-secondary text-on-secondary px-2 py-1 rounded font-label-sm text-label-sm hover:opacity-90 transition-opacity" type="button">
+                  Renovar Agora
+                </button>
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Nexus Cloud Soluções (Procuração Eletrônica e-CAC) -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">Nexus Cloud Soluções Digitais ME</span>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-code-xs text-code-xs text-on-surface-variant">33.784.092/0001-19</span>
+<span class="font-label-sm text-label-sm bg-surface-container-high text-on-surface px-1.5 py-0.2 rounded font-medium">Simples Nacional</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-space-xs text-on-surface">
+<span class="material-symbols-outlined text-[16px]">assignment_turned_in</span>
+<span class="font-body-sm text-body-sm font-medium">Procuração e-CAC / RFB</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Vínculo: CNPJ Matriz Escritório</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm font-medium">Receita Federal do Brasil</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Proc. Eletrônica Digital</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-on-secondary-container"></span>
+<span class="font-code-sm text-code-sm font-medium">31/12/2027</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-secondary-container">Vigente</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="inline-flex items-center gap-1 bg-surface-container-high text-on-surface px-2 py-0.5 rounded font-code-xs text-code-xs">
+<span class="material-symbols-outlined text-[14px] text-on-secondary-container">sync</span>
+<span>e-CAC Conectado</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-code-xs text-code-xs font-bold text-on-surface">
+                  RF
+                </div>
+<span class="font-body-sm text-body-sm">Roberto F.</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Consultar Poderes Delegados" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Mineração & Britagem Serra Alta S/A -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">Mineração & Britagem Serra Alta S/A</span>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-code-xs text-code-xs text-on-surface-variant">54.912.304/0001-70</span>
+<span class="font-label-sm text-label-sm bg-surface-container-high text-on-surface px-1.5 py-0.2 rounded font-medium">Lucro Real</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface">key</span>
+<span class="font-body-sm text-body-sm">A1 Próprio (PFX)</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Hash: a7901ff...120c</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm font-medium">Serasa Experian v5</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">ICP-Brasil v5</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-on-secondary-container"></span>
+<span class="font-code-sm text-code-sm font-medium">03/05/2027</span>
+</div>
+<span class="font-code-xs text-code-xs text-on-secondary-container">Válido (788 dias restantes)</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="inline-flex items-center gap-1 bg-surface-container-high text-on-surface px-2 py-0.5 rounded font-code-xs text-code-xs">
+<span class="material-symbols-outlined text-[14px] text-on-secondary-container">check_circle</span>
+<span>Conectado (38ms)</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-code-xs text-code-xs font-bold text-on-surface">
+                  RF
+                </div>
+<span class="font-body-sm text-body-sm">Roberto F.</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Testar Conexão mTLS Sefaz" type="button">
+<span class="material-symbols-outlined text-[18px]">network_ping</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Histórico de Assinaturas" type="button">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="py-space-sm px-space-md bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-space-xs">
+<span class="font-code-xs text-code-xs text-on-surface-variant">
+        Mostrando 1 a 4 de 488 certificados/empresas ativas
+      </span>
+<div class="flex items-center gap-space-xs">
+<button class="px-space-sm py-1 rounded bg-surface-container-lowest text-on-surface font-code-xs text-code-xs shadow-sm hover:bg-surface-container-high transition-colors disabled:opacity-50" disabled="" type="button">
+          Anterior
+        </button>
+<div class="flex items-center gap-1">
+<span class="px-2 py-0.5 rounded bg-primary text-on-primary font-code-xs text-code-xs font-bold">1</span>
+<span class="px-2 py-0.5 rounded hover:bg-surface-container-high text-on-surface font-code-xs text-code-xs cursor-pointer">2</span>
+<span class="px-2 py-0.5 rounded hover:bg-surface-container-high text-on-surface font-code-xs text-code-xs cursor-pointer">3</span>
+<span class="text-on-surface-variant font-code-xs text-code-xs">...</span>
+<span class="px-2 py-0.5 rounded hover:bg-surface-container-high text-on-surface font-code-xs text-code-xs cursor-pointer">122</span>
+</div>
+<button class="px-space-sm py-1 rounded bg-surface-container-lowest text-on-surface font-code-xs text-code-xs shadow-sm hover:bg-surface-container-high transition-colors" type="button">
+          Próxima
+        </button>
+</div>
+</div>
+</div>
+<!-- Row-Level Security (RLS) & Multi-tenant Governance Spec Panel -->
+<div class="mt-space-lg bg-surface-container-low rounded-xl p-space-lg">
+<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-space-md pb-space-md">
+<div class="flex items-start gap-space-sm">
+<div class="p-2 rounded-lg bg-surface-container-high text-on-surface mt-1">
+<span class="material-symbols-outlined text-[24px]">terminal</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">
+              Garantia de Isolamento Criptográfico & Row-Level Security (RLS)
+            </h3>
+<span class="bg-surface-container-high text-on-surface font-code-xs text-code-xs px-2 py-0.5 rounded">PostgreSQL 16.4</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 max-w-3xl">
+            Toda consulta contábil, tributária e de folha de pagamento é restrita via chave composta <code class="font-code-xs text-code-xs bg-surface-container-high px-1 py-0.5 rounded">tenant_id</code> (Escritório) e <code class="font-code-xs text-code-xs bg-surface-container-high px-1 py-0.5 rounded">empresa_id</code> (Cliente), impedindo vazamento trans-empresa em nível de banco de dados.
+          </p>
+</div>
+</div>
+<!-- Quick Toggles -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-space-md bg-surface-container-lowest p-space-sm rounded-lg shadow-sm">
+<div class="flex items-center gap-space-xs">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Auditoria RLS Ativa</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Log append-only</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Bloquear Export Sem 2FA</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">TOTP Obrigatório</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SQL DDL Policy Code Preview -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md font-code-xs text-code-xs text-on-surface shadow-sm overflow-x-auto">
+<div class="flex items-center justify-between text-on-surface-variant pb-space-xs border-b border-surface-container">
+<span class="font-semibold uppercase tracking-wider">PostgreSQL RLS Definition • policies/tenant_isolation.sql</span>
+<span>Runtime Hash: #9af8201b</span>
+</div>
+<pre class="pt-space-xs leading-relaxed"><code><span class="text-secondary font-bold">CREATE POLICY</span> fiscal_documents_tenant_isolation <span class="text-secondary font-bold">ON</span> public.documentos_fiscais
+<span class="text-secondary font-bold">FOR ALL</span>
+<span class="text-secondary font-bold">USING</span> (
+    tenant_id = current_setting(<span class="text-on-secondary-container">'app.current_tenant_id'</span>, true)::uuid
+    <span class="text-secondary font-bold">AND</span> empresa_id = current_setting(<span class="text-on-secondary-container">'app.current_empresa_id'</span>, true)::uuid
+);
+
+<span class="text-on-surface-variant">-- Microserviço Signer mTLS Key Store Policy</span>
+<span class="text-secondary font-bold">ALTER TABLE</span> public.cofre_certificados_a1 <span class="text-secondary font-bold">FORCE ROW LEVEL SECURITY</span>;</code></pre>
+</div>
+<!-- PRD reference footnote -->
+<div class="mt-space-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+<span>Conforme especificado em RF-01 • PRD v3.0 ContaIA (Multi-empresa, Certificados Digitais e RLS)</span>
+</div>
+<a class="text-on-surface hover:text-secondary underline underline-offset-4 flex items-center gap-1 transition-colors" href="#">
+<span>Acessar manual de segurança & conformidade LGPD</span>
+<span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</a>
+</div>
+</div>
+</div></main></div></body></html>

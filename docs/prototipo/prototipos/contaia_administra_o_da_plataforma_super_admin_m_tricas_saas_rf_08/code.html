@@ -1,0 +1,1038 @@
+<!DOCTYPE html><html class="light" lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>ContaIA Platform Operations — RF-08 Super-Admin &amp; Métricas SaaS</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Fonts: Geist, Inter, JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-dim": "#cedbf2",
+            "primary-fixed": "#dae2fd",
+            "tertiary-fixed-dim": "#b0c6ff",
+            "secondary-fixed": "#ffdf9a",
+            "background": "#f9f9ff",
+            "surface-container-lowest": "#ffffff",
+            "tertiary": "#000000",
+            "on-primary-container": "#7c839b",
+            "on-secondary-fixed": "#251a00",
+            "error": "#ba1a1a",
+            "outline": "#76777d",
+            "surface-bright": "#f9f9ff",
+            "secondary-container": "#fdc73a",
+            "on-surface-variant": "#45464d",
+            "on-background": "#101c2d",
+            "primary-fixed-dim": "#bec6e0",
+            "on-secondary-container": "#705400",
+            "on-tertiary-container": "#5081e5",
+            "on-tertiary-fixed": "#001944",
+            "surface-container-highest": "#d7e3fb",
+            "on-error-container": "#93000a",
+            "on-tertiary": "#ffffff",
+            "secondary": "#785a00",
+            "secondary-fixed-dim": "#f4bf31",
+            "surface-variant": "#d7e3fb",
+            "outline-variant": "#c6c6cd",
+            "on-primary-fixed": "#131b2e",
+            "surface-tint": "#565e74",
+            "on-surface": "#101c2d",
+            "surface-container-low": "#eff3ff",
+            "on-primary": "#ffffff",
+            "tertiary-container": "#001944",
+            "surface-container": "#e6eeff",
+            "on-tertiary-fixed-variant": "#00429a",
+            "on-error": "#ffffff",
+            "error-container": "#ffdad6",
+            "surface": "#f9f9ff",
+            "inverse-primary": "#bec6e0",
+            "inverse-on-surface": "#ebf1ff",
+            "on-secondary": "#ffffff",
+            "primary-container": "#131b2e",
+            "on-primary-fixed-variant": "#3f465c",
+            "on-secondary-fixed-variant": "#5a4300",
+            "inverse-surface": "#253143",
+            "surface-container-high": "#dde9ff",
+            "primary": "#000000",
+            "tertiary-fixed": "#d9e2ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "fontFamily": {
+            "label-md": ["Inter", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"],
+            "code-xs": ["JetBrains Mono", "monospace"],
+            "title-sm": ["Inter", "sans-serif"],
+            "title-md": ["Inter", "sans-serif"],
+            "label-sm": ["Inter", "sans-serif"],
+            "headline-lg-mobile": ["Geist", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen font-body-md selection:bg-slate-900 selection:text-white">
+<!-- ==================== SHARED HEADER ANCHOR (READ-ONLY) ==================== -->
+<div class="relative flex h-auto w-full flex-col bg-gray-50 group/design-root overflow-x-hidden" style="font-family: &quot;Be Vietnam Pro&quot;, &quot;Noto Sans&quot;, sans-serif;">
+<div class="layout-container flex h-full grow flex-col">
+<div class="px-40 flex flex-1 justify-center py-5">
+<div class="layout-content-container flex flex-col max-w-[960px] flex-1">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#eaecf1] px-10 py-3">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-[#111318]">
+<div class="size-4">
+<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-[#111318] text-lg font-bold leading-tight tracking-[-0.015em]">ContaIA Platform Operations</h2>
+</div>
+<div class="flex items-center gap-9">
+<a class="text-[#111318] text-sm font-medium leading-normal" href="#">Visão Global</a>
+<a class="text-[#111318] text-sm font-medium leading-normal" href="#">Métricas SaaS</a>
+<a class="text-[#111318] text-sm font-medium leading-normal" href="#">Gestão de Tenants</a>
+<a class="text-[#111318] text-sm font-medium leading-normal" href="#">Governança &amp; Toggles</a>
+<a class="text-[#111318] text-sm font-medium leading-normal" href="#">Auditoria Append-Only</a>
+</div>
+</div>
+<div class="flex flex-1 justify-end gap-8">
+<label class="flex flex-col min-w-40 !h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded h-full">
+<div class="text-[#5d6a89] flex border-none bg-[#eaecf1] items-center justify-center pl-4 rounded-l border-r-0" data-icon="MagnifyingGlass" data-size="24px" data-weight="regular">
+<svg fill="currentColor" height="24px" viewBox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path>
+</svg>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-[#111318] focus:outline-0 focus:ring-0 border-none bg-[#eaecf1] focus:border-none h-full placeholder:text-[#5d6a89] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" placeholder="Search" value="">
+</div>
+</label>
+<div class="flex gap-2">
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-4 bg-slate-900 text-gray-50 text-sm font-bold leading-normal tracking-[0.015em]" onclick="document.getElementById('impersonate-modal').classList.remove('hidden')">
+<span class="truncate">Sessão de Impersonation</span>
+</button>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-4 bg-[#eaecf1] text-[#111318] text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">Relatório WORM</span>
+</button>
+</div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style="background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuD1ztKp4z-BUf_mml45T96bjSccbQ2Tr2y0ZiQKeQhzI0likbK8bY_66qsw_kPWnTbvsKCrtS3j3C97uBF04nhAjaU9gtKkru36UQxohwYhJHJOVME4zzotDwFRZ28_n2YP9yVlg1dS-RJ2PksckkMRX5ixkEXXbSMu2a0m1NbxE1edl_0jmP1y2iq9pu1gjKp2zFz8_QbXGS8qui02sUnf0blR5Eb4PLQl0ESYozhiQWy3-epQx8AsBg&quot;);"></div>
+</div>
+</header>
+<div class="flex flex-wrap gap-2 p-4">
+<a class="text-[#5d6a89] text-base font-medium leading-normal" href="#">Administração Global</a>
+<span class="text-[#5d6a89] text-base font-medium leading-normal">/</span>
+<a class="text-[#5d6a89] text-base font-medium leading-normal" href="#">Super-Admin &amp; Operações</a>
+<span class="text-[#5d6a89] text-base font-medium leading-normal">/</span>
+<span class="text-[#111318] text-base font-medium leading-normal">RF-08: Gestão de Tenants &amp; Métricas SaaS</span>
+</div>
+<div class="flex flex-wrap justify-between gap-3 p-4">
+<div class="flex min-w-72 flex-col gap-3">
+<p class="text-[#111318] text-4xl font-black leading-tight tracking-[-0.033em]">Administração da Plataforma &amp; Operações Globais (RF-08)</p>
+<p class="text-[#5d6a89] text-base font-normal leading-normal">
+                Gestão centralizada de escritórios contábeis, métricas SaaS, controle de custo de inferência IA e auditoria de impersonation mTLS/RLS.
+              </p>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-4 bg-[#eaecf1] text-[#111318] text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">+ Convidar Novo Tenant</span>
+</button>
+</div>
+<div class="flex gap-3 p-3 flex-wrap pr-4">
+<div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded bg-[#eaecf1] pl-2 pr-4">
+<div class="text-[#111318]" data-icon="ShieldCheck" data-size="20px" data-weight="regular">
+<svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg">
+<path d="M208,40H48A16,16,0,0,0,32,56v58.78c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm0,74.79c0,78.42-66.35,104.62-80,109.18-13.53-4.51-80-30.69-80-109.18V56H208ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.68l50.34-50.34a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"></path>
+</svg>
+</div>
+<p class="text-[#111318] text-sm font-medium leading-normal">Role: super_admin (Acesso Global Auditado)</p>
+</div>
+<div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded bg-[#eaecf1] pl-2 pr-4">
+<div class="text-[#111318]" data-icon="Lock" data-size="20px" data-weight="regular">
+<svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg">
+<path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-68-56a12,12,0,1,1-12-12A12,12,0,0,1,140,152Z"></path>
+</svg>
+</div>
+<p class="text-[#111318] text-sm font-medium leading-normal">Modo Isolamento mTLS Ativo</p>
+</div>
+<div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded bg-[#eaecf1] pl-2 pr-4">
+<div class="text-[#111318]" data-icon="Key" data-size="20px" data-weight="regular">
+<svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg">
+<path d="M160,16A80.07,80.07,0,0,0,83.91,120.78L26.34,178.34A8,8,0,0,0,24,184v40a8,8,0,0,0,8,8H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A80,80,0,1,0,160,16Zm0,144a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A64,64,0,1,1,160,160Zm32-84a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"></path>
+</svg>
+</div>
+<p class="text-[#111318] text-sm font-medium leading-normal">RLS Bypass Supervisionado (Service Role)</p>
+</div>
+<div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded bg-[#eaecf1] pl-2 pr-4">
+<div class="text-[#111318]" data-icon="Certificate" data-size="20px" data-weight="regular">
+<svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg">
+<path d="M248,128a56,56,0,1,0-96,39.14V224a8,8,0,0,0,11.58,7.16L192,216.94l28.42,14.22A8,8,0,0,0,232,224V167.14A55.81,55.81,0,0,0,248,128ZM192,88a40,40,0,1,1-40,40A40,40,0,0,1,192,88Zm3.58,112.84a8,8,0,0,0-7.16,0L168,211.06V178.59a55.94,55.94,0,0,0,48,0v32.47ZM136,192a8,8,0,0,1-8,8H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216a16,16,0,0,1,16,16,8,8,0,0,1-16,0H40V184h88A8,8,0,0,1,136,192Zm-16-56a8,8,0,0,1-8,8H72a8,8,0,0,1,0-16h40A8,8,0,0,1,120,136Zm0-32a8,8,0,0,1-8,8H72a8,8,0,0,1,0-16h40A8,8,0,0,1,120,104Z"></path>
+</svg>
+</div>
+<p class="text-[#111318] text-sm font-medium leading-normal">ISO 27001 / SOC 2 Type II Alinhado</p>
+</div>
+</div>
+<div class="flex flex-wrap gap-4 p-4">
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded p-6 border border-[#d5d9e2]">
+<p class="text-[#111318] text-base font-medium leading-normal">MRR Global (88 Escritórios)</p>
+<p class="text-[#111318] tracking-light text-2xl font-bold leading-tight">R$ 284.500,00/mês</p>
+<p class="text-[#07883d] text-base font-medium leading-normal">+14.2%</p>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded p-6 border border-[#d5d9e2]">
+<p class="text-[#111318] text-base font-medium leading-normal">Eficiência SaaS (LTV / CAC)</p>
+<p class="text-[#111318] tracking-light text-2xl font-bold leading-tight">6,8x (NRR 118,5%)</p>
+<p class="text-[#5d6a89] text-base font-medium leading-normal">0.42% Churn</p>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded p-6 border border-[#d5d9e2]">
+<p class="text-[#111318] text-base font-medium leading-normal">Saúde &amp; Adoção (DAU/MAU)</p>
+<p class="text-[#111318] tracking-light text-2xl font-bold leading-tight">72,4% (4.280 ativos)</p>
+<p class="text-[#5d6a89] text-base font-medium leading-normal">99.98% Uptime</p>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded p-6 border border-[#d5d9e2]">
+<p class="text-[#111318] text-base font-medium leading-normal">Custo de IA vs Faturamento</p>
+<p class="text-[#111318] tracking-light text-2xl font-bold leading-tight">R$ 24.180,00 (8,5% MRR)</p>
+<p class="text-[#e73c08] text-base font-medium leading-normal">-2 anomalias</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ==================== END SHARED COMPONENT ==================== -->
+<!-- ==================== MAIN HIGH-DENSITY OPERATIONS CONSOLE ==================== -->
+<main class="w-full max-w-[1440px] mx-auto px-6 py-4 space-y-6">
+<!-- EXECUTIVE SECONDARY ACTIONS BAR -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3.5 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="h-8 w-8 rounded bg-primary-container text-white flex items-center justify-center font-headline-sm text-sm">
+<span class="material-symbols-outlined text-base">admin_panel_settings</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-sm text-on-background font-semibold">Console Operacional Super-Admin v3.0</span>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-100 text-emerald-800 border border-emerald-300">
+              CLUSTER BR-EAST-1 (SA-PAULO)
+            </span>
+</div>
+<p class="font-body-sm text-xs text-on-surface-variant">Sessão: <code class="font-code-xs text-[11px] bg-slate-100 px-1 py-0.5 rounded">usr_sup_carlos_op@contaia.internal</code> | Chave Ephemeral mTLS válida por 4h 12m</p>
+</div>
+</div>
+<div class="flex items-center gap-2 flex-wrap">
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-outline-variant rounded bg-surface hover:bg-surface-container text-on-surface transition" onclick="document.getElementById('feature-toggles-section').scrollIntoView({behavior: 'smooth'})">
+<span class="material-symbols-outlined text-sm">toggle_on</span>
+          Políticas Globais de Toggles
+        </button>
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-outline-variant rounded bg-surface hover:bg-surface-container text-on-surface transition" onclick="document.getElementById('audit-section').scrollIntoView({behavior: 'smooth'})">
+<span class="material-symbols-outlined text-sm">history_edu</span>
+          Trilha Append-Only
+        </button>
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-outline-variant rounded bg-surface hover:bg-surface-container text-on-surface transition" onclick="alert('Exportando dump completo WORM em JSON assinado (PRD §11.3)...')">
+<span class="material-symbols-outlined text-sm">file_download</span>
+          Exportar WORM (JSON/CSV)
+        </button>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded bg-error text-white hover:bg-red-700 shadow-sm transition" onclick="document.getElementById('impersonate-modal').classList.remove('hidden')">
+<span class="material-symbols-outlined text-sm">lock_person</span>
+          Abrir Sessão Impersonation
+        </button>
+</div>
+</div>
+<!-- METRICS DETAILED SUB-GRID (§11.2 KPI DEEP-DIVE) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 font-body-sm">
+<!-- Card 1: ARR & Tenant Growth -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 shadow-sm hover:border-slate-400 transition">
+<div class="flex items-center justify-between text-xs text-on-surface-variant mb-1">
+<span class="font-medium tracking-wide">ARR &amp; ARPU SAAS</span>
+<span class="material-symbols-outlined text-slate-500">trending_up</span>
+</div>
+<div class="text-xl font-headline-md font-bold text-on-background mb-1">R$ 3.414.000,00 <span class="text-xs font-normal text-slate-500">ARR</span></div>
+<div class="space-y-1 text-xs border-t border-slate-100 pt-2 text-on-surface-variant">
+<div class="flex justify-between">
+<span class="">Ticket Médio / Escritório:</span>
+<span class="font-semibold text-on-background">R$ 3.232,00</span>
+</div>
+<div class="flex justify-between">
+<span class="">Base de Tenants Ativos:</span>
+<span class="font-semibold text-on-background">88 escritórios</span>
+</div>
+<div class="flex justify-between">
+<span class="">Sub-tenants (CNPJs clientes):</span>
+<span class="font-semibold text-emerald-700">1.420 empresas</span>
+</div>
+</div>
+</div>
+<!-- Card 2: LTV/CAC & NRR -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 shadow-sm hover:border-slate-400 transition">
+<div class="flex items-center justify-between text-xs text-on-surface-variant mb-1">
+<span class="font-medium tracking-wide">EFICIÊNCIA &amp; EXPANSÃO</span>
+<span class="material-symbols-outlined text-slate-500">account_balance_wallet</span>
+</div>
+<div class="text-xl font-headline-md font-bold text-on-background mb-1">6,8x <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded ml-1">LTV: R$ 77.5k | CAC: R$ 11.4k</span></div>
+<div class="space-y-1 text-xs border-t border-slate-100 pt-2 text-on-surface-variant">
+<div class="flex justify-between">
+<span class="">Net Revenue Retention (NRR):</span>
+<span class="font-semibold text-emerald-700">118,5%</span>
+</div>
+<div class="flex justify-between">
+<span class="">Logo Churn (Média 90d):</span>
+<span class="font-semibold text-on-background">0,42% (Meta &lt; 1,0%)</span>
+</div>
+<div class="flex justify-between">
+<span class="">Expansão de Módulos (Reforma):</span>
+<span class="font-semibold text-slate-900">+34% opt-ins</span>
+</div>
+</div>
+</div>
+<!-- Card 3: DAU/MAU & SLA -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 shadow-sm hover:border-slate-400 transition">
+<div class="flex items-center justify-between text-xs text-on-surface-variant mb-1">
+<span class="font-medium tracking-wide">ENGAJAMENTO &amp; UPTIME</span>
+<span class="material-symbols-outlined text-slate-500">speed</span>
+</div>
+<div class="text-xl font-headline-md font-bold text-on-background mb-1">72,4% <span class="text-xs font-normal text-slate-500">DAU / MAU Diário</span></div>
+<div class="space-y-1 text-xs border-t border-slate-100 pt-2 text-on-surface-variant">
+<div class="flex justify-between">
+<span class="">Contadores Ativos Mês:</span>
+<span class="font-semibold text-on-background">4.280 usuários</span>
+</div>
+<div class="flex justify-between">
+<span class="">Novos Onboardings Mês:</span>
+<span class="font-semibold text-emerald-700">+142 CNPJs</span>
+</div>
+<div class="flex justify-between">
+<span class="">Uptime Global SLA:</span>
+<span class="font-semibold text-emerald-700">99,98% (SLA ≥ 99,9%)</span>
+</div>
+</div>
+</div>
+<!-- Card 4: AI Margins & Anomaly Prevention -->
+<div class="bg-surface-container-lowest border border-amber-300 rounded p-4 shadow-sm bg-amber-50/20 hover:border-amber-400 transition">
+<div class="flex items-center justify-between text-xs text-amber-900 mb-1">
+<span class="font-semibold tracking-wide">ECONOMIA DE IA &amp; MARGEM BRUTA</span>
+<span class="material-symbols-outlined text-amber-700">psychology</span>
+</div>
+<div class="text-xl font-headline-md font-bold text-amber-950 mb-1">91,5% <span class="text-xs font-mono font-normal text-slate-600">(Custo IA: R$ 24.180)</span></div>
+<div class="space-y-1 text-xs border-t border-amber-200/80 pt-2 text-on-surface-variant">
+<div class="flex justify-between">
+<span class="">Custo Médio / CNPJ:</span>
+<span class="font-semibold text-on-background">R$ 17,02 <span class="font-normal text-[11px] text-slate-500">(Target 13-20)</span></span>
+</div>
+<div class="flex justify-between">
+<span class="">Tokens LLM (Mês Corrente):</span>
+<span class="font-mono text-slate-700 font-medium">842.1M tokens</span>
+</div>
+<div class="flex justify-between items-center text-red-700 font-semibold bg-red-100/70 px-1 rounded">
+<span class="">⚠️ Alertas de Margem Negativa:</span>
+<span class="">2 Escritórios (&gt;40% IA)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- ==================== TENANTS DIRECTORY TABLE (§11.1) ==================== -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded shadow-sm overflow-hidden">
+<!-- Table Header Bar -->
+<div class="p-4 border-b border-outline-variant bg-slate-50/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+<div>
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-base text-on-background font-bold">Diretório de Escritórios Contábeis &amp; Governança Multitenant</h3>
+<span class="px-2 py-0.5 rounded text-xs font-mono bg-slate-200 text-slate-800 font-semibold">88 Registros</span>
+</div>
+<p class="font-body-sm text-xs text-on-surface-variant">Monitoramento de isolamento lógico por schema/RLS, volumetria de sub-tenants e margem operacional líquida por contrato.</p>
+</div>
+<!-- Filter Controls -->
+<div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+<div class="relative flex-1 md:w-64">
+<span class="material-symbols-outlined absolute left-2.5 top-2.5 text-slate-400 text-sm">search</span>
+<input class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-outline-variant rounded focus:ring-1 focus:ring-slate-900 focus:outline-none" placeholder="Filtrar Razão, CNPJ, CRC..." type="text">
+</div>
+<select class="text-xs py-1.5 px-2 bg-white border border-outline-variant rounded focus:ring-1 focus:ring-slate-900 text-on-surface">
+<option>Todos os Planos</option>
+<option>Custom Enterprise</option>
+<option>Enterprise</option>
+<option>Pro</option>
+<option>Starter</option>
+</select>
+<select class="text-xs py-1.5 px-2 bg-white border border-outline-variant rounded focus:ring-1 focus:ring-slate-900 text-on-surface">
+<option>Todos os Status</option>
+<option>Ativo (Saudável)</option>
+<option>⚠️ Alerta de Consumo IA</option>
+<option>Em Onboarding</option>
+<option>Suspenso</option>
+</select>
+</div>
+</div>
+<!-- DENSE TENANT DATA TABLE -->
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse font-body-sm text-xs">
+<thead>
+<tr class="bg-slate-100 text-on-surface-variant font-headline-sm font-semibold border-b border-outline-variant text-[11px] uppercase tracking-wider">
+<th class="py-2.5 px-4">Escritório / CNPJ / Resp.</th>
+<th class="py-2.5 px-3">Plano &amp; Recorrência</th>
+<th class="py-2.5 px-3 text-center">Sub-tenants &amp; Users</th>
+<th class="py-2.5 px-3">Custo IA vs Mensalidade</th>
+<th class="py-2.5 px-3">Adoção Módulos (DF-e / SPED / OF / DP)</th>
+<th class="py-2.5 px-3 text-center">Status Isolamento</th>
+<th class="py-2.5 px-4 text-right">Ações Super-Admin</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200">
+<!-- Row 1: Contabilidade Reis & Associados -->
+<tr class="hover:bg-slate-50 transition">
+<td class="py-3 px-4">
+<div class="font-semibold text-slate-900 text-sm">Contabilidade Reis &amp; Associados</div>
+<div class="flex items-center gap-2 text-slate-500 font-mono text-[11px]">
+<span class="">CNPJ: 04.912.834/0001-92</span>
+<span class="">•</span>
+<span class="">CRC-SP 129481/O-4</span>
+</div>
+<div class="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[13px]">database</span>
+                  Schema: <span class="font-mono text-slate-700">tenant_reis_prod</span> | Região: São Paulo, SP
+                </div>
+</td>
+<td class="py-3 px-3">
+<div class="inline-flex items-center gap-1 font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+<span class="material-symbols-outlined text-[13px] text-indigo-700">workspace_premium</span> Enterprise
+                </div>
+<div class="font-semibold text-slate-900 mt-1">R$ 6.200,00<span class="font-normal text-slate-500">/mês</span></div>
+<div class="text-[11px] text-slate-500">Renovação: 15/Jan/2027</div>
+</td>
+<td class="py-3 px-3 text-center">
+<div class="font-bold text-slate-900 text-sm">185 CNPJs</div>
+<div class="text-slate-500 text-[11px]">24 operadores ativos</div>
+<div class="text-[10px] text-emerald-700 font-mono">+12 este mês</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center justify-between mb-1">
+<span class="font-mono font-medium text-slate-800">R$ 512,00</span>
+<span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-200">8,2% (Margem 91,8%)</span>
+</div>
+<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-1.5 rounded-full" style="width: 8.2%"></div>
+</div>
+<div class="text-[10px] text-slate-500 mt-1 font-mono">18.4M tokens | S3: 420 GB</div>
+</td>
+<td class="py-3 px-3">
+<div class="space-y-1 w-48">
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">DF-e Auto: 100%</span>
+<span class="text-slate-600">Fiscal/SPED: 95%</span>
+</div>
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">Open Fin.: 80%</span>
+<span class="text-slate-600">DP eSocial: 65%</span>
+</div>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden flex">
+<div class="bg-blue-600 h-full" style="width: 85%"></div>
+</div>
+</div>
+</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+<span class="size-1.5 rounded-full bg-emerald-600"></span> Saudável
+                </span>
+<div class="text-[10px] text-slate-500 font-mono mt-0.5">mTLS v1.3 • RLS Ok</div>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-slate-900 text-white rounded hover:bg-slate-800 transition" onclick="triggerImpersonate('Contabilidade Reis &amp; Associados', 'escritorio_001', '04.912.834/0001-92')">
+<span class="material-symbols-outlined text-xs">lock_person</span>
+                    Impersonate
+                  </button>
+<button class="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100" title="Configurar Módulos &amp; Toggles">
+<span class="material-symbols-outlined text-base">settings_suggest</span>
+</button>
+<button class="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100" title="Ver Histórico de Auditoria">
+<span class="material-symbols-outlined text-base">receipt_long</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Alpha Fiscal Consultoria -->
+<tr class="hover:bg-slate-50 transition">
+<td class="py-3 px-4">
+<div class="font-semibold text-slate-900 text-sm">Alpha Fiscal Consultoria Tributária</div>
+<div class="flex items-center gap-2 text-slate-500 font-mono text-[11px]">
+<span class="">CNPJ: 18.234.190/0001-44</span>
+<span class="">•</span>
+<span class="">CRC-RJ 098412/O-1</span>
+</div>
+<div class="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[13px]">database</span>
+                  Schema: <span class="font-mono text-slate-700">tenant_alphafiscal_prod</span> | Região: Rio de Janeiro, RJ
+                </div>
+</td>
+<td class="py-3 px-3">
+<div class="inline-flex items-center gap-1 font-semibold text-purple-900 bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
+<span class="material-symbols-outlined text-[13px] text-purple-700">military_tech</span> Custom Enterprise
+                </div>
+<div class="font-semibold text-slate-900 mt-1">R$ 11.800,00<span class="font-normal text-slate-500">/mês</span></div>
+<div class="text-[11px] text-slate-500">Tier Soberano Hermes 3 Habilitado</div>
+</td>
+<td class="py-3 px-3 text-center">
+<div class="font-bold text-slate-900 text-sm">340 CNPJs</div>
+<div class="text-slate-500 text-[11px]">48 operadores ativos</div>
+<div class="text-[10px] text-emerald-700 font-mono">+28 este mês</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center justify-between mb-1">
+<span class="font-mono font-medium text-slate-800">R$ 1.180,00</span>
+<span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-200">10,0% (Margem 90,0%)</span>
+</div>
+<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-1.5 rounded-full" style="width: 10%"></div>
+</div>
+<div class="text-[10px] text-slate-500 mt-1 font-mono">42.8M tokens | S3: 1.1 TB</div>
+</td>
+<td class="py-3 px-3">
+<div class="space-y-1 w-48">
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">Reforma '26: 100%</span>
+<span class="text-slate-600">Fiscal/SPED: 100%</span>
+</div>
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">ITP Pix: 90%</span>
+<span class="text-slate-600">Hermes 3 VPC: Ativo</span>
+</div>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden flex">
+<div class="bg-purple-600 h-full" style="width: 96%"></div>
+</div>
+</div>
+</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+<span class="size-1.5 rounded-full bg-emerald-600"></span> Saudável
+                </span>
+<div class="text-[10px] text-slate-500 font-mono mt-0.5">VPC Dedicada • RLS Ok</div>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-slate-900 text-white rounded hover:bg-slate-800 transition" onclick="triggerImpersonate('Alpha Fiscal Consultoria', 'escritorio_002', '18.234.190/0001-44')">
+<span class="material-symbols-outlined text-xs">lock_person</span>
+                    Impersonate
+                  </button>
+<button class="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100" title="Configurar Módulos &amp; Toggles">
+<span class="material-symbols-outlined text-base">settings_suggest</span>
+</button>
+<button class="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100" title="Ver Histórico de Auditoria">
+<span class="material-symbols-outlined text-base">receipt_long</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Audicon Contabilidade Digital (ALERT / NEGATIVE ANOMALY) -->
+<tr class="bg-amber-50/40 hover:bg-amber-50 transition border-l-4 border-l-amber-500">
+<td class="py-3 px-4">
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-slate-900 text-sm">Audicon Contabilidade Digital</span>
+<span class="material-symbols-outlined text-amber-600 text-sm" title="Anomalia detectada pelo Rate Limiter Token Guardian">warning</span>
+</div>
+<div class="flex items-center gap-2 text-slate-500 font-mono text-[11px]">
+<span class="">CNPJ: 31.849.001/0001-12</span>
+<span class="">•</span>
+<span class="">CRC-MG 044122/O-9</span>
+</div>
+<div class="text-[11px] text-amber-800 flex items-center gap-1 mt-0.5 font-medium">
+<span class="material-symbols-outlined text-[13px]">crisis_alert</span>
+                  Possível loop em classificação vetorial RAG (ticket #9821)
+                </div>
+</td>
+<td class="py-3 px-3">
+<div class="inline-flex items-center gap-1 font-semibold text-blue-900 bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
+<span class="material-symbols-outlined text-[13px] text-blue-700">bolt</span> Pro
+                </div>
+<div class="font-semibold text-slate-900 mt-1">R$ 3.400,00<span class="font-normal text-slate-500">/mês</span></div>
+<div class="text-[11px] text-red-600 font-semibold">Consumo IA Excedente!</div>
+</td>
+<td class="py-3 px-3 text-center">
+<div class="font-bold text-slate-900 text-sm">95 CNPJs</div>
+<div class="text-slate-500 text-[11px]">11 operadores ativos</div>
+<div class="text-[10px] text-slate-400 font-mono">0 novos este mês</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center justify-between mb-1">
+<span class="font-mono font-bold text-red-700">R$ 1.890,00</span>
+<span class="text-[11px] font-bold text-red-700 bg-red-100 px-1 rounded border border-red-300">55,6% Mensalidade ⚠️</span>
+</div>
+<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+<div class="bg-red-600 h-1.5 rounded-full" style="width: 55.6%"></div>
+</div>
+<div class="text-[10px] text-red-800 mt-1 font-mono font-semibold">Margem Líquida Comprimida: 44,4%</div>
+</td>
+<td class="py-3 px-3">
+<div class="space-y-1 w-48">
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">DF-e Auto: 90%</span>
+<span class="text-amber-700 font-semibold">RAG Vetorial: 240%</span>
+</div>
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">Open Fin.: 20%</span>
+<span class="text-slate-600">DP eSocial: 10%</span>
+</div>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden flex">
+<div class="bg-amber-500 h-full" style="width: 70%"></div>
+</div>
+</div>
+</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+<span class="size-1.5 rounded-full bg-amber-600"></span> Alerta de Custo
+                </span>
+<div class="text-[10px] text-amber-800 font-mono mt-0.5">Throttling Ativado</div>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-amber-700 text-white rounded hover:bg-amber-800 transition" onclick="triggerImpersonate('Audicon Contabilidade Digital', 'escritorio_003', '31.849.001/0001-12', 'Depuração de loop de custo IA #9821')">
+<span class="material-symbols-outlined text-xs">troubleshoot</span>
+                    Impersonate &amp; Fix
+                  </button>
+<button class="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100" title="Limitar Rate Limits">
+<span class="material-symbols-outlined text-base">tune</span>
+</button>
+<button class="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50" title="Suspender Temporariamente">
+<span class="material-symbols-outlined text-base">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Nova Era Contabilidade & Gestão -->
+<tr class="hover:bg-slate-50 transition">
+<td class="py-3 px-4">
+<div class="font-semibold text-slate-900 text-sm">Nova Era Contabilidade &amp; Gestão</div>
+<div class="flex items-center gap-2 text-slate-500 font-mono text-[11px]">
+<span class="">CNPJ: 42.119.502/0001-88</span>
+<span class="">•</span>
+<span class="">CRC-PR 071420/O-2</span>
+</div>
+<div class="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[13px]">hourglass_top</span>
+                  Importação legada via CSV / Questor em andamento
+                </div>
+</td>
+<td class="py-3 px-3">
+<div class="inline-flex items-center gap-1 font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+<span class="material-symbols-outlined text-[13px] text-slate-600">start</span> Starter
+                </div>
+<div class="font-semibold text-slate-900 mt-1">R$ 1.650,00<span class="font-normal text-slate-500">/mês</span></div>
+<div class="text-[11px] text-slate-500">Trial de 30 dias ativo</div>
+</td>
+<td class="py-3 px-3 text-center">
+<div class="font-bold text-slate-900 text-sm">45 CNPJs</div>
+<div class="text-slate-500 text-[11px]">4 operadores ativos</div>
+<div class="text-[10px] text-blue-600 font-mono">Migrando 45</div>
+</td>
+<td class="py-3 px-3">
+<div class="flex items-center justify-between mb-1">
+<span class="font-mono font-medium text-slate-800">R$ 84,20</span>
+<span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-200">5,1% (Margem 94,9%)</span>
+</div>
+<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-1.5 rounded-full" style="width: 5.1%"></div>
+</div>
+<div class="text-[10px] text-slate-500 mt-1 font-mono">1.2M tokens | S3: 45 GB</div>
+</td>
+<td class="py-3 px-3">
+<div class="space-y-1 w-48">
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">DF-e Auto: 40%</span>
+<span class="text-slate-600">Fiscal/SPED: 10%</span>
+</div>
+<div class="flex justify-between text-[11px]">
+<span class="text-slate-600">Open Fin.: 0%</span>
+<span class="text-slate-600">DP eSocial: 0%</span>
+</div>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden flex">
+<div class="bg-slate-400 h-full" style="width: 25%"></div>
+</div>
+</div>
+</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-300">
+<span class="size-1.5 rounded-full bg-blue-600"></span> Onboarding
+                </span>
+<div class="text-[10px] text-slate-500 font-mono mt-0.5">Fase 1: Parsing CSV</div>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-slate-900 text-white rounded hover:bg-slate-800 transition" onclick="triggerImpersonate('Nova Era Contabilidade', 'escritorio_004', '42.119.502/0001-88', 'Suporte ao Onboarding e validação de Plano de Contas')">
+<span class="material-symbols-outlined text-xs">lock_person</span>
+                    Impersonate
+                  </button>
+<button class="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100" title="Configurar Módulos &amp; Toggles">
+<span class="material-symbols-outlined text-base">settings_suggest</span>
+</button>
+<button class="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100" title="Ver Histórico de Auditoria">
+<span class="material-symbols-outlined text-base">receipt_long</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="p-3 bg-slate-50 border-t border-outline-variant flex items-center justify-between text-xs text-on-surface-variant font-body-sm">
+<div class="flex items-center gap-4">
+<span class="">Mostrando <strong>1 - 4</strong> de <strong>88</strong> escritórios credenciados</span>
+<span class="hidden sm:inline text-slate-400">|</span>
+<span class="hidden sm:inline">Tempo de resposta da consulta RLS: <span class="font-mono font-semibold text-slate-700">14.2ms</span></span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-2 py-1 border border-outline-variant rounded bg-white hover:bg-slate-100 disabled:opacity-40" disabled="">Anterior</button>
+<button class="px-2 py-1 border border-slate-900 rounded bg-slate-900 text-white font-semibold">1</button>
+<button class="px-2 py-1 border border-outline-variant rounded bg-white hover:bg-slate-100">2</button>
+<button class="px-2 py-1 border border-outline-variant rounded bg-white hover:bg-slate-100">3</button>
+<button class="px-2 py-1 border border-outline-variant rounded bg-white hover:bg-slate-100">Próxima</button>
+</div>
+</div>
+</div>
+<!-- ==================== FEATURE TOGGLES & GOVERNANCE MATRIX (§11.1) ==================== -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded shadow-sm p-4" id="feature-toggles-section">
+<div class="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-outline-variant gap-2">
+<div>
+<h3 class="font-headline-sm text-base text-on-background font-bold flex items-center gap-2"><span class="material-symbols-outlined text-indigo-700">tune</span>
+            Matriz de Feature Toggles Globais &amp; Gestão de Módulos (Governança)</h3>
+<p class="font-body-sm text-xs text-on-surface-variant">Ativação instantânea de capacidades sem redeploy com propagação por Redis Pub/Sub em &lt; 200ms.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-700 border border-slate-200">Flags Version: v3.2.0-hotfix</span>
+<button class="px-3 py-1 text-xs font-semibold bg-slate-900 text-white rounded hover:bg-slate-800 transition">Salvar Políticas</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-4 text-xs font-body-sm">
+<!-- Toggle 1 -->
+<div class="border border-slate-200 rounded p-3 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-bold text-slate-900">Reforma Tributária 2026 (IBS/CBS Dual)</span>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-300">Global Ativo</span>
+</div>
+<p class="text-slate-600 text-[11px] leading-relaxed">Cálculo paralelo e split-payment simulado para transição EC 132/2023. Habilitado para todos os escritórios sem custos extras.</p>
+</div>
+<div class="mt-3 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+<span class="text-slate-500 font-mono">Flag: <code class="text-slate-800">feat_tax_reform_dual_engine</code></span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+</label>
+</div>
+</div>
+<!-- Toggle 2 -->
+<div class="border border-slate-200 rounded p-3 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-bold text-slate-900">Iniciação de Pagamento (ITP Open Finance)</span>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-800 border border-indigo-300">Enterprise Only</span>
+</div>
+<p class="text-slate-600 text-[11px] leading-relaxed">Agendamento e liquidação em lote de guias DARF/DAS via Pix diretamente pelo ContaIA com certificação Bacen.</p>
+</div>
+<div class="mt-3 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+<span class="text-slate-500 font-mono">Flag: <code class="text-slate-800">feat_openfinance_itp_bulk</code></span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-slate-900"></div>
+</label>
+</div>
+</div>
+<!-- Toggle 3 -->
+<div class="border border-slate-200 rounded p-3 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-bold text-slate-900">Agente Coletor Ativo (WhatsApp Bot)</span>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-900 border border-amber-300">Beta Fechado (12)</span>
+</div>
+<p class="text-slate-600 text-[11px] leading-relaxed">Cobrança e coleta autônoma de comprovantes bancários e extratos OFX via API oficial Meta Cloud integrada.</p>
+</div>
+<div class="mt-3 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+<span class="text-slate-500 font-mono">Flag: <code class="text-slate-800">feat_agent_whatsapp_collector</code></span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-600"></div>
+</label>
+</div>
+</div>
+<!-- Toggle 4 -->
+<div class="border border-slate-200 rounded p-3 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-bold text-slate-900">Tier Soberano de IA (Hermes 3 VPC)</span>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-purple-100 text-purple-900 border border-purple-300">Add-on (14 Escritórios)</span>
+</div>
+<p class="text-slate-600 text-[11px] leading-relaxed">Roteamento dedicado de inferência RAG em instâncias H100 isoladas no Brasil para clientes com requisitos de segredo fiscal.</p>
+</div>
+<div class="mt-3 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+<span class="text-slate-500 font-mono">Flag: <code class="text-slate-800">feat_ia_hermes3_sovereign_vpc</code></span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-800"></div>
+</label>
+</div>
+</div>
+<!-- Toggle 5 -->
+<div class="border border-slate-200 rounded p-3 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-bold text-slate-900">Validador Preventivo eSocial S-1.3</span>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-900 text-white">Mandatório Global</span>
+</div>
+<p class="text-slate-600 text-[11px] leading-relaxed">Trava de conformidade CLT e validação cruzada pré-transmissão com DCTFWeb. Impossível desativar em ambiente de produção.</p>
+</div>
+<div class="mt-3 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+<span class="text-slate-500 font-mono">Flag: <code class="text-slate-800">feat_esocial_strict_compliance</code></span>
+<span class="text-[10px] font-semibold text-slate-500 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">lock</span> Bloqueado
+            </span>
+</div>
+</div>
+<!-- Toggle 6 -->
+<div class="border border-slate-200 rounded p-3 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-bold text-slate-900">Token Guardian (Rate Limiter Preventivo)</span>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-300">Ativo</span>
+</div>
+<p class="text-slate-600 text-[11px] leading-relaxed">Corte automático de inferência não assistida quando o consumo ultrapassa o limite de segurança do plano contratado.</p>
+</div>
+<div class="mt-3 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+<span class="text-slate-500 font-mono">Flag: <code class="text-slate-800">feat_ai_token_guardian_killswitch</code></span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- ==================== APPEND-ONLY AUDIT TRAIL (§11.3 & §12) ==================== -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded shadow-sm p-4" id="audit-section">
+<div class="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-outline-variant gap-2">
+<div>
+<h3 class="font-headline-sm text-base text-on-background font-bold flex items-center gap-2"><span class="material-symbols-outlined text-slate-900">enhanced_encryption</span>
+            Trilha Criptográfica Append-Only de Impersonation &amp; Ações Críticas (Auditoria)</h3>
+<p class="font-body-sm text-xs text-on-surface-variant">Log WORM imutável gravado em bucket com Object Lock legal. Qualquer impersonation gera um hash SHA-256 encadeado.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-1 rounded">
+<span class="size-2 rounded-full bg-emerald-600 animate-pulse"></span>
+            WORM Integrity: 100% Verificado (Merkle Tree Root Ok)
+          </span>
+</div>
+</div>
+<div class="overflow-x-auto custom-scrollbar mt-3">
+<table class="w-full text-left border-collapse font-body-sm text-xs">
+<thead>
+<tr class="bg-slate-100 text-on-surface-variant font-headline-sm font-semibold border-b border-outline-variant text-[11px] uppercase tracking-wider">
+<th class="py-2.5 px-3">Data/Hora (UTC-3)</th>
+<th class="py-2.5 px-3">Super-Admin</th>
+<th class="py-2.5 px-3">Tenant Alvo</th>
+<th class="py-2.5 px-4">Justificativa / Ticket JIRA</th>
+<th class="py-2.5 px-2 text-center">Duração</th>
+<th class="py-2.5 px-3">IP / mTLS Fingerprint</th>
+<th class="py-2.5 px-3 font-mono text-right">Hash SHA-256 da Sessão</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 font-mono text-[11px]">
+<!-- Audit Row 1 -->
+<tr class="hover:bg-slate-50 transition">
+<td class="py-2 px-3 text-slate-700 whitespace-nowrap">14/11/2026 14:10:02</td>
+<td class="py-2 px-3 text-slate-900 font-semibold font-body-sm">
+                superadmin_carlos
+                <span class="block font-mono text-[10px] text-slate-500">2FA TOTP: Ok</span>
+</td>
+<td class="py-2 px-3 font-body-sm">
+<span class="font-semibold text-slate-800">escritorio_001</span>
+<span class="block text-[10px] text-slate-500 font-mono">Reis &amp; Associados</span>
+</td>
+<td class="py-2 px-4 font-body-sm text-slate-700">
+                Ajuste de timeout em NSU Sefaz Dual IBS ticket #8841. Correção de sincronização assíncrona.
+              </td>
+<td class="py-2 px-2 text-center text-slate-900 font-semibold">18 min</td>
+<td class="py-2 px-3 text-slate-600">
+                177.132.88.10
+                <span class="block text-[10px] text-slate-400">TLS_AES_256_GCM</span>
+</td>
+<td class="py-2 px-3 text-right text-slate-600">
+<span class="text-indigo-700 font-bold">7f89b...e21a</span>
+<button class="ml-1 text-slate-400 hover:text-slate-800" onclick="navigator.clipboard.writeText('7f89b439c011e89df90123cbef901283e21a'); alert('Hash copiado!')" title="Copiar Hash Completo">
+<span class="material-symbols-outlined text-[13px]">content_copy</span>
+</button>
+</td>
+</tr>
+<!-- Audit Row 2 -->
+<tr class="hover:bg-slate-50 transition">
+<td class="py-2 px-3 text-slate-700 whitespace-nowrap">14/11/2026 11:22:15</td>
+<td class="py-2 px-3 text-slate-900 font-semibold font-body-sm">
+                superadmin_marina
+                <span class="block font-mono text-[10px] text-slate-500">2FA Hardware FIDO2</span>
+</td>
+<td class="py-2 px-3 font-body-sm">
+<span class="font-semibold text-slate-800">escritorio_002</span>
+<span class="block text-[10px] text-slate-500 font-mono">Alpha Fiscal</span>
+</td>
+<td class="py-2 px-4 font-body-sm text-slate-700">
+                Provisionamento do Tier Soberano Hermes 3 VPC dedicado sob SLA de sigilo judicial.
+              </td>
+<td class="py-2 px-2 text-center text-slate-900 font-semibold">29 min</td>
+<td class="py-2 px-3 text-slate-600">
+                201.86.104.92
+                <span class="block text-[10px] text-slate-400">TLS_CHACHA20_POLY1305</span>
+</td>
+<td class="py-2 px-3 text-right text-slate-600">
+<span class="text-indigo-700 font-bold">3a19e...889f</span>
+<button class="ml-1 text-slate-400 hover:text-slate-800" onclick="navigator.clipboard.writeText('3a19e89d12301fbb0920491823abce889f'); alert('Hash copiado!')">
+<span class="material-symbols-outlined text-[13px]">content_copy</span>
+</button>
+</td>
+</tr>
+<!-- Audit Row 3 -->
+<tr class="hover:bg-slate-50 transition">
+<td class="py-2 px-3 text-slate-700 whitespace-nowrap">13/11/2026 18:45:50</td>
+<td class="py-2 px-3 text-slate-900 font-semibold font-body-sm">
+                superadmin_carlos
+                <span class="block font-mono text-[10px] text-slate-500">2FA TOTP: Ok</span>
+</td>
+<td class="py-2 px-3 font-body-sm">
+<span class="font-semibold text-slate-800">escritorio_003</span>
+<span class="block text-[10px] text-slate-500 font-mono">Audicon Digital</span>
+</td>
+<td class="py-2 px-4 font-body-sm text-slate-700">
+                Ativação preventiva de Token Guardian Rate Throttling por alto consumo RAG (ticket #9821).
+              </td>
+<td class="py-2 px-2 text-center text-slate-900 font-semibold">12 min</td>
+<td class="py-2 px-3 text-slate-600">
+                177.132.88.10
+                <span class="block text-[10px] text-slate-400">TLS_AES_256_GCM</span>
+</td>
+<td class="py-2 px-3 text-right text-slate-600">
+<span class="text-indigo-700 font-bold">90c12...b412</span>
+<button class="ml-1 text-slate-400 hover:text-slate-800" onclick="navigator.clipboard.writeText('90c1209bb41299912aaebc1092837482'); alert('Hash copiado!')">
+<span class="material-symbols-outlined text-[13px]">content_copy</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+<!-- ==================== MODAL DE IMPERSONATION SEGURA (PRD §11.1 & §4.4) ==================== -->
+<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden" id="impersonate-modal">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+<!-- Modal Header -->
+<div class="bg-slate-900 text-white p-4 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="p-1.5 bg-red-600/90 rounded text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-lg">security</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-sm font-bold tracking-tight">Abertura de Sessão de Impersonation Auditada ("Logar Como")</h4>
+<p class="text-slate-400 text-xs font-body-sm">Super-Admin Service Role Supervisionada • RLS Bypass Temporário</p>
+</div>
+</div>
+<button class="text-slate-400 hover:text-white" onclick="document.getElementById('impersonate-modal').classList.add('hidden')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-5 space-y-4 font-body-sm text-xs">
+<!-- Legal & Compliance Notice -->
+<div class="bg-amber-50 border-l-4 border-amber-500 p-3 rounded text-amber-950 text-[11px] leading-relaxed">
+<strong class="font-semibold flex items-center gap-1 mb-0.5"><span class="material-symbols-outlined text-sm">gavel</span>
+            Aviso Legal e de Conformidade Criptográfica (Diretrizes de Segurança):</strong>
+          A sessão de impersonation concederá visualização sob a perspectiva do escritório contábil via <em>Service Role dedicada do PostgreSQL</em> com registro indelével no Log Append-Only WORM. <strong><span class="material-symbols-outlined text-sm">gavel</span>
+            Aviso Legal e de Conformidade Criptográfica (Diretrizes de Segurança):</strong> (permanece selada no KMS Envelope Encryption).
+        </div>
+<!-- Inputs Form -->
+<div class="space-y-3">
+<div>
+<label class="block text-slate-700 font-semibold mb-1">Escritório Contábil Selecionado (Tenant Alvo)</label>
+<input class="w-full bg-slate-100 border border-outline-variant rounded py-1.5 px-3 font-semibold text-slate-800 text-xs cursor-not-allowed" id="target-tenant-input" readonly="" type="text" value="Contabilidade Reis &amp; Associados (escritorio_001)">
+</div>
+<div>
+<label class="block text-slate-700 font-semibold mb-1">Justificativa Operacional Obrigatória &amp; Ticket de Suporte <span class="text-red-600">*</span></label>
+<textarea class="w-full bg-white border border-outline-variant rounded p-2 text-xs text-slate-800 focus:ring-1 focus:ring-slate-900 focus:outline-none placeholder:text-slate-400" id="target-justification-input" placeholder="Ex: Investigação de falha na apuração do Simples Nacional / IBS ticket JIRA #9842..." rows="2">Depuração técnica de inconsistência na validação cruzada do SPED Fiscal ICMS/IPI conforme chamado urgente do cliente.</textarea>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block text-slate-700 font-semibold mb-1">Duração Máxima da Sessão</label>
+<select class="w-full bg-white border border-outline-variant rounded py-1.5 px-2 text-xs text-slate-800 focus:ring-1 focus:ring-slate-900">
+<option selected="">15 minutos (Recomendado)</option>
+<option>30 minutos (Máximo padrão)</option>
+<option>60 minutos (Requer aprovação Lead-Sec)</option>
+</select>
+</div>
+<div>
+<label class="block text-slate-700 font-semibold mb-1">Token 2FA Super-Admin (TOTP) <span class="text-red-600">*</span></label>
+<input class="w-full bg-white border border-outline-variant rounded py-1.5 px-3 font-mono text-center tracking-widest text-slate-800 text-xs focus:ring-1 focus:ring-slate-900" maxlength="6" placeholder="000000" type="password">
+</div>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="p-4 bg-slate-50 border-t border-outline-variant flex items-center justify-between">
+<button class="px-3 py-1.5 text-xs font-semibold border border-outline-variant rounded text-slate-700 hover:bg-slate-100 transition" onclick="document.getElementById('impersonate-modal').classList.add('hidden')">
+          Cancelar
+        </button>
+<button class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded bg-slate-900 text-white hover:bg-slate-800 shadow transition" onclick="executeImpersonationSession()">
+<span class="material-symbols-outlined text-sm">vpn_key</span>
+          Iniciar Sessão Auditada (Gerar WORM Token)
+        </button>
+</div>
+</div>
+</div>
+<!-- INTERACTION JAVASCRIPT -->
+<script>
+    function triggerImpersonate(tenantName, tenantId, cnpj, defaultReason) {
+      document.getElementById('target-tenant-input').value = `${tenantName} (${tenantId}) - CNPJ: ${cnpj}`;
+      if (defaultReason) {
+        document.getElementById('target-justification-input').value = defaultReason;
+      }
+      document.getElementById('impersonate-modal').classList.remove('hidden');
+    }
+
+    function executeImpersonationSession() {
+      const tenant = document.getElementById('target-tenant-input').value;
+      alert(`[CONTAIA SECURITY KERNEL]\n\nSessão de Impersonation autorizada e assinada!\n\n• Tenant: ${tenant}\n• Hash SHA-256 gerado e selado em log WORM S3.\n• Redirecionando para o ambiente do escritório em modo de auditoria com tarja vermelha de supervisão...`);
+      document.getElementById('impersonate-modal').classList.add('hidden');
+    }
+  </script>
+
+
+</body></html>
