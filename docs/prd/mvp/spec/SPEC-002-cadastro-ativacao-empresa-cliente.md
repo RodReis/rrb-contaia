@@ -4,11 +4,13 @@
 >
 > **Origem:** PRD v3.1 §§4.1, 4.3, 4.4 e 15
 >
-> **Estado:** aprovada funcionalmente pelo PI em 17/09/2026; documento em revisão final
+> **Estado:** aprovada pelo PI em 17/09/2026
 >
 > **Tamanho:** Médio
 >
 > **Dependência:** F1 / SPEC-001
+>
+> **Issue:** #3
 
 ## 1. Objetivo
 
@@ -313,4 +315,4 @@ Nenhuma.
 ## 16. Aprovação
 
 - Design funcional aprovado pelo PI durante a especificação em 17/09/2026.
-- Documento completo aguardando revisão final do PI.
+- Documento completo aprovado pelo PI em 17/09/2026.
