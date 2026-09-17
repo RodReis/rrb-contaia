@@ -9,6 +9,8 @@
 > **Tamanho:** Médio
 >
 > **Dependência:** card `[INFRA] Bootstrap local do MVP-1`, sem F/SPEC
+>
+> **Issue:** #2
 
 ## 1. Objetivo
 
