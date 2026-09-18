@@ -10,7 +10,7 @@
 >
 > **Dependências:** F2 / SPEC-002, F3 / SPEC-003, F6 / SPEC-006, F7 / SPEC-007 e F8 / SPEC-008
 >
-> **Issue:** a criar após revisão do documento pelo PI
+> **Issue:** #11
 
 ## 1. Objetivo
 
@@ -339,4 +339,4 @@ Nenhuma.
 ## 15. Aprovação
 
 - Fronteira, comportamento, interface, segurança, histórico, falhas, provas, destinos e tamanho aprovados pelo PI em 18/09/2026.
-- Documento consolidado para revisão final do PI antes da criação da issue.
+- Documento revisado e aprovado pelo PI; issue #11 criada em `proplan:backlog`.
