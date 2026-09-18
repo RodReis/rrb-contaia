@@ -79,6 +79,28 @@ Uma fatia entrega **comportamento verificável de ponta a ponta**, não uma cama
 
 **O Cowork apresenta as dúvidas ao PI em perguntas objetivas antes de fechar a spec**, e só cria a issue com tudo resolvido (`CLAUDE.md`). Spec que nasce com pergunta aberta vira retrabalho na implementação.
 
+### 5.1 Gate obrigatório de conformidade antes da issue
+
+Os oito itens acima são **gate**, não orientação. Antes de marcar uma SPEC como aprovada ou criar sua issue, o Cowork executa a conferência abaixo no documento completo:
+
+| Verificação | Evidência mínima dentro da SPEC |
+|---|---|
+| Identidade | cabeçalho com MVP, F, SPEC e origem exata no PRD |
+| Comportamento | seção observável pelo usuário, sem descrever apenas camada técnica |
+| Aceite | critérios enumerados e ligados a provas de CI, teste ou prova visual |
+| Invariantes | seção explícita **Invariantes globais tocados**, citando os códigos `I-n` de `CONVENTION.md` §2 e explicando como cada um se aplica; “segue CONVENTION” não basta |
+| Fora de escopo | tabela explícita do que não entra |
+| Dúvidas | decisões do PI registradas e questões abertas iguais a “Nenhuma” |
+| Complementos | cada item parcial aponta fatia já numerada; se ainda não houver número, aponta nominalmente a capacidade e o MVP que obrigatoriamente a receberá |
+| UI | caminhos concretos de `docs/telas/`, estados, CLARO/ESCURO, viewports, provas de `FRONTEND.md` §20.1 e uso obrigatório de `frontend-design` e `impeccable`; “referências aplicáveis” não basta |
+
+Resultado da conferência:
+
+- qualquer item ausente mantém a SPEC em revisão e bloqueia a criação da issue;
+- a autorrevisão procura também contradições, placeholders e escopo Enorme;
+- correção posterior de não conformidade documental preserva o aceite funcional do PI, mas precisa ser publicada antes de implementação da fatia;
+- `STATUS.md` só recebe “aprovada” depois que o gate inteiro estiver atendido.
+
 ---
 
 ## 6. Ciclo

@@ -69,6 +69,14 @@ Regras do wizard:
 
 ## 4. Regras e invariantes
 
+### 4.1 Invariantes globais tocados
+
+| Invariante | Aplicação nesta fatia |
+|---|---|
+| `I-2` | nenhuma consulta ou alteração do escritório retorna dado sem contexto do tenant autenticado |
+
+### 4.2 Regras específicas
+
 - CNPJ do escritório é válido e único globalmente.
 - CPF e CNPJ são armazenados sem máscara; a interface aplica máscara e validação conforme `FRONTEND.md`.
 - O CNPJ aceita o formato alfanumérico vigente, conforme ADR-006.

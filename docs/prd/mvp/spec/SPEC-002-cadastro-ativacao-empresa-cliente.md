@@ -72,14 +72,20 @@ Falha, timeout, limite de requisições ou CNPJ não encontrado permitem preench
 
 ## 4. Dados e invariantes
 
-### 4.1 Identificação
+### 4.1 Invariantes globais tocados
+
+| Invariante | Aplicação nesta fatia |
+|---|---|
+| `I-2` | empresa só é consultada ou alterada dentro do tenant autenticado |
+
+### 4.2 Identificação
 
 - CNPJ obrigatório, válido e único dentro do tenant.
 - Razão social e nome fantasia obrigatórios.
 - Logo, telefone e e-mail opcionais.
 - CNPJ é armazenado sem máscara e aceita o formato alfanumérico vigente, conforme ADR-006.
 
-### 4.2 Dados fiscais
+### 4.3 Dados fiscais
 
 - Um CNAE principal é obrigatório.
 - CNAEs secundários são opcionais e múltiplos.
@@ -89,14 +95,14 @@ Falha, timeout, limite de requisições ou CNPJ não encontrado permitem preench
 - Inscrições estadual e municipal têm situação `POSSUI`, `ISENTO` ou `NAO_SE_APLICA`.
 - O número da inscrição é obrigatório somente quando a situação for `POSSUI`.
 
-### 4.3 Endereço e estado
+### 4.4 Endereço e estado
 
 - Um endereço principal completo é obrigatório para ativação.
 - Nesta fatia, cada empresa possui somente o endereço principal.
 - Estados da empresa nesta fatia: `CADASTRO_INCOMPLETO` e `ATIVA`.
 - Empresa com situação cadastral externa diferente de `Ativa` exige alerta e confirmação explícita, mas pode ser ativada.
 
-### 4.4 Isolamento
+### 4.5 Isolamento
 
 - A unicidade do CNPJ é composta por tenant e CNPJ normalizado.
 - Toda leitura e escrita exige contexto do tenant autenticado.
@@ -116,6 +122,7 @@ Falha, timeout, limite de requisições ou CNPJ não encontrado permitem preench
 
 ## 6. Contrato de interface
 
+- Referência concreta de conteúdo e fluxo: `docs/telas/contaia_onboarding_de_clientes_importa_o_de_legados_rf_01/` e navegação integrada de `docs/telas/prototipo/`.
 - Interface final nos temas CLARO e ESCURO, sem wireframe ou aparência padrão de biblioteca.
 - Wizard, lista e estados seguem `FRONTEND.md`, `DESIGN-SYSTEM.md` e `docs/design-system/`.
 - Viewports e provas seguem `FRONTEND.md` §20.1.

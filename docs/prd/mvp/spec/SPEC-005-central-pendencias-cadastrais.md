@@ -67,6 +67,17 @@ Filtros, ordenação e paginação são processados no servidor e permanecem na 
 
 ## 5. Autorização, histórico e falhas
 
+### 5.1 Invariantes globais tocados
+
+| Invariante | Aplicação nesta fatia |
+|---|---|
+| `I-1` | pendências e eventos carregam `tenant_id` e `empresa_id`, índices e RLS |
+| `I-2` | consulta sem tenant não retorna indicador, pendência ou histórico |
+| `I-6` | histórico de criação, mudança e resolução é append-only |
+| `I-11` | vencimento usa data civil; eventos com data/hora são exibidos em `America/Sao_Paulo` |
+
+### 5.2 Regras específicas
+
 - Nesta fatia, somente o `admin_escritorio` consulta e resolve pendências.
 - Toda consulta e ação é isolada por `tenant_id` e `empresa_id`.
 - Criação, mudança, resolução e dispensa registram empresa, origem, causa, data/hora e usuário quando houver ação humana.
@@ -76,6 +87,8 @@ Filtros, ordenação e paginação são processados no servidor e permanecem na 
 - Erros seguem `application/problem+json`, código estável e `correlationId`.
 
 ## 6. Interface
+
+Referências concretas: `docs/telas/contaia_dashboard_multi_empresa_rf_06/`, `docs/telas/contaia_dashboard_multi_empresa_vis_o_de_riscos_tema_dark_carbon/` e navegação de `docs/telas/prototipo/`. Elas orientam densidade, indicadores e acesso à empresa; `FRONTEND.md`, `DESIGN-SYSTEM.md` e `docs/design-system/` corrigem defeitos do protótipo e definem o contrato final.
 
 | Estado | Comportamento |
 |---|---|
@@ -87,7 +100,7 @@ Filtros, ordenação e paginação são processados no servidor e permanecem na 
 | Conflito | atualiza o item sem sobrescrever silenciosamente |
 | Sem autorização | nega sem vazar existência |
 
-Temas CLARO/ESCURO, viewports e acessibilidade seguem `FRONTEND.md` §20.1.
+Temas CLARO/ESCURO, viewports, estados, responsividade, acessibilidade, comparação visual e provas seguem `FRONTEND.md` §20.1. A implementação usa obrigatoriamente `frontend-design` e recebe o passe final de `impeccable`.
 
 ## 7. Stack, comandos e testes
 

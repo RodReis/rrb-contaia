@@ -68,6 +68,17 @@ O escritório pode adicionar exigências específicas por empresa, com nome, des
 
 ## 3. Usuário, autorização e auditoria
 
+### 3.1 Invariantes globais tocados
+
+| Invariante | Aplicação nesta fatia |
+|---|---|
+| `I-1` | metadados, versões e eventos documentais carregam `tenant_id` e `empresa_id`, índices e RLS |
+| `I-2` | consulta sem tenant não retorna exigência, versão ou arquivo |
+| `I-6` | histórico documental é append-only |
+| `I-11` | validade usa data civil; eventos com data/hora são exibidos em `America/Sao_Paulo` |
+
+### 3.2 Regras específicas
+
 - Somente o `admin_escritorio` opera documentos nesta fatia.
 - Toda ação é autorizada no servidor por `tenant_id` e `empresa_id`.
 - Storage não é público; conteúdo só é acessado pela aplicação após autorização.
@@ -78,7 +89,7 @@ O escritório pode adicionar exigências específicas por empresa, com nome, des
 
 ## 4. Estados de interface
 
-As telas seguem `FRONTEND.md`, `DESIGN-SYSTEM.md`, `docs/design-system/` e as referências aplicáveis de `docs/telas/`, nos temas CLARO e ESCURO.
+Referências concretas de conteúdo e fluxo: `docs/telas/contaia_onboarding_de_clientes_importa_o_de_legados_rf_01/` e navegação integrada de `docs/telas/prototipo/`. As telas seguem `FRONTEND.md`, `DESIGN-SYSTEM.md` e `docs/design-system/`, nos temas CLARO e ESCURO; o protótipo não cria regra de produto.
 
 | Estado | Comportamento |
 |---|---|
@@ -91,6 +102,8 @@ As telas seguem `FRONTEND.md`, `DESIGN-SYSTEM.md`, `docs/design-system/` e as re
 | Vencido | destaca validade e necessidade de substituição |
 | Arquivo indisponível | falha acionável sem registrar acesso concluído |
 | Sem autorização | nega acesso sem revelar recurso alheio |
+
+Viewports, comparação com as referências, estados, responsividade, acessibilidade e provas seguem `FRONTEND.md` §20.1. A implementação usa obrigatoriamente `frontend-design` e recebe o passe final de `impeccable`.
 
 ## 5. Falhas e atomicidade
 

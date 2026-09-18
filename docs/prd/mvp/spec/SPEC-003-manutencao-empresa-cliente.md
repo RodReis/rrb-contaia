@@ -99,6 +99,18 @@ O histórico é append-only e somente leitura: nenhum registro pode ser editado 
 
 ## 4. Invariantes e regras
 
+### 4.1 Invariantes globais tocados
+
+| Invariante | Aplicação nesta fatia |
+|---|---|
+| `I-1` | históricos e demais tabelas transacionais da manutenção carregam `tenant_id` e `empresa_id`, índices e RLS |
+| `I-2` | consulta sem tenant não retorna empresa nem histórico |
+| `I-6` | Histórico de Informações é append-only |
+| `I-7` | empresa, endereço e informação fiscal são arquivados ou versionados, nunca apagados fisicamente |
+| `I-11` | vigência usa data civil; eventos com data/hora são exibidos em `America/Sao_Paulo` |
+
+### 4.2 Regras específicas
+
 - CNPJ é único por tenant e imutável após a ativação.
 - Empresa e histórico nunca atravessam o limite do tenant.
 - Empresa ativa possui exatamente um endereço Fiscal padrão.
@@ -110,7 +122,7 @@ O histórico é append-only e somente leitura: nenhum registro pode ser editado 
 
 ## 5. Estados de interface
 
-As telas seguem `FRONTEND.md`, `DESIGN-SYSTEM.md`, `docs/design-system/` e as referências aplicáveis de `docs/telas/`, nos temas CLARO e ESCURO.
+Referências concretas de conteúdo e fluxo: `docs/telas/contaia_onboarding_de_clientes_importa_o_de_legados_rf_01/` e navegação integrada de `docs/telas/prototipo/`. As telas seguem `FRONTEND.md`, `DESIGN-SYSTEM.md` e `docs/design-system/`, nos temas CLARO e ESCURO; o protótipo não cria regra de produto.
 
 | Estado | Comportamento esperado |
 |---|---|
@@ -127,6 +139,8 @@ As telas seguem `FRONTEND.md`, `DESIGN-SYSTEM.md`, `docs/design-system/` e as re
 | Sem autorização | acesso negado sem revelar existência de empresa de outro tenant |
 
 Filtros e paginação da lista de empresas e do histórico são processados no servidor. O estado dos filtros permanece na URL, conforme `FRONTEND.md`.
+
+Viewports, comparação com as referências, estados, responsividade, acessibilidade e provas seguem `FRONTEND.md` §20.1. A implementação usa obrigatoriamente `frontend-design` e recebe o passe final de `impeccable`.
 
 ## 6. Fluxos principais
 

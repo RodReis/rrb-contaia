@@ -43,6 +43,19 @@ Ler notificação não resolve pendência. Resolver ou dispensar pendência não
 
 ## 4. Autorização e estados de interface
 
+### 4.1 Invariantes globais tocados
+
+| Invariante | Aplicação nesta fatia |
+|---|---|
+| `I-1` | notificações e eventos de leitura carregam `tenant_id` e `empresa_id`, índices e RLS |
+| `I-2` | consulta sem tenant não retorna badge, painel ou histórico |
+| `I-6` | histórico de notificações e leitura é append-only |
+| `I-11` | data e hora das notificações são exibidas em `America/Sao_Paulo` |
+
+### 4.2 Contrato de interface e autorização
+
+Referências concretas: cabeçalho e densidade de `docs/telas/contaia_dashboard_multi_empresa_rf_06/`, variante escura de `docs/telas/contaia_dashboard_multi_empresa_vis_o_de_riscos_tema_dark_carbon/` e navegação de `docs/telas/prototipo/`. `FRONTEND.md`, `DESIGN-SYSTEM.md` e `docs/design-system/` vencem defeitos do protótipo.
+
 - Toda notificação pertence ao tenant e referencia uma empresa acessível ao usuário.
 - Nesta fatia, somente `admin_escritorio` recebe e consulta notificações.
 - A navegação revalida a autorização da pendência; referência antiga ou inacessível não expõe dados.
@@ -58,6 +71,8 @@ Ler notificação não resolve pendência. Resolver ou dispensar pendência não
 | Erro | Toast acionável sem marcar como lida indevidamente |
 
 O painel opera por teclado, controla foco e segue os temas CLARO e ESCURO.
+
+Viewports, estados, responsividade, acessibilidade, comparação visual e provas seguem `FRONTEND.md` §20.1. A implementação usa obrigatoriamente `frontend-design` e recebe o passe final de `impeccable`.
 
 ## 5. Histórico e falhas
 
