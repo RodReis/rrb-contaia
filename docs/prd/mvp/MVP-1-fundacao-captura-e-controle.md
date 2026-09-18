@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F15/SPEC-015 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F16/SPEC-016 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -43,7 +43,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F13 / SPEC-013:** importação e reimportação do plano de contas por CSV, com mapeamento de colunas, staging assíncrono, aceitação parcial, confirmação, relatório e histórico.
 - [ ] **F14 / SPEC-014:** importação e reimportação de empregados por CSV, com CPF + matrícula como chave, mapeamento, staging assíncrono, aceitação parcial, confirmação, relatório, histórico, pendência e consulta, sem antecipar o domínio funcional de DP.
 - [ ] **F15 / SPEC-015:** importação de plano de contas e empregados por XLSX/ODS, com escolha de aba e cabeçalho, adaptadores normalizados e equivalência integral às regras CSV das F13/F14.
-- [ ] Motor tributário base versionado e leitura inicial de IBS/CBS.
+- [ ] **F16 / SPEC-016:** catálogo global de regras tributárias versionadas, publicação imutável, simulador determinístico manual e por NF-e de teste, com leitura inicial de IBS/CBS sem persistência documental.
 - [ ] Captura DF-e por estado de NSU, idempotência e respeito ao `tempoMedio`.
 - [ ] Parse e armazenamento de XML, hash e campos IBS/CBS.
 - [ ] Ciência da Emissão automática.
@@ -70,7 +70,7 @@ O Agente de Captura e o Compliance inicial não são componentes isolados: entra
 | RF-01 onboarding CSV/planilha | entrou | plano de contas CSV em F13; empregados CSV em F14; XLSX/ODS para ambos em F15; empregado importado passa ao domínio funcional de DP no MVP-3 |
 | RF-01 cofre A1 e Signer | entrou parcialmente | material real, KMS/HSM e infraestrutura produtiva no gate pós-MVP-4 |
 | RF-02 captura, parse, NSU e manifestações | entrou | prova externa somente em homologação não produtiva |
-| RF-03 motor tributário | entrou parcialmente | apuração, guias, escrituração e SPED no MVP-2 |
+| RF-03 motor tributário | entrou parcialmente | base versionada e simulador em F16; apuração, regras completas, guias, escrituração e SPED no MVP-2; transição IBS/CBS completa no MVP-4 |
 | RF-03 motor de obrigações | entrou parcialmente | agenda e D-3 agora; regras completas, penalidades e dependências no MVP-2 |
 | RF-06 dashboard consolidado | entrou parcialmente | caixa e eSocial no MVP-3 |
 | RF-07 Agente de Captura | entrou | integrado ao fluxo, não como card horizontal |

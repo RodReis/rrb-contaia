@@ -47,7 +47,7 @@
 | RF-02 §5.2 Manifestação: ciência automática + inbox de aprovação | P0 | Mantido | MVP-1 | — |
 | RF-02 §5.3 Parse, IBS/CBS, XML original com hash, idempotência | P0 | Mantido | MVP-1 | — |
 | RF-02 §5.1 NFS-e de municípios fora do padrão nacional | — | **Excluído** | PRD §1.5 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §2 | — |
-| **RF-03** Motor de regras tributárias (base) | P0 | Mantido | MVP-1 | — |
+| **RF-03** Motor de regras tributárias (base) | P0 | Mantido | MVP-1 | F16 / SPEC-016 |
 | RF-03 §6.2 Apurações, guias e partidas dobradas | P1 | Transferido | MVP-2 | — |
 | RF-03 §6.2 SPED Fiscal e SPED Contábil (ECD) | MVP-2 | Transferido | MVP-2 | — |
 | RF-03 §6.3 Agenda mínima, vencimentos e alertas D-3 | P1 | Mantido | MVP-1 | — |
