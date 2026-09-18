@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F7/SPEC-007 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F8/SPEC-008 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -34,7 +34,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F5 / SPEC-005:** Central de Pendências cadastrais e indicadores por empresa.
 - [ ] **F6 / SPEC-006:** sino, notificações e histórico de notificações de pendências.
 - [ ] **F7 / SPEC-007:** usuários, convites, ciclo de vida e papéis padrão.
-- [ ] **F8 / SPEC-008:** papéis personalizados e permissões por módulo, funcionalidade e ação.
+- [ ] **F8 / SPEC-008:** papéis personalizados por snapshot de um papel padrão, com permissões controladas por módulo, funcionalidade e ação, aplicação na próxima requisição e auditoria.
 - [ ] Carteira do colaborador e isolamento por empresa.
 - [ ] RLS de dois níveis, incluindo provas negativas entre tenants e empresas.
 - [ ] Cofre local com certificados exclusivamente de teste.
@@ -64,7 +64,7 @@ O Agente de Captura e o Compliance inicial não são componentes isolados: entra
 
 | Item do PRD | Estado neste MVP | Complemento/destino |
 |---|---|---|
-| RF-01 cadastro, usuários, carteira e RLS | entrou parcialmente | usuários e papéis padrão em F7; papéis personalizados em F8; carteira e RLS em fatias próprias posteriores do MVP-1 |
+| RF-01 cadastro, usuários, carteira e RLS | entrou parcialmente | usuários e papéis padrão em F7; papéis personalizados, catálogo e matriz de autorização em F8; carteira e RLS em fatias próprias posteriores do MVP-1 |
 | RF-01 onboarding CSV | entrou | empregado importado passa ao domínio de DP no MVP-3 |
 | RF-01 cofre A1 e Signer | entrou parcialmente | material real, KMS/HSM e infraestrutura produtiva no gate pós-MVP-4 |
 | RF-02 captura, parse, NSU e manifestações | entrou | prova externa somente em homologação não produtiva |
