@@ -1,0 +1,36 @@
+{
+  "name": "@contaia/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:banco": "vitest run --config vitest.config.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsc -p tsconfig.json && node dist/migrate.js"
+  },
+  "dependencies": {
+    "@contaia/domain": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@contaia/config": "workspace:*",
+    "@types/node": "24.13.5",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}
