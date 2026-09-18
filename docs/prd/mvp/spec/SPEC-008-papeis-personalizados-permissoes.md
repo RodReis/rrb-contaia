@@ -317,7 +317,7 @@ Identificadores ficam em inglês; domínio, documentos, mensagens e interface pe
 | RLS de dois níveis e provas negativas completas | fatia própria posterior do MVP-1 |
 | `gestor_financeiro` e permissões do Financeiro | MVP-2, junto ao módulo Financeiro |
 | `dp` e `cliente_portal` | MVP-3, junto aos respectivos módulos |
-| Notificação por sino, e-mail ou canal externo sobre mudança de acesso | MVP-3, junto aos canais ativos, se priorizada pelo PI |
+| Notificação por sino, e-mail ou canal externo sobre mudança de papel ou matriz de permissões | MVP-3, junto aos canais ativos, se priorizada pelo PI; mudança de carteira tem regra própria em F9 / SPEC-009 |
 | `super-admin`, convite de admin do tenant e impersonation | MVP-4 / RF-08 |
 | Linguagem livre de políticas, condições dinâmicas e negação explícita | MVP-4 / RF-08, se priorizada pelo PI |
 | Infraestrutura produtiva | gate de produção após o MVP-4 |

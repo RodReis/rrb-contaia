@@ -33,7 +33,7 @@
 | RF-01 §4.2 Onboarding com importação CSV (plano de contas, empregados) | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.3 Usuários e papéis padrão | P0 | Mantido | MVP-1 | F7 / SPEC-007 |
 | RF-01 §4.3 Papéis personalizados e permissões por módulo, funcionalidade e ação | P0 | Mantido | MVP-1 | F8 / SPEC-008 |
-| RF-01 §4.3 Carteira/alçada | P0 | Mantido | MVP-1 | — |
+| RF-01 §4.3 Carteira/alçada | P0 | Mantido | MVP-1 | F9 / SPEC-009 |
 | RF-01 §4.4 RLS de dois níveis | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.4 impersonation auditada | P0 | Transferido | MVP-4; caminho de serviço só é exercido após o super-admin existir | — |
 | RF-01 §4.5 Cofre A1, Signer e procuração RFB/e-CAC | P0 | Mantido | MVP-1 | — |
