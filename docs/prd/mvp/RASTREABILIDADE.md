@@ -44,7 +44,7 @@
 | RF-01 §4.5 Cofre com KMS/HSM gerenciado | P0 | **Transferido** | Etapa de produção após o MVP-4 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §4 · [ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) | — |
 | **RF-02** Captura automática de documentos fiscais | P0 | Mantido | MVP-1 | F17 / SPEC-017 e capacidades posteriores do RF-02 |
 | RF-02 §5.1 DF-e com fila por NSU e intermediário alternativo | P0 | Mantido | MVP-1 | F17 / SPEC-017; conectores externos no GATE do MVP-1 |
-| RF-02 §5.2 Manifestação: ciência automática + inbox de aprovação | P0 | Mantido | MVP-1 | — |
+| RF-02 §5.2 Manifestação: ciência automática + inbox de aprovação | P0 | Mantido | MVP-1 | F19 / SPEC-019 para Ciência automática de NF-e 55; inbox e manifestações conclusivas em capacidade própria posterior do MVP-1 |
 | RF-02 §5.3 Parse, IBS/CBS, XML original com hash, idempotência | P0 | Mantido | MVP-1 | F18 / SPEC-018 para NF-e 55 e CT-e; NFS-e e eventos nas capacidades próprias do MVP-1 |
 | RF-02 §5.1 NFS-e de municípios fora do padrão nacional | — | **Excluído** | PRD §1.5 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §2 | — |
 | **RF-03** Motor de regras tributárias (base) | P0 | Mantido | MVP-1 | F16 / SPEC-016 |

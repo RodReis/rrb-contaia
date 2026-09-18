@@ -38,7 +38,7 @@ A F18 não altera `ultNSU`, não captura NFS-e, não executa Ciência da Emissã
 
 ### 3.1 Entrada e desacoplamento da captura
 
-Cada item de staging duravelmente aceito pela F17 publica um comando idempotente de processamento. A mensagem contém somente identificadores e metadados necessários: tenant, empresa, item de staging, CNPJ, NSU, chave de acesso quando disponível, espécie declarada, versão e `correlationId`.
+Cada item de staging duravelmente aceito pela F17 é roteado por espécie e conteúdo. CT-e suportado e `procNFe` completo publicam um comando idempotente de processamento para a F18. `resNFe` é encaminhado à F19 e somente retorna à F18 depois da Ciência e da recuperação do XML completo. A mensagem contém somente identificadores e metadados necessários: tenant, empresa, item de staging, CNPJ, NSU, chave de acesso quando disponível, espécie declarada, versão e `correlationId`.
 
 O pipeline da F18 não controla nem retrocede o cursor de captura. Falha de parse, persistência ou storage não invalida o lote já capturado; mantém o item observável e reprocessável até resultado terminal ou intervenção autorizada.
 
@@ -290,8 +290,8 @@ Listagens são paginadas e ordenadas por emissão e captura, com desempate está
 | Complemento | Destino obrigatório |
 |---|---|
 | Captura e parse de NFS-e padrão nacional | MVP-1 · capacidade própria de NFS-e a decompor; não usa a fila NSU da F17 |
-| Parse de eventos e protocolos de manifestação | MVP-1 · capacidade de Ciência da Emissão e capacidade de inbox/manifestações, conforme o evento |
-| Ciência da Emissão automática | MVP-1 · próxima capacidade RF-02 a numerar |
+| Parse de eventos e protocolos de manifestação | MVP-1 · F19 / SPEC-019 para Ciência e capacidade de inbox/manifestações para os eventos conclusivos |
+| Ciência da Emissão automática | MVP-1 · F19 / SPEC-019 |
 | Inbox, score e aprovação das demais manifestações | MVP-1 · capacidade própria RF-02 a numerar |
 | Cálculo, apuração e regras completas de IBS/CBS | motor base F16; apuração no MVP-2 e transição completa no MVP-4 |
 | Correção ou edição manual do conteúdo fiscal | não permitida; nova origem ou reprocessamento preserva o original e a trilha |

@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F18/SPEC-018 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F19/SPEC-019 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -46,7 +46,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F16 / SPEC-016:** catálogo global de regras tributárias versionadas, publicação imutável, simulador determinístico manual e por NF-e de teste, com leitura inicial de IBS/CBS sem persistência documental.
 - [ ] **F17 / SPEC-017:** captura DF-e de NF-e modelo 55 e CT-e por estado de NSU, com staging opaco, idempotência, consulta automática e sob demanda, respeito ao `tempoMedio`, retry, DLQ e bloqueio por Rejeição 656.
 - [ ] **F18 / SPEC-018:** pipeline desacoplado de parse e persistência de NF-e modelo 55 e CT-e, com XML original recuperável, hash SHA-256, normalização, IBS/CBS, pendências e reprocessamento.
-- [ ] Ciência da Emissão automática.
+- [ ] **F19 / SPEC-019:** Ciência da Emissão automática para NF-e modelo 55, com fluxo `resNFe → 210210 → procNFe → F18`, idempotência, reconciliação, retry, DLQ e visibilidade técnica.
 - [ ] Inbox e aprovação humana das demais manifestações.
 - [ ] Agenda mínima de obrigações e alertas D-3.
 - [ ] Compliance inicial dentro do fluxo de alertas.

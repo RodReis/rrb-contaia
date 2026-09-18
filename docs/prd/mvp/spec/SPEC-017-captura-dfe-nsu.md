@@ -284,10 +284,10 @@ Listagem de execuções é paginada, mais recente primeiro. O POST apenas agenda
 
 | Complemento | Destino obrigatório |
 |---|---|
-| Parse e normalização de NF-e, CT-e, NFS-e e eventos | MVP-1 · próxima capacidade RF-02 a numerar |
-| XML fiscal definitivo, hash, retenção e recuperação | mesma capacidade de parse e persistência do MVP-1 |
-| Campos IBS/CBS persistidos | mesma capacidade de parse e persistência do MVP-1; motor completo no MVP-4 |
-| Ciência da Emissão automática | MVP-1 · capacidade própria RF-02 a numerar |
+| Parse e normalização de NF-e 55 e CT-e | MVP-1 · F18 / SPEC-018; NFS-e e eventos permanecem em capacidades próprias |
+| XML fiscal definitivo, hash, retenção e recuperação | MVP-1 · F18 / SPEC-018 |
+| Campos IBS/CBS persistidos | MVP-1 · F18 / SPEC-018; motor completo no MVP-4 |
+| Ciência da Emissão automática | MVP-1 · F19 / SPEC-019 |
 | Inbox e aprovação das demais manifestações | MVP-1 · capacidade própria RF-02 a numerar |
 | NFS-e padrão nacional | MVP-1 · capacidade própria de captura NFS-e a decompor; não usa NSU DF-e |
 | Conector direto Sefaz e via alternativa por intermediário | `[MVP1][GATE]` de homologação não produtiva, sobre a porta criada nesta fatia |

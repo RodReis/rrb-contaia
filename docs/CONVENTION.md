@@ -97,20 +97,27 @@ Quem pode **aprovar ato com efeito jurídico**, sempre limitado às empresas da 
 
 ### 4.1 Ciclo de vida
 
-```
-CAPTURADO ─▶ PARSEADO ─▶ CIENCIA_DADA ─▶ EM_ANALISE ─▶ AGUARDANDO_APROVACAO
-                                                             │
-                              ┌──────────────────────────────┤
-                              ▼                              ▼
-                         MANIFESTADO                     ARQUIVADO
-                     (confirmacao | desconhecimento |
-                      operacao_nao_realizada)
-                              │
-                              ▼
-                        CLASSIFICADO ─▶ ESCRITURADO
+```text
+RESUMO_CAPTURADO ─▶ CIENCIA_DADA ─▶ XML_COMPLETO_OBTIDO ─▶ PARSEADO
+                                                                    │
+                                                                    ▼
+                                                               EM_ANALISE
+                                                                    │
+                                                                    ▼
+                                                        AGUARDANDO_APROVACAO
+                                                                    │
+                                     ┌──────────────────────────────┤
+                                     ▼                              ▼
+                                MANIFESTADO                     ARQUIVADO
+                            (confirmacao | desconhecimento |
+                             operacao_nao_realizada)
+                                     │
+                                     ▼
+                               CLASSIFICADO ─▶ ESCRITURADO
 ```
 
-- **`CIENCIA_DADA` é automática e imediata**, sob qualquer score — é o que libera o download do XML completo (PRD §5.2).
+- Para NF-e recebida como `resNFe`, **`CIENCIA_DADA` é automática**, sob qualquer score — é o que libera a obtenção do `procNFe` completo (PRD §5.2). CT-e não percorre essa transição.
+- NF-e já recebida como `procNFe` e CT-e completo ingressam diretamente em `XML_COMPLETO_OBTIDO`, sem fabricar Ciência.
 - **`MANIFESTADO` só se alcança com aprovação humana registrada** para confirmação, desconhecimento e operação não realizada. Não existe caminho automático. (I-5)
 - Transição registra **autor (agente ou usuário), tipo, horário, score e aprovador** — imutável.
 - `ARQUIVADO` não apaga: o documento continua recuperável (I-7).
