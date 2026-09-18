@@ -10,7 +10,7 @@
 >
 > **Dependências:** F2 / SPEC-002 e F3 / SPEC-003
 >
-> **Issue:** ainda não criada
+> **Issue:** #5
 
 ## 1. Objetivo
 
