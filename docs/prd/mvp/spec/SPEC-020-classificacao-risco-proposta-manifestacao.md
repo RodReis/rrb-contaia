@@ -6,7 +6,7 @@
 >
 > **Estado:** aprovada pelo PI em 18/09/2026
 >
-> **Tamanho:** Grande e delimitada — entrega configuração mínima, classificação híbrida e proposta auditável; inbox, HITL e transmissão ficam em capacidade própria posterior
+> **Tamanho:** Grande e delimitada — entrega configuração mínima, classificação híbrida e proposta auditável; inbox, HITL e transmissão ficam na F21 / SPEC-021
 >
 > **Ambiente:** Docker local, com modelos dublados ou locais e dados de teste; produção permanece no gate posterior ao MVP-4
 >
@@ -104,7 +104,7 @@ Nenhuma faixa autoriza autoaprovação ou transmissão.
 - `210240` é sempre hipótese de participação reconhecida cuja operação pode não ter ocorrido ou se efetivado como descrita;
 - `ABSTER_SE` indica que o sistema não possui base suficiente para recomendar um dos três atos.
 
-A F20 nunca afirma como fato que uma operação não ocorreu. Para `210240`, a justificativa da proposta lista somente sinais e lacunas; o texto formal exigido pela Sefaz, com 15 a 255 caracteres, será informado e aprovado pelo humano na capacidade posterior.
+A F20 nunca afirma como fato que uma operação não ocorreu. Para `210240`, a justificativa da proposta lista somente sinais e lacunas; o texto formal exigido pela Sefaz, com 15 a 255 caracteres, será informado e aprovado pelo humano na F21 / SPEC-021.
 
 ### 3.6 Idempotência, versão e reprocessamento
 
@@ -240,9 +240,9 @@ Erros usam `application/problem+json`. Códigos estáveis mínimos:
 
 | Complemento | Destino obrigatório |
 |---|---|
-| Inbox, filtros operacionais e priorização HITL | MVP-1 · próxima capacidade própria de manifestações, ainda não numerada |
-| Aprovação, rejeição, ação em lote e feedback humano | mesma capacidade posterior do MVP-1 |
-| Justificativa formal de `210240`, assinatura, transmissão, reconciliação, retry e protocolo Sefaz | mesma capacidade posterior do MVP-1 |
+| Inbox, filtros operacionais e priorização HITL | MVP-1 · F21 / SPEC-021 |
+| Aprovação, rejeição, ação em lote e feedback humano | MVP-1 · F21 / SPEC-021 |
+| Justificativa formal de `210240`, assinatura, transmissão, reconciliação, retry e protocolo Sefaz | MVP-1 · F21 / SPEC-021 |
 | Agenda do prazo conclusivo e alertas D-3 | MVP-1 · capacidade de agenda mínima e alertas D-3 a numerar |
 | Aprendizado automático com feedback e recalibração produtiva | MVP-2 · evolução dos agentes/classificadores |
 | Classificação contábil, CFOP, conta e centro de custo | MVP-2 · Agente Classificador do PRD §10.3 |
@@ -252,7 +252,7 @@ Erros usam `application/problem+json`. Códigos estáveis mínimos:
 
 | Tema | Decisão |
 |---|---|
-| Decomposição | F20 classifica e propõe; inbox, HITL e transmissão ficam na capacidade seguinte |
+| Decomposição | F20 classifica e propõe; inbox, HITL e transmissão ficam na F21 / SPEC-021 |
 | Motor | híbrido: regras determinísticas e LLM somente na ambiguidade, com fallback seguro |
 | Regras do cliente | configuração mínima de fornecedores aprovados e limite entra na F20 |
 | Tipos | pode sugerir `210200`, `210220`, `210240` ou abster-se |
