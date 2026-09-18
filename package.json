@@ -28,7 +28,8 @@
     "@playwright/test": "1.63.0",
     "turbo": "2.10.13",
     "typescript": "5.9.3",
-    "vitest": "3.2.7"
+    "vitest": "3.2.7",
+    "yaml": "2.8.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

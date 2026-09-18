@@ -89,6 +89,27 @@ for (const dir of REQUIRED_PACKAGES) {
   }
 }
 
+// Workflow invalido falha no runner em 0s, sem reportar check algum na PR — o
+// que deixa a PR sem prova em vez de vermelha. Um `: ` dentro de um escalar nao
+// citado basta para isso, entao o parse e verificado aqui.
+const workflow = await readFile(new URL('.github/workflows/ci.yml', root), 'utf8').catch(
+  () => null,
+);
+
+if (workflow === null) {
+  fail('.github/workflows/ci.yml ausente');
+} else {
+  try {
+    const { parse } = await import('yaml');
+    const documento = parse(workflow);
+    const jobs = Object.keys(documento?.jobs ?? {});
+
+    if (!jobs.includes('gate')) fail('ci.yml não declara o job `gate`');
+  } catch (erro) {
+    fail(`ci.yml não é YAML válido: ${erro instanceof Error ? erro.message : String(erro)}`);
+  }
+}
+
 const nvmrc = await readFile(new URL('.nvmrc', root), 'utf8').catch(() => null);
 if (nvmrc !== null && nvmrc.trim() !== '24.15.0') {
   fail(`.nvmrc deve fixar 24.15.0 (encontrado: ${nvmrc.trim()})`);

@@ -32,7 +32,9 @@ jobs:
       - run: pnpm typecheck
       - name: Resumo da categoria
         if: always()
-        run: node scripts/ci/write-summary.mjs quality "$PROVA_ESCOPO" "categoria sem suíte de teste: lint, typecheck e self-check reportam pelo próprio job"
+        run: >-
+          node scripts/ci/write-summary.mjs quality "$PROVA_ESCOPO"
+          "categoria sem suíte própria — lint, typecheck e os self-checks reportam por este job"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
