@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001, F2/SPEC-002 e F3/SPEC-003 aprovadas · F4/SPEC-004, F5/SPEC-005 e F6/SPEC-006 em revisão
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F6/SPEC-006 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
