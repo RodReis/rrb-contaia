@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F13/SPEC-013 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F14/SPEC-014 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -14,9 +14,10 @@ O MVP prova o comportamento em Docker local com os dados, seeds, fixtures, dubl�
 
 - `admin_escritorio`: configura o escritório, usuários, empresas, carteira e certificados de teste.
 - `contador` e `auxiliar`: operam captura, triagem, agenda e dashboard dentro da carteira.
+- `dp`: importa empregados dentro da carteira; o domínio funcional de DP permanece no MVP-3.
 - `auditor_readonly`: consulta dados e trilhas sem alterar estado.
 
-`cliente_portal`, DP e super-admin completo não entram neste MVP.
+`cliente_portal`, o domínio funcional de DP e o super-admin completo não entram neste MVP.
 
 ## 2.1 Contrato transversal de UI
 
@@ -40,7 +41,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F11 / SPEC-011:** cofre local persistente com certificados A1 exclusivamente de teste, validação, rotação, responsável, alertas, pendências e auditoria.
 - [ ] **F12 / SPEC-012:** Signer isolado, assinatura XML e mTLS contra dublês locais de DF-e e eSocial, com idempotência, auditoria, monitoramento e painel operacional.
 - [ ] **F13 / SPEC-013:** importação e reimportação do plano de contas por CSV, com mapeamento de colunas, staging assíncrono, aceitação parcial, confirmação, relatório e histórico.
-- [ ] **F14 / SPEC-014:** importação de empregados por CSV, sem antecipar o domínio de DP; escopo detalhado ainda será especificado.
+- [ ] **F14 / SPEC-014:** importação e reimportação de empregados por CSV, com CPF + matrícula como chave, mapeamento, staging assíncrono, aceitação parcial, confirmação, relatório, histórico, pendência e consulta, sem antecipar o domínio funcional de DP.
 - [ ] **F15 / SPEC-015:** ampliação do onboarding para planilhas XLSX/ODS; escopo detalhado ainda será especificado.
 - [ ] Motor tributário base versionado e leitura inicial de IBS/CBS.
 - [ ] Captura DF-e por estado de NSU, idempotência e respeito ao `tempoMedio`.
