@@ -1,0 +1,43 @@
+{
+  "realm": "contaia",
+  "enabled": true,
+  "displayName": "ContaIA (local)",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "admin_escritorio", "description": "Administrador do escritorio contabil" },
+      { "name": "contador", "description": "Contador responsavel por carteira de empresas" },
+      { "name": "auxiliar", "description": "Auxiliar contabil" },
+      { "name": "gestor_financeiro", "description": "Gestor financeiro do escritorio" },
+      { "name": "dp", "description": "Departamento pessoal" },
+      { "name": "cliente_portal", "description": "Usuario do portal do cliente" },
+      { "name": "auditor_readonly", "description": "Auditor com acesso somente de leitura" },
+      { "name": "super_admin", "description": "Super administrador da plataforma" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "contaia-web",
+      "name": "ContaIA Web (local)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "contaia-web-local-secret",
+      "redirectUris": ["http://127.0.0.1:15100/*", "http://localhost:15100/*"],
+      "webOrigins": ["http://127.0.0.1:15100", "http://localhost:15100"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://127.0.0.1:15100/*"
+      }
+    }
+  ]
+}

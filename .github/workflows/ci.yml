@@ -1,0 +1,210 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Push novo mata a rodada anterior: a economia mais barata que existe (CI-PR.md §3.3).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROVA_ESCOPO: INFRA-1
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:workspace
+      - run: pnpm check:gate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: Resumo da categoria
+        if: always()
+        run: >-
+          node scripts/ci/write-summary.mjs quality "$PROVA_ESCOPO"
+          "categoria sem suíte própria — lint, typecheck e os self-checks reportam por este job"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resumo-quality
+          # Mesma raiz dos demais jobs: o gate filtra por `*resumos*`, e publicar
+          # so o conteudo da pasta deixaria o resumo fora do filtro.
+          path: test-results/${{ env.PROVA_ESCOPO }}/
+
+  test-regras:
+    name: test-regras
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:regras
+      - name: Resumo da categoria
+        if: always()
+        run: node scripts/ci/write-summary.mjs regras "$PROVA_ESCOPO"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-regras
+          path: test-results/${{ env.PROVA_ESCOPO }}/
+
+  test-banco:
+    name: test-banco
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: contaia
+          POSTGRES_USER: contaia
+          POSTGRES_PASSWORD: contaia_local
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U contaia -d contaia"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:5432/contaia
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm test:banco
+      - name: Resumo da categoria
+        if: always()
+        run: node scripts/ci/write-summary.mjs banco "$PROVA_ESCOPO"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-banco
+          path: test-results/${{ env.PROVA_ESCOPO }}/
+
+  test-tela:
+    name: test-tela
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:tela
+      - name: Resumo da categoria
+        if: always()
+        run: node scripts/ci/write-summary.mjs tela "$PROVA_ESCOPO"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-tela
+          path: test-results/${{ env.PROVA_ESCOPO }}/
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache dos navegadores do Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm test:e2e
+      - name: Resumo da categoria
+        if: always()
+        run: node scripts/ci/write-summary.mjs e2e "$PROVA_ESCOPO"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-e2e
+          path: test-results/${{ env.PROVA_ESCOPO }}/
+
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Consolida e valida; nao reexecuta suite (CI-PR.md §2).
+    needs: [quality, test-regras, test-banco, test-tela, build, e2e]
+    if: always()
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: Recolher artefatos das categorias
+        uses: actions/download-artifact@v5
+        with:
+          path: artefatos
+          merge-multiple: true
+      - name: Reunir os resumos
+        run: |
+          mkdir -p "test-results/$PROVA_ESCOPO/resumos"
+          find artefatos -name '*.json' -path '*resumos*' -exec cp {} "test-results/$PROVA_ESCOPO/resumos/" \; || true
+          ls -la "test-results/$PROVA_ESCOPO/resumos/"
+      - name: Reprovar se algum job obrigatório não teve sucesso
+        run: |
+          # Nome com hifen exige indice: `needs.test-regras` seria lido como subtracao.
+          for resultado in "${{ needs.quality.result }}" "${{ needs['test-regras'].result }}" \
+                           "${{ needs['test-banco'].result }}" "${{ needs['test-tela'].result }}" \
+                           "${{ needs.build.result }}" "${{ needs.e2e.result }}"; do
+            if [ "$resultado" != "success" ]; then
+              echo "::error::job obrigatório terminou como '$resultado'"
+              exit 1
+            fi
+          done
+      - name: Validar as categorias obrigatórias
+        run: node scripts/ci/validate-gate.mjs "test-results/$PROVA_ESCOPO/resumos"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-resumo
+          path: test-results/${{ env.PROVA_ESCOPO }}/resumos/

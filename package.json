@@ -1,0 +1,42 @@
+{
+  "name": "rrb-contaia",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test:regras": "turbo run test:regras",
+    "test:banco": "turbo run test:banco",
+    "test:tela": "turbo run test:tela",
+    "test:e2e": "playwright test",
+    "db:generate": "pnpm --filter @contaia/db db:generate",
+    "db:migrate": "pnpm --filter @contaia/db db:migrate",
+    "check:workspace": "node scripts/ci/validate-workspace.mjs",
+    "check:gate": "node --test scripts/ci/validate-gate.test.mjs",
+    "docker:up": "docker compose --env-file .env -f infra/docker/compose.yml up -d",
+    "docker:down": "docker compose --env-file .env -f infra/docker/compose.yml down",
+    "docker:ps": "docker compose --env-file .env -f infra/docker/compose.yml ps"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "turbo": "2.10.13",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7",
+    "yaml": "2.8.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "unrs-resolver",
+      "sharp",
+      "@swc/core"
+    ]
+  }
+}
