@@ -32,7 +32,7 @@ Esta fatia entrega:
 - reprocessamento controlado a partir do original preservado;
 - painel técnico por empresa para consultar processamento, metadados, integridade e original.
 
-A F18 não altera `ultNSU`, não captura NFS-e, não executa Ciência da Emissão, não classifica risco e não cria inbox ou qualquer outra manifestação.
+A F18 não altera `ultNSU`, não captura NFS-e, não executa Ciência da Emissão, não classifica risco e não cria inbox ou qualquer outra manifestação. A NF-e normalizada segue para a classificação da F20.
 
 ## 3. Comportamento esperado
 

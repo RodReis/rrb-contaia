@@ -44,7 +44,7 @@
 | RF-01 §4.5 Cofre com KMS/HSM gerenciado | P0 | **Transferido** | Etapa de produção após o MVP-4 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §4 · [ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) | — |
 | **RF-02** Captura automática de documentos fiscais | P0 | Mantido | MVP-1 | F17 / SPEC-017 e capacidades posteriores do RF-02 |
 | RF-02 §5.1 DF-e com fila por NSU e intermediário alternativo | P0 | Mantido | MVP-1 | F17 / SPEC-017; conectores externos no GATE do MVP-1 |
-| RF-02 §5.2 Manifestação: ciência automática + inbox de aprovação | P0 | Mantido | MVP-1 | F19 / SPEC-019 para Ciência automática de NF-e 55; inbox e manifestações conclusivas em capacidade própria posterior do MVP-1 |
+| RF-02 §5.2 Manifestação: ciência automática + análise, inbox e aprovação | P0 | Mantido | MVP-1 | F19 / SPEC-019 para Ciência automática; F20 / SPEC-020 para classificação de risco e proposta; inbox, aprovação e transmissão em capacidade própria posterior do MVP-1 |
 | RF-02 §5.3 Parse, IBS/CBS, XML original com hash, idempotência | P0 | Mantido | MVP-1 | F18 / SPEC-018 para NF-e 55 e CT-e; NFS-e e eventos nas capacidades próprias do MVP-1 |
 | RF-02 §5.1 NFS-e de municípios fora do padrão nacional | — | **Excluído** | PRD §1.5 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §2 | — |
 | **RF-03** Motor de regras tributárias (base) | P0 | Mantido | MVP-1 | F16 / SPEC-016 |
@@ -62,7 +62,7 @@
 | RF-06 §9.2 Portal do cliente white-label | MVP-3 | Transferido | MVP-3 | — |
 | RF-06 §9.2 Copiloto Contábil | MVP-3 | Transferido | MVP-3 | — |
 | RF-06 §9.3 Canal ativo WhatsApp/Telegram | MVP-3 | Transferido | MVP-3 | — |
-| **RF-07** Agente de Captura | P1 | Mantido | MVP-1 | — |
+| **RF-07** Agente de Captura | P1 | Mantido | MVP-1 | F17 / SPEC-017 a F20 / SPEC-020 e capacidades posteriores de manifestação |
 | RF-07 §10.5 Compliance inicial (agenda e alertas de vencimento) | P1 | Mantido | MVP-1 | — |
 | RF-07 §10.5 Compliance completo e rascunhos de entrega | P1 | Transferido | MVP-2 | — |
 | RF-07 §10.3 Agente Classificador | P1 | Transferido | MVP-2 | — |

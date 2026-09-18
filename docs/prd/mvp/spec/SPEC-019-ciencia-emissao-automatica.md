@@ -138,7 +138,7 @@ A lista e o detalhe técnico documental entregues pela F18 passam a mostrar:
 - ação de retomada técnica para `admin_escritorio`, `contador` e `auxiliar` da carteira quando o estado permitir;
 - histórico somente leitura para `auditor_readonly`.
 
-Não existe botão para aprovar Ciência, escolher manifestação conclusiva ou editar protocolo. Inbox, score, justificativa e aprovação humana pertencem à F20.
+Não existe botão para aprovar Ciência, escolher manifestação conclusiva ou editar protocolo. Score, risco e proposta pertencem à F20; inbox, justificativa humana e aprovação pertencem à capacidade posterior própria.
 
 ### 5.2 Estados obrigatórios
 
@@ -260,8 +260,8 @@ Os endpoints somente consultam ou retomam o fluxo automático; não permitem cri
 
 | Complemento | Destino obrigatório |
 |---|---|
-| Score, análise de risco e sugestão conclusiva | MVP-1 · F20, inbox e aprovação das demais manifestações |
-| Confirmação, desconhecimento e operação não realizada | MVP-1 · F20, sempre após aprovação humana registrada |
+| Score, análise de risco e sugestão conclusiva | MVP-1 · F20 / SPEC-020, sem aprovação ou transmissão |
+| Inbox, aprovação, confirmação, desconhecimento e operação não realizada | MVP-1 · capacidade própria posterior, sempre após aprovação humana registrada |
 | Agenda do prazo de manifestação conclusiva | MVP-1 · capacidade de agenda mínima e alertas D-3 a numerar |
 | Ciência ou eventos equivalentes de CT-e | não pertencem ao contrato de Ciência da Emissão da NF-e; qualquer evento CT-e exige capacidade própria aprovada pelo PI |
 | Captura e parse de NFS-e | MVP-1 · capacidade própria de NFS-e a decompor |
