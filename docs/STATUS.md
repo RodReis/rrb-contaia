@@ -19,7 +19,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Contratos de engenharia | escritos: arquitetura, domínio, frontend, git, PR, CI, teste, revisão, auditoria |
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
-| Fatias/SPECs | F1/SPEC-001 a F9/SPEC-009 aprovadas |
+| Fatias/SPECs | F1/SPEC-001 a F11/SPEC-011 aprovadas |
 | Código | bootstrap local entregue (#1): monorepo, Docker, shells de Web, API, workers e Signer, migrations, testes e CI |
 
 ---
@@ -55,8 +55,9 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-1 | F8 | SPEC-008 | PRD §§4.3, 4.4 e 15 | Papéis personalizados e permissões | #10 | `proplan:backlog` |
 | MVP-1 | F9 | SPEC-009 | PRD §§4.3, 4.4, 4.6 e 15 | Carteira do colaborador e isolamento por empresa | #11 | `proplan:backlog` |
 | MVP-1 | F10 | SPEC-010 | PRD §§3, 4.4 e 4.6 | RLS de dois níveis e provas negativas | #12 | `proplan:backlog` |
+| MVP-1 | F11 | SPEC-011 | PRD §§4.5, 4.6, 15 e 16 | Cofre local de certificados A1 | #13 | `proplan:backlog` |
 
-**Próximo número livre: F11 / SPEC-011.**
+**Próximo número livre: F12 / SPEC-012.**
 
 ---
 

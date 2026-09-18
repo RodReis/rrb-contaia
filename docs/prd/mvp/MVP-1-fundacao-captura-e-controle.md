@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F9/SPEC-009 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F11/SPEC-011 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -37,7 +37,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F8 / SPEC-008:** papéis personalizados por snapshot de um papel padrão, com permissões controladas por módulo, funcionalidade e ação, aplicação na próxima requisição e auditoria.
 - [ ] **F9 / SPEC-009:** carteira do colaborador, gestão individual e em lote, isolamento por empresa, notificações e auditoria.
 - [ ] **F10 / SPEC-010:** RLS de dois níveis integrada à carteira, contextos humano e técnico, provas negativas entre tenants e empresas e anti-drift automático.
-- [ ] Cofre local com certificados exclusivamente de teste.
+- [ ] **F11 / SPEC-011:** cofre local persistente com certificados A1 exclusivamente de teste, validação, rotação, responsável, alertas, pendências e auditoria.
 - [ ] Signer isolado e assinatura/mTLS simulada ou em homologação.
 - [ ] Importação do plano de contas por CSV, com aceitação parcial e relatório de erros.
 - [ ] Importação de empregados por CSV, sem antecipar o domínio de DP.
