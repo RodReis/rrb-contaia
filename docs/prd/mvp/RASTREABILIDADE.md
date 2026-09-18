@@ -30,7 +30,9 @@
 | RF-01 §4.1 Cadastro, consulta e edição do escritório | P0 | Mantido | MVP-1 | F1 / SPEC-001 |
 | RF-01 §4.1 Arquivamento/ciclo de vida do tenant | P0 | Transferido | MVP-4, junto ao RF-08 e ao super-admin | — |
 | RF-01 §4.1 Cadastro de empresas clientes (CRUD) | P0 | Mantido | MVP-1 | F2 / SPEC-002 · F3 / SPEC-003 · F4 / SPEC-004 · F5 / SPEC-005 · F6 / SPEC-006 |
-| RF-01 §4.2 Onboarding com importação CSV (plano de contas, empregados) | P0 | Mantido | MVP-1 | — |
+| RF-01 §4.2 Onboarding com importação do plano de contas por CSV | P0 | Mantido | MVP-1 | F13 / SPEC-013 |
+| RF-01 §4.2 Onboarding com importação de empregados por CSV | P0 | Mantido | MVP-1 | F14 / SPEC-014 |
+| RF-01 §4.2 Onboarding com importação por XLSX/ODS | P0 | Mantido | MVP-1 | F15 / SPEC-015 |
 | RF-01 §4.3 Usuários e papéis padrão | P0 | Mantido | MVP-1 | F7 / SPEC-007 |
 | RF-01 §4.3 Papéis personalizados e permissões por módulo, funcionalidade e ação | P0 | Mantido | MVP-1 | F8 / SPEC-008 |
 | RF-01 §4.3 Carteira/alçada | P0 | Mantido | MVP-1 | F9 / SPEC-009 |

@@ -57,8 +57,11 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-1 | F10 | SPEC-010 | PRD §§3, 4.4 e 4.6 | RLS de dois níveis e provas negativas | #12 | `proplan:backlog` |
 | MVP-1 | F11 | SPEC-011 | PRD §§4.5, 4.6, 15 e 16 | Cofre local de certificados A1 | #13 | `proplan:backlog` |
 | MVP-1 | F12 | SPEC-012 | PRD §§4.5, 4.6, 14, 15 e 16 | Signer isolado e assinatura/mTLS simulada | #14 | `proplan:backlog` |
+| MVP-1 | F13 | SPEC-013 | PRD §§4.2, 15 e 16 | Importação do plano de contas por CSV | #15 | `proplan:backlog` |
+| MVP-1 | F14 | SPEC-014 | PRD §§4.2, 8.1, 15 e 16 | Importação de empregados por CSV | — | reservada pelo PI; SPEC a definir |
+| MVP-1 | F15 | SPEC-015 | PRD §§4.2, 15 e 16 | Importação de planilhas XLSX/ODS | — | reservada pelo PI; SPEC a definir |
 
-**Próximo número livre: F13 / SPEC-013.**
+**Próximo número livre: F16 / SPEC-016.**
 
 ---
 
