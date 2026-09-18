@@ -37,7 +37,8 @@
 | RF-01 §4.4 RLS de dois níveis | P0 | Mantido | MVP-1 | F10 / SPEC-010 |
 | RF-01 §4.4 impersonation auditada | P0 | Transferido | MVP-4; caminho de serviço só é exercido após o super-admin existir | — |
 | RF-01 §4.5 Cofre A1 | P0 | Mantido | MVP-1 | F11 / SPEC-011 |
-| RF-01 §4.5 Signer e procuração RFB/e-CAC | P0 | Mantido | MVP-1 | — |
+| RF-01 §4.5 Signer isolado, assinatura e mTLS local | P0 | Mantido | MVP-1 | F12 / SPEC-012 |
+| RF-01 §4.5 Procuração RFB/e-CAC | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.5 Cofre com KMS/HSM gerenciado | P0 | **Transferido** | Etapa de produção após o MVP-4 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §4 · [ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md) | — |
 | **RF-02** Captura automática de documentos fiscais | P0 | Mantido | MVP-1 | — |
 | RF-02 §5.1 DF-e com fila por NSU e intermediário alternativo | P0 | Mantido | MVP-1 | — |
