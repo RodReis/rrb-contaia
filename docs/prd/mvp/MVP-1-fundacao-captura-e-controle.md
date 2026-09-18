@@ -36,7 +36,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F7 / SPEC-007:** usuários, convites, ciclo de vida e papéis padrão.
 - [ ] **F8 / SPEC-008:** papéis personalizados por snapshot de um papel padrão, com permissões controladas por módulo, funcionalidade e ação, aplicação na próxima requisição e auditoria.
 - [ ] **F9 / SPEC-009:** carteira do colaborador, gestão individual e em lote, isolamento por empresa, notificações e auditoria.
-- [ ] RLS de dois níveis, incluindo provas negativas entre tenants e empresas.
+- [ ] **F10 / SPEC-010:** RLS de dois níveis integrada à carteira, contextos humano e técnico, provas negativas entre tenants e empresas e anti-drift automático.
 - [ ] Cofre local com certificados exclusivamente de teste.
 - [ ] Signer isolado e assinatura/mTLS simulada ou em homologação.
 - [ ] Importação do plano de contas por CSV, com aceitação parcial e relatório de erros.
