@@ -188,8 +188,9 @@ jobs:
           ls -la "test-results/$PROVA_ESCOPO/resumos/"
       - name: Reprovar se algum job obrigatório não teve sucesso
         run: |
-          for resultado in "${{ needs.quality.result }}" "${{ needs.test-regras.result }}" \
-                           "${{ needs.test-banco.result }}" "${{ needs.test-tela.result }}" \
+          # Nome com hifen exige indice: `needs.test-regras` seria lido como subtracao.
+          for resultado in "${{ needs.quality.result }}" "${{ needs['test-regras'].result }}" \
+                           "${{ needs['test-banco'].result }}" "${{ needs['test-tela'].result }}" \
                            "${{ needs.build.result }}" "${{ needs.e2e.result }}"; do
             if [ "$resultado" != "success" ]; then
               echo "::error::job obrigatório terminou como '$resultado'"
