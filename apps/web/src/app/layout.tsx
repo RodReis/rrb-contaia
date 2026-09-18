@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   description: 'Plataforma contábil do ContaIA.',
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="pt-BR"
