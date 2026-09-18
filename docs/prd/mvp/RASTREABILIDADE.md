@@ -4,7 +4,7 @@
 > **Ausência na matriz bloqueia aprovação documental** — um requisito sem linha aqui não foi decidido, foi esquecido.
 > Mantida pelo **Cowork**. Regras de governança em [`README.md`](README.md).
 
-**Atualizada em:** 17/09/2026 · **Base:** PRD v3.1 (17/09/2026)
+**Atualizada em:** 18/09/2026 · **Base:** PRD v3.1 (17/09/2026)
 
 ---
 
@@ -31,7 +31,9 @@
 | RF-01 §4.1 Arquivamento/ciclo de vida do tenant | P0 | Transferido | MVP-4, junto ao RF-08 e ao super-admin | — |
 | RF-01 §4.1 Cadastro de empresas clientes (CRUD) | P0 | Mantido | MVP-1 | F2 / SPEC-002 · F3 / SPEC-003 · F4 / SPEC-004 · F5 / SPEC-005 · F6 / SPEC-006 |
 | RF-01 §4.2 Onboarding com importação CSV (plano de contas, empregados) | P0 | Mantido | MVP-1 | — |
-| RF-01 §4.3 Usuários, papéis e carteira | P0 | Mantido | MVP-1 | — |
+| RF-01 §4.3 Usuários e papéis padrão | P0 | Mantido | MVP-1 | F7 / SPEC-007 |
+| RF-01 §4.3 Papéis personalizados e permissões | P0 | Mantido | MVP-1 | F8 / SPEC-008 |
+| RF-01 §4.3 Carteira/alçada | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.4 RLS de dois níveis | P0 | Mantido | MVP-1 | — |
 | RF-01 §4.4 impersonation auditada | P0 | Transferido | MVP-4; caminho de serviço só é exercido após o super-admin existir | — |
 | RF-01 §4.5 Cofre A1, Signer e procuração RFB/e-CAC | P0 | Mantido | MVP-1 | — |
