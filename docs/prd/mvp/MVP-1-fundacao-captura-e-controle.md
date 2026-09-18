@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F14/SPEC-014 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F15/SPEC-015 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -42,7 +42,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F12 / SPEC-012:** Signer isolado, assinatura XML e mTLS contra dublês locais de DF-e e eSocial, com idempotência, auditoria, monitoramento e painel operacional.
 - [ ] **F13 / SPEC-013:** importação e reimportação do plano de contas por CSV, com mapeamento de colunas, staging assíncrono, aceitação parcial, confirmação, relatório e histórico.
 - [ ] **F14 / SPEC-014:** importação e reimportação de empregados por CSV, com CPF + matrícula como chave, mapeamento, staging assíncrono, aceitação parcial, confirmação, relatório, histórico, pendência e consulta, sem antecipar o domínio funcional de DP.
-- [ ] **F15 / SPEC-015:** ampliação do onboarding para planilhas XLSX/ODS; escopo detalhado ainda será especificado.
+- [ ] **F15 / SPEC-015:** importação de plano de contas e empregados por XLSX/ODS, com escolha de aba e cabeçalho, adaptadores normalizados e equivalência integral às regras CSV das F13/F14.
 - [ ] Motor tributário base versionado e leitura inicial de IBS/CBS.
 - [ ] Captura DF-e por estado de NSU, idempotência e respeito ao `tempoMedio`.
 - [ ] Parse e armazenamento de XML, hash e campos IBS/CBS.
@@ -67,7 +67,7 @@ O Agente de Captura e o Compliance inicial não são componentes isolados: entra
 | Item do PRD | Estado neste MVP | Complemento/destino |
 |---|---|---|
 | RF-01 cadastro, usuários, carteira e RLS | entrou parcialmente | usuários e papéis padrão em F7; papéis personalizados, catálogo e matriz de autorização em F8; carteira e alçada por empresa em F9; RLS em fatia própria posterior do MVP-1 |
-| RF-01 onboarding CSV | entrou parcialmente | plano de contas CSV em F13; empregados CSV em F14; XLSX/ODS em F15; empregado importado passa ao domínio de DP no MVP-3 |
+| RF-01 onboarding CSV/planilha | entrou | plano de contas CSV em F13; empregados CSV em F14; XLSX/ODS para ambos em F15; empregado importado passa ao domínio funcional de DP no MVP-3 |
 | RF-01 cofre A1 e Signer | entrou parcialmente | material real, KMS/HSM e infraestrutura produtiva no gate pós-MVP-4 |
 | RF-02 captura, parse, NSU e manifestações | entrou | prova externa somente em homologação não produtiva |
 | RF-03 motor tributário | entrou parcialmente | apuração, guias, escrituração e SPED no MVP-2 |
