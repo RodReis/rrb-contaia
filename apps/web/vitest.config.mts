@@ -19,7 +19,7 @@ export default defineConfig({
     pool: 'threads',
     reporters: process.env['CI'] ? ['default', 'junit'] : ['default'],
     outputFile: {
-      junit: `../../test-results/${escopo}/tela/web-junit.xml`,
+      junit: 'test-results/tela/web-junit.xml',
     },
     coverage: {
       provider: 'v8',

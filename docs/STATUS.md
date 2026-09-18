@@ -4,13 +4,13 @@
 > O **Índice Fatia ↔ SPEC** (§3) é **fonte única da numeração** e é mantido pelo **Cowork**. O **progresso** (§2) é mantido pelo **Code**, dentro da PR.
 > Em conflito de merge neste arquivo: **a versão da `main` vence**; o Code reaplica só o próprio progresso (`CLAUDE.md`).
 
-**Atualizado em:** 17/09/2026
+**Atualizado em:** 18/09/2026
 
 ---
 
 ## 1. Onde o projeto está
 
-Fase de **documentação e contratos**. Não há código de aplicação no repositório.
+Fase de **fundação executável**. O bootstrap local está no repositório; nenhuma regra de produto foi implementada.
 
 | Frente | Situação |
 |---|---|
@@ -20,7 +20,7 @@ Fase de **documentação e contratos**. Não há código de aplicação no repos
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
 | Fatias/SPECs | F1/SPEC-001 a F6/SPEC-006 aprovadas |
-| Código | não iniciado |
+| Código | bootstrap local entregue (#1): monorepo, Docker, shells de Web, API, workers e Signer, migrations, testes e CI |
 
 ---
 
@@ -30,9 +30,9 @@ Fase de **documentação e contratos**. Não há código de aplicação no repos
 |---|---|
 | `proplan:planejado` | — |
 | `proplan:backlog` | #6 F5/SPEC-005 · #7 F6/SPEC-006 |
-| `proplan:todo` | #1 `[INFRA] Bootstrap local do MVP-1` · #2 F1/SPEC-001 · #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 |
+| `proplan:todo` | #2 F1/SPEC-001 · #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 |
 | `proplan:doing` | — |
-| `proplan:done` | — |
+| `proplan:done` | #1 `[INFRA] Bootstrap local do MVP-1` |
 | `finalizado` | — |
 
 Quem move o quê: `CLAUDE.md`, "Ciclo de vida do card".

@@ -12,7 +12,7 @@ export default defineConfig({
     pool: 'threads',
     reporters: process.env['CI'] ? ['default', 'junit'] : ['default'],
     outputFile: {
-      junit: `../../test-results/${escopo}/regras/api-junit.xml`,
+      junit: 'test-results/regras/api-junit.xml',
     },
     coverage: {
       provider: 'v8',

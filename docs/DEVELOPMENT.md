@@ -13,19 +13,31 @@ Do MVP-1 ao MVP-4, existe somente o ambiente Docker local definido na [ADR-012](
 
 | Item | Versão |
 |---|---|
-| Node.js | 24 LTS |
-| pnpm | corrente (fixado em `packageManager`) |
-| Docker + Compose | corrente |
-| Python | fixado em `services/ai/.python-version` |
+| Node.js | 24.15.0 (`.nvmrc`) |
+| pnpm | 10.33.2 (fixado em `packageManager`) |
+| Docker + Compose | corrente (validado em 29.8.0) |
+| Python | fixado em `services/ai/.python-version` (serviço ainda não criado) |
 
 ### 1.2 Primeira subida
 
 ```bash
 pnpm install
-cp .env.example .env            # preencher segredos locais
-docker compose -f infra/docker/compose.yml up -d
+cp .env.example .env            # portas e credenciais locais, todas sintéticas
+pnpm docker:up                  # postgres, redis, keycloak e storage S3
 pnpm db:migrate
 pnpm dev
+```
+
+Portas reservadas para este projeto, verificadas como livres antes da primeira
+subida: Web `15100`, API `15101`, workers `15102`, Signer `15103`,
+PostgreSQL `15432`, Redis `16379`, Keycloak `18080`, storage `19000` e console
+`19001`. Todas publicadas apenas em `127.0.0.1`.
+
+Para parar e limpar **somente** os volumes deste projeto:
+
+```bash
+pnpm docker:down
+docker volume rm contaia_postgres contaia_redis contaia_minio
 ```
 
 - **Autorizado a subir o Docker se estiver parado.** Na primeira vez, **criar instância nova com portas novas** — nunca reutilizar as portas já configuradas de outro projeto (`CLAUDE.md`).
@@ -40,6 +52,12 @@ pnpm dev
 | `pnpm test:regras` / `test:banco` / `test:tela` / `test:e2e` | categorias de [`TESTING.md`](TESTING.md) |
 | `pnpm build` | build dos apps afetados |
 | `pnpm db:migrate` / `db:generate` | migrations (Drizzle) |
+| `pnpm docker:up` / `docker:down` / `docker:ps` | ambiente local |
+| `pnpm check:workspace` | self-check estrutural do monorepo |
+| `pnpm check:gate` | self-check do agregador da CI |
+
+O relatório por categoria sai em `test-results/<SPEC|INFRA>/`; defina
+`PROVA_ESCOPO` para nomear a pasta (ex.: `PROVA_ESCOPO=INFRA-1`).
 
 ---
 
@@ -50,7 +68,8 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 
 | # | Card | Fatia / SPEC | Situação | PR | Observação |
 |---|---|---|---|---|---|
-| — | — | — | — | — | fatiamento pendente (ver [`prd/mvp/README.md`](prd/mvp/README.md)) |
+| 1 | [#1](https://github.com/RodReis/rrb-contaia/issues/1) `[INFRA]` Bootstrap local do MVP-1 | — | entregue | #2 | precede a F1; sem F e sem SPEC |
+| 2 | [#2](https://github.com/RodReis/rrb-contaia/issues/2) `[MVP1][SPEC-001][F1]` Acesso inicial e conclusão do cadastro do escritório | F1 / SPEC-001 | a fazer | — | próximo `proplan:todo` |
 
 ---
 
@@ -58,7 +77,17 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 
 Detalhamento operacional de cada card em execução. Passo concluído fica marcado, com o PR que o entregou.
 
-_(preenchido pelo Code a cada card)_
+### Card #1 — `[INFRA]` Bootstrap local do MVP-1 (PR #2)
+
+- [x] Workspace pnpm + Turborepo, Node e pnpm fixados, TypeScript strict compartilhado
+- [x] `@contaia/config`, `@contaia/shared` e `@contaia/domain`, com teste que barra framework no domínio
+- [x] Shell Web em Next.js 16, tokens do design system nos dois temas e health check
+- [x] API NestJS 11 com health check, Vitest no lugar do Jest do scaffold
+- [x] Shells de workers e Signer, sem cofre, fila ou assinatura
+- [x] PostgreSQL com pgvector, Drizzle e migration técnica; role `contaia_app` sem `BYPASSRLS`
+- [x] Compose local com Redis, Keycloak e storage S3, portas próprias e health check real
+- [x] Smoke E2E, com prova de que reprova quando um serviço está fora
+- [x] CI paralela com gate agregador e resumo por categoria
 
 ---
 

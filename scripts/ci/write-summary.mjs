@@ -17,7 +17,9 @@ if (!categoria || !escopo) {
 }
 
 const raiz = join('test-results', escopo);
-const pastaCategoria = join(raiz, categoria);
+
+/** Cada pacote escreve em `<pacote>/test-results/<categoria>/`; o E2E, na raiz. */
+const PASTAS_DE_PACOTE = ['apps', 'packages'];
 
 const listarJunit = async (diretorio) => {
   const encontrados = [];
@@ -59,7 +61,27 @@ const somarAtributo = (xml, atributo) => {
   return total;
 };
 
-const arquivos = await listarJunit(pastaCategoria);
+const coletarDosPacotes = async () => {
+  const encontrados = [];
+
+  for (const grupo of PASTAS_DE_PACOTE) {
+    let pacotes;
+    try {
+      pacotes = await readdir(grupo, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const pacote of pacotes) {
+      if (!pacote.isDirectory()) continue;
+      encontrados.push(...(await listarJunit(join(grupo, pacote.name, 'test-results', categoria))));
+    }
+  }
+
+  return encontrados;
+};
+
+const arquivos = [...(await listarJunit(join(raiz, categoria))), ...(await coletarDosPacotes())];
 
 let total = 0;
 let falhou = 0;
@@ -73,7 +95,11 @@ for (const arquivo of arquivos) {
 }
 
 const semEvidencia = arquivos.length === 0;
-const motivo = motivoInformado ?? (semEvidencia ? 'nenhum relatório JUnit produzido' : null);
+
+// Sem relatorio e sem motivo declarado, a categoria fica `not_run` SEM motivo de
+// proposito: o gate reprova. Transformar ausencia de prova em passe silencioso e
+// exatamente o que CI-PR.md §4 proibe.
+const motivo = motivoInformado ?? null;
 
 const resumo = {
   categoria,
@@ -95,5 +121,5 @@ await writeFile(join(pastaResumos, `${categoria}.json`), `${JSON.stringify(resum
 
 console.log(
   `[resumo] ${categoria}: ${resumo.passou}/${resumo.total} passou, ${resumo.falhou} falhou` +
-    (resumo.not_run ? `, not_run (${resumo.motivo})` : ''),
+    (resumo.not_run ? `, not_run (${resumo.motivo ?? 'SEM MOTIVO DECLARADO'})` : ''),
 );

@@ -17,8 +17,10 @@ export const criarConfigVitest = ({
       setupFiles,
       pool: 'threads',
       reporters: process.env['CI'] ? ['default', 'junit'] : ['default'],
+      // Dentro do pacote: `outputs` do Turbo so captura caminho local, e um cache
+      // hit que nao recria o relatorio faria a categoria virar not_run silencioso.
       outputFile: {
-        junit: `../../test-results/${process.env['PROVA_ESCOPO'] ?? 'local'}/${categoria}/${escopo}-junit.xml`,
+        junit: `test-results/${categoria}/${escopo}-junit.xml`,
       },
       coverage: {
         provider: 'v8',
