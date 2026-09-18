@@ -39,7 +39,9 @@ jobs:
         if: always()
         with:
           name: resumo-quality
-          path: test-results/${{ env.PROVA_ESCOPO }}/resumos/
+          # Mesma raiz dos demais jobs: o gate filtra por `*resumos*`, e publicar
+          # so o conteudo da pasta deixaria o resumo fora do filtro.
+          path: test-results/${{ env.PROVA_ESCOPO }}/
 
   test-regras:
     name: test-regras
