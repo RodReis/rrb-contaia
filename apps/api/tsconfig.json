@@ -5,8 +5,7 @@
     "outDir": "./dist",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "verbatimModuleSyntax": false,
-    "incremental": true
+    "verbatimModuleSyntax": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
