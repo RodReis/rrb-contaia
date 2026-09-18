@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F16/SPEC-016 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F17/SPEC-017 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -44,7 +44,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F14 / SPEC-014:** importação e reimportação de empregados por CSV, com CPF + matrícula como chave, mapeamento, staging assíncrono, aceitação parcial, confirmação, relatório, histórico, pendência e consulta, sem antecipar o domínio funcional de DP.
 - [ ] **F15 / SPEC-015:** importação de plano de contas e empregados por XLSX/ODS, com escolha de aba e cabeçalho, adaptadores normalizados e equivalência integral às regras CSV das F13/F14.
 - [ ] **F16 / SPEC-016:** catálogo global de regras tributárias versionadas, publicação imutável, simulador determinístico manual e por NF-e de teste, com leitura inicial de IBS/CBS sem persistência documental.
-- [ ] Captura DF-e por estado de NSU, idempotência e respeito ao `tempoMedio`.
+- [ ] **F17 / SPEC-017:** captura DF-e de NF-e modelo 55 e CT-e por estado de NSU, com staging opaco, idempotência, consulta automática e sob demanda, respeito ao `tempoMedio`, retry, DLQ e bloqueio por Rejeição 656.
 - [ ] Parse e armazenamento de XML, hash e campos IBS/CBS.
 - [ ] Ciência da Emissão automática.
 - [ ] Inbox e aprovação humana das demais manifestações.
