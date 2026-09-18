@@ -275,8 +275,9 @@ Indisponibilidade da CNPJá durante a prova externa é registrada como `not_run`
 | Item | Destino |
 |---|---|
 | Edição por abas, múltiplos endereços, arquivamento e reativação | F3 / SPEC-003 — Manutenção da empresa cliente |
-| Upload, download, substituição e arquivamento de documentos | F4 / SPEC-004 — Documentos e pendências cadastrais |
-| Sino e Central de Pendências | F4 / SPEC-004 — Documentos e pendências cadastrais |
+| Upload, download, substituição e arquivamento de documentos | F4 / SPEC-004 — Documentos da empresa |
+| Central de Pendências e indicadores | F5 / SPEC-005 — Central de Pendências cadastrais |
+| Sino e histórico de notificações | F6 / SPEC-006 — Notificações de pendências |
 | Usuários adicionais, papéis e permissões | fatia própria posterior do MVP-1 |
 | Carteira do colaborador e acesso por empresa | fatia própria posterior do MVP-1 |
 | RLS de dois níveis nas tabelas operacionais | fatia própria posterior do MVP-1; esta fatia já prova isolamento das empresas por tenant |

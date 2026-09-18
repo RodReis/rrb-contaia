@@ -33,7 +33,7 @@ Sucesso significa editar dados permitidos sem alterar o CNPJ, preservar versões
 - O usuário pode alternar entre `ATIVA`, `CADASTRO_INCOMPLETO` e `ARQUIVADA`.
 - Empresas arquivadas aparecem somente quando o filtro `ARQUIVADA` estiver selecionado.
 - A edição da empresa ativa possui três abas: **Identificação**, **Dados fiscais** e **Endereços**.
-- A aba **Documentos**, uploads, pendências, sino e Central de Pendências pertencem integralmente à F4 / SPEC-004.
+- A aba **Documentos**, uploads e versões pertencem à F4 / SPEC-004; Central e indicadores à F5 / SPEC-005; sino e notificações à F6 / SPEC-006.
 
 ### 3.2 Identificação e dados fiscais
 
@@ -277,7 +277,8 @@ Indisponibilidade externa é registrada como `not_run` ou falha externa observad
 | Item | Destino |
 |---|---|
 | Aba Documentos, upload, download, substituição e arquivamento de arquivos | F4 / SPEC-004 |
-| Pendências documentais, sino e Central de Pendências | F4 / SPEC-004 |
+| Central de Pendências e indicadores | F5 / SPEC-005 |
+| Sino e histórico de notificações | F6 / SPEC-006 |
 | Usuários adicionais, papéis e permissões | fatia própria posterior do MVP-1 |
 | Carteira do colaborador e acesso por empresa | fatia própria posterior do MVP-1 |
 | RLS de dois níveis nas tabelas operacionais | fatia própria posterior do MVP-1; esta fatia já prova isolamento por tenant |

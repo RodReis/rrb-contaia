@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001, F2/SPEC-002 e F3/SPEC-003 aprovadas · F4/SPEC-004 planejada
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001, F2/SPEC-002 e F3/SPEC-003 aprovadas · F4/SPEC-004, F5/SPEC-005 e F6/SPEC-006 em revisão
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -30,7 +30,9 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F1 / SPEC-001:** autenticação OIDC, conclusão obrigatória e edição do cadastro do escritório.
 - [ ] **F2 / SPEC-002:** cadastro básico, consulta CNPJá, retomada e ativação da empresa cliente.
 - [ ] **F3 / SPEC-003:** manutenção da empresa cliente, múltiplos endereços, arquivamento e reativação.
-- [ ] **F4 / SPEC-004:** documentos da empresa, sino e Central de Pendências cadastrais.
+- [ ] **F4 / SPEC-004:** documentos e versões da empresa.
+- [ ] **F5 / SPEC-005:** Central de Pendências cadastrais e indicadores por empresa.
+- [ ] **F6 / SPEC-006:** sino, notificações e histórico de notificações de pendências.
 - [ ] Usuários, papéis e permissões.
 - [ ] Carteira do colaborador e isolamento por empresa.
 - [ ] RLS de dois níveis, incluindo provas negativas entre tenants e empresas.
