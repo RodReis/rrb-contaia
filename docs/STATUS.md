@@ -4,7 +4,7 @@
 > O **Índice Fatia ↔ SPEC** (§3) é **fonte única da numeração** e é mantido pelo **Cowork**. O **progresso** (§2) é mantido pelo **Code**, dentro da PR.
 > Em conflito de merge neste arquivo: **a versão da `main` vence**; o Code reaplica só o próprio progresso (`CLAUDE.md`).
 
-**Atualizado em:** 18/09/2026
+**Atualizado em:** 19/09/2026
 
 ---
 
@@ -19,7 +19,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Contratos de engenharia | escritos: arquitetura, domínio, frontend, git, PR, CI, teste, revisão, auditoria |
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
-| Fatias/SPECs | F1/SPEC-001 a F26/SPEC-026 aprovadas |
+| Fatias/SPECs | F1/SPEC-001 a F27/SPEC-027 aprovadas |
 | Código | bootstrap local entregue (#1): monorepo, Docker, shells de Web, API, workers e Signer, migrations, testes e CI |
 
 ---
@@ -29,7 +29,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Coluna | Cards |
 |---|---|
 | `proplan:planejado` | — |
-| `proplan:backlog` | #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 |
+| `proplan:backlog` | #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 |
 | `proplan:todo` | #2 F1/SPEC-001 · #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 · #6 F5/SPEC-005 |
 | `proplan:doing` | — |
 | `proplan:done` | #1 `[INFRA] Bootstrap local do MVP-1` |
@@ -71,8 +71,9 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-1 | F24 | SPEC-024 | PRD §§2, 3, 5.4, 10.1, 10.2, 10.5, 12, 14, 15 e 16 | Auditoria append-only e decisões dos agentes | #26 | `proplan:backlog` |
 | MVP-1 | F25 | SPEC-025 | PRD §§3, 4.5, 12, 13.1, 15 e 16 | Procuração eletrônica RFB/e-CAC | #27 | `proplan:backlog` |
 | MVP-2 | F26 | SPEC-026 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Resolução tributária de entradas NF-e em Goiás | #28 | `proplan:backlog` |
+| MVP-2 | F27 | SPEC-027 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | ICMS-ST retido em entradas de autopeças em Goiás | #29 | `proplan:backlog` |
 
-**Próximo número livre: F27 / SPEC-027.**
+**Próximo número livre: F28 / SPEC-028.**
 
 ---
 
@@ -81,7 +82,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | Fase | Entregas | Situação |
 |---|---|---|
 | **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#6, F1/SPEC-001 a F5/SPEC-005, em `proplan:todo`; F6/SPEC-006 a F23/SPEC-023 em backlog; demais fatias pendentes |
-| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 aprovada; demais fatias pendentes |
+| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 e F27/SPEC-027 aprovadas; demais fatias pendentes |
 | **[MVP-3](prd/mvp/MVP-3-dp-portal-e-comunicacao.md)** | RF-05 (DP/eSocial) · portal white-label · canal ativo · Copiloto · Coletor | macroescopo aprovado; fatias pendentes |
 | **[MVP-4](prd/mvp/MVP-4-administracao-e-evolucao.md)** | RF-08 completo · IBS/CBS completo · API pública · Marketplace · colaboração multiagente · preparação para certificações | macroescopo aprovado; API e Marketplace têm decisões pendentes |
 | **Produção** | hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração, rollback e piloto real | somente após o MVP-4 |

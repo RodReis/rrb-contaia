@@ -4,7 +4,7 @@
 > **Ausência na matriz bloqueia aprovação documental** — um requisito sem linha aqui não foi decidido, foi esquecido.
 > Mantida pelo **Cowork**. Regras de governança em [`README.md`](README.md).
 
-**Atualizada em:** 18/09/2026 · **Base:** PRD v3.1 (17/09/2026)
+**Atualizada em:** 19/09/2026 · **Base:** PRD v3.1 (17/09/2026)
 
 ---
 
@@ -48,7 +48,7 @@
 | RF-02 §5.3 Parse, IBS/CBS, XML original com hash, idempotência | P0 | Mantido | MVP-1 | F18 / SPEC-018 para NF-e 55 e CT-e; NFS-e e eventos nas capacidades próprias do MVP-1 |
 | RF-02 §5.1 NFS-e de municípios fora do padrão nacional | — | **Excluído** | PRD §1.5 · [`FORA-DE-ESCOPO.md`](../../FORA-DE-ESCOPO.md) §2 | — |
 | **RF-03** Motor de regras tributárias (base) | P0 | Mantido | MVP-1 | F16 / SPEC-016 |
-| RF-03 §6.1 Regras completas por regime e vigência | P1 | Mantido | MVP-2 | F26 / SPEC-026 inicia com Simples Nacional e Lucro Presumido em Goiás; exceções e expansão permanecem em fatias próprias |
+| RF-03 §6.1 Regras completas por regime e vigência | P1 | Mantido | MVP-2 | F26 / SPEC-026 inicia com Simples Nacional e Lucro Presumido em Goiás; F27 / SPEC-027 cobre ICMS-ST já retido em autopeças; demais exceções, segmentos e expansão permanecem em fatias próprias |
 | RF-03 §6.2 Apurações, guias e partidas dobradas | P1 | Transferido | MVP-2 | — |
 | RF-03 §6.2 SPED Fiscal e SPED Contábil (ECD) | MVP-2 | Transferido | MVP-2 | — |
 | RF-03 §6.3 Agenda mínima, vencimentos e alertas D-3 | P1 | Mantido | MVP-1 | F22 / SPEC-022 |
