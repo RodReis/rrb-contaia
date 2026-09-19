@@ -292,7 +292,7 @@ Listagem de execuções é paginada, mais recente primeiro. O POST apenas agenda
 | NFS-e padrão nacional | MVP-1 · capacidade própria de captura NFS-e a decompor; não usa NSU DF-e |
 | Conector direto Sefaz e via alternativa por intermediário | `[MVP1][GATE]` de homologação não produtiva, sobre a porta criada nesta fatia |
 | Integração comercial ou contratação de provedor | decisão específica do PI antes do GATE; não é presumida pela porta técnica |
-| Dashboard multiempresa e semáforo | MVP-1 · capacidade própria RF-06 a numerar |
+| Dashboard multiempresa e semáforo | MVP-1 · F23 / SPEC-023 |
 | Infraestrutura e material produtivos | gate de Produção posterior ao MVP-4 |
 
 ## 10. Dúvidas resolvidas pelo PI

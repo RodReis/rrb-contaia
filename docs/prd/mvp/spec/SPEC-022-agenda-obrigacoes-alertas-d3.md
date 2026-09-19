@@ -222,7 +222,7 @@ O relógio é controlável nos testes. Datas civis cobrem sábado, domingo, feri
 | Penalidades completas, juros e estimativa financeira | MVP-2 · Compliance completo e motor de obrigações |
 | Apuração, guia, escrituração e transmissão | MVP-2 · fatias próprias de RF-03 |
 | Rascunhos de entrega pelo Agente Compliance | MVP-2 · Compliance completo |
-| Dashboard multiempresa, KPIs e semáforo consolidado | MVP-1 · capacidade própria posterior |
+| Dashboard multiempresa, KPIs e semáforo consolidado | MVP-1 · F23 / SPEC-023 |
 | Canal oficial, comunicação real e histórico com cliente | MVP-3 · canal ativo; provedor produtivo no gate pós-MVP-4 |
 | Cobertura nacional exaustiva e atualização regulatória produtiva | MVP-2 e gate de produção aplicável |
 

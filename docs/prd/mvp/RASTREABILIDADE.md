@@ -58,7 +58,7 @@
 | RF-04 §7.3 Pix via BaaS/PSP | P1 | Transferido | MVP-2 | — |
 | RF-04 §7.4 Conciliação multi-critério | P1 | Transferido | MVP-2 | — |
 | **RF-05** Departamento pessoal e eSocial | P2 | Transferido | MVP-3 | — |
-| **RF-06** Dashboard multi-empresa (visão consolidada) | P0 | Mantido | MVP-1 | — |
+| **RF-06** Dashboard multi-empresa (visão consolidada) | P0 | Mantido | MVP-1 | F23 / SPEC-023 para semáforo, KPIs operacionais e drill-down; caixa e eSocial no MVP-3 |
 | RF-06 §9.2 Portal do cliente white-label | MVP-3 | Transferido | MVP-3 | — |
 | RF-06 §9.2 Copiloto Contábil | MVP-3 | Transferido | MVP-3 | — |
 | RF-06 §9.3 Canal ativo WhatsApp/Telegram | MVP-3 | Transferido | MVP-3 | — |

@@ -386,7 +386,7 @@ O teste de segredo usa valor sentinela e falha se ele aparecer em resposta HTTP,
 |---|---|
 | Leitura do segredo, assinatura, término mTLS e chamadas à Sefaz/eSocial | próxima capacidade do MVP-1: Signer isolado e assinatura/mTLS simulada ou em homologação |
 | Procuração RFB/e-CAC, poderes e vigência | capacidade própria posterior do MVP-1, antes do fluxo que depender da procuração |
-| Cartão consolidado de certificado no dashboard multiempresa | fatia de dashboard do MVP-1, reutilizando estados e eventos da F11 |
+| Cartão consolidado de certificado no dashboard multiempresa | F23 / SPEC-023, reutilizando estados e eventos da F11 |
 | Certificado A3 | permanece fora do produto conforme `docs/FORA-DE-ESCOPO.md` §3 |
 | KMS/HSM, auto-unseal, alta disponibilidade, backup/restore e observabilidade produtivos | gate de produção posterior ao MVP-4 |
 | Material criptográfico e operação produtivos | gate de produção posterior ao MVP-4, antes de qualquer piloto real |
