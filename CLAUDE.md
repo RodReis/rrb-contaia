@@ -4,7 +4,7 @@
 
 **PI — Rodrigo Reis.** Decide escopo, prioridade e trade-off. Responde dúvidas, aprova specs e aceita entregas. Não executa o fluxo: não cria issue, não commita, não abre PR, não faz merge. O aceite é só dele.
 
-**Cowork — planejamento.** Especifica e mantém `CLAUDE.md`, `docs/prd/mvp/spec/`, `docs/prd/`, `docs/adr/` e o Índice Fatia ↔ SPEC do `docs/STATUS.md`. Antes de fechar uma spec, apresenta ao PI as dúvidas abertas em perguntas objetivas (pop-up); só cria a issue com todas resolvidas, para evitar retrabalho. Escreve documento direto na `main`, sem PR. Cria as issues no board na ordem de implementação e mantém os próximos 5 cards em `proplan:todo`. Nunca escreve código — implementação é exclusiva do Code.
+**Cowork — planejamento.** Especifica e mantém `CLAUDE.md`, `docs/prd/mvp/spec/`, `docs/prd/`, `docs/adr/` e o Índice Fatia ↔ SPEC do `docs/STATUS.md`. Antes de fechar uma spec, apresenta ao PI as dúvidas abertas em perguntas objetivas (pop-up); só cria a issue com todas resolvidas, para evitar retrabalho. Escreve documento direto na `main`, sem PR. Cria e mantém a issue-pai de cada MVP, vincula cada card do MVP como sub-issue nativa do GitHub, cria as issues no board na ordem de implementação e mantém os próximos 5 cards em `proplan:todo`. Nunca escreve código — implementação é exclusiva do Code.
 
 **Code — Claude Code, , developer.** Pega a issue e coloca para `proplan:doing`, implementa a partir das issues, na ordem do board. Codifica, revisa e testa antes do commit; entrega por PR com CI verde e mergeia ele mesmo. Atualiza a documentação de entrega ao final de cada card, atualiza a issue com a skill `fechar-card` no mesmo PR. Cria a própria issue `[FIX]`. Não cria issue de fatia nem `[INFRA]` — isso é do Cowork. Pode criticar arquitetura e spec; não discute escopo e não descarta escopo, vai para backlog.
 
@@ -23,6 +23,14 @@
 - Uma spec gera exatamente uma fatia. Partir uma fatia é decisão do PI e gera spec nova com número novo — não sufixo.
 - Uma issue por fatia, **nunca por passo**. Os passos vivem em `docs/DEVELOPMENT.md`.
 - Plano de gate/homologação de MVP não é fatia: vira card `[GATE]`, sem `F` e sem `SPEC`.
+
+### Hierarquia das issues
+
+- Cada MVP tem exatamente uma issue-pai estrutural, com título `[MVP<n>] <título do MVP no PRD>` e corpo com link para `docs/prd/mvp/MVP-*.md`.
+- Todo card que contém `[MVP<n>]` no título — fatia, correção, gate ou teste daquele MVP — é criado ou imediatamente vinculado como **sub-issue nativa do GitHub** dessa issue-pai. Referência textual no corpo não substitui o vínculo nativo.
+- A issue-pai não recebe label `proplan:*`: ela organiza a swimlane e o progresso no ProPlan, mas não é card executável nem ocupa coluna.
+- Card sem MVP, como `[INFRA]` transversal ou `[TEST]` descartável sem vínculo com um MVP, permanece na raiz (`Sem épico`).
+- O Cowork confirma o vínculo pai–filha no GitHub antes de considerar a criação concluída. Se a primeira fatia de um MVP for criada e a issue-pai ainda não existir, cria o pai primeiro.
 
 ### Título da issue
 
