@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F28/SPEC-028 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F29/SPEC-029 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -18,6 +18,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F26 / SPEC-026:** resolução tributária de entradas NF-e modelo 55 para Simples Nacional e Lucro Presumido em Goiás, com pacote oficial curado, tratamento, elegibilidade, memória e snapshots versionados; exceções e expansão territorial permanecem em fatias próprias.
 - [ ] **F27 / SPEC-027:** ICMS-ST já retido em entradas de autopeças para revenda em Goiás, nos regimes Simples Nacional e Lucro Presumido, com enquadramento CEST/NCM e validação declarativa; cálculo, complemento, restituição, ressarcimento e demais segmentos permanecem em fatias próprias.
 - [ ] **F28 / SPEC-028:** determinação, cálculo por MVA e aprovação humana do ICMS devido em entradas históricas de autopeças para revenda em Goiás, da primeira vigência comprovada de cada regra até 28/02/2018; pauta, PMPF, guias, escrituração e efeitos financeiros permanecem em fatias próprias.
+- [ ] **F29 / SPEC-029:** complemento e restituição do ICMS-ST em vendas internas de autopeças a consumidor final em Goiás, entre 27/10/2016 e 28/02/2018, com recuperação por documento/EFD ou média ponderada, consolidação mensal, HITL e demonstrativo em rascunho; NFC-e, eventos posteriores, transmissão, escrituração e efeitos financeiros permanecem em fatias próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
@@ -49,7 +50,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 
 | Item anterior/PRD | Estado neste MVP | Complemento/destino |
 |---|---|---|
-| Motor tributário base do MVP-1 | entrou parcialmente | F26 adiciona seleção contextual, pacote oficial inicial e snapshots; F27 cobre ST retido declarado; F28 cobre responsabilidade e cálculo por MVA nas entradas históricas de autopeças até 28/02/2018; demais métodos, exceções, segmentos, expansão nacional e apuração permanecem em fatias próprias do MVP-2 |
+| Motor tributário base do MVP-1 | entrou parcialmente | F26 adiciona seleção contextual, pacote oficial inicial e snapshots; F27 cobre ST retido declarado; F28 cobre responsabilidade e cálculo por MVA nas entradas históricas de autopeças até 28/02/2018; F29 compara a retenção presumida com a venda efetiva e consolida complemento/restituição no mesmo recorte histórico; demais métodos, exceções, segmentos, expansão nacional e apuração permanecem em fatias próprias do MVP-2 |
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |
