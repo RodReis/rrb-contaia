@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F31/SPEC-031 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F32/SPEC-032 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -21,6 +21,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F29 / SPEC-029:** complemento e restituição do ICMS-ST em vendas internas de autopeças a consumidor final em Goiás, entre 27/10/2016 e 28/02/2018, com recuperação por documento/EFD ou média ponderada, consolidação mensal, HITL e demonstrativo em rascunho; NFC-e, eventos posteriores, transmissão, escrituração e efeitos financeiros permanecem em fatias próprias.
 - [ ] **F30 / SPEC-030:** importação assistida, validação offline, persistência e normalização de NFC-e modelo 65 emitida em Goiás nos layouts 3.10 e 4.00, com autorização, cancelamento, aceitação parcial e sinalização de competência F29 desatualizada; emissão, RPA, consulta remota, outras UFs e efeitos tributários permanecem em fatias próprias.
 - [ ] **F31 / SPEC-031:** inclusão de NFC-e modelo 65 autorizada e normalizada pela F30 no cálculo histórico da F29, compondo a mesma competência de NF-e 55, inclusive sem destinatário identificado quando os indicadores fiscais comprovarem consumidor final interno; devolução, estorno proporcional, demais eventos e efeitos externos permanecem em fatias próprias.
+- [ ] **F32 / SPEC-032:** tratamento de cancelamento autorizado posterior e devolução integral ou parcial das saídas calculadas pelas F29/F31, com vínculo por NF-e, EFD ou evidência manual controlada, estorno proporcional, revisão imutável e demonstrativo atualizado; saída interestadual, transmissão, escrituração e efeitos externos permanecem em fatias próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
@@ -52,7 +53,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 
 | Item anterior/PRD | Estado neste MVP | Complemento/destino |
 |---|---|---|
-| Motor tributário base do MVP-1 | entrou parcialmente | F26 adiciona seleção contextual, pacote oficial inicial e snapshots; F27 cobre ST retido declarado; F28 cobre responsabilidade e cálculo por MVA nas entradas históricas de autopeças até 28/02/2018; F29 compara a retenção presumida com a venda efetiva e consolida complemento/restituição no mesmo recorte histórico; F30 inclui a base documental de NFC-e 65 emitida em Goiás; F31 incorpora essa NFC-e ao cálculo da F29 na mesma competência; demais métodos, exceções, segmentos, expansão nacional e apuração permanecem em fatias próprias do MVP-2 |
+| Motor tributário base do MVP-1 | entrou parcialmente | F26 adiciona seleção contextual, pacote oficial inicial e snapshots; F27 cobre ST retido declarado; F28 cobre responsabilidade e cálculo por MVA nas entradas históricas de autopeças até 28/02/2018; F29 compara a retenção presumida com a venda efetiva e consolida complemento/restituição no mesmo recorte histórico; F30 inclui a base documental de NFC-e 65 emitida em Goiás; F31 incorpora essa NFC-e ao cálculo da F29 na mesma competência; F32 trata cancelamento posterior, devolução e estorno proporcional; demais métodos, exceções, segmentos, expansão nacional e apuração permanecem em fatias próprias do MVP-2 |
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |

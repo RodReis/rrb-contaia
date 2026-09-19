@@ -19,7 +19,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Contratos de engenharia | escritos: arquitetura, domínio, frontend, git, PR, CI, teste, revisão, auditoria |
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
-| Fatias/SPECs | F1/SPEC-001 a F31/SPEC-031 aprovadas |
+| Fatias/SPECs | F1/SPEC-001 a F32/SPEC-032 aprovadas |
 | Código | bootstrap local entregue (#1): monorepo, Docker, shells de Web, API, workers e Signer, migrations, testes e CI |
 
 ---
@@ -29,7 +29,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Coluna | Cards |
 |---|---|
 | `proplan:planejado` | — |
-| `proplan:backlog` | #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 · #32 F28/SPEC-028 · #33 F29/SPEC-029 · #34 F30/SPEC-030 · #35 F31/SPEC-031 |
+| `proplan:backlog` | #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 · #32 F28/SPEC-028 · #33 F29/SPEC-029 · #34 F30/SPEC-030 · #35 F31/SPEC-031 · #36 F32/SPEC-032 |
 | `proplan:todo` | #2 F1/SPEC-001 · #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 · #6 F5/SPEC-005 |
 | `proplan:doing` | — |
 | `proplan:done` | #1 `[INFRA] Bootstrap local do MVP-1` |
@@ -76,8 +76,9 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-2 | F29 | SPEC-029 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Complemento e restituição do ICMS-ST de autopeças em Goiás | #33 | `proplan:backlog` |
 | MVP-2 | F30 | SPEC-030 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Importação e normalização de NFC-e modelo 65 em Goiás | #34 | `proplan:backlog` |
 | MVP-2 | F31 | SPEC-031 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Inclusão da NFC-e no complemento e restituição do ICMS-ST de autopeças em Goiás | #35 | `proplan:backlog` |
+| MVP-2 | F32 | SPEC-032 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Eventos posteriores no complemento e restituição do ICMS-ST | #36 | `proplan:backlog` |
 
-**Próximo número livre: F32 / SPEC-032.**
+**Próximo número livre: F33 / SPEC-033.**
 
 ---
 
