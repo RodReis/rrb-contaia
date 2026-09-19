@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · fatias/SPECs ainda não numeradas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 aprovada
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -15,7 +15,8 @@ Toda capacidade com tela entrega a interface final desde sua própria fatia, nos
 
 Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reserva de F/SPEC. Nenhum item grande abaixo autoriza uma única issue monolítica.
 
-- [ ] Regras tributárias completas por regime e vigência.
+- [ ] **F26 / SPEC-026:** resolução tributária de entradas NF-e modelo 55 para Simples Nacional e Lucro Presumido em Goiás, com pacote oficial curado, tratamento, elegibilidade, memória e snapshots versionados; exceções e expansão territorial permanecem em fatias próprias.
+- [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
 - [ ] Plano de contas e centros de custo operacionais.
@@ -46,7 +47,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 
 | Item anterior/PRD | Estado neste MVP | Complemento/destino |
 |---|---|---|
-| Motor tributário base do MVP-1 | entrou | evolui para apuração completa |
+| Motor tributário base do MVP-1 | entrou parcialmente | F26 adiciona seleção contextual, pacote oficial inicial e snapshots; exceções, expansão nacional e apuração permanecem em fatias próprias do MVP-2 |
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |
