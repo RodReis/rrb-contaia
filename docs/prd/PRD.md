@@ -150,7 +150,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 **Prioridade:** P0 — MVP
 
 ### 5.1 Integrações e mecanismo de captura
-- [ ] Integração com o **web service de Distribuição de DF-e** (NF-e modelo 55, CT-e), com certificado do cliente ou procuração.
+- [ ] Integração com o **web service de Distribuição de DF-e** (NF-e modelo 55, CT-e), com certificado A1 do cliente. Procuração RFB/e-CAC autoriza somente serviços RFB explicitamente concedidos e não substitui credencial Sefaz.
 - [ ] Integração com **NFS-e padrão nacional**, por via própria.
 - [ ] **Fila com controle estrito de estado por NSU** (`ultNSU` vs. `maxNSU`) por CNPJ, respeitando o `tempoMedio` retornado pela Sefaz no XML de resposta.
   - A Sefaz limita o retorno a lotes de **50 NSUs** por requisição, com intervalo obrigatório entre chamadas.

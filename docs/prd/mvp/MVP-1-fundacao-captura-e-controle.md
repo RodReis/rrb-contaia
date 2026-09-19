@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F23/SPEC-023 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F25/SPEC-025 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -52,6 +52,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F22 / SPEC-022:** agenda mínima de obrigações e Compliance inicial, com regra de DAS, calendário de dias úteis, baixa manual auditada e alertas D-3 in-app com canais externos dublados.
 - [ ] **F23 / SPEC-023:** dashboard multiempresa com projeção agregada, semáforo determinístico, KPIs operacionais e drill-down para todos os motivos e fluxos de resolução.
 - [ ] **F24 / SPEC-024:** auditoria append-only e observabilidade das decisões dos agentes do MVP-1, com ledger transversal, payload redigido e expirável, consulta operacional e exportação verificável.
+- [ ] **F25 / SPEC-025:** gestão da procuração eletrônica RFB/e-CAC, com poderes explícitos, vigência, PDF de evidência, autorização, alertas, auditoria e prova contra dublê local.
 
 O Agente de Captura e o Compliance inicial não são componentes isolados: entram nas fatias verticais de captura, manifestação, agenda e dashboard.
 
@@ -68,7 +69,7 @@ O Agente de Captura e o Compliance inicial não são componentes isolados: entra
 |---|---|---|
 | RF-01 cadastro, usuários, carteira e RLS | entrou parcialmente | usuários e papéis padrão em F7; papéis personalizados, catálogo e matriz de autorização em F8; carteira e alçada por empresa em F9; RLS em fatia própria posterior do MVP-1 |
 | RF-01 onboarding CSV/planilha | entrou | plano de contas CSV em F13; empregados CSV em F14; XLSX/ODS para ambos em F15; empregado importado passa ao domínio funcional de DP no MVP-3 |
-| RF-01 cofre A1 e Signer | entrou parcialmente | material real, KMS/HSM e infraestrutura produtiva no gate pós-MVP-4 |
+| RF-01 cofre A1, Signer e procuração RFB/e-CAC | entrou parcialmente | A1 e Signer local em F11/F12; gestão e prova dublada da procuração em F25; integração oficial e infraestrutura produtiva no gate das integrações e no gate pós-MVP-4 |
 | RF-02 captura, parse, NSU e manifestações | entrou | prova externa somente em homologação não produtiva |
 | RF-03 motor tributário | entrou parcialmente | base versionada e simulador em F16; apuração, regras completas, guias, escrituração e SPED no MVP-2; transição IBS/CBS completa no MVP-4 |
 | RF-03 motor de obrigações | entrou parcialmente | agenda mínima, calendário, baixa e D-3 em F22; catálogo amplo, penalidades e motor completo no MVP-2 |

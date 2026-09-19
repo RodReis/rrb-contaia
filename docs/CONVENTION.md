@@ -82,7 +82,7 @@ Quem pode **aprovar ato com efeito jurídico**, sempre limitado às empresas da 
 - Certificado **A1** por empresa, em cofre isolado por tenant, com rotação e auditoria.
 - Upload **rejeita arquivo expirado ou com senha incorreta** (PRD §4.6).
 - Certificado a menos de 30 dias do vencimento gera alerta no dashboard.
-- **Procuração RFB/e-CAC** é via alternativa ao A1 do cliente, com vigência própria.
+- **Procuração RFB/e-CAC** é alternativa ao A1 do cliente somente nos serviços RFB explicitamente concedidos, com vigência própria; não autoriza Sefaz/DF-e.
 - A chave privada nunca é legível fora do Signer e do cofre (I-10).
 
 ### 3.5 Onboarding com importação
