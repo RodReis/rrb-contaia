@@ -51,7 +51,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F21 / SPEC-021:** inbox priorizada, decisão humana, justificativa formal, assinatura, transmissão e reconciliação das manifestações conclusivas de NF-e modelo 55, com lote restrito a confirmações de uma empresa.
 - [ ] **F22 / SPEC-022:** agenda mínima de obrigações e Compliance inicial, com regra de DAS, calendário de dias úteis, baixa manual auditada e alertas D-3 in-app com canais externos dublados.
 - [ ] **F23 / SPEC-023:** dashboard multiempresa com projeção agregada, semáforo determinístico, KPIs operacionais e drill-down para todos os motivos e fluxos de resolução.
-- [ ] Auditoria append-only e observabilidade das decisões dos agentes.
+- [ ] **F24 / SPEC-024:** auditoria append-only e observabilidade das decisões dos agentes do MVP-1, com ledger transversal, payload redigido e expirável, consulta operacional e exportação verificável.
 
 O Agente de Captura e o Compliance inicial não são componentes isolados: entram nas fatias verticais de captura, manifestação, agenda e dashboard.
 
@@ -75,6 +75,7 @@ O Agente de Captura e o Compliance inicial não são componentes isolados: entra
 | RF-06 dashboard consolidado | entrou parcialmente | semáforo operacional e drill-down em F23; caixa e eSocial no MVP-3 |
 | RF-07 Agente de Captura | entrou | integrado ao fluxo, não como card horizontal |
 | RF-07 Compliance | entrou parcialmente | alertas mínimos agora; Compliance completo no MVP-2 |
+| RF-07 auditoria e observabilidade | entrou parcialmente | ledger transversal e agentes do MVP-1 em F24; agentes futuros aderem nas fatias dos MVPs 2–4; auditoria global e impersonation permanecem no MVP-4 |
 | Produção e piloto real | transferido | gate de produção após o MVP-4 |
 
 ## 6. Critério de saída

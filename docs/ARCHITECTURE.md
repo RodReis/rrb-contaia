@@ -135,10 +135,11 @@ SET LOCAL app.empresa_id = '<uuid>';
 | Embeddings de classificação | **pgvector no mesmo PostgreSQL** ([ADR-010](adr/ADR-010-vector-db.md)) — herda a RLS | enquanto o cliente existir |
 | Cache, fila, rate limit | Redis | efêmero |
 | Certificado A1, senha, credencial de órgão | Cofre (Vault/KMS) — acessível **só pelo Signer** | rotação auditada |
-| Prompt, resposta, score e custo de agente | PostgreSQL (append-only) | 12 meses, depois anonimização ou descarte (PRD §10.1) |
+| Envelope de execução do agente — metadados, decisão, score, custo e hashes | PostgreSQL (append-only) | permanente; correção e descarte são novos eventos |
+| Payload de agente — prompt, contexto, entrada e resposta integrais | armazenamento separado, append-only durante a retenção | 12 meses, depois anonimização ou descarte auditado; o envelope e os hashes permanecem |
 | Log de auditoria | PostgreSQL, **append-only** | conforme PRD §12 |
 
-**Append-only na prática:** sem `UPDATE` e sem `DELETE` nas tabelas de trilha — garantido por política, revogação de privilégio e teste de anti-drift.
+**Append-only na prática:** sem `UPDATE` e sem `DELETE` nas tabelas de trilha — garantido por política, revogação de privilégio e teste de anti-drift. O payload expirável não é a trilha autoritativa: anonimização ou descarte preserva o envelope imutável e gera um novo evento com a política aplicada e o hash anterior.
 
 ### 5.3 Dinheiro
 

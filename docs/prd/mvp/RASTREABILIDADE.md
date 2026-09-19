@@ -64,6 +64,7 @@
 | RF-06 §9.3 Canal ativo WhatsApp/Telegram | MVP-3 | Transferido | MVP-3 | — |
 | **RF-07** Agente de Captura | P1 | Mantido | MVP-1 | F17 / SPEC-017 a F21 / SPEC-021 |
 | RF-07 §10.5 Compliance inicial (agenda e alertas de vencimento) | P1 | Mantido | MVP-1 | F22 / SPEC-022 |
+| RF-07 §§10.1, 10.2 e 10.5 Auditoria append-only e observabilidade dos agentes do MVP-1 | P1 | Mantido | MVP-1 | F24 / SPEC-024 |
 | RF-07 §10.5 Compliance completo e rascunhos de entrega | P1 | Transferido | MVP-2 | — |
 | RF-07 §10.3 Agente Classificador | P1 | Transferido | MVP-2 | — |
 | RF-07 §10.4 Agente Conciliador | P1 | Transferido | MVP-2 | — |
@@ -92,7 +93,7 @@ Não são fatia: são **critério de aceite transversal**, verificado em toda fa
 | Performance (API p95 < 500ms, dashboard < 3s, 10.000 XMLs < 15min) | [`AUDIT.md`](../../AUDIT.md) §5, por fatia |
 | Escalabilidade (1.000 empresas × 100 escritórios) | [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §13 |
 | Segurança (TLS 1.3, AES-256, KMS, chave por tenant) | implementação local com segredos de teste; KMS e prova real no gate de produção pós-MVP-4 ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)) |
-| Auditoria append-only | [`TESTING.md`](../../TESTING.md) anti-drift |
+| Auditoria append-only | MVP-1 · F24 / SPEC-024 · [`TESTING.md`](../../TESTING.md) anti-drift; auditoria global e impersonation no MVP-4 |
 | Retenção ≥ 5 anos de XML | [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §5.2 |
 | Observabilidade em toda integração governamental | [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §12 |
 | DR/Backup (RPO ≤ 1h, RTO ≤ 4h, restore mensal) | contrato e ensaio local nos MVPs; prova da infraestrutura no gate de produção pós-MVP-4 ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)) |
