@@ -278,8 +278,8 @@ As provas usam Docker local, fixtures e dublês determinísticos. Integração p
 
 | Complemento | Destino obrigatório |
 |---|---|
-| Agenda do prazo e alertas D-3 | MVP-1 · capacidade própria de agenda mínima a numerar |
-| Compliance inicial no fluxo de alertas | MVP-1 · capacidade própria posterior |
+| Agenda do prazo e alertas D-3 | MVP-1 · F22 / SPEC-022 |
+| Compliance inicial no fluxo de alertas | MVP-1 · F22 / SPEC-022; Compliance completo no MVP-2 |
 | Dashboard multiempresa e drill-down | MVP-1 · capacidade própria posterior |
 | Auditoria/observabilidade transversal dos agentes | MVP-1 · capacidade própria posterior; a trilha específica da F21 entra agora |
 | Manifestação ou eventos de CT-e | não pertencem ao contrato atual; exigem decisão e capacidade próprias |

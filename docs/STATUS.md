@@ -19,7 +19,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Contratos de engenharia | escritos: arquitetura, domínio, frontend, git, PR, CI, teste, revisão, auditoria |
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
-| Fatias/SPECs | F1/SPEC-001 a F21/SPEC-021 aprovadas |
+| Fatias/SPECs | F1/SPEC-001 a F22/SPEC-022 aprovadas |
 | Código | bootstrap local entregue (#1): monorepo, Docker, shells de Web, API, workers e Signer, migrations, testes e CI |
 
 ---
@@ -29,7 +29,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Coluna | Cards |
 |---|---|
 | `proplan:planejado` | — |
-| `proplan:backlog` | #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 |
+| `proplan:backlog` | #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 |
 | `proplan:todo` | #2 F1/SPEC-001 · #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 · #6 F5/SPEC-005 |
 | `proplan:doing` | — |
 | `proplan:done` | #1 `[INFRA] Bootstrap local do MVP-1` |
@@ -66,8 +66,9 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-1 | F19 | SPEC-019 | PRD §§2, 3, 5.2, 5.3, 5.4, 10.2, 12, 14, 15, 16 e 20.2 | Ciência da Emissão automática | #21 | `proplan:backlog` |
 | MVP-1 | F20 | SPEC-020 | PRD §§2, 3, 5.2, 5.4, 10.1, 10.2, 12, 14, 15, 16 e Anexo A.1 | Classificação de risco e proposta de manifestação | #22 | `proplan:backlog` |
 | MVP-1 | F21 | SPEC-021 | PRD §§2, 3, 5.2, 10.1, 10.2, 12, 13.1, 14, 15, 16, 20.2 e Anexo A.1 | Inbox, aprovação e transmissão de manifestações | #23 | `proplan:backlog` |
+| MVP-1 | F22 | SPEC-022 | PRD §§6.3, 6.5, 9.1, 10.5, 15, 16 e Anexo B.1 | Agenda de obrigações e alertas D-3 | #24 | `proplan:backlog` |
 
-**Próximo número livre: F22 / SPEC-022.**
+**Próximo número livre: F23 / SPEC-023.**
 
 ---
 

@@ -150,6 +150,6 @@ Os quatro macroescopos foram aprovados pelo PI:
 - [`MVP-3-dp-portal-e-comunicacao.md`](MVP-3-dp-portal-e-comunicacao.md)
 - [`MVP-4-administracao-e-evolucao.md`](MVP-4-administracao-e-evolucao.md)
 
-O fatiamento do MVP-1 começou: F1/SPEC-001 a F21/SPEC-021 estão aprovadas. As demais capacidades aguardam decomposição.
+O fatiamento do MVP-1 começou: F1/SPEC-001 a F22/SPEC-022 estão aprovadas. As demais capacidades aguardam decomposição.
 
-Próximo número livre: **F22 / SPEC-022**.
+Próximo número livre: **F23 / SPEC-023**.

@@ -50,7 +50,7 @@
 | **RF-03** Motor de regras tributárias (base) | P0 | Mantido | MVP-1 | F16 / SPEC-016 |
 | RF-03 §6.2 Apurações, guias e partidas dobradas | P1 | Transferido | MVP-2 | — |
 | RF-03 §6.2 SPED Fiscal e SPED Contábil (ECD) | MVP-2 | Transferido | MVP-2 | — |
-| RF-03 §6.3 Agenda mínima, vencimentos e alertas D-3 | P1 | Mantido | MVP-1 | — |
+| RF-03 §6.3 Agenda mínima, vencimentos e alertas D-3 | P1 | Mantido | MVP-1 | F22 / SPEC-022 |
 | RF-03 §6.3 Motor completo por regime/UF/CNAE, pré-requisitos, penalidades, dependências e sucessão | P1 | Transferido | MVP-2 | — |
 | RF-03 §6.4 Malha fiscal preventiva contínua | MVP-2 | Transferido | MVP-2 | — |
 | **RF-04** Gestão financeira integrada | P1 | Transferido | MVP-2 | — |
@@ -63,7 +63,7 @@
 | RF-06 §9.2 Copiloto Contábil | MVP-3 | Transferido | MVP-3 | — |
 | RF-06 §9.3 Canal ativo WhatsApp/Telegram | MVP-3 | Transferido | MVP-3 | — |
 | **RF-07** Agente de Captura | P1 | Mantido | MVP-1 | F17 / SPEC-017 a F21 / SPEC-021 |
-| RF-07 §10.5 Compliance inicial (agenda e alertas de vencimento) | P1 | Mantido | MVP-1 | — |
+| RF-07 §10.5 Compliance inicial (agenda e alertas de vencimento) | P1 | Mantido | MVP-1 | F22 / SPEC-022 |
 | RF-07 §10.5 Compliance completo e rascunhos de entrega | P1 | Transferido | MVP-2 | — |
 | RF-07 §10.3 Agente Classificador | P1 | Transferido | MVP-2 | — |
 | RF-07 §10.4 Agente Conciliador | P1 | Transferido | MVP-2 | — |

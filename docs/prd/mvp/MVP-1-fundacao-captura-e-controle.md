@@ -1,6 +1,6 @@
 # MVP-1 — Fundação, captura e controle operacional
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F21/SPEC-021 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F1/SPEC-001 a F22/SPEC-022 aprovadas
 > **Base:** PRD v3.1 §§4, 5, 6.1, 9.1, 10.1, 10.2 e 10.5
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
 
@@ -49,8 +49,7 @@ As capacidades abaixo são o checklist do épico. Cada uma é decomposta em comp
 - [ ] **F19 / SPEC-019:** Ciência da Emissão automática para NF-e modelo 55, com fluxo `resNFe → 210210 → procNFe → F18`, idempotência, reconciliação, retry, DLQ e visibilidade técnica.
 - [ ] **F20 / SPEC-020:** classificação híbrida de risco e proposta versionada de manifestação para NF-e modelo 55, com configuração mínima por empresa, evidências, abstenção e fallback seguro, sem aprovação ou transmissão.
 - [ ] **F21 / SPEC-021:** inbox priorizada, decisão humana, justificativa formal, assinatura, transmissão e reconciliação das manifestações conclusivas de NF-e modelo 55, com lote restrito a confirmações de uma empresa.
-- [ ] Agenda mínima de obrigações e alertas D-3.
-- [ ] Compliance inicial dentro do fluxo de alertas.
+- [ ] **F22 / SPEC-022:** agenda mínima de obrigações e Compliance inicial, com regra de DAS, calendário de dias úteis, baixa manual auditada e alertas D-3 in-app com canais externos dublados.
 - [ ] Dashboard multiempresa com semáforo determinístico e drill-down.
 - [ ] Auditoria append-only e observabilidade das decisões dos agentes.
 
@@ -72,7 +71,7 @@ O Agente de Captura e o Compliance inicial não são componentes isolados: entra
 | RF-01 cofre A1 e Signer | entrou parcialmente | material real, KMS/HSM e infraestrutura produtiva no gate pós-MVP-4 |
 | RF-02 captura, parse, NSU e manifestações | entrou | prova externa somente em homologação não produtiva |
 | RF-03 motor tributário | entrou parcialmente | base versionada e simulador em F16; apuração, regras completas, guias, escrituração e SPED no MVP-2; transição IBS/CBS completa no MVP-4 |
-| RF-03 motor de obrigações | entrou parcialmente | agenda e D-3 agora; regras completas, penalidades e dependências no MVP-2 |
+| RF-03 motor de obrigações | entrou parcialmente | agenda mínima, calendário, baixa e D-3 em F22; catálogo amplo, penalidades e motor completo no MVP-2 |
 | RF-06 dashboard consolidado | entrou parcialmente | caixa e eSocial no MVP-3 |
 | RF-07 Agente de Captura | entrou | integrado ao fluxo, não como card horizontal |
 | RF-07 Compliance | entrou parcialmente | alertas mínimos agora; Compliance completo no MVP-2 |
