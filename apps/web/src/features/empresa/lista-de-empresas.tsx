@@ -83,15 +83,18 @@ const LinhaDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
 
   return (
     <tr className="border-b border-border last:border-b-0 hover:bg-accent/40">
-      <td className="px-md py-sm">
-        <div className="flex flex-col gap-xs">
+      <td className="px-md py-sm text-body-md">
+        {/* Nome e razão social na mesma linha: empilhar os dois estoura a altura
+            de linha de 36px que o produto denso pede (PATTERNS.md §10), e o
+            contador precisa dos dois para conferir. */}
+        <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs">
           <span className="text-title-sm text-foreground">{nome}</span>
           {empresa.razaoSocial !== null && empresa.razaoSocial !== empresa.nomeFantasia ? (
             <span className="text-body-sm text-muted-foreground">{empresa.razaoSocial}</span>
           ) : null}
         </div>
       </td>
-      <td className="px-md py-sm">
+      <td className="px-md py-sm text-body-md">
         <span className="font-mono text-code-sm tabular-nums text-foreground">
           {formatarCnpj(empresa.cnpj)}
         </span>
@@ -101,10 +104,10 @@ const LinhaDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
           ? '—'
           : (ROTULO_DO_REGIME[empresa.regimeTributario] ?? empresa.regimeTributario)}
       </td>
-      <td className="px-md py-sm">
+      <td className="px-md py-sm text-body-md">
         <StatusBadge tom={status.tom} rotulo={status.rotulo} />
       </td>
-      <td className="px-md py-sm text-right">
+      <td className="px-md py-sm text-right text-body-md">
         <Button asChild variante="fantasma" tamanho="compacto">
           <Link href={`/empresas/${empresa.id}`}>
             {incompleta ? 'Continuar cadastro' : 'Abrir'}
