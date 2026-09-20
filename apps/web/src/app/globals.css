@@ -237,6 +237,27 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
+
+  /* Superfícies que o navegador desenha por conta própria: sem isto, seleção,
+     cursor e barra de rolagem ficam no padrão do sistema, que não pertence a
+     tema nenhum e destoa no escuro. */
+  ::selection {
+    background-color: color-mix(in oklab, var(--ring) 28%, transparent);
+    color: var(--foreground);
+  }
+
+  :root {
+    accent-color: var(--ring);
+    caret-color: var(--ring);
+    scrollbar-color: var(--border) transparent;
+    scrollbar-width: thin;
+  }
+
+  /* O foco nunca some: quando um componente remove o contorno, o anel do token
+     entra no lugar (PATTERNS.md §7). */
+  :focus-visible {
+    outline-color: var(--ring);
+  }
 }
 
 /* Obrigatório, não opcional (TOKENS.md §9). */

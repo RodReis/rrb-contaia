@@ -33,7 +33,7 @@ export default function PaginaDeAcesso() {
         <AlternarTema />
       </header>
 
-      <div className="mx-auto flex w-full max-w-[80rem] flex-1 flex-col gap-xl px-lg py-xl desktop:flex-row desktop:items-center desktop:gap-xl">
+      <div className="mx-auto flex w-full max-w-[80rem] flex-1 flex-col gap-xl px-lg py-xl desktop:flex-row desktop:items-start desktop:gap-xl desktop:py-[clamp(2rem,6vh,4.5rem)]">
         <section className="flex flex-1 flex-col gap-lg">
           <p className="flex items-center gap-xs text-label-sm uppercase text-muted-foreground">
             <span
@@ -53,7 +53,7 @@ export default function PaginaDeAcesso() {
             criptográfica ponta a ponta com paridade de razão contábil e zero tolerância a desvios.
           </p>
 
-          <div className="flex flex-col gap-xs">
+          <div className="flex flex-col gap-sm pt-sm">
             <p className="text-label-sm uppercase text-muted-foreground">
               Conformidade e protocolos normativos verificados
             </p>
