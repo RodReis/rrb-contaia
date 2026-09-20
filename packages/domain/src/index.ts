@@ -72,3 +72,35 @@ export type {
   SituacaoDeInscricao,
   StatusDaEmpresa,
 } from './empresa/cadastro.js';
+
+export {
+  ABAS_DO_HISTORICO,
+  ACOES_DO_HISTORICO,
+  FINALIDADES_DE_ENDERECO,
+  abaDoCampo,
+  arquivarEmpresa,
+  camposAlteradosNaIdentificacao,
+  camposAlteradosNosDadosFiscais,
+  dataCivilEmSaoPaulo,
+  diferencasDaFonteExterna,
+  ehAbaDoHistorico,
+  ehFinalidadeDeEndereco,
+  planejarTrocaDeFinalidadeFiscal,
+  reativarEmpresa,
+  validarEnderecoComFinalidade,
+  validarJustificativa,
+  validarVigencia,
+} from './empresa/manutencao.js';
+export type {
+  AbaDoHistorico,
+  AcaoDoHistorico,
+  AtribuicaoDeFinalidade,
+  CampoAlterado,
+  CamposDaFonteExterna,
+  DiferencaExterna,
+  EnderecoComFinalidade,
+  EnderecoIdentificado,
+  EventoDoHistorico,
+  FinalidadeDeEndereco,
+  SituacaoDeRegistro,
+} from './empresa/manutencao.js';

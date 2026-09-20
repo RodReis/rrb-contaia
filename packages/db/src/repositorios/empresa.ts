@@ -16,6 +16,7 @@ import type {
   IdentificacaoDaEmpresa,
   RegimeTributario,
   SituacaoDeInscricao,
+  SituacaoDeRegistro,
   StatusDaEmpresa,
 } from '@contaia/domain';
 
@@ -37,6 +38,7 @@ type LinhaDaEmpresa = {
   inscricao_municipal_numero: string | null;
   situacao_cadastral_externa: string | null;
   validado_por_fonte_externa: boolean;
+  situacao: SituacaoDeRegistro;
   versao: number;
 };
 
@@ -59,16 +61,27 @@ export type EmpresaNaLista = Readonly<{
   nomeFantasia: string | null;
   regimeTributario: RegimeTributario | null;
   status: StatusDaEmpresa;
+  situacao: SituacaoDeRegistro;
 }>;
 
 export type EmpresaPersistida = Readonly<{
   id: string;
   cadastro: CadastroDaEmpresa;
+  situacao: SituacaoDeRegistro;
 }>;
+
+/**
+ * O que a lista mostra (SPEC-003 §3.1). `ARQUIVADA` não é um `status` da
+ * empresa e sim a `situacao` do registro: o filtro é uma escolha só na
+ * interface, e a tradução para as duas colunas acontece aqui.
+ */
+export const FILTROS_DA_LISTA = ['ATIVA', 'CADASTRO_INCOMPLETO', 'ARQUIVADA'] as const;
+
+export type FiltroDeStatus = (typeof FILTROS_DA_LISTA)[number];
 
 export type FiltroDaLista = Readonly<{
   busca: string | null;
-  status: StatusDaEmpresa | null;
+  status: FiltroDeStatus | null;
   limite: number;
   deslocamento: number;
 }>;
@@ -82,7 +95,7 @@ const COLUNAS = `id, status, cnpj, razao_social, nome_fantasia, logo_arquivo_id,
        regime_tributario, enquadramento_simples, cnae_principal,
        inscricao_estadual_situacao, inscricao_estadual_numero,
        inscricao_municipal_situacao, inscricao_municipal_numero,
-       situacao_cadastral_externa, validado_por_fonte_externa, versao`;
+       situacao_cadastral_externa, validado_por_fonte_externa, situacao, versao`;
 
 const paraIdentificacao = (linha: LinhaDaEmpresa): IdentificacaoDaEmpresa => ({
   cnpj: linha.cnpj,
@@ -161,11 +174,18 @@ export const listarEmpresas = async (
       ? null
       : `%${filtro.busca.trim().replace(/[\\%_]/gu, (achado) => `\\${achado}`)}%`;
 
-  const condicoes = `tenant_id = $1 and situacao = 'ativo'
+  // `ARQUIVADA` filtra a `situacao` do registro; os demais filtram o `status` e
+  // valem só para registro ativo. Empresa arquivada aparece exclusivamente sob
+  // o filtro `ARQUIVADA` (SPEC-003 §3.1).
+  const condicoes = `tenant_id = $1
       and ($2::text is null or (
         razao_social ilike $2 or nome_fantasia ilike $2 or cnpj like upper($2)
       ))
-      and ($3::text is null or status = $3)`;
+      and case
+        when $3::text = 'ARQUIVADA' then situacao = 'arquivado'
+        when $3::text is null then situacao = 'ativo'
+        else situacao = 'ativo' and status = $3
+      end`;
 
   const { rows } = await cliente.query<LinhaDaEmpresa>(
     `select ${COLUNAS} from app.empresa
@@ -188,6 +208,7 @@ export const listarEmpresas = async (
       nomeFantasia: linha.nome_fantasia,
       regimeTributario: linha.regime_tributario,
       status: linha.status,
+      situacao: linha.situacao,
     })),
     total: Number(contagem.rows[0]?.total ?? '0'),
   };
@@ -218,8 +239,10 @@ export const carregarEmpresa = async (
   empresaId: string,
 ): Promise<EmpresaPersistida | null> => {
   const { rows } = await cliente.query<LinhaDaEmpresa>(
+    // Sem filtro de `situacao`: a empresa arquivada continua consultável e o
+    // caso de uso é quem recusa editá-la (SPEC-003 secao 3.5).
     `select ${COLUNAS} from app.empresa
-      where tenant_id = $1 and id = $2 and situacao = 'ativo'`,
+      where tenant_id = $1 and id = $2`,
     [tenantId, empresaId],
   );
 
@@ -260,6 +283,7 @@ export const carregarEmpresa = async (
       validadoPorFonteExterna: linha.validado_por_fonte_externa,
       versao: linha.versao,
     },
+    situacao: linha.situacao,
   };
 };
 
