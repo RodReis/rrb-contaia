@@ -9,9 +9,16 @@
  * da internet nem do provedor estar de pé (§5). A prova externa real é
  * separada e roda fora da CI.
  *
+ * Cadastrar empresa exige escritório já `ATIVO` (SPEC-002 §2); o seed do F1
+ * cria o tenant `CADASTRO_INCOMPLETO` de propósito, porque é o estado que o
+ * E2E da SPEC-001 precisa encontrar. Em vez de depender de aquela suíte ter
+ * rodado antes — ordem que a CI não garante entre arquivos — este arquivo
+ * ativa o tenant direto no banco no `beforeAll`, ficando autossuficiente.
+ *
  * Depende do ambiente local com Docker, Keycloak semeado e banco migrado:
  * `pnpm docker:up && pnpm db:migrate && pnpm db:seed`.
  */
+import { Pool } from 'pg';
 import { expect, test, type Page } from '@playwright/test';
 
 /** CNPJs exclusivos desta suíte, para não colidir com dado de outra origem. */
@@ -137,6 +144,48 @@ const consultar = async (page: Page, cnpj: string): Promise<void> => {
 };
 
 test.describe.configure({ mode: 'serial' });
+
+/**
+ * Espera o tenant seedado ficar `ATIVO`, sem forçá-lo por SQL.
+ *
+ * Os dois arquivos de E2E compartilham o único tenant que o seed cria — o
+ * OIDC tem um usuário só — e rodam em paralelo (`fullyParallel`, §config).
+ * `spec-001` é quem completa o cadastro do escritório pela UI; forçar o
+ * status aqui por UPDATE correria com aquele teste e o derrubaria se
+ * pegasse o tenant no meio do preenchimento. Em vez disso, esperamos o
+ * resultado que `spec-001` produz, com timeout generoso para a ordem em
+ * que os workers decidirem intercalar os dois arquivos.
+ */
+const esperarEscritorioAtivo = async (pool: Pool): Promise<void> => {
+  const limite = Date.now() + 60_000;
+
+  while (Date.now() < limite) {
+    const { rows } = await pool.query<{ status: string }>('select status from app.tenant limit 1');
+
+    if (rows[0]?.status === 'ATIVO') {
+      return;
+    }
+
+    await new Promise((resolver) => setTimeout(resolver, 1_000));
+  }
+
+  throw new Error(
+    'o tenant seedado não ficou ATIVO a tempo — spec-001-cadastro-escritorio ' +
+      'precisa rodar (mesmo que em paralelo) para deixar o escritório pronto.',
+  );
+};
+
+test.beforeAll(async () => {
+  test.setTimeout(90_000);
+
+  const pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
+
+  try {
+    await esperarEscritorioAtivo(pool);
+  } finally {
+    await pool.end();
+  }
+});
 
 test('cadastra o CNPJ consultado, retoma o cadastro e ativa a empresa', async ({ page }) => {
   await entrar(page);
