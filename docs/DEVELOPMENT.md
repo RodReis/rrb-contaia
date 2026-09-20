@@ -69,7 +69,8 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | # | Card | Fatia / SPEC | Situação | PR | Observação |
 |---|---|---|---|---|---|
 | 1 | [#1](https://github.com/RodReis/rrb-contaia/issues/1) `[INFRA]` Bootstrap local do MVP-1 | — | entregue | #2 | precede a F1; sem F e sem SPEC |
-| 2 | [#2](https://github.com/RodReis/rrb-contaia/issues/2) `[MVP1][SPEC-001][F1]` Acesso inicial e conclusão do cadastro do escritório | F1 / SPEC-001 | a fazer | — | próximo `proplan:todo` |
+| 2 | [#2](https://github.com/RodReis/rrb-contaia/issues/2) `[MVP1][SPEC-001][F1]` Acesso inicial e conclusão do cadastro do escritório | F1 / SPEC-001 | entregue | #7 | acesso OIDC, wizard de 5 etapas, edição por abas, RLS por tenant |
+| 3 | [#3](https://github.com/RodReis/rrb-contaia/issues/3) `[MVP1][SPEC-002][F2]` Cadastro e ativação da empresa cliente | F2 / SPEC-002 | a fazer | — | próximo `proplan:todo` |
 
 ---
 
@@ -88,6 +89,20 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Compose local com Redis, Keycloak e storage S3, portas próprias e health check real
 - [x] Smoke E2E, com prova de que reprova quando um serviço está fora
 - [x] CI paralela com gate agregador e resumo por categoria
+
+### Card #2 — `[MVP1][SPEC-001][F1]` Acesso inicial e conclusão do cadastro do escritório (PR #7)
+
+- [x] Validadores de CNPJ (com o formato alfanumérico vigente), CPF, telefone, CEP, e-mail e UF
+- [x] Máquina de estado do cadastro: etapa só conclui com dado válido e arquivo persistido; ativação idempotente
+- [x] Schema com RLS por `tenant_id`, CNPJ único global, um endereço principal ativo e anti-drift de schema
+- [x] `app.uuid_v7()` própria — o PostgreSQL 17 não traz `uuidv7()` nativo
+- [x] Resolução de identidade e checagem de CNPJ por função `SECURITY DEFINER` estreita, sem `BYPASSRLS`
+- [x] Acesso OIDC pelo Keycloak com PKCE, sessão em cookie `httpOnly` e proxy que nunca expõe o token
+- [x] Bloqueio de área operacional por guard no servidor enquanto o tenant está `CADASTRO_INCOMPLETO`
+- [x] Wizard de cinco etapas com retomada, uploads de logo e documentos e conclusão transacional
+- [x] Edição por abas depois da ativação, sem reabrir o wizard
+- [x] Telas nos temas CLARO e ESCURO, com os quatro estados e sem violação de acessibilidade
+- [x] Provas: 80 de regras, 34 de banco, 8 de tela e 9 E2E, com o caminho crítico na CI
 
 ---
 
