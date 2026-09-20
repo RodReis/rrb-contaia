@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:banco": "vitest run --config vitest.config.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsc -p tsconfig.json && node dist/migrate.js"
+    "db:migrate": "tsc -p tsconfig.json && node dist/migrate.js",
+    "db:seed": "node scripts/seed-local.mjs"
   },
   "dependencies": {
     "@contaia/domain": "workspace:*",

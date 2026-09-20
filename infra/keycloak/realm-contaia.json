@@ -12,14 +12,38 @@
   "ssoSessionMaxLifespan": 36000,
   "roles": {
     "realm": [
-      { "name": "admin_escritorio", "description": "Administrador do escritorio contabil" },
-      { "name": "contador", "description": "Contador responsavel por carteira de empresas" },
-      { "name": "auxiliar", "description": "Auxiliar contabil" },
-      { "name": "gestor_financeiro", "description": "Gestor financeiro do escritorio" },
-      { "name": "dp", "description": "Departamento pessoal" },
-      { "name": "cliente_portal", "description": "Usuario do portal do cliente" },
-      { "name": "auditor_readonly", "description": "Auditor com acesso somente de leitura" },
-      { "name": "super_admin", "description": "Super administrador da plataforma" }
+      {
+        "name": "admin_escritorio",
+        "description": "Administrador do escritorio contabil"
+      },
+      {
+        "name": "contador",
+        "description": "Contador responsavel por carteira de empresas"
+      },
+      {
+        "name": "auxiliar",
+        "description": "Auxiliar contabil"
+      },
+      {
+        "name": "gestor_financeiro",
+        "description": "Gestor financeiro do escritorio"
+      },
+      {
+        "name": "dp",
+        "description": "Departamento pessoal"
+      },
+      {
+        "name": "cliente_portal",
+        "description": "Usuario do portal do cliente"
+      },
+      {
+        "name": "auditor_readonly",
+        "description": "Auditor com acesso somente de leitura"
+      },
+      {
+        "name": "super_admin",
+        "description": "Super administrador da plataforma"
+      }
     ]
   },
   "clients": [
@@ -33,11 +57,37 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "secret": "contaia-web-local-secret",
-      "redirectUris": ["http://127.0.0.1:15100/*", "http://localhost:15100/*"],
-      "webOrigins": ["http://127.0.0.1:15100", "http://localhost:15100"],
+      "redirectUris": [
+        "http://127.0.0.1:15100/*",
+        "http://localhost:15100/*"
+      ],
+      "webOrigins": [
+        "http://127.0.0.1:15100",
+        "http://localhost:15100"
+      ],
       "attributes": {
         "post.logout.redirect.uris": "http://127.0.0.1:15100/*"
       }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin.escritorio",
+      "email": "admin@escritorio.cnt.br",
+      "firstName": "Rodrigo",
+      "lastName": "Administrador",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin_local_123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin_escritorio"
+      ]
     }
   ]
 }

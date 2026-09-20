@@ -1,42 +1,91 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
-  "globalDependencies": ["tsconfig.base.json", ".env.example"],
-  "globalEnv": ["NODE_ENV", "CI", "PROVA_ESCOPO"],
+  "globalDependencies": [
+    "tsconfig.base.json",
+    ".env.example"
+  ],
+  "globalEnv": [
+    "NODE_ENV",
+    "CI",
+    "PROVA_ESCOPO"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**"
+      ]
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "test:regras": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**", "test-results/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "coverage/**",
+        "test-results/**"
+      ]
     },
     "test:banco": {
       "cache": false,
-      "env": ["DATABASE_URL"],
-      "outputs": ["coverage/**", "test-results/**"]
+      "env": [
+        "DATABASE_URL"
+      ],
+      "outputs": [
+        "coverage/**",
+        "test-results/**"
+      ],
+      "dependsOn": [
+        "^build"
+      ]
     },
     "test:tela": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**", "test-results/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "coverage/**",
+        "test-results/**"
+      ]
     },
     "db:generate": {
       "cache": false
     },
     "db:migrate": {
       "cache": false,
-      "env": ["DATABASE_URL"]
+      "env": [
+        "DATABASE_URL"
+      ],
+      "dependsOn": [
+        "^build"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "db:seed": {
+      "cache": false,
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "DATABASE_URL"
+      ]
     }
   }
 }
