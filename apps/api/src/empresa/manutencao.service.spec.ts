@@ -57,6 +57,7 @@ const { estado } = vi.hoisted(() => ({
     enderecoCarregado: null as Record<string, unknown> | null,
     eventos: [] as Record<string, unknown>[],
     identificacaoSalva: null as Record<string, unknown> | null,
+    gravacaoAceita: true,
     fiscaisSalvos: null as Record<string, unknown> | null,
     situacaoDefinida: null as string | null,
   },
@@ -73,7 +74,10 @@ vi.mock('@contaia/db', () => ({
   carregarEndereco: async () => estado.enderecoCarregado,
   listarEnderecosDaEmpresa: async () => estado.enderecos,
   inserirEndereco: async () => 'novo-endereco',
-  atualizarEndereco: async () => undefined,
+  // Devolvem `true` como o repositório real: `false` significa conflito de
+  // versão, e um dublê que devolve `undefined` faria todo salvamento parecer
+  // uma edição concorrente.
+  atualizarEndereco: async () => true,
   aplicarTrocaDeFinalidade: async () => undefined,
   arquivarEndereco: async () => undefined,
   definirSituacaoDaEmpresa: async (
@@ -94,6 +98,8 @@ vi.mock('@contaia/db', () => ({
     valor: Record<string, unknown>,
   ) => {
     estado.identificacaoSalva = valor;
+
+    return estado.gravacaoAceita;
   },
   salvarDadosFiscais: async (
     _c: unknown,
@@ -102,6 +108,8 @@ vi.mock('@contaia/db', () => ({
     valor: Record<string, unknown>,
   ) => {
     estado.fiscaisSalvos = valor;
+
+    return true;
   },
   listarHistorico: async () => ({ eventos: [], total: 0 }),
   camposComHistorico: async () => [],
@@ -136,6 +144,7 @@ beforeEach(() => {
   estado.enderecoCarregado = null;
   estado.eventos = [];
   estado.identificacaoSalva = null;
+  estado.gravacaoAceita = true;
   estado.fiscaisSalvos = null;
   estado.situacaoDefinida = null;
 });
@@ -469,5 +478,28 @@ describe('endereços (§3.4)', () => {
         criarServico().arquivarEndereco(TENANT, EMPRESA, 'a', AUTOR),
       ),
     ).toBe(CODIGOS_DE_ERRO.ENDERECO_FISCAL_OBRIGATORIO);
+  });
+});
+
+describe('concorrência de edição (§5 e §7)', () => {
+  it('conflito de versão vira erro próprio, sem sobrescrita silenciosa', async () => {
+    // O repositório devolve `false` quando a linha mudou desde a leitura.
+    estado.gravacaoAceita = false;
+    const servico = criarServico();
+
+    expect(
+      await codigoDo(() =>
+        servico.salvarIdentificacao(TENANT, EMPRESA, AUTOR, {
+          razaoSocial: 'Segundo a salvar',
+          nomeFantasia: 'Alfa',
+          telefone: null,
+          email: null,
+        }),
+      ),
+    ).toBe(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO);
+
+    // Recusado antes do histórico: evento com `valorAnterior` já defasado seria
+    // pior que não registrar nada.
+    expect(estado.eventos).toEqual([]);
   });
 });

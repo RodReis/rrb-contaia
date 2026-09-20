@@ -123,20 +123,33 @@ export const inserirEndereco = async (
   return id;
 };
 
+/**
+ * Atualiza o endereço com **compare-and-swap** na `versao`.
+ *
+ * Sem o predicado de versão, dois usuários editando a mesma aba salvariam um
+ * por cima do outro em silêncio, e o histórico registraria um `valorAnterior`
+ * que já não era o valor real no momento da escrita — a SPEC-003 §5 e §7 exigem
+ * conflito explícito, nunca sobrescrita silenciosa.
+ *
+ * Devolve `false` quando nenhuma linha casou: ou a versão avançou, ou o
+ * endereço saiu do ar. Quem chama traduz isso em `CONFLITO_DE_VERSAO`.
+ */
 export const atualizarEndereco = async (
   cliente: PoolClient,
   tenantId: string,
   empresaId: string,
   enderecoId: string,
   endereco: EnderecoComFinalidade,
-): Promise<void> => {
-  await cliente.query(
+  versaoEsperada: number,
+): Promise<boolean> => {
+  const { rowCount } = await cliente.query(
     `update app.empresa_endereco
         set finalidade = $4, descricao = $5, principal = $4 = 'FISCAL',
             cep = $6, logradouro = $7, numero = $8, complemento = $9,
             bairro = $10, municipio = $11, uf = $12,
             atualizado_em = now(), versao = versao + 1
-      where tenant_id = $1 and empresa_id = $2 and id = $3 and situacao = 'ativo'`,
+      where tenant_id = $1 and empresa_id = $2 and id = $3
+        and situacao = 'ativo' and versao = $13`,
     [
       tenantId,
       empresaId,
@@ -150,8 +163,11 @@ export const atualizarEndereco = async (
       endereco.bairro,
       endereco.municipio,
       endereco.uf,
+      versaoEsperada,
     ],
   );
+
+  return (rowCount ?? 0) > 0;
 };
 
 /**

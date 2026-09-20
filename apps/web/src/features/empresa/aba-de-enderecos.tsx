@@ -386,7 +386,10 @@ const CartaoDoEndereco = ({
           aoCancelar={aoFecharEdicao}
           aoEnviar={(dados) =>
             atualizar.mutate(
-              { enderecoId: endereco.id, dados: paraPayload(dados) },
+              {
+                enderecoId: endereco.id,
+                dados: { ...paraPayload(dados), versao: endereco.versao },
+              },
               { onSuccess: aoFecharEdicao },
             )
           }

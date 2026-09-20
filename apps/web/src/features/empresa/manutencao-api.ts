@@ -112,10 +112,11 @@ export const criarEndereco = (
     comJson(entrada, 'POST'),
   );
 
+/** A versão lida acompanha a edição: é o que detecta escrita concorrente (§7). */
 export const atualizarEndereco = (
   empresaId: string,
   enderecoId: string,
-  entrada: EnderecoParaSalvar,
+  entrada: EnderecoParaSalvar & Readonly<{ versao: number }>,
 ): Promise<readonly EnderecoDaEmpresa[]> =>
   requisitar<readonly EnderecoDaEmpresa[]>(
     `${base(empresaId)}/enderecos/${enderecoId}`,

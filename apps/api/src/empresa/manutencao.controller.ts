@@ -28,6 +28,7 @@ import {
   aplicacaoDaFonteSchema,
   dadosFiscaisMantidosSchema,
   enderecoComFinalidadeSchema,
+  enderecoMantidoSchema,
   filtroDoHistoricoSchema,
   identificacaoMantidaSchema,
   justificativaSchema,
@@ -152,12 +153,15 @@ export class ManutencaoDaEmpresaController {
     @Param('enderecoId') enderecoId: string,
     @Body() corpo: unknown,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
+    const { versao, ...endereco } = analisar(enderecoMantidoSchema, corpo);
+
     return this.manutencao.atualizarEndereco(
       tenantDa(requisicao),
       empresaId,
       enderecoId,
       autorDa(requisicao),
-      analisar(enderecoComFinalidadeSchema, corpo),
+      endereco,
+      versao,
     );
   }
 

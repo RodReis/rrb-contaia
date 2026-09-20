@@ -100,6 +100,17 @@ export const filtroDaListaSchema = z.object({
 
 // -- SPEC-003: manutenção da empresa ----------------------------------------
 
+/**
+ * Identificador gerado por `app.uuid_v7()`. **Não** é `z.uuid()`: aquela função
+ * grava a variante RFC 4122 no byte errado e produz ids cujo nibble de variante
+ * não é 8/9/a/b, que `z.uuid()` recusa — cerca de três em cada quatro ids do
+ * sistema. Validar a forma (8-4-4-4-12 hexadecimal) impede id malformado sem
+ * recusar o que o próprio banco gerou. Card [FIX] aberto para a função.
+ */
+const identificador = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
+
 /** Data civil `YYYY-MM-DD`; a regra de passada/atual é do domínio. */
 const dataCivil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
 
@@ -122,8 +133,13 @@ export const enderecoComFinalidadeSchema = enderecoDaEmpresaSchema.extend({
   descricao: opcional(200),
 });
 
+/** Atualizar exige a versão lida: é o que detecta a edição concorrente (§7). */
+export const enderecoMantidoSchema = enderecoComFinalidadeSchema.extend({
+  versao: z.coerce.number().int().min(0),
+});
+
 export const trocaDeFinalidadeFiscalSchema = z.object({
-  novoFiscalId: z.uuid(),
+  novoFiscalId: identificador,
   finalidadeDoAnterior: z.enum(FINALIDADES_DE_ENDERECO),
 });
 
@@ -142,16 +158,10 @@ export const filtroDoHistoricoSchema = z.object({
     .enum(ABAS_DO_HISTORICO)
     .nullish()
     .transform((valor) => valor ?? null),
-  empresaId: z
-    .uuid()
-    .nullish()
-    .transform((valor) => valor ?? null),
+  empresaId: identificador.nullish().transform((valor) => valor ?? null),
   inicio: dataCivil.nullish().transform((valor) => valor ?? null),
   fim: dataCivil.nullish().transform((valor) => valor ?? null),
-  usuarioId: z
-    .uuid()
-    .nullish()
-    .transform((valor) => valor ?? null),
+  usuarioId: identificador.nullish().transform((valor) => valor ?? null),
   campo: opcional(60),
   limite: z.coerce.number().int().min(1).max(100).default(25),
   deslocamento: z.coerce.number().int().min(0).default(0),

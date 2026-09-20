@@ -12,10 +12,16 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
-import { criarEmpresa } from './repositorios/empresa.js';
+import {
+  carregarEmpresa,
+  criarEmpresa,
+  salvarIdentificacaoDaEmpresa,
+} from './repositorios/empresa.js';
 import {
   aplicarTrocaDeFinalidade,
   arquivarEndereco,
+  atualizarEndereco,
+  carregarEndereco,
   camposComHistorico,
   definirSituacaoDaEmpresa,
   inserirEndereco,
@@ -521,5 +527,130 @@ describe('consulta do histórico (§3.6)', () => {
     );
 
     expect(campos).toContain('campoParaFiltro');
+  });
+});
+
+describe('concorrência de edição (§5 e §7)', () => {
+  const identificacao = {
+    cnpj: CNPJ_EMPRESA,
+    razaoSocial: 'Empresa Manutenção',
+    nomeFantasia: null,
+    logoArquivoId: null,
+    telefone: null,
+    email: null,
+  } as const;
+
+  const procedencia = { situacaoCadastralExterna: null, validado: false } as const;
+
+  it('recusa a segunda escrita quando a versão já avançou', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, '22333444000195');
+
+    // A versão de partida é lida, não suposta: a fixture faz um UPDATE próprio
+    // ao ativar a empresa, então ela não começa necessariamente em 1.
+    const carregada = await comTenant(tenantA, (cliente) =>
+      carregarEmpresa(cliente, tenantA, empresaId),
+    );
+
+    const versaoLida = carregada?.cadastro.versao ?? 0;
+
+    // Ambos leem a mesma versão; o primeiro grava e ela avança.
+    const primeiro = await comTenant(tenantA, (cliente) =>
+      salvarIdentificacaoDaEmpresa(
+        cliente,
+        tenantA,
+        empresaId,
+        { ...identificacao, razaoSocial: 'Primeiro a salvar' },
+        procedencia,
+        versaoLida,
+      ),
+    );
+
+    expect(primeiro).toBe(true);
+
+    // O segundo ainda acha que está na versão anterior: precisa ser recusado, e
+    // não sobrescrever em silêncio o que o primeiro gravou.
+    const segundo = await comTenant(tenantA, (cliente) =>
+      salvarIdentificacaoDaEmpresa(
+        cliente,
+        tenantA,
+        empresaId,
+        { ...identificacao, razaoSocial: 'Segundo a salvar' },
+        procedencia,
+        versaoLida,
+      ),
+    );
+
+    expect(segundo).toBe(false);
+
+    const { rows } = await poolAdmin.query<{ razao_social: string }>(
+      'select razao_social from app.empresa where id = $1',
+      [empresaId],
+    );
+
+    expect(rows[0]?.razao_social).toBe('Primeiro a salvar');
+  });
+
+  it('recusa a edição de endereço com versão desatualizada', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, '23456789000199');
+
+    const enderecoId = await comTenant(tenantA, (cliente) =>
+      inserirEndereco(cliente, tenantA, empresaId, endereco('COBRANCA')),
+    );
+
+    const atual = await comTenant(tenantA, (cliente) =>
+      carregarEndereco(cliente, tenantA, empresaId, enderecoId),
+    );
+
+    const versaoLida = atual?.versao ?? 0;
+
+    const primeiro = await comTenant(tenantA, (cliente) =>
+      atualizarEndereco(
+        cliente,
+        tenantA,
+        empresaId,
+        enderecoId,
+        { ...endereco('COBRANCA'), numero: '111' },
+        versaoLida,
+      ),
+    );
+
+    expect(primeiro).toBe(true);
+
+    const segundo = await comTenant(tenantA, (cliente) =>
+      atualizarEndereco(
+        cliente,
+        tenantA,
+        empresaId,
+        enderecoId,
+        { ...endereco('COBRANCA'), numero: '222' },
+        versaoLida,
+      ),
+    );
+
+    expect(segundo).toBe(false);
+
+    const depois = await comTenant(tenantA, (cliente) =>
+      carregarEndereco(cliente, tenantA, empresaId, enderecoId),
+    );
+
+    expect(depois?.numero).toBe('111');
+  });
+
+  it('o wizard da SPEC-002 continua salvando sem versão', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, '24680135000104');
+
+    // Sem `versaoEsperada` não há compare-and-swap: é o caminho do cadastro em
+    // formação, onde não existem dois editores simultâneos.
+    const gravou = await comTenant(tenantA, (cliente) =>
+      salvarIdentificacaoDaEmpresa(
+        cliente,
+        tenantA,
+        empresaId,
+        { ...identificacao, razaoSocial: 'Sem versão' },
+        procedencia,
+      ),
+    );
+
+    expect(gravou).toBe(true);
   });
 });

@@ -287,21 +287,29 @@ export const carregarEmpresa = async (
   };
 };
 
+/**
+ * `versaoEsperada` liga o compare-and-swap: quando informada, a linha só é
+ * gravada se ninguém a tiver alterado desde a leitura (SPEC-003 §5 e §7).
+ * O wizard da SPEC-002 não a informa — lá a empresa está em formação e não há
+ * duas pessoas editando a mesma etapa. Devolve `false` no conflito.
+ */
 export const salvarIdentificacaoDaEmpresa = async (
   cliente: PoolClient,
   tenantId: string,
   empresaId: string,
   identificacao: IdentificacaoDaEmpresa,
   procedencia: Readonly<{ situacaoCadastralExterna: string | null; validado: boolean }>,
-): Promise<void> => {
-  await cliente.query(
+  versaoEsperada: number | null = null,
+): Promise<boolean> => {
+  const { rowCount } = await cliente.query(
     `update app.empresa
         set razao_social = $3, nome_fantasia = $4, telefone = $5, email = $6,
             logo_arquivo_id = coalesce($7, logo_arquivo_id),
             situacao_cadastral_externa = coalesce($8, situacao_cadastral_externa),
             validado_por_fonte_externa = validado_por_fonte_externa or $9,
             atualizado_em = now(), versao = versao + 1
-      where tenant_id = $1 and id = $2`,
+      where tenant_id = $1 and id = $2
+        and ($10::integer is null or versao = $10)`,
     [
       tenantId,
       empresaId,
@@ -312,23 +320,29 @@ export const salvarIdentificacaoDaEmpresa = async (
       identificacao.logoArquivoId,
       procedencia.situacaoCadastralExterna,
       procedencia.validado,
+      versaoEsperada,
     ],
   );
+
+  return (rowCount ?? 0) > 0;
 };
 
+/** Mesmo compare-and-swap opcional de `salvarIdentificacaoDaEmpresa`. */
 export const salvarDadosFiscais = async (
   cliente: PoolClient,
   tenantId: string,
   empresaId: string,
   dados: DadosFiscaisDaEmpresa,
-): Promise<void> => {
-  await cliente.query(
+  versaoEsperada: number | null = null,
+): Promise<boolean> => {
+  const { rowCount } = await cliente.query(
     `update app.empresa
         set regime_tributario = $3, enquadramento_simples = $4, cnae_principal = $5,
             inscricao_estadual_situacao = $6, inscricao_estadual_numero = $7,
             inscricao_municipal_situacao = $8, inscricao_municipal_numero = $9,
             atualizado_em = now(), versao = versao + 1
-      where tenant_id = $1 and id = $2`,
+      where tenant_id = $1 and id = $2
+        and ($10::integer is null or versao = $10)`,
     [
       tenantId,
       empresaId,
@@ -341,8 +355,16 @@ export const salvarDadosFiscais = async (
       dados.inscricaoEstadual.situacao === 'POSSUI' ? dados.inscricaoEstadual.numero : null,
       dados.inscricaoMunicipal.situacao,
       dados.inscricaoMunicipal.situacao === 'POSSUI' ? dados.inscricaoMunicipal.numero : null,
+      versaoEsperada,
     ],
   );
+
+  // Conflito de versão interrompe antes de tocar nos CNAEs: seguir adiante
+  // gravaria a lista nova sobre um cadastro que outra pessoa já mudou, que é
+  // exatamente a sobrescrita silenciosa que a SPEC-003 §7 proíbe.
+  if ((rowCount ?? 0) === 0) {
+    return false;
+  }
 
   // CNAEs secundários são substituídos em bloco: arquiva os atuais e insere os
   // informados. Sem DELETE por I-7, o arquivamento é o caminho.
@@ -361,6 +383,8 @@ export const salvarDadosFiscais = async (
       [tenantId, empresaId, codigo],
     );
   }
+
+  return true;
 };
 
 /** Grava o endereço principal, substituindo o anterior — há exatamente um (§4.4). */

@@ -8,6 +8,7 @@
  */
 import {
   CODIGOS_DE_ERRO,
+  ErroDeConflito,
   ErroDeDominio,
   ErroDeValidacao,
   abaDoCampo,
@@ -73,6 +74,19 @@ export type ComparacaoComAFonte = Readonly<{
   alertaDeSituacaoExterna: boolean;
   motivo: string | null;
 }>;
+
+/**
+ * Conflito de edição concorrente (SPEC-003 §5 e §7): a linha mudou entre a
+ * leitura e a gravação. A alternativa — gravar assim mesmo — é a sobrescrita
+ * silenciosa que a spec proíbe, e ainda registraria no histórico um
+ * `valorAnterior` que já não era verdade.
+ */
+const conflitoDeVersao = (): never => {
+  throw new ErroDeConflito(
+    CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,
+    'Estes dados foram alterados por outra operação. Recarregue e tente de novo.',
+  );
+};
 
 const empresaNaoEncontrada = (): never => {
   throw new ErroDeDominio(
@@ -190,10 +204,18 @@ export class ManutencaoDaEmpresaService {
       // Escrita direta no repositório, e não pelo EmpresaService: aquele método
       // abre a própria transação, e o dado cairia numa transação diferente da
       // do evento — exatamente o que §4.2 proíbe.
-      await salvarIdentificacaoDaEmpresa(cliente, tenantId, empresaId, identificacao, {
-        situacaoCadastralExterna: null,
-        validado: false,
-      });
+      const gravou = await salvarIdentificacaoDaEmpresa(
+        cliente,
+        tenantId,
+        empresaId,
+        identificacao,
+        { situacaoCadastralExterna: null, validado: false },
+        atual.cadastro.versao,
+      );
+
+      if (!gravou) {
+        return conflitoDeVersao();
+      }
 
       await this.registrar(
         cliente,
@@ -261,7 +283,17 @@ export class ManutencaoDaEmpresaService {
         }
       }
 
-      await salvarDadosFiscais(cliente, tenantId, empresaId, entrada);
+      const gravou = await salvarDadosFiscais(
+        cliente,
+        tenantId,
+        empresaId,
+        entrada,
+        atual.cadastro.versao,
+      );
+
+      if (!gravou) {
+        return conflitoDeVersao();
+      }
 
       const alterados = [
         ...camposAlteradosNosDadosFiscais(
@@ -375,6 +407,7 @@ export class ManutencaoDaEmpresaService {
     enderecoId: string,
     autor: Autor,
     entrada: EnderecoComFinalidade,
+    versaoEsperada: number,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
     return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
@@ -405,7 +438,20 @@ export class ManutencaoDaEmpresaService {
         );
       }
 
-      await atualizarEndereco(cliente, tenantId, empresaId, enderecoId, endereco);
+      // A versão vem do endereço que a tela carregou; divergir dela significa
+      // que outra pessoa salvou no intervalo.
+      const gravou = await atualizarEndereco(
+        cliente,
+        tenantId,
+        empresaId,
+        enderecoId,
+        endereco,
+        versaoEsperada,
+      );
+
+      if (!gravou) {
+        return conflitoDeVersao();
+      }
 
       const antes = this.descreverEndereco(anterior);
       const depois = this.descreverEndereco(endereco);
