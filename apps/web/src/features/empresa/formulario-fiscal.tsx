@@ -47,14 +47,31 @@ export const FormularioFiscal = ({
   visao,
   aoAvancar,
   rotuloDeEnvio = 'Salvar e continuar',
+  exigeVigencia = false,
+  somenteLeitura = false,
+  aoSalvar,
+  ocupado,
 }: {
   visao: VisaoDaEmpresa;
   aoAvancar?: () => void;
   rotuloDeEnvio?: string;
+  /**
+   * Na manutenção (SPEC-003 §3.2), mudar regime ou CNAE exige data de vigência
+   * passada ou atual. No wizard da SPEC-002 o conceito não existe: a empresa
+   * está nascendo e não há mudança a datar.
+   */
+  exigeVigencia?: boolean;
+  somenteLeitura?: boolean;
+  /** Substitui o salvamento do wizard pelo da manutenção, que gera histórico. */
+  aoSalvar?: (dados: DadosFiscaisValidados, vigencia: string) => void;
+  ocupado?: boolean;
 }) => {
   const salvar = useSalvarDadosFiscais(visao.id, aoAvancar);
   const fiscais = visao.cadastro.dadosFiscais;
   const [cnaeNovo, definirCnaeNovo] = useState('');
+  const [vigencia, definirVigencia] = useState('');
+  const [erroDaVigencia, definirErroDaVigencia] = useState<string | undefined>(undefined);
+  const enviando = ocupado ?? salvar.isPending;
 
   const formulario = useForm<DadosFiscaisForm, unknown, DadosFiscaisValidados>({
     resolver: zodResolver(dadosFiscaisFormSchema),
@@ -110,12 +127,28 @@ export const FormularioFiscal = ({
   return (
     <form
       noValidate
-      onSubmit={formulario.handleSubmit((dados) => salvar.mutate(dados))}
+      onSubmit={formulario.handleSubmit((dados) => {
+        if (aoSalvar === undefined) {
+          salvar.mutate(dados);
+
+          return;
+        }
+
+        if (exigeVigencia && vigencia.length === 0) {
+          definirErroDaVigencia('Informe a data de vigência.');
+
+          return;
+        }
+
+        aoSalvar(dados, vigencia);
+      })}
       className="flex flex-col gap-lg"
     >
       <ResumoDeErros erros={formulario.formState.errors} />
 
-      <div className="flex flex-col gap-md">
+      {/* `fieldset disabled` desliga todos os controles de uma vez, nativamente,
+          e é o que a empresa arquivada exige: consulta sem edição (§3.5). */}
+      <fieldset disabled={somenteLeitura} className="flex flex-col gap-md border-0 p-0">
         <div className="grid gap-md tablet:grid-cols-2">
           <Controller
             control={formulario.control}
@@ -310,13 +343,37 @@ export const FormularioFiscal = ({
             ) : null}
           </div>
         </div>
-      </div>
+      </fieldset>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={salvar.isPending}>
-          {salvar.isPending ? 'Salvando…' : rotuloDeEnvio}
-        </Button>
-      </div>
+      {exigeVigencia ? (
+        <div className="tablet:max-w-[16rem]">
+          <Campo
+            rotulo="Vigência da alteração"
+            obrigatorio
+            type="date"
+            value={vigencia}
+            onValorChange={(valor) => {
+              definirVigencia(valor);
+              definirErroDaVigencia(undefined);
+            }}
+            erro={erroDaVigencia}
+            // O teto é a data de hoje: vigência futura é recusada pelo servidor,
+            // e oferecer a data no seletor prometeria o que não se cumpre.
+            max={new Date().toLocaleDateString('en-CA', {
+              timeZone: 'America/Sao_Paulo',
+            })}
+            ajuda="Regime e CNAE exigem vigência passada ou atual."
+          />
+        </div>
+      ) : null}
+
+      {somenteLeitura ? null : (
+        <div className="flex justify-end">
+          <Button type="submit" disabled={enviando}>
+            {enviando ? 'Salvando…' : rotuloDeEnvio}
+          </Button>
+        </div>
+      )}
     </form>
   );
 };

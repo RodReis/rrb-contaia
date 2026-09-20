@@ -3,6 +3,7 @@ import type {
   CadastroDaEmpresa,
   EtapaDaEmpresa,
   RegimeTributario,
+  SituacaoDeRegistro,
   StatusDaEmpresa,
 } from '@contaia/domain';
 import type { DadosPublicosDoCnpj, MotivoDeFalhaDaConsulta } from '@contaia/shared';
@@ -17,6 +18,7 @@ import type {
 export type VisaoDaEmpresa = Readonly<{
   id: string;
   cadastro: CadastroDaEmpresa;
+  situacao: SituacaoDeRegistro;
   etapasConcluidas: readonly EtapaDaEmpresa[];
   proximaEtapa: EtapaDaEmpresa | null;
   podeAtivar: boolean;
@@ -30,7 +32,12 @@ export type EmpresaNaLista = Readonly<{
   nomeFantasia: string | null;
   regimeTributario: RegimeTributario | null;
   status: StatusDaEmpresa;
+  /** `arquivado` não é um status: é a situação do registro (SPEC-003 §3.1). */
+  situacao: SituacaoDeRegistro;
 }>;
+
+/** O que a lista oferece como filtro; `ARQUIVADA` cruza status e situação. */
+export type FiltroDeStatus = StatusDaEmpresa | 'ARQUIVADA';
 
 export type ListaDeEmpresas = Readonly<{
   empresas: readonly EmpresaNaLista[];
@@ -39,7 +46,7 @@ export type ListaDeEmpresas = Readonly<{
 
 export type FiltroDaLista = Readonly<{
   busca: string | null;
-  status: StatusDaEmpresa | null;
+  status: FiltroDeStatus | null;
   limite: number;
   deslocamento: number;
 }>;

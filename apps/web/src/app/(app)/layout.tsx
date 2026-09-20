@@ -1,4 +1,5 @@
 import { LogOut } from 'lucide-react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
@@ -28,7 +29,28 @@ export default async function LayoutDaAplicacao({
     <Provedores>
       <div className="flex min-h-dvh flex-col bg-background">
         <header className="flex items-center justify-between gap-md border-b border-border bg-card px-lg py-md">
-          <MarcaContaia descricao="Escritório contábil" />
+          <div className="flex items-center gap-lg">
+            <MarcaContaia descricao="Escritório contábil" />
+            {/* O Histórico de Informações é área global do escritório, não de
+                uma empresa (SPEC-003 §3.6): o acesso é de menu, não de tela. */}
+            <nav aria-label="Navegação principal">
+              <ul className="flex items-center gap-xs">
+                {[
+                  { href: '/empresas', rotulo: 'Empresas' },
+                  { href: '/historico', rotulo: 'Histórico de Informações' },
+                ].map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className="rounded-md px-sm py-xs text-label-md text-muted-foreground transition-colors duration-fast ease-out hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {item.rotulo}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
           <div className="flex items-center gap-xs">
             <AlternarTema />
             <Button asChild variante="fantasma" tamanho="compacto">

@@ -219,7 +219,7 @@ export class ManutencaoDaEmpresaService {
       return empresaNaoEncontrada();
     }
 
-    return this.empresas.paraVisao(persistida.id, persistida.cadastro);
+    return this.empresas.paraVisao(persistida.id, persistida.cadastro, persistida.situacao);
   }
 
   // -- Dados fiscais ---------------------------------------------------------
