@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export const ignores = {
@@ -9,6 +10,14 @@ export const base = [
   ignores,
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    // Script de operação (seed, migração, CI) roda no Node puro: sem isto o
+    // `no-undef` acusa `process`, `fetch` e `URL` como indefinidos.
+    files: ['**/*.mjs', '**/*.cjs', 'scripts/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',

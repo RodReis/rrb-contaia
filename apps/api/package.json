@@ -11,12 +11,19 @@
     "test:regras": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1136.0",
+    "@contaia/db": "workspace:*",
+    "@contaia/domain": "workspace:*",
     "@contaia/shared": "workspace:*",
     "@nestjs/common": "11.2.5",
     "@nestjs/core": "11.2.5",
     "@nestjs/platform-express": "11.2.5",
+    "jose": "^6.2.12",
+    "multer": "^2.4.0",
+    "pg": "8.23.0",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2"
+    "rxjs": "7.8.2",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@contaia/config": "workspace:*",
@@ -25,7 +32,9 @@
     "@nestjs/testing": "11.2.5",
     "@swc/core": "1.16.2",
     "@types/express": "5.0.6",
+    "@types/multer": "^2.2.0",
     "@types/node": "24.13.5",
+    "@types/pg": "8.23.1",
     "@types/supertest": "7.2.1",
     "eslint": "9.39.5",
     "supertest": "7.2.2",
