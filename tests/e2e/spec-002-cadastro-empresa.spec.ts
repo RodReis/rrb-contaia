@@ -251,10 +251,15 @@ test('cadastra o CNPJ consultado, retoma o cadastro e ativa a empresa', async ({
   await page.waitForURL(/\/empresas(\?|$)/u);
   await page.getByRole('searchbox', { name: /Buscar/u }).fill(CNPJ_NOVO);
 
-  await expect(page.getByRole('cell', { name: CNPJ_FORMATADO })).toBeVisible({
+  // A asserção de status é na **linha desta empresa**, não na tabela toda: a
+  // busca por CNPJ não esvazia a lista de outras empresas ativas do escritório,
+  // e `getByRole('cell', { name: 'Ativa' })` casaria com qualquer uma delas.
+  const linha = page.getByRole('row').filter({ hasText: CNPJ_FORMATADO });
+
+  await expect(linha.getByRole('cell', { name: CNPJ_FORMATADO })).toBeVisible({
     timeout: 10_000,
   });
-  await expect(page.getByRole('cell', { name: 'Ativa' })).toBeVisible();
+  await expect(linha.getByRole('cell', { name: 'Ativa' })).toBeVisible();
 });
 
 test('CNPJ já cadastrado no escritório abre o existente e não duplica', async ({ page }) => {
