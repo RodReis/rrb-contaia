@@ -305,7 +305,7 @@ export const HistoricoDeInformacoes = () => {
 
     return (
       <div className="flex flex-col gap-lg">
-        <ul className="flex flex-col">
+        <ul aria-label="Eventos do histórico" className="flex flex-col">
           {data.eventos.map((evento) => (
             <LinhaDoEvento key={evento.id} evento={evento} />
           ))}
