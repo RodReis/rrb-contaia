@@ -12,3 +12,13 @@ export {
   validarArquivo,
 } from './arquivos.js';
 export type { FalhaDeArquivo, RegraDeArquivo, TipoDeArquivo } from './arquivos.js';
+export { MOTIVOS_DE_FALHA_DA_CONSULTA, mensagemDaFalhaDaConsulta } from './cnpja.js';
+export type {
+  ConsultaBemSucedida,
+  ConsultaDeCnpj,
+  ConsultaFalhada,
+  DadosPublicosDoCnpj,
+  EnderecoConsultado,
+  MotivoDeFalhaDaConsulta,
+  ResultadoDaConsulta,
+} from './cnpja.js';
