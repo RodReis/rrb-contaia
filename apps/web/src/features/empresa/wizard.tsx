@@ -102,10 +102,11 @@ const Revisao = ({
   aoEditar: (etapa: EtapaDaEmpresa) => void;
 }) => {
   const navegador = useRouter();
-  const { identificacao, dadosFiscais, enderecoPrincipal } = visao.cadastro;
+  const { identificacao, dadosFiscais, enderecoPrincipal, status } = visao.cadastro;
   const [confirmacaoAberta, definirConfirmacao] = useState(false);
 
   const ativar = useAtivarEmpresa(visao.id, () => navegador.push('/empresas'));
+  const jaAtiva = status === 'ATIVA';
 
   const pendencias = ETAPAS_DA_EMPRESA.filter(
     (etapa) => etapa !== 'revisao' && !visao.etapasConcluidas.includes(etapa),
@@ -260,6 +261,9 @@ const Revisao = ({
         />
       </Secao>
 
+      {/* Empresa já ativa: a revisão vira consulta pura, sem repetir a ação
+          de ativar (já concluída) nem convidar a clicar de novo. */}
+      {jaAtiva ? null : (
       <div className="flex justify-end">
         {/* Situação irregular exige ato explícito: a confirmação vai para
             AlertDialog, que não fecha por clique fora (COMPONENTS.md §3.9). */}
@@ -308,6 +312,7 @@ const Revisao = ({
           </Button>
         )}
       </div>
+      )}
     </div>
   );
 };

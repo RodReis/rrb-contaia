@@ -76,7 +76,26 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "PORT",
+        "WEB_PORT",
+        "API_PORT",
+        "WORKERS_PORT",
+        "SIGNER_PORT",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "KEYCLOAK_ADMIN",
+        "KEYCLOAK_ADMIN_PASSWORD",
+        "KEYCLOAK_REALM",
+        "KEYCLOAK_ISSUER_URL",
+        "MINIO_ROOT_USER",
+        "MINIO_ROOT_PASSWORD",
+        "S3_ENDPOINT",
+        "S3_BUCKET",
+        "WEB_ORIGIN",
+        "API_ORIGIN"
+      ]
     },
     "db:seed": {
       "cache": false,
