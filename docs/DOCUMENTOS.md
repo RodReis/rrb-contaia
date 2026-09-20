@@ -1,0 +1,34 @@
+# Lista de documentos para auxiliar na cobertura do projeto.
+
+- `docs/DEVELOPMENT.md` — Documento de ordem de execução e status por item (atualize a cada entrega junto com STATUS.md).
+- `docs/ARCHITECTURE.md` — Documento desenho, módulos, dados, resiliência.
+- `docs/DECISIONS.md` — Documento ADRs (ler antes de propor mudança estrutural).
+- `docs/adr/` — Um arquivo por ADR aceita (`ADR-NNN-titulo.md`), com contexto/decisão/consequências/riscos/evidência.
+- `docs/CONVENTION.md` — Documento de domínio: entidades, estados, invariantes e regras de negócio (o coração do produto).
+- `docs/FRONTEND.md` — Contrato de engenharia da interface web: stack fixada, tipagem, padrão de tela CRUD, estados, performance, prova por tela. Toda tarefa de UI começa por ele.
+- `docs/DESIGN-SYSTEM.md` + `docs/design-system/` — Contrato de design (TOKENS, COMPONENTS, PATTERNS, DEBITO); contrato da verdade para a aparência e o comportamento visual.
+- `docs/GITHUB.md` — Documento de referencia das melhores praticas de commits, merges, branchs.
+- `docs/PRS.md` — Boas práticas de pull request, rotina de revisão e **métricas do fluxo** (DORA, tamanho e idade de PR, rodadas de CI).
+- `docs/CI-PR.md`— Documento política de PR rápida: jobs paralelos, gate único, medição de duração e limites. Melhores praticas do GitHub
+- `docs/STATUS.md` — Kanban/roadmap deste projeto + **Índice Fatia ↔ SPEC** (fonte única da numeração). Prosa curta, sem detalhe.
+- `docs/STATUS-ARQUIVO.md` — Documento histórico detalhado que complementa o STATUS.md: prosa longa mora aqui, com detalhe.
+- `docs/APRENDIZADOS.md` — Consolidação da seção **Aprendizado** dos comentários de encerramento, mantida pelo Cowork. Curto, com teto e regra de promoção: leitura obrigatória do Code no passo 1 de todo card.
+- `docs/LANDSCAPE.md` — Documento cenário competitivo datado: o que o mercado já faz, o que morreu por causa disso, e os gatilhos que obrigam a revisar. Evita reconstruir o que já existe de graça.
+- `docs/FORA-DE-ESCOPO.md` — Fonte única dos itens adiados ou excluídos por MVP, com motivo, destino e gatilho de retorno; mantido pelo Cowork e sem substituir backlog ou status remoto.
+- `docs/prd/mvp/README.md` — Regra de governança dos MVPs: fatiamento não reduz escopo, matriz obrigatória, registro de fora de escopo e régua Curto/Médio/Grande/Enorme. Ler antes de criar ou alterar MVP/SPEC.
+- `docs/prd/mvp/RASTREABILIDADE.md` — Matriz normativa que prova para onde cada requisito aprovado foi: mantido, transferido, adiado ou excluído. Ausência na matriz bloqueia aprovação documental.
+- `docs/PRIVACIDADE.md` — Registro não normativo de achados sobre privacidade, proteção de dados, LGPD e consentimentos, com contexto de origem. Não é citado por SPEC e não produz requisito ou aceite antes da revisão do PI após o MVP-4.
+- `docs/prd/histórico/Politica_Privacidade_LGPD_Compliance.md` — Documento histórico autônomo, **sem efeito sobre produto** durante os MVPs. É insumo da revisão do PI após o MVP-4 junto com `docs/PRIVACIDADE.md`.
+- `docs/AGENTES-IA-AUTONOMOS.md` — Análise estratégica de agentes autônomos que esta no PRD. Não altera escopo de MVP por si; qualquer adoção precisa passar por `docs/DECISIONS.md`, `docs/prd/mvp/RASTREABILIDADE.md` e SPEC própria.
+- `docs/AUDIT.md` — Documento de rotina de autoria, revisão, teste de performance, CI e evidência das PRs deste repositório; distingue orientação operacional de evolução da pipeline.
+- `docs/TESTING.md` — Documento de estratégia de teste, classificação, evidência e relatório por SPEC/issue.
+- `docs/REVIEW.md` — instruções exclusivas para revisão, inseridas nos agentes do pipeline de revisão com a mais alta prioridade. Use-as para alterar o que é sinalizado, com qual gravidade e como as descobertas são relatadas.
+- `docs/telas/` — Telas do protótipo (claro e escuro), uma pasta por tela com `code.html` e `screen.png`. Referência de conteúdo e fluxo, **não contrato** — defeitos catalogados em `docs/design-system/DEBITO.md`.
+- `docs/telas/prototipo/` — Protótipo navegável (`index.html`) e as telas que o compõem.
+- `docs/telas/DESIGN-CLARO.md` Documentos de direção para criar as telas da verdade do projeto.
+- `docs/telas/DESIGN-ESCURO.md` Documentos de direção para criar as telas da verdade do projeto.
+- `docs/prd/PRD.md` Documentos de requisito da verdade do projeto.
+- `docs/prd/mvp/` Documentos de MVPs (épicos) com checklist das fatias previstas.
+- `docs/prd/mvp/plans/` — Documentos de planos de implementação por slice. São **material de apoio do Code**, não contrato: onde divergirem do PRD, o PRD vence.
+- `docs/prd/mvp/spec/` — Documentos de especificação por slice. São **material de apoio do Code**, não contrato: onde divergirem do PRD, o PRD vence.
+- `docs/prd/historico/` — Documentos superados (backlog e arquitetura originais, brief de design). Referência histórica; **não é contrato**.

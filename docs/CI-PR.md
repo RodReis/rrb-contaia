@@ -148,6 +148,13 @@ Gate acima de 15 minutos sem justificativa técnica é registrado aqui, com medi
 
 Preenchido pelo Code na mesma PR em que o estouro ocorreu. Linha sem causa medida não conta.
 
+## 9. Testes e CI
+
+- Categorias obrigatórias: regras, banco, tela e E2E quando aplicável. Evidência rastreável por SPEC/issue (arquivos brutos, cobertura por categoria, relatório agregado) conforme `docs/TESTING.md`.
+- Correção de bug precisa de teste de regressão quando há comportamento verificável; se não houver teste viável, registrar o motivo e a prova alternativa na PR.
+- Mudança em teste, workflow ou gerador de relatório exige self-check e verificação do relatório. Se tocar UI ou fluxo crítico, incluir prova visual/E2E.
+- CI de PR com caminho crítico curto: jobs independentes em paralelo (`quality`, `test-regras`, `test-banco`, `test-tela`, `e2e`); o job agregado não reexecuta a suíte, só consolida artefatos e valida anti-drift/append-only; o `gate` depende dos obrigatórios. PR acima de 15 min sem justificativa técnica: medir e registrar a causa em `docs/CI-PR.md`. Otimização válida é paralelizar, condicionar por mudança e reaproveitar artefato — nunca remover prova.
+- Dependência web/mobile que não suporte Node 24 ou dependência backend incompatível com a versão Python fixada é bloqueio explícito: documentar o erro e ajustar a matriz só com justificativa; nunca degradar versão em silêncio.
 ---
 
 ## Referências
