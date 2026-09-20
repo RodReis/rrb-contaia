@@ -46,28 +46,32 @@ updated: 2026-09-20
 - [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9)
 - [MVP1][SPEC-006][F6] Notificações de pendências (#7)
 
+### Sem épico
+
+- [MVP1][FIX] app.uuid_v7() grava a variante RFC 4122 no byte errado (#47)
+
 ## A Fazer
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
 - [MVP1][SPEC-005][F5] Central de Pendências cadastrais (#6)
 - [MVP1][SPEC-004][F4] Documentos da empresa (#5)
-- [MVP1][SPEC-003][F3] Manutenção da empresa cliente (#4)
 
 ## Em Andamento
+
+_(vazio)_
+
+## Feito
 
 ### Sem épico
 
 - [MVP1][SPEC-002][FIX] ambiente local nao subia a Web/API e desalinhamentos no wizard/listagem (#45)
 
-## Feito
-
-_(vazio)_
-
 ## Finalizado
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-003][F3] Manutenção da empresa cliente (#4, finalizado em: 2026-09-20)
 - [MVP1][SPEC-001][F1] Acesso inicial e conclusão do cadastro do escritório (#2, finalizado em: 2026-09-20)
 - [MVP1][SPEC-002][F2] Cadastro e ativação da empresa cliente (#3, finalizado em: 2026-09-20)
 
