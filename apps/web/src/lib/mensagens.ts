@@ -20,6 +20,16 @@ const MENSAGENS: Readonly<Record<string, string>> = {
   [CODIGOS_DE_ERRO.DOCUMENTO_OBRIGATORIO]: 'Envie ao menos um documento do escritório.',
   [CODIGOS_DE_ERRO.ENDERECO_PRINCIPAL_OBRIGATORIO]: 'Informe o endereço principal.',
   [CODIGOS_DE_ERRO.ARQUIVO_INVALIDO]: 'Não foi possível usar este arquivo.',
+  [CODIGOS_DE_ERRO.CNPJ_JA_CADASTRADO_NO_TENANT]:
+    'Esta empresa já está cadastrada neste escritório.',
+  [CODIGOS_DE_ERRO.REGIME_INVALIDO]: 'Selecione o regime tributário.',
+  [CODIGOS_DE_ERRO.ENQUADRAMENTO_OBRIGATORIO]:
+    'Informe o enquadramento no Simples Nacional (MEI ou não MEI).',
+  [CODIGOS_DE_ERRO.CNAE_OBRIGATORIO]: 'Informe o CNAE principal.',
+  [CODIGOS_DE_ERRO.INSCRICAO_INVALIDA]: 'Situação de inscrição inválida.',
+  [CODIGOS_DE_ERRO.INSCRICAO_NUMERO_OBRIGATORIO]:
+    'Informe o número da inscrição quando a situação for “Possui”.',
+  [CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA]: 'Empresa não encontrada neste escritório.',
   [CODIGOS_DE_ERRO.TENANT_NAO_ENCONTRADO]: 'Escritório não encontrado para a sessão atual.',
   [CODIGOS_DE_ERRO.TENANT_DIVERGENTE]: 'Você não tem acesso a este escritório.',
   [CODIGOS_DE_ERRO.CADASTRO_INCOMPLETO]:
