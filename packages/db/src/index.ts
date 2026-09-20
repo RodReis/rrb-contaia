@@ -17,5 +17,21 @@ export {
   salvarResponsavel,
 } from './repositorios/escritorio.js';
 export type { ArquivoDoEscritorio, EnderecoPersistido } from './repositorios/escritorio.js';
+export {
+  carregarEmpresa,
+  criarEmpresa,
+  empresaComCnpj,
+  listarEmpresas,
+  marcarEmpresaComoAtiva,
+  salvarDadosFiscais,
+  salvarEnderecoDaEmpresa,
+  salvarIdentificacaoDaEmpresa,
+} from './repositorios/empresa.js';
+export type {
+  EmpresaNaLista,
+  EmpresaPersistida,
+  FiltroDaLista,
+  PaginaDeEmpresas,
+} from './repositorios/empresa.js';
 export { resolverIdentidade } from './repositorios/identidade.js';
 export type { IdentidadeResolvida } from './repositorios/identidade.js';

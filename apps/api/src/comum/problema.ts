@@ -39,8 +39,12 @@ export const obterCorrelationId = (requisicao: Request): CorrelationId => {
 
 const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.CNPJ_JA_UTILIZADO]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.CNPJ_JA_CADASTRADO_NO_TENANT]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.TENANT_NAO_ENCONTRADO]: HttpStatus.NOT_FOUND,
+  // Empresa de outro escritório responde igual a empresa inexistente: 404 sem
+  // distinguir os dois casos, para não revelar a existência de dado alheio.
+  [CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
   [CODIGOS_DE_ERRO.TENANT_DIVERGENTE]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.CADASTRO_INCOMPLETO]: HttpStatus.FORBIDDEN,
 };
@@ -89,6 +93,16 @@ const traduzirErroDoBanco = (erro: unknown): ErroDeDominio | null => {
   const constraint = typeof erro.constraint === 'string' ? erro.constraint : '';
 
   if (erro.code === PG_VIOLACAO_DE_UNICIDADE) {
+    // A unicidade da empresa cliente é por tenant (SPEC-002 §4.5), não global:
+    // a mensagem do escritório diria "outro escritório" e mentiria — aqui a
+    // colisão é dentro do próprio escritório, com empresa que o usuário pode ver.
+    if (constraint.includes('empresa_cnpj_por_tenant')) {
+      return new ErroDeConflito(
+        CODIGOS_DE_ERRO.CNPJ_JA_CADASTRADO_NO_TENANT,
+        'Esta empresa já está cadastrada neste escritório.',
+      );
+    }
+
     if (constraint.includes('cnpj')) {
       return new ErroDeConflito(
         CODIGOS_DE_ERRO.CNPJ_JA_UTILIZADO,

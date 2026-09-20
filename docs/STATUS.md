@@ -30,8 +30,8 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 |---|---|
 | `proplan:planejado` | — |
 | `proplan:backlog` | #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 · #32 F28/SPEC-028 · #33 F29/SPEC-029 · #34 F30/SPEC-030 · #35 F31/SPEC-031 · #36 F32/SPEC-032 · #37 F33/SPEC-033 · #38 F34/SPEC-034 · #39 F35/SPEC-035 |
-| `proplan:todo` | #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 · #6 F5/SPEC-005 |
-| `proplan:doing` | — |
+| `proplan:todo` | #4 F3/SPEC-003 · #5 F4/SPEC-004 · #6 F5/SPEC-005 |
+| `proplan:doing` | #3 F2/SPEC-002 |
 | `proplan:done` | #1 `[INFRA] Bootstrap local do MVP-1` · #2 F1/SPEC-001 |
 | `finalizado` | — |
 
@@ -46,7 +46,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP | Fatia | SPEC | Slice do PRD | Título | Issue | Situação |
 |---|---|---|---|---|---|---|
 | MVP-1 | F1 | SPEC-001 | PRD §§4.1, 4.3, 4.4 e 15 | Acesso inicial e conclusão do cadastro do escritório | #2 | `proplan:done` |
-| MVP-1 | F2 | SPEC-002 | PRD §§4.1, 4.3, 4.4 e 15 | Cadastro e ativação da empresa cliente | #3 | `proplan:todo` |
+| MVP-1 | F2 | SPEC-002 | PRD §§4.1, 4.3, 4.4 e 15 | Cadastro e ativação da empresa cliente | #3 | `proplan:doing` |
 | MVP-1 | F3 | SPEC-003 | PRD §4.1 | Manutenção da empresa cliente | #4 | `proplan:todo` |
 | MVP-1 | F4 | SPEC-004 | PRD §4.1 | Documentos da empresa | #5 | `proplan:todo` |
 | MVP-1 | F5 | SPEC-005 | PRD §§4.1 e 9.1 | Central de Pendências cadastrais | #6 | `proplan:todo` |
