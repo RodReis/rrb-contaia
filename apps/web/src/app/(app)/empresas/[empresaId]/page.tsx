@@ -1,16 +1,16 @@
-import { WizardDaEmpresa } from '@/features/empresa/wizard';
+import { PaginaDaEmpresa } from '@/features/empresa/pagina-da-empresa';
 
 export const metadata = {
-  title: 'Cadastro da empresa — ContaIA',
-  description: 'Wizard de cadastro e ativação da empresa cliente.',
+  title: 'Empresa — ContaIA',
+  description: 'Cadastro, manutenção e arquivamento da empresa cliente.',
 };
 
-export default async function PaginaDoCadastroDaEmpresa({
+export default async function PaginaDaEmpresaCliente({
   params,
 }: {
   params: Promise<{ empresaId: string }>;
 }) {
   const { empresaId } = await params;
 
-  return <WizardDaEmpresa empresaId={empresaId} />;
+  return <PaginaDaEmpresa empresaId={empresaId} />;
 }

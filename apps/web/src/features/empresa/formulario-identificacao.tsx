@@ -16,12 +16,20 @@ export const FormularioIdentificacao = ({
   visao,
   aoAvancar,
   rotuloDeEnvio = 'Salvar e continuar',
+  somenteLeitura = false,
+  aoSalvar,
+  ocupado,
 }: {
   visao: VisaoDaEmpresa;
   aoAvancar?: () => void;
   rotuloDeEnvio?: string;
+  somenteLeitura?: boolean;
+  /** Substitui o salvamento do wizard pelo da manutenção, que gera histórico. */
+  aoSalvar?: (dados: IdentificacaoDaEmpresaForm) => void;
+  ocupado?: boolean;
 }) => {
   const salvar = useSalvarIdentificacaoDaEmpresa(visao.id, aoAvancar);
+  const enviando = ocupado ?? salvar.isPending;
   const identificacao = visao.cadastro.identificacao;
 
   const formulario = useForm<IdentificacaoDaEmpresaForm>({
@@ -39,12 +47,16 @@ export const FormularioIdentificacao = ({
   return (
     <form
       noValidate
-      onSubmit={formulario.handleSubmit((dados) => salvar.mutate(dados))}
+      onSubmit={formulario.handleSubmit((dados) =>
+        aoSalvar === undefined ? salvar.mutate(dados) : aoSalvar(dados),
+      )}
       className="flex flex-col gap-lg"
     >
       <ResumoDeErros erros={formulario.formState.errors} />
 
-      <div className="flex flex-col gap-md">
+      {/* `fieldset disabled` desliga todos os controles de uma vez, nativamente,
+          e é o que a empresa arquivada exige: consulta sem edição (§3.5). */}
+      <fieldset disabled={somenteLeitura} className="flex flex-col gap-md border-0 p-0">
         {/* O CNPJ define a identidade da empresa e a unicidade no escritório:
             trocá-lo seria outra empresa, então é exibido e não editado. */}
         <div className="flex flex-col gap-xs">
@@ -94,13 +106,15 @@ export const FormularioIdentificacao = ({
             ajuda="Opcional."
           />
         </div>
-      </div>
+      </fieldset>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={salvar.isPending}>
-          {salvar.isPending ? 'Salvando…' : rotuloDeEnvio}
-        </Button>
-      </div>
+      {somenteLeitura ? null : (
+        <div className="flex justify-end">
+          <Button type="submit" disabled={enviando}>
+            {enviando ? 'Salvando…' : rotuloDeEnvio}
+          </Button>
+        </div>
+      )}
     </form>
   );
 };

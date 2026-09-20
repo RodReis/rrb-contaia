@@ -30,6 +30,7 @@ const empresa = {
   nomeFantasia: 'Padaria Aurora',
   regimeTributario: 'SIMPLES_NACIONAL',
   status: 'ATIVA',
+  situacao: 'ativo',
 } as const;
 
 const comEmpresas: Resposta = { empresas: [empresa], total: 1 };
@@ -223,8 +224,9 @@ describe('filtro na URL', () => {
     await usuario.keyboard('{Enter}');
     await usuario.keyboard('{ArrowDown}{ArrowDown}{Enter}');
 
+    // Duas setas a partir de `Ativas` chegam em `Arquivadas` (SPEC-003 §3.1).
     // Manter a página 3 de um resultado que encolheu mostraria vazio por engano.
-    expect(substituir).toHaveBeenCalledWith('/empresas?status=CADASTRO_INCOMPLETO', {
+    expect(substituir).toHaveBeenCalledWith('/empresas?status=ARQUIVADA', {
       scroll: false,
     });
   });

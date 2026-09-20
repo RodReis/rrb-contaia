@@ -27,11 +27,33 @@ export {
   salvarEnderecoDaEmpresa,
   salvarIdentificacaoDaEmpresa,
 } from './repositorios/empresa.js';
+export { FILTROS_DA_LISTA } from './repositorios/empresa.js';
 export type {
   EmpresaNaLista,
   EmpresaPersistida,
   FiltroDaLista,
+  FiltroDeStatus,
   PaginaDeEmpresas,
 } from './repositorios/empresa.js';
+export {
+  aplicarTrocaDeFinalidade,
+  arquivarEndereco,
+  atualizarEndereco,
+  camposComHistorico,
+  carregarEndereco,
+  definirSituacaoDaEmpresa,
+  inserirEndereco,
+  listarEnderecosDaEmpresa,
+  listarHistorico,
+  registrarEventos,
+  situacaoDaEmpresa,
+} from './repositorios/manutencao-empresa.js';
+export type {
+  EnderecoDaEmpresaPersistido,
+  EventoNaLista,
+  EventoParaRegistrar,
+  FiltroDoHistorico,
+  PaginaDoHistorico,
+} from './repositorios/manutencao-empresa.js';
 export { resolverIdentidade } from './repositorios/identidade.js';
 export type { IdentidadeResolvida } from './repositorios/identidade.js';

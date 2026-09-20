@@ -28,6 +28,7 @@ import type {
   EnderecoDaEmpresa,
   EtapaDaEmpresa,
   IdentificacaoDaEmpresa,
+  SituacaoDeRegistro,
   StatusDaEmpresa,
 } from '@contaia/domain';
 import {
@@ -50,6 +51,12 @@ import { ConsultaDeCnpjNaCnpja } from './cnpja.adapter';
 export type VisaoDaEmpresa = Readonly<{
   id: string;
   cadastro: CadastroDaEmpresa;
+  /**
+   * Situação do registro (SPEC-003 §3.5). A tela precisa dela para abrir a
+   * empresa arquivada em modo de consulta em vez de oferecer edição que o
+   * servidor vai recusar.
+   */
+  situacao: SituacaoDeRegistro;
   etapasConcluidas: readonly EtapaDaEmpresa[];
   proximaEtapa: EtapaDaEmpresa | null;
   podeAtivar: boolean;
@@ -88,10 +95,15 @@ export class EmpresaService {
     private readonly cnpja: ConsultaDeCnpjNaCnpja,
   ) {}
 
-  private paraVisao(id: string, cadastro: CadastroDaEmpresa): VisaoDaEmpresa {
+  paraVisao(
+    id: string,
+    cadastro: CadastroDaEmpresa,
+    situacao: SituacaoDeRegistro = 'ativo',
+  ): VisaoDaEmpresa {
     return {
       id,
       cadastro,
+      situacao,
       etapasConcluidas: etapasConcluidasDaEmpresa(cadastro),
       proximaEtapa: primeiraEtapaIncompletaDaEmpresa(cadastro),
       podeAtivar: podeAtivarEmpresa(cadastro),
@@ -113,7 +125,7 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
-      return this.paraVisao(persistida.id, persistida.cadastro);
+      return this.paraVisao(persistida.id, persistida.cadastro, persistida.situacao);
     });
   }
 
@@ -206,7 +218,7 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
-      return this.paraVisao(criada.id, criada.cadastro);
+      return this.paraVisao(criada.id, criada.cadastro, criada.situacao);
     });
   }
 
@@ -465,6 +477,6 @@ export class EmpresaService {
       return empresaNaoEncontrada();
     }
 
-    return this.paraVisao(atualizada.id, atualizada.cadastro);
+    return this.paraVisao(atualizada.id, atualizada.cadastro, atualizada.situacao);
   }
 }

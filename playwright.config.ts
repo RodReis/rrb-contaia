@@ -10,6 +10,8 @@ const ambiente: Record<string, string> = Object.fromEntries(
 );
 const portaWeb = process.env['WEB_PORT'] ?? '15100';
 const portaApi = process.env['API_PORT'] ?? '15101';
+/** Porta do dublê da CNPJá; fora da faixa das aplicações (DEVELOPMENT.md §1.2). */
+const portaDubleDaCnpja = process.env['CNPJA_DUBLE_PORTA'] ?? '15310';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -45,7 +47,22 @@ export default defineConfig({
       url: `http://127.0.0.1:${portaApi}/health`,
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
-      env: { ...ambiente, API_PORT: portaApi },
+      // `CNPJA_URL` aponta para o dublê: a aplicação seletiva consulta a fonte
+      // pelo **servidor**, e um dublê só no navegador não alcança essa chamada
+      // — sem isto o E2E grava o retorno da CNPJá real e deixa de ser
+      // determinístico (CI-PR.md §5).
+      env: {
+        ...ambiente,
+        API_PORT: portaApi,
+        CNPJA_URL: `http://127.0.0.1:${portaDubleDaCnpja}`,
+      },
+    },
+    {
+      command: 'node tests/e2e/duble-da-cnpja.mjs',
+      url: `http://127.0.0.1:${portaDubleDaCnpja}/45242914000105`,
+      reuseExistingServer: !process.env['CI'],
+      timeout: 30_000,
+      env: { ...ambiente, CNPJA_DUBLE_PORTA: portaDubleDaCnpja },
     },
   ],
 });

@@ -26,7 +26,7 @@ import { Select } from '@/components/ui/select';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
-import type { EmpresaNaLista } from './api';
+import type { EmpresaNaLista, FiltroDeStatus } from './api';
 import { useListaDeEmpresas } from './queries';
 
 const POR_PAGINA = 25;
@@ -43,14 +43,23 @@ const STATUS: Readonly<Record<StatusDaEmpresa, { rotulo: string; tom: TomDoStatu
   CADASTRO_INCOMPLETO: { rotulo: 'Incompleta', tom: 'atencao' },
 };
 
+const ARQUIVADA = { rotulo: 'Arquivada', tom: 'neutro' } as const;
+
+/**
+ * A lista abre em `ATIVA` (SPEC-003 §3.1) e a empresa arquivada aparece
+ * somente sob o filtro `ARQUIVADA` — daí não existir a opção "Todas": ela
+ * misturaria a carteira ativa com o arquivo morto na visão padrão.
+ */
+const FILTRO_PADRAO: FiltroDeStatus = 'ATIVA';
+
 const OPCOES_DE_STATUS = [
-  { valor: 'todas', rotulo: 'Todas' },
-  { valor: 'ATIVA', rotulo: 'Ativa' },
-  { valor: 'CADASTRO_INCOMPLETO', rotulo: 'Incompleta' },
+  { valor: 'ATIVA', rotulo: 'Ativas' },
+  { valor: 'CADASTRO_INCOMPLETO', rotulo: 'Incompletas' },
+  { valor: 'ARQUIVADA', rotulo: 'Arquivadas' },
 ] as const;
 
-const ehStatus = (valor: string | null): valor is StatusDaEmpresa =>
-  valor === 'ATIVA' || valor === 'CADASTRO_INCOMPLETO';
+const ehStatus = (valor: string | null): valor is FiltroDeStatus =>
+  valor === 'ATIVA' || valor === 'CADASTRO_INCOMPLETO' || valor === 'ARQUIVADA';
 
 const Cabecalho = ({ total }: { total: number | null }) => (
   <header className="flex flex-col gap-md tablet:flex-row tablet:items-end tablet:justify-between">
@@ -77,7 +86,9 @@ const Cabecalho = ({ total }: { total: number | null }) => (
 );
 
 const LinhaDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
-  const status = STATUS[empresa.status];
+  // Arquivada vence o status: a empresa arquivada foi ativada um dia, e exibir
+  // "Ativa" numa linha do filtro Arquivadas contradiz o próprio filtro.
+  const status = empresa.situacao === 'arquivado' ? ARQUIVADA : STATUS[empresa.status];
   const incompleta = empresa.status === 'CADASTRO_INCOMPLETO';
   const nome = empresa.nomeFantasia ?? empresa.razaoSocial ?? 'Empresa sem nome';
 
@@ -119,7 +130,7 @@ const LinhaDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
 };
 
 const CartaoDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
-  const status = STATUS[empresa.status];
+  const status = empresa.situacao === 'arquivado' ? ARQUIVADA : STATUS[empresa.status];
   const nome = empresa.nomeFantasia ?? empresa.razaoSocial ?? 'Empresa sem nome';
 
   return (
@@ -203,7 +214,7 @@ export const ListaDeEmpresas = () => {
   const filtro = useMemo(
     () => ({
       busca: buscaNaUrl.length > 0 ? buscaNaUrl : null,
-      status: ehStatus(statusNaUrl) ? statusNaUrl : null,
+      status: ehStatus(statusNaUrl) ? statusNaUrl : FILTRO_PADRAO,
       limite: POR_PAGINA,
       deslocamento: (paginaNaUrl - 1) * POR_PAGINA,
     }),
@@ -216,7 +227,8 @@ export const ListaDeEmpresas = () => {
   const trocarStatus = (valor: string): void => {
     const proximos = new URLSearchParams(parametros.toString());
 
-    if (valor === 'todas') {
+    // O padrão sai da URL: link de empresas ativas é `/empresas`, sem ruído.
+    if (valor === FILTRO_PADRAO) {
       proximos.delete('status');
     } else {
       proximos.set('status', valor);
@@ -243,7 +255,9 @@ export const ListaDeEmpresas = () => {
     navegador.replace('/empresas', { scroll: false });
   };
 
-  const temFiltroAtivo = buscaNaUrl.length > 0 || ehStatus(statusNaUrl);
+  // O filtro padrão não conta como filtro ativo: ele é a visão de abertura.
+  const temFiltroAtivo =
+    buscaNaUrl.length > 0 || (ehStatus(statusNaUrl) && statusNaUrl !== FILTRO_PADRAO);
   const totalDePaginas = data === undefined ? 1 : Math.max(1, Math.ceil(data.total / POR_PAGINA));
 
   const barraDeFiltro = (
@@ -263,7 +277,7 @@ export const ListaDeEmpresas = () => {
         <Select
           rotulo="Situação"
           opcoes={OPCOES_DE_STATUS}
-          valor={ehStatus(statusNaUrl) ? statusNaUrl : 'todas'}
+                valor={ehStatus(statusNaUrl) ? statusNaUrl : FILTRO_PADRAO}
           onValorChange={trocarStatus}
           // Mesma forma da coluna vizinha (label + input + ajuda): sem isso o
           // Select fica mais baixo que o campo de busca e `tablet:items-end`

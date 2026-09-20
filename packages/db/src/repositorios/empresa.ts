@@ -16,6 +16,7 @@ import type {
   IdentificacaoDaEmpresa,
   RegimeTributario,
   SituacaoDeInscricao,
+  SituacaoDeRegistro,
   StatusDaEmpresa,
 } from '@contaia/domain';
 
@@ -37,6 +38,7 @@ type LinhaDaEmpresa = {
   inscricao_municipal_numero: string | null;
   situacao_cadastral_externa: string | null;
   validado_por_fonte_externa: boolean;
+  situacao: SituacaoDeRegistro;
   versao: number;
 };
 
@@ -59,16 +61,27 @@ export type EmpresaNaLista = Readonly<{
   nomeFantasia: string | null;
   regimeTributario: RegimeTributario | null;
   status: StatusDaEmpresa;
+  situacao: SituacaoDeRegistro;
 }>;
 
 export type EmpresaPersistida = Readonly<{
   id: string;
   cadastro: CadastroDaEmpresa;
+  situacao: SituacaoDeRegistro;
 }>;
+
+/**
+ * O que a lista mostra (SPEC-003 §3.1). `ARQUIVADA` não é um `status` da
+ * empresa e sim a `situacao` do registro: o filtro é uma escolha só na
+ * interface, e a tradução para as duas colunas acontece aqui.
+ */
+export const FILTROS_DA_LISTA = ['ATIVA', 'CADASTRO_INCOMPLETO', 'ARQUIVADA'] as const;
+
+export type FiltroDeStatus = (typeof FILTROS_DA_LISTA)[number];
 
 export type FiltroDaLista = Readonly<{
   busca: string | null;
-  status: StatusDaEmpresa | null;
+  status: FiltroDeStatus | null;
   limite: number;
   deslocamento: number;
 }>;
@@ -82,7 +95,7 @@ const COLUNAS = `id, status, cnpj, razao_social, nome_fantasia, logo_arquivo_id,
        regime_tributario, enquadramento_simples, cnae_principal,
        inscricao_estadual_situacao, inscricao_estadual_numero,
        inscricao_municipal_situacao, inscricao_municipal_numero,
-       situacao_cadastral_externa, validado_por_fonte_externa, versao`;
+       situacao_cadastral_externa, validado_por_fonte_externa, situacao, versao`;
 
 const paraIdentificacao = (linha: LinhaDaEmpresa): IdentificacaoDaEmpresa => ({
   cnpj: linha.cnpj,
@@ -161,11 +174,18 @@ export const listarEmpresas = async (
       ? null
       : `%${filtro.busca.trim().replace(/[\\%_]/gu, (achado) => `\\${achado}`)}%`;
 
-  const condicoes = `tenant_id = $1 and situacao = 'ativo'
+  // `ARQUIVADA` filtra a `situacao` do registro; os demais filtram o `status` e
+  // valem só para registro ativo. Empresa arquivada aparece exclusivamente sob
+  // o filtro `ARQUIVADA` (SPEC-003 §3.1).
+  const condicoes = `tenant_id = $1
       and ($2::text is null or (
         razao_social ilike $2 or nome_fantasia ilike $2 or cnpj like upper($2)
       ))
-      and ($3::text is null or status = $3)`;
+      and case
+        when $3::text = 'ARQUIVADA' then situacao = 'arquivado'
+        when $3::text is null then situacao = 'ativo'
+        else situacao = 'ativo' and status = $3
+      end`;
 
   const { rows } = await cliente.query<LinhaDaEmpresa>(
     `select ${COLUNAS} from app.empresa
@@ -188,6 +208,7 @@ export const listarEmpresas = async (
       nomeFantasia: linha.nome_fantasia,
       regimeTributario: linha.regime_tributario,
       status: linha.status,
+      situacao: linha.situacao,
     })),
     total: Number(contagem.rows[0]?.total ?? '0'),
   };
@@ -218,8 +239,10 @@ export const carregarEmpresa = async (
   empresaId: string,
 ): Promise<EmpresaPersistida | null> => {
   const { rows } = await cliente.query<LinhaDaEmpresa>(
+    // Sem filtro de `situacao`: a empresa arquivada continua consultável e o
+    // caso de uso é quem recusa editá-la (SPEC-003 secao 3.5).
     `select ${COLUNAS} from app.empresa
-      where tenant_id = $1 and id = $2 and situacao = 'ativo'`,
+      where tenant_id = $1 and id = $2`,
     [tenantId, empresaId],
   );
 
@@ -260,24 +283,33 @@ export const carregarEmpresa = async (
       validadoPorFonteExterna: linha.validado_por_fonte_externa,
       versao: linha.versao,
     },
+    situacao: linha.situacao,
   };
 };
 
+/**
+ * `versaoEsperada` liga o compare-and-swap: quando informada, a linha só é
+ * gravada se ninguém a tiver alterado desde a leitura (SPEC-003 §5 e §7).
+ * O wizard da SPEC-002 não a informa — lá a empresa está em formação e não há
+ * duas pessoas editando a mesma etapa. Devolve `false` no conflito.
+ */
 export const salvarIdentificacaoDaEmpresa = async (
   cliente: PoolClient,
   tenantId: string,
   empresaId: string,
   identificacao: IdentificacaoDaEmpresa,
   procedencia: Readonly<{ situacaoCadastralExterna: string | null; validado: boolean }>,
-): Promise<void> => {
-  await cliente.query(
+  versaoEsperada: number | null = null,
+): Promise<boolean> => {
+  const { rowCount } = await cliente.query(
     `update app.empresa
         set razao_social = $3, nome_fantasia = $4, telefone = $5, email = $6,
             logo_arquivo_id = coalesce($7, logo_arquivo_id),
             situacao_cadastral_externa = coalesce($8, situacao_cadastral_externa),
             validado_por_fonte_externa = validado_por_fonte_externa or $9,
             atualizado_em = now(), versao = versao + 1
-      where tenant_id = $1 and id = $2`,
+      where tenant_id = $1 and id = $2
+        and ($10::integer is null or versao = $10)`,
     [
       tenantId,
       empresaId,
@@ -288,23 +320,29 @@ export const salvarIdentificacaoDaEmpresa = async (
       identificacao.logoArquivoId,
       procedencia.situacaoCadastralExterna,
       procedencia.validado,
+      versaoEsperada,
     ],
   );
+
+  return (rowCount ?? 0) > 0;
 };
 
+/** Mesmo compare-and-swap opcional de `salvarIdentificacaoDaEmpresa`. */
 export const salvarDadosFiscais = async (
   cliente: PoolClient,
   tenantId: string,
   empresaId: string,
   dados: DadosFiscaisDaEmpresa,
-): Promise<void> => {
-  await cliente.query(
+  versaoEsperada: number | null = null,
+): Promise<boolean> => {
+  const { rowCount } = await cliente.query(
     `update app.empresa
         set regime_tributario = $3, enquadramento_simples = $4, cnae_principal = $5,
             inscricao_estadual_situacao = $6, inscricao_estadual_numero = $7,
             inscricao_municipal_situacao = $8, inscricao_municipal_numero = $9,
             atualizado_em = now(), versao = versao + 1
-      where tenant_id = $1 and id = $2`,
+      where tenant_id = $1 and id = $2
+        and ($10::integer is null or versao = $10)`,
     [
       tenantId,
       empresaId,
@@ -317,8 +355,16 @@ export const salvarDadosFiscais = async (
       dados.inscricaoEstadual.situacao === 'POSSUI' ? dados.inscricaoEstadual.numero : null,
       dados.inscricaoMunicipal.situacao,
       dados.inscricaoMunicipal.situacao === 'POSSUI' ? dados.inscricaoMunicipal.numero : null,
+      versaoEsperada,
     ],
   );
+
+  // Conflito de versão interrompe antes de tocar nos CNAEs: seguir adiante
+  // gravaria a lista nova sobre um cadastro que outra pessoa já mudou, que é
+  // exatamente a sobrescrita silenciosa que a SPEC-003 §7 proíbe.
+  if ((rowCount ?? 0) === 0) {
+    return false;
+  }
 
   // CNAEs secundários são substituídos em bloco: arquiva os atuais e insere os
   // informados. Sem DELETE por I-7, o arquivamento é o caminho.
@@ -337,6 +383,8 @@ export const salvarDadosFiscais = async (
       [tenantId, empresaId, codigo],
     );
   }
+
+  return true;
 };
 
 /** Grava o endereço principal, substituindo o anterior — há exatamente um (§4.4). */

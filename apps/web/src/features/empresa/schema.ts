@@ -5,6 +5,7 @@
  */
 import {
   ENQUADRAMENTOS_DO_SIMPLES,
+  FINALIDADES_DE_ENDERECO,
   REGIMES_TRIBUTARIOS,
   SITUACOES_DE_INSCRICAO,
   ehCepValido,
@@ -91,3 +92,19 @@ export type IdentificacaoDaEmpresaForm = z.infer<typeof identificacaoDaEmpresaFo
 export type DadosFiscaisForm = z.input<typeof dadosFiscaisFormSchema>;
 export type DadosFiscaisValidados = z.output<typeof dadosFiscaisFormSchema>;
 export type EnderecoDaEmpresaForm = z.infer<typeof enderecoDaEmpresaFormSchema>;
+
+/**
+ * Endereço com finalidade (SPEC-003 §3.4). `OUTRO` exige descrição; nas demais
+ * finalidades a descrição é recusada — a finalidade já nomeia o endereço.
+ */
+export const enderecoComFinalidadeFormSchema = enderecoDaEmpresaFormSchema
+  .extend({
+    finalidade: z.enum(FINALIDADES_DE_ENDERECO),
+    descricao: z.string().trim().max(200).optional().or(z.literal('')),
+  })
+  .refine(
+    (valor) => valor.finalidade !== 'OUTRO' || (valor.descricao ?? '').length > 0,
+    { path: ['descricao'], message: 'Descreva a finalidade deste endereço' },
+  );
+
+export type EnderecoComFinalidadeForm = z.infer<typeof enderecoComFinalidadeFormSchema>;

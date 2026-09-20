@@ -47,6 +47,15 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
   [CODIGOS_DE_ERRO.TENANT_DIVERGENTE]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.CADASTRO_INCOMPLETO]: HttpStatus.FORBIDDEN,
+  // SPEC-003. Endereço inexistente responde como a empresa inexistente.
+  // Finalidade duplicada, empresa arquivada e CNPJ imutável são conflito de
+  // estado, não entrada malformada: a requisição está bem formada e o recurso
+  // é que não aceita a operação agora — daí 409 em vez do 422 padrão.
+  [CODIGOS_DE_ERRO.ENDERECO_NAO_ENCONTRADO]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.FINALIDADE_DUPLICADA]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.EMPRESA_NAO_ARQUIVADA]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.CNPJ_IMUTAVEL]: HttpStatus.CONFLICT,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>
@@ -107,6 +116,16 @@ const traduzirErroDoBanco = (erro: unknown): ErroDeDominio | null => {
       return new ErroDeConflito(
         CODIGOS_DE_ERRO.CNPJ_JA_UTILIZADO,
         'Este CNPJ já está em uso por outro escritório.',
+      );
+    }
+
+    // Corrida entre dois salvamentos de endereço: o caso de uso já checa a
+    // finalidade antes de inserir, então chegar aqui significa que outra
+    // operação ocupou a finalidade no intervalo (SPEC-003 §3.4).
+    if (constraint.includes('empresa_endereco_finalidade_unica')) {
+      return new ErroDeConflito(
+        CODIGOS_DE_ERRO.FINALIDADE_DUPLICADA,
+        'Já existe um endereço ativo com essa finalidade.',
       );
     }
 
