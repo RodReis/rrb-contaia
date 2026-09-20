@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F34/SPEC-034 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F35/SPEC-035 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -24,6 +24,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F32 / SPEC-032:** tratamento de cancelamento autorizado posterior e devolução integral ou parcial das saídas calculadas pelas F29/F31, com vínculo por NF-e, EFD ou evidência manual controlada, estorno proporcional, revisão imutável e demonstrativo atualizado; saída interestadual, transmissão, escrituração e efeitos externos permanecem em fatias próprias.
 - [ ] **F33 / SPEC-033:** reconstrução histórica auditável do principal de ICMS-ST de autopeças em Goiás aprovado pelas F29/F31/F32, com saídas separadas para Simples Nacional e Lucro Presumido, pacote PDF/CSV/JSON, hash reproduzível e bloqueio para uso externo até acréscimos legais em F34/SPEC-034; transmissão, escrituração, apropriação, guia, contabilidade e financeiro permanecem em fatias próprias.
 - [ ] **F34 / SPEC-034:** acréscimos legais sobre a reconstrução histórica da F33, com restituição e complemento em trilhas separadas, data de referência explícita, linha do tempo legal, pacotes normativos oficiais versionados, penalidade somente por ato formal e resultado restrito à revisão interna; transmissão, escrituração, apropriação, guia, contabilidade e financeiro permanecem em fatias próprias.
+- [ ] **F35 / SPEC-035:** dossiê interno de decisão sobre os pacotes F33/F34, com restituição e complemento em trilhas independentes, destinos futuros condicionados por fundamento oficial, aprovação humana segregada, fechamento parcial e artefatos reproduzíveis; qualquer execução fiscal, contábil, financeira ou processual permanece em fatias próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
@@ -55,7 +56,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 
 | Item anterior/PRD | Estado neste MVP | Complemento/destino |
 |---|---|---|
-| Motor tributário base do MVP-1 | entrou parcialmente | F26 adiciona seleção contextual, pacote oficial inicial e snapshots; F27 cobre ST retido declarado; F28 cobre responsabilidade e cálculo por MVA nas entradas históricas de autopeças até 28/02/2018; F29 compara a retenção presumida com a venda efetiva e consolida complemento/restituição no mesmo recorte histórico; F30 inclui a base documental de NFC-e 65 emitida em Goiás; F31 incorpora essa NFC-e ao cálculo da F29 na mesma competência; F32 trata cancelamento posterior, devolução e estorno proporcional; F33 reconstrói o histórico aprovado em pacote auditável por regime; F34 aplica os acréscimos legais auditáveis até data explícita; demais métodos, exceções, segmentos, expansão nacional e apuração permanecem em fatias próprias do MVP-2 |
+| Motor tributário base do MVP-1 | entrou parcialmente | F26 adiciona seleção contextual, pacote oficial inicial e snapshots; F27 cobre ST retido declarado; F28 cobre responsabilidade e cálculo por MVA nas entradas históricas de autopeças até 28/02/2018; F29 compara a retenção presumida com a venda efetiva e consolida complemento/restituição no mesmo recorte histórico; F30 inclui a base documental de NFC-e 65 emitida em Goiás; F31 incorpora essa NFC-e ao cálculo da F29 na mesma competência; F32 trata cancelamento posterior, devolução e estorno proporcional; F33 reconstrói o histórico aprovado em pacote auditável por regime; F34 aplica os acréscimos legais auditáveis até data explícita; F35 formaliza a decisão interna segregada sobre destinos futuros, sem executá-los; demais métodos, exceções, segmentos, expansão nacional e apuração permanecem em fatias próprias do MVP-2 |
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |
