@@ -265,6 +265,10 @@ export const ListaDeEmpresas = () => {
           opcoes={OPCOES_DE_STATUS}
           valor={ehStatus(statusNaUrl) ? statusNaUrl : 'todas'}
           onValorChange={trocarStatus}
+          // Mesma forma da coluna vizinha (label + input + ajuda): sem isso o
+          // Select fica mais baixo que o campo de busca e `tablet:items-end`
+          // desalinha os dois inputs entre si.
+          ajuda="Filtra pelo status do cadastro."
         />
       </div>
       {temFiltroAtivo ? (

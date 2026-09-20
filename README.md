@@ -77,6 +77,19 @@ definidas em `.env`:
 sessão gravada em cookie; abrir por `localhost` quebra o retorno do fluxo de
 autenticação.
 
+### Login
+
+O acesso é feito via OIDC (Keycloak). Use o usuário sintético criado pelo
+`pnpm db:seed`:
+
+| Campo | Valor |
+|---|---|
+| Usuário | `admin.escritorio` |
+| Senha | `admin_local_123` |
+
+Credencial local, sem valor fora desta instância — definida em
+[`infra/keycloak/realm-contaia.json`](infra/keycloak/realm-contaia.json).
+
 ## Testes
 
 ```bash
