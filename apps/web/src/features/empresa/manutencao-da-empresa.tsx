@@ -39,7 +39,9 @@ const ABAS = [
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
 const CLASSES_DA_ABA = [
-  'flex-1 rounded-md px-md py-sm text-title-sm transition-colors duration-fast ease-out',
+  // `basis-0 min-w-[8rem]`: as três abas dividem a linha por igual e param de
+  // encolher antes de o rótulo quebrar no meio, como acontecia em 375px.
+  'flex-1 basis-0 min-w-[8rem] rounded-md px-md py-sm text-center text-title-sm transition-colors duration-fast ease-out',
   'text-muted-foreground hover:text-foreground',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
   'focus-visible:ring-offset-2 focus-visible:ring-offset-background',
@@ -147,7 +149,7 @@ export const ManutencaoDaEmpresa = ({
       <Tabs.Root defaultValue="identificacao" className="flex flex-col gap-lg">
         <Tabs.List
           aria-label="Seções da empresa"
-          className="flex gap-xs rounded-md bg-secondary p-xs"
+          className="flex flex-wrap gap-xs rounded-md bg-secondary p-xs"
         >
           {ABAS.map((aba) => (
             <Tabs.Trigger key={aba.id} value={aba.id} className={cn(CLASSES_DA_ABA)}>
