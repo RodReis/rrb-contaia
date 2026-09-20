@@ -4,8 +4,11 @@
  */
 import { z } from 'zod';
 
+import { FILTROS_DA_LISTA } from '@contaia/db';
 import {
+  ABAS_DO_HISTORICO,
   ENQUADRAMENTOS_DO_SIMPLES,
+  FINALIDADES_DE_ENDERECO,
   REGIMES_TRIBUTARIOS,
   SITUACOES_DE_INSCRICAO,
 } from '@contaia/domain';
@@ -83,12 +86,73 @@ export const ativacaoSchema = z.object({
 
 export const filtroDaListaSchema = z.object({
   busca: opcional(200),
+  // `ARQUIVADA` entra aqui na SPEC-003: é escolha de filtro da interface, e o
+  // repositório é quem a traduz para a coluna `situacao`.
   status: z
-    .enum(['CADASTRO_INCOMPLETO', 'ATIVA'])
+    .enum(FILTROS_DA_LISTA)
     .nullish()
     .transform((valor) => valor ?? null),
   // Tetos de paginação: `limite` sem máximo permite pedir a base inteira numa
   // requisição e derrubar a resposta (FRONTEND.md §11).
+  limite: z.coerce.number().int().min(1).max(100).default(25),
+  deslocamento: z.coerce.number().int().min(0).default(0),
+});
+
+// -- SPEC-003: manutenção da empresa ----------------------------------------
+
+/** Data civil `YYYY-MM-DD`; a regra de passada/atual é do domínio. */
+const dataCivil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
+
+export const identificacaoMantidaSchema = identificacaoDaEmpresaSchema.extend({
+  /**
+   * Opcional e conferido no caso de uso. Aceitar o campo e recusar a mudança
+   * com código próprio é mais honesto que ignorá-lo em silêncio: o cliente
+   * recebe `CNPJ_IMUTAVEL` em vez de um salvamento que não salvou (§3.2).
+   */
+  cnpj: texto(20).optional(),
+});
+
+export const dadosFiscaisMantidosSchema = dadosFiscaisSchema.extend({
+  // Exigida quando regime ou CNAE mudam; o caso de uso decide se é o caso.
+  vigencia: dataCivil,
+});
+
+export const enderecoComFinalidadeSchema = enderecoDaEmpresaSchema.extend({
+  finalidade: z.enum(FINALIDADES_DE_ENDERECO),
+  descricao: opcional(200),
+});
+
+export const trocaDeFinalidadeFiscalSchema = z.object({
+  novoFiscalId: z.uuid(),
+  finalidadeDoAnterior: z.enum(FINALIDADES_DE_ENDERECO),
+});
+
+/** Arquivamento e reativação: justificativa obrigatória (§3.5). */
+export const justificativaSchema = z.object({
+  justificativa: texto(500),
+});
+
+export const aplicacaoDaFonteSchema = z.object({
+  // A seleção vem do navegador: é dado externo, com teto e sem confiança.
+  campos: z.array(texto(60)).min(1).max(20),
+});
+
+export const filtroDoHistoricoSchema = z.object({
+  aba: z
+    .enum(ABAS_DO_HISTORICO)
+    .nullish()
+    .transform((valor) => valor ?? null),
+  empresaId: z
+    .uuid()
+    .nullish()
+    .transform((valor) => valor ?? null),
+  inicio: dataCivil.nullish().transform((valor) => valor ?? null),
+  fim: dataCivil.nullish().transform((valor) => valor ?? null),
+  usuarioId: z
+    .uuid()
+    .nullish()
+    .transform((valor) => valor ?? null),
+  campo: opcional(60),
   limite: z.coerce.number().int().min(1).max(100).default(25),
   deslocamento: z.coerce.number().int().min(0).default(0),
 });

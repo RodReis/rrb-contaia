@@ -88,7 +88,7 @@ export class EmpresaService {
     private readonly cnpja: ConsultaDeCnpjNaCnpja,
   ) {}
 
-  private paraVisao(id: string, cadastro: CadastroDaEmpresa): VisaoDaEmpresa {
+  paraVisao(id: string, cadastro: CadastroDaEmpresa): VisaoDaEmpresa {
     return {
       id,
       cadastro,
