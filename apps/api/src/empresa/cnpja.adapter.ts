@@ -69,7 +69,7 @@ const textoOuNulo = (valor: string | null | undefined): string | null => {
 };
 
 const codigoDaAtividade = (
-  atividade: { id?: string | number | null } | null | undefined,
+  atividade: z.infer<typeof atividadeSchema> | null | undefined,
 ): string | null => {
   if (atividade?.id === null || atividade?.id === undefined) {
     return null;
