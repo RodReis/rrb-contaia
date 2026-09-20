@@ -50,6 +50,7 @@ import { PoolDoBanco } from '../banco/pool.provider';
 import { StorageService, type ArquivoRecebido } from './storage.service';
 
 export type VisaoDoCadastro = Readonly<{
+  tenantId: string;
   cadastro: CadastroDoEscritorio;
   etapasConcluidas: readonly EtapaDoCadastro[];
   proximaEtapa: EtapaDoCadastro | null;
@@ -80,6 +81,7 @@ export class EscritorioService {
       }
 
       return {
+        tenantId,
         cadastro,
         etapasConcluidas: etapasConcluidas(cadastro),
         proximaEtapa: primeiraEtapaIncompleta(cadastro),
@@ -329,6 +331,7 @@ export class EscritorioService {
     }
 
     return {
+      tenantId,
       cadastro,
       etapasConcluidas: etapasConcluidas(cadastro),
       proximaEtapa: primeiraEtapaIncompleta(cadastro),

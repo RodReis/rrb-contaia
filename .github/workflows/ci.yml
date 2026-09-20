@@ -142,7 +142,47 @@ jobs:
   e2e:
     name: e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    # O caminho crítico da SPEC-001 exige identidade e storage reais: sem estes
+    # serviços a prova do wizard não roda na CI e a regressão só apareceria em
+    # execução manual.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: contaia
+          POSTGRES_USER: contaia
+          POSTGRES_PASSWORD: contaia_local
+        ports: ['15432:5432']
+        options: >-
+          --health-cmd "pg_isready -U contaia -d contaia"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      minio:
+        image: bitnami/minio:2025
+        env:
+          MINIO_ROOT_USER: contaia_local
+          MINIO_ROOT_PASSWORD: contaia_local_secret
+        ports: ['19000:9000']
+        options: >-
+          --health-cmd "mc ready local || curl -f http://127.0.0.1:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:15432/contaia
+      KEYCLOAK_ISSUER_URL: http://127.0.0.1:18080/realms/contaia
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_local
+      KEYCLOAK_CLIENT_ID: contaia-web
+      KEYCLOAK_CLIENT_SECRET: contaia-web-local-secret
+      WEB_ORIGIN: http://127.0.0.1:15100
+      API_ORIGIN: http://127.0.0.1:15101
+      S3_ENDPOINT: http://127.0.0.1:19000
+      S3_BUCKET: contaia-documentos
+      MINIO_ROOT_USER: contaia_local
+      MINIO_ROOT_PASSWORD: contaia_local_secret
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -157,17 +197,28 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps chromium
+      # Keycloak sobe por `docker run` e não como service container: o import do
+      # realm precisa de um volume, que a sintaxe de `services` não expõe.
+      - name: Subir o Keycloak com o realm importado
+        run: |
+          docker run -d --name contaia-keycloak             -p 127.0.0.1:18080:8080             -e KC_BOOTSTRAP_ADMIN_USERNAME=admin             -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin_local             -v "$PWD/infra/keycloak:/opt/keycloak/data/import:ro"             quay.io/keycloak/keycloak:26.5.2             start-dev --import-realm
+          for tentativa in $(seq 1 40); do
+            if curl -sf "http://127.0.0.1:18080/realms/contaia/.well-known/openid-configuration" >/dev/null; then
+              echo "keycloak pronto"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Keycloak não ficou pronto"
+          docker logs contaia-keycloak | tail -40
+          exit 1
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
       - run: pnpm build
-      # O caminho crítico da SPEC-001 depende de Keycloak e storage S3, que o
-      # runner de PR não sobe: a suíte roda contra o ambiente local (ADR-012) e
-      # os testes que não exigem identidade continuam cobertos aqui.
-      - run: pnpm exec playwright test tests/e2e/bootstrap.spec.ts --project=chromium
+      - run: pnpm test:e2e
       - name: Resumo da categoria
         if: always()
-        run: >-
-          node scripts/ci/write-summary.mjs e2e "$PROVA_ESCOPO"
-          "caminho critico da SPEC-001 executado no ambiente local (ADR-012):
-          exige Keycloak e storage S3, que o runner de PR nao sobe"
+        run: node scripts/ci/write-summary.mjs e2e "$PROVA_ESCOPO"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

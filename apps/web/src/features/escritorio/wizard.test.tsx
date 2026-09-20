@@ -17,6 +17,7 @@ import type { VisaoDoCadastro } from './api';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const cadastroVazio: VisaoDoCadastro = {
+  tenantId: 'tenant-de-teste',
   cadastro: {
     status: 'CADASTRO_INCOMPLETO',
     identificacao: null,
@@ -32,6 +33,7 @@ const cadastroVazio: VisaoDoCadastro = {
 };
 
 const cadastroAtivo: VisaoDoCadastro = {
+  tenantId: 'tenant-de-teste',
   cadastro: {
     status: 'ATIVO',
     identificacao: {

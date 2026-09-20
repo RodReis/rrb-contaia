@@ -7,27 +7,39 @@ import { z } from 'zod';
 import { CODIGOS_DE_ERRO, ErroDeValidacao } from '@contaia/domain';
 import type { CampoInvalido } from '@contaia/domain';
 
+/**
+ * Todo campo de texto tem teto. As colunas são `text` sem limite no banco:
+ * sem isto uma requisição autenticada grava megabytes num campo de razão
+ * social e infla linha e índice sem precisar repetir a chamada.
+ */
+const texto = (maximo: number) => z.string().min(1).max(maximo);
+
 export const identificacaoSchema = z.object({
-  cnpj: z.string().min(1),
-  razaoSocial: z.string().min(1),
+  // 14 caracteres, com ou sem máscara.
+  cnpj: texto(20),
+  razaoSocial: texto(200),
 });
 
 export const responsavelSchema = z.object({
-  nomeCompleto: z.string().min(1),
-  cpf: z.string().min(1),
-  crc: z.string().min(1),
-  email: z.string().min(1),
-  telefone: z.string().min(1),
+  nomeCompleto: texto(200),
+  cpf: texto(14),
+  crc: texto(40),
+  email: texto(254),
+  telefone: texto(20),
 });
 
 export const enderecoSchema = z.object({
-  cep: z.string().min(1),
-  logradouro: z.string().min(1),
-  numero: z.string().min(1),
-  complemento: z.string().nullish().transform((valor) => valor ?? null),
-  bairro: z.string().min(1),
-  municipio: z.string().min(1),
-  uf: z.string().min(1),
+  cep: texto(10),
+  logradouro: texto(200),
+  numero: texto(20),
+  complemento: z
+    .string()
+    .max(100)
+    .nullish()
+    .transform((valor) => valor ?? null),
+  bairro: texto(100),
+  municipio: texto(100),
+  uf: texto(2),
 });
 
 /**

@@ -18,6 +18,7 @@ export type ArquivoDaVisao = Readonly<{
 }>;
 
 export type VisaoDoCadastro = Readonly<{
+  tenantId: string;
   cadastro: CadastroDoEscritorio;
   etapasConcluidas: readonly EtapaDoCadastro[];
   proximaEtapa: EtapaDoCadastro | null;

@@ -55,13 +55,31 @@ const comTenant = async <T>(
   }
 };
 
+/** CNPJs exclusivos desta suíte, para não colidir com dado de outra origem. */
+const CNPJ_A = '19131243000197';
+const CNPJ_B = '27865757000102';
+
 beforeAll(async () => {
+  // Resíduo de uma execução anterior faria o INSERT abaixo violar a unicidade
+  // e a suíte inteira seria pulada — 13 provas de isolamento desaparecendo sem
+  // falha explícita. A suíte limpa o que ela mesma cria antes de começar.
+  await poolAdmin.query(
+    `delete from app.escritorio_endereco where tenant_id in
+       (select id from app.tenant where cnpj = any($1) or razao_social = any($2))`,
+    [[CNPJ_A, CNPJ_B], ['Escritório A', 'Escritório B']],
+  );
+  await poolAdmin.query(
+    `delete from app.tenant where cnpj = any($1) or razao_social = any($2)`,
+    [[CNPJ_A, CNPJ_B], ['Escritório A', 'Escritório B']],
+  );
+
   // Os dois tenants são semeados pela role dona da tabela, fora do caminho de
   // aplicação: o que se prova adiante é o acesso, não a criação.
   const { rows } = await poolAdmin.query<{ id: string }>(
     `insert into app.tenant (cnpj, razao_social)
-     values ('11222333000181', 'Escritório A'), ('45723174000110', 'Escritório B')
+     values ($1, 'Escritório A'), ($2, 'Escritório B')
      returning id`,
+    [CNPJ_A, CNPJ_B],
   );
 
   tenantA = rows[0]?.id ?? '';
@@ -189,9 +207,9 @@ describe('escrita entre tenants', () => {
 describe('unicidade global do CNPJ do escritório', () => {
   it('recusa um segundo escritório com o mesmo CNPJ', async () => {
     await expect(
-      poolAdmin.query(
-        `insert into app.tenant (cnpj, razao_social) values ('11222333000181', 'Clone')`,
-      ),
+      poolAdmin.query(`insert into app.tenant (cnpj, razao_social) values ($1, 'Clone')`, [
+        CNPJ_A,
+      ]),
     ).rejects.toThrow(/duplicate key|unique/i);
   });
 });

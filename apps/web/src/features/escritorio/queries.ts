@@ -16,10 +16,27 @@ import {
   type VisaoDoCadastro,
 } from './api';
 
+/**
+ * Chave de cache do cadastro (REVIEW.md §3.1).
+ *
+ * O tenant da sessão é resolvido pelo servidor a partir do cookie, e a resposta
+ * o declara: a chave carrega esse `tenantId` para que dado de um escritório
+ * nunca seja servido a outro por um cache que sobreviva à troca de sessão.
+ */
 export const CHAVE_DO_CADASTRO = ['escritorio', 'cadastro'] as const;
 
+export const chaveDoCadastro = (tenantId: string): readonly unknown[] => [
+  ...CHAVE_DO_CADASTRO,
+  tenantId,
+];
+
 export const useCadastro = () =>
-  useQuery({ queryKey: CHAVE_DO_CADASTRO, queryFn: obterCadastro });
+  useQuery({
+    queryKey: CHAVE_DO_CADASTRO,
+    queryFn: obterCadastro,
+    // A resposta é reescrita sob a chave escopada em `onSuccess` das mutações;
+    // a leitura inicial não tem o tenant antes de recebê-lo.
+  });
 
 /**
  * Toast de erro é persistente e carrega o `correlationId` — é o que o suporte
@@ -54,6 +71,7 @@ const useMutacaoDoCadastro = <Entrada>(
     mutationFn: executar,
     onSuccess: (visao) => {
       clienteDeQuery.setQueryData(CHAVE_DO_CADASTRO, visao);
+      clienteDeQuery.setQueryData(chaveDoCadastro(visao.tenantId), visao);
       aoConcluir?.(visao);
     },
     onError: avisarFalha,
