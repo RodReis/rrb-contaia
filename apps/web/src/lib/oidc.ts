@@ -7,6 +7,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 export const COOKIE_DE_SESSAO = 'contaia_sessao';
+/**
+ * `id_token` da sessão. Serve só para o logout: sem `id_token_hint` o Keycloak
+ * 26 exibe uma tela de confirmação e, se ela não for respondida, a sessão do
+ * provedor continua aberta — o "sair" não sairia de fato.
+ */
+export const COOKIE_DE_ID_TOKEN = 'contaia_id_token';
 export const COOKIE_DE_VERIFICADOR = 'contaia_pkce';
 export const COOKIE_DE_RETORNO = 'contaia_retorno';
 
@@ -21,10 +27,43 @@ export const clienteId = (): string => process.env['KEYCLOAK_CLIENT_ID'] ?? 'con
 const clienteSegredo = (): string =>
   process.env['KEYCLOAK_CLIENT_SECRET'] ?? 'contaia-web-local-secret';
 
-export const urlDeRetorno = (): string =>
-  `${process.env['WEB_ORIGIN'] ?? 'http://127.0.0.1:15100'}/api/auth/retorno`;
+/**
+ * Origem canônica da aplicação.
+ *
+ * Não se deriva do request: `nextUrl.origin` resolve pelo host interno do
+ * servidor e pode devolver `localhost` quando o usuário entrou por
+ * `127.0.0.1`. São origens distintas para cookie, então o redirect levaria o
+ * navegador para fora do domínio onde a sessão foi gravada.
+ */
+export const origemDaAplicacao = (): string =>
+  process.env['WEB_ORIGIN'] ?? 'http://127.0.0.1:15100';
+
+export const urlDeRetorno = (): string => `${origemDaAplicacao()}/api/auth/retorno`;
 
 export const gerarVerificador = (): string => base64url(randomBytes(32));
+
+/**
+ * Opções do cookie de sessão.
+ *
+ * `Secure` acompanha o protocolo real da origem, não o modo de build: o
+ * ambiente local roda o build de produção em HTTP simples (ADR-012) e um
+ * cookie `Secure` ali é descartado pelo navegador — a sessão nunca se forma.
+ */
+export const opcoesDeCookie = (
+  maxAge: number,
+): Readonly<{
+  httpOnly: true;
+  sameSite: 'lax';
+  secure: boolean;
+  path: string;
+  maxAge: number;
+}> => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: (process.env['WEB_ORIGIN'] ?? '').startsWith('https://'),
+  path: '/',
+  maxAge,
+});
 
 export const desafioDe = (verificador: string): string =>
   base64url(createHash('sha256').update(verificador).digest());
@@ -45,6 +84,7 @@ export const urlDeAutorizacao = (verificador: string, estado: string): string =>
 
 export type TokensDaSessao = Readonly<{
   accessToken: string;
+  idToken: string | null;
   expiraEm: number;
 }>;
 
@@ -71,20 +111,29 @@ export const trocarCodigoPorToken = async (
 
   const corpo: unknown = await resposta.json();
   const token = (corpo as { access_token?: unknown }).access_token;
+  const idToken = (corpo as { id_token?: unknown }).id_token;
   const expira = (corpo as { expires_in?: unknown }).expires_in;
 
   if (typeof token !== 'string') {
     throw new Error('resposta do provedor sem access_token');
   }
 
-  return { accessToken: token, expiraEm: typeof expira === 'number' ? expira : 300 };
+  return {
+    accessToken: token,
+    idToken: typeof idToken === 'string' ? idToken : null,
+    expiraEm: typeof expira === 'number' ? expira : 300,
+  };
 };
 
-export const urlDeSaida = (): string => {
+export const urlDeSaida = (idToken: string | null): string => {
   const parametros = new URLSearchParams({
     client_id: clienteId(),
-    post_logout_redirect_uri: `${process.env['WEB_ORIGIN'] ?? 'http://127.0.0.1:15100'}/acesso`,
+    post_logout_redirect_uri: `${origemDaAplicacao()}/acesso`,
   });
+
+  if (idToken !== null) {
+    parametros.set('id_token_hint', idToken);
+  }
 
   return `${emissor()}/protocol/openid-connect/logout?${parametros.toString()}`;
 };

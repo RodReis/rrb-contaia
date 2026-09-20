@@ -63,14 +63,14 @@ export const UploadDeArquivo = ({
 
   return (
     <div className="flex flex-col gap-xs">
-      <p className="text-label-md text-foreground">
+      <label htmlFor={idDoInput} className="text-label-md text-foreground">
         {rotulo}
         {obrigatorio ? (
           <span className="ml-xs text-danger-foreground" aria-hidden="true">
             *
           </span>
         ) : null}
-      </p>
+      </label>
 
       <div
         onDragOver={(evento) => {
@@ -89,13 +89,17 @@ export const UploadDeArquivo = ({
         )}
       >
         <Upload className="size-icon-xl text-muted-foreground" aria-hidden="true" />
-        <p className="text-body-sm text-muted-foreground">{descricao}</p>
+        <p id={`${idDoInput}-descricao`} className="text-body-sm text-muted-foreground">
+          {descricao}
+        </p>
 
         <input
           ref={entrada}
           id={idDoInput}
           type="file"
           accept={regra.tiposAceitos.join(',')}
+          required={obrigatorio && arquivos.length === 0}
+          aria-describedby={`${idDoInput}-descricao`}
           className="sr-only"
           onChange={(evento) => {
             processar(evento.target.files?.[0]);

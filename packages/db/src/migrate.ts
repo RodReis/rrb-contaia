@@ -50,18 +50,36 @@ export const aplicarMigrations = async (pool: Pool): Promise<string[]> => {
   return aplicadas;
 };
 
+/**
+ * Execução como script.
+ *
+ * O `await` fica dentro da função: um top-level await aqui tornaria todo o
+ * pacote um módulo assíncrono, e a API (CommonJS) não consegue `require()` um
+ * grafo ESM com TLA — o processo nem sobe.
+ */
+export const executarMigrations = async (): Promise<void> => {
+  const pool = criarPool();
+
+  try {
+    const aplicadas = await aplicarMigrations(pool);
+
+    console.warn(
+      aplicadas.length > 0
+        ? `[db] migrations aplicadas: ${aplicadas.join(', ')}`
+        : '[db] nenhuma migration pendente',
+    );
+  } finally {
+    await pool.end();
+  }
+};
+
 const executadoComoScript =
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (executadoComoScript) {
-  const pool = criarPool();
-  const aplicadas = await aplicarMigrations(pool);
-  await pool.end();
-
-  console.warn(
-    aplicadas.length > 0
-      ? `[db] migrations aplicadas: ${aplicadas.join(', ')}`
-      : '[db] nenhuma migration pendente',
-  );
+  void executarMigrations().catch((erro: unknown) => {
+    console.error('[db] falha ao aplicar migrations', erro);
+    process.exitCode = 1;
+  });
 }

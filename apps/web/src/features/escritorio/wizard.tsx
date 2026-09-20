@@ -40,6 +40,13 @@ const situacaoDa = (
   return concluidas.includes(etapa) ? 'concluida' : 'pendente';
 };
 
+const Cabecalho = ({ titulo, descricao }: { titulo: string; descricao: string }) => (
+  <header className="flex flex-col gap-xs">
+    <h1 className="font-display text-headline-lg text-foreground">{titulo}</h1>
+    <p className="max-w-prose text-body-md text-muted-foreground">{descricao}</p>
+  </header>
+);
+
 const Linha = ({ rotulo, valor }: { rotulo: string; valor: string; }) => (
   <div className="flex flex-col gap-xs border-b border-border py-sm last:border-b-0">
     <dt className="text-label-sm uppercase text-muted-foreground">{rotulo}</dt>
@@ -209,6 +216,10 @@ export const WizardDoEscritorio = () => {
   if (isPending) {
     return (
       <div className="flex flex-col gap-lg" aria-busy="true" aria-live="polite">
+        <Cabecalho
+          titulo="Cadastro do escritório"
+          descricao="Carregando os dados do escritório."
+        />
         <span className="sr-only">Carregando o cadastro do escritório</span>
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-11 w-full" />
@@ -222,27 +233,41 @@ export const WizardDoEscritorio = () => {
     const problema = error instanceof ErroDaApi ? error.problema : null;
 
     return (
-      <ErroDeTela
-        titulo="Não foi possível carregar o cadastro"
-        descricao={
-          problema === null
-            ? 'Tente novamente em instantes.'
-            : mensagemDoCodigo(problema.code)
-        }
-        correlationId={problema?.correlationId}
-        acao={
-          <Button variante="contorno" tamanho="compacto" onClick={() => void refetch()}>
-            Tentar de novo
-          </Button>
-        }
-      />
+      <div className="flex flex-col gap-lg">
+        <Cabecalho
+          titulo="Cadastro do escritório"
+          descricao="Dados de identificação, responsável técnico, endereços e arquivos."
+        />
+        <ErroDeTela
+          titulo="Não foi possível carregar o cadastro"
+          descricao={
+            problema === null
+              ? 'Tente novamente em instantes.'
+              : mensagemDoCodigo(problema.code)
+          }
+          correlationId={problema?.correlationId}
+          acao={
+            <Button variante="contorno" tamanho="compacto" onClick={() => void refetch()}>
+              Tentar de novo
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   // Depois da ativação o cadastro é editado por abas: alteração posterior não
   // reabre o wizard (SPEC-001 §3.3).
   if (visao.cadastro.status === 'ATIVO') {
-    return <AbasDeEdicao visao={visao} />;
+    return (
+      <div className="flex flex-col gap-lg">
+        <Cabecalho
+          titulo="Cadastro do escritório"
+          descricao="Consulte e atualize identificação, responsável técnico, endereços e arquivos do escritório."
+        />
+        <AbasDeEdicao visao={visao} />
+      </div>
+    );
   }
 
   const atual = etapaEscolhida ?? visao.proximaEtapa ?? 'revisao';
@@ -250,6 +275,11 @@ export const WizardDoEscritorio = () => {
 
   return (
     <div className="flex flex-col gap-xl">
+      <Cabecalho
+        titulo="Cadastro do escritório"
+        descricao="Conclua as cinco etapas para liberar o acesso às áreas operacionais. O progresso é salvo a cada etapa e pode ser retomado depois."
+      />
+
       <Stepper
         etapas={ETAPAS_DO_CADASTRO.map((etapa) => ({
           id: etapa,

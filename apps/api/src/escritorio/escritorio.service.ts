@@ -33,6 +33,7 @@ import {
   carregarCadastro,
   cnpjEmUsoPorOutroTenant,
   comContextoDeTenant,
+  definirLogo,
   listarArquivos,
   listarEnderecos,
   marcarComoAtivo,
@@ -237,11 +238,7 @@ export class EscritorioService {
       if (tipo === 'LOGO') {
         const anterior = atual.identificacao?.logoArquivoId ?? null;
 
-        await salvarIdentificacao(cliente, tenantId, {
-          cnpj: atual.identificacao?.cnpj ?? '',
-          razaoSocial: atual.identificacao?.razaoSocial ?? '',
-          logoArquivoId: arquivoId,
-        });
+        await definirLogo(cliente, tenantId, arquivoId);
 
         // O escritório nunca fica sem logo: o anterior só é arquivado depois
         // que o novo já está apontado (SPEC-001 §3.3).

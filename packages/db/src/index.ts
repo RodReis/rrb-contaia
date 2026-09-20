@@ -7,6 +7,7 @@ export {
   arquivarArquivo,
   carregarCadastro,
   cnpjEmUsoPorOutroTenant,
+  definirLogo,
   listarArquivos,
   listarEnderecos,
   marcarComoAtivo,

@@ -6,6 +6,7 @@ import {
   COOKIE_DE_RETORNO,
   COOKIE_DE_VERIFICADOR,
   gerarVerificador,
+  opcoesDeCookie,
   urlDeAutorizacao,
 } from '@/lib/oidc';
 
@@ -17,13 +18,7 @@ export const GET = async (requisicao: NextRequest): Promise<NextResponse> => {
   const destino = requisicao.nextUrl.searchParams.get('destino') ?? '/escritorio';
 
   const armazenamento = await cookies();
-  const comum = {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: SEGUNDOS_DO_FLUXO,
-  };
+  const comum = opcoesDeCookie(SEGUNDOS_DO_FLUXO);
 
   // O verificador PKCE e o destino ficam do lado do servidor: o cliente não
   // precisa vê-los e não deve poder trocá-los.

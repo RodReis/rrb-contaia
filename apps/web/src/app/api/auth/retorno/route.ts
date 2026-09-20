@@ -2,14 +2,17 @@ import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import {
+  COOKIE_DE_ID_TOKEN,
   COOKIE_DE_RETORNO,
   COOKIE_DE_SESSAO,
   COOKIE_DE_VERIFICADOR,
+  opcoesDeCookie,
+  origemDaAplicacao,
   trocarCodigoPorToken,
 } from '@/lib/oidc';
 
 export const GET = async (requisicao: NextRequest): Promise<NextResponse> => {
-  const origem = requisicao.nextUrl.origin;
+  const origem = origemDaAplicacao();
   const codigo = requisicao.nextUrl.searchParams.get('code');
   const estadoRecebido = requisicao.nextUrl.searchParams.get('state');
 
@@ -35,13 +38,11 @@ export const GET = async (requisicao: NextRequest): Promise<NextResponse> => {
     const destino = armazenamento.get(COOKIE_DE_RETORNO)?.value ?? '/escritorio';
 
     armazenamento.delete(COOKIE_DE_RETORNO);
-    armazenamento.set(COOKIE_DE_SESSAO, tokens.accessToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: tokens.expiraEm,
-    });
+    armazenamento.set(COOKIE_DE_SESSAO, tokens.accessToken, opcoesDeCookie(tokens.expiraEm));
+
+    if (tokens.idToken !== null) {
+      armazenamento.set(COOKIE_DE_ID_TOKEN, tokens.idToken, opcoesDeCookie(tokens.expiraEm));
+    }
 
     return NextResponse.redirect(`${origem}${destino}`);
   } catch {

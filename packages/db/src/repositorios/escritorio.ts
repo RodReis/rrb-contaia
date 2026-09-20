@@ -145,6 +145,25 @@ export const salvarIdentificacao = async (
   );
 };
 
+/**
+ * Aponta o logo sem tocar nos demais campos da identificação.
+ *
+ * Reescrever a identificação inteira aqui gravaria CNPJ vazio quando o logo é
+ * enviado antes de a etapa 1 ser salva, o que viola o CHECK da coluna.
+ */
+export const definirLogo = async (
+  cliente: PoolClient,
+  tenantId: string,
+  arquivoId: string,
+): Promise<void> => {
+  await cliente.query(
+    `update app.tenant
+        set logo_arquivo_id = $2, atualizado_em = now(), versao = versao + 1
+      where id = $1`,
+    [tenantId, arquivoId],
+  );
+};
+
 export const salvarResponsavel = async (
   cliente: PoolClient,
   tenantId: string,

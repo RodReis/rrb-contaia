@@ -6,17 +6,7 @@ export const metadata = {
 };
 
 export default function PaginaDoEscritorio() {
-  return (
-    <div className="flex flex-col gap-lg">
-      <header className="flex flex-col gap-xs">
-        <h1 className="font-display text-headline-lg text-foreground">Cadastro do escritório</h1>
-        <p className="max-w-prose text-body-md text-muted-foreground">
-          Conclua as cinco etapas para liberar o acesso às áreas operacionais. O progresso é salvo
-          a cada etapa e pode ser retomado depois.
-        </p>
-      </header>
-
-      <WizardDoEscritorio />
-    </div>
-  );
+  // O título e a descrição dependem do estado do cadastro, que só o cliente
+  // conhece depois de carregar: ambos vivem dentro do componente.
+  return <WizardDoEscritorio />;
 }
