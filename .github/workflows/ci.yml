@@ -159,17 +159,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
-      minio:
-        image: bitnami/minio:2025
-        env:
-          MINIO_ROOT_USER: contaia_local
-          MINIO_ROOT_PASSWORD: contaia_local_secret
-        ports: ['19000:9000']
-        options: >-
-          --health-cmd "mc ready local || curl -f http://127.0.0.1:9000/minio/health/live"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 15
     env:
       DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:15432/contaia
       KEYCLOAK_ISSUER_URL: http://127.0.0.1:18080/realms/contaia
@@ -199,18 +188,29 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       # Keycloak sobe por `docker run` e não como service container: o import do
       # realm precisa de um volume, que a sintaxe de `services` não expõe.
-      - name: Subir o Keycloak com o realm importado
+      - name: Subir MinIO e Keycloak
         run: |
+          # Nenhum dos dois roda como service container: o MinIO precisa do
+          # argumento `server` e o Keycloak precisa de volume para importar o
+          # realm — `services` não expõe `command` nem volume de bind.
+          docker run -d --name contaia-minio             -p 127.0.0.1:19000:9000             -e MINIO_ROOT_USER=contaia_local             -e MINIO_ROOT_PASSWORD=contaia_local_secret             quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z             server /data
+
           docker run -d --name contaia-keycloak             -p 127.0.0.1:18080:8080             -e KC_BOOTSTRAP_ADMIN_USERNAME=admin             -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin_local             -v "$PWD/infra/keycloak:/opt/keycloak/data/import:ro"             quay.io/keycloak/keycloak:26.5.2             start-dev --import-realm
           for tentativa in $(seq 1 40); do
-            if curl -sf "http://127.0.0.1:18080/realms/contaia/.well-known/openid-configuration" >/dev/null; then
-              echo "keycloak pronto"
+            pronto=1
+            curl -sf "http://127.0.0.1:19000/minio/health/live" >/dev/null || pronto=0
+            curl -sf "http://127.0.0.1:18080/realms/contaia/.well-known/openid-configuration" >/dev/null || pronto=0
+
+            if [ "$pronto" = "1" ]; then
+              echo "MinIO e Keycloak prontos"
               exit 0
             fi
             sleep 5
           done
-          echo "::error::Keycloak não ficou pronto"
-          docker logs contaia-keycloak | tail -40
+
+          echo "::error::MinIO ou Keycloak não ficaram prontos"
+          docker logs contaia-minio 2>&1 | tail -20
+          docker logs contaia-keycloak 2>&1 | tail -40
           exit 1
       - run: pnpm db:migrate
       - run: pnpm db:seed
@@ -218,7 +218,12 @@ jobs:
       - run: pnpm test:e2e
       - name: Resumo da categoria
         if: always()
-        run: node scripts/ci/write-summary.mjs e2e "$PROVA_ESCOPO"
+        # O job pode abortar antes do checkout (falha ao subir container): sem
+        # o arquivo, o passo explodiria e esconderia a causa real.
+        run: >-
+          test -f scripts/ci/write-summary.mjs &&
+          node scripts/ci/write-summary.mjs e2e "$PROVA_ESCOPO" ||
+          echo "::warning::resumo de e2e não gerado: workspace indisponível"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
