@@ -41,3 +41,34 @@ export type {
   ResponsavelTecnico,
   StatusDoTenant,
 } from './escritorio/cadastro.js';
+
+export {
+  ENQUADRAMENTOS_DO_SIMPLES,
+  ETAPAS_DA_EMPRESA,
+  REGIMES_TRIBUTARIOS,
+  SITUACOES_DE_INSCRICAO,
+  ativarEmpresa,
+  camposInvalidosDaEtapaDaEmpresa,
+  ehEnquadramentoSimples,
+  ehRegimeTributario,
+  ehSituacaoDeInscricao,
+  etapasConcluidasDaEmpresa,
+  exigeConfirmacaoDeSituacaoExterna,
+  podeAtivarEmpresa,
+  primeiraEtapaIncompletaDaEmpresa,
+  validarDadosFiscais,
+  validarEnderecoDaEmpresa,
+  validarIdentificacaoDaEmpresa,
+} from './empresa/cadastro.js';
+export type {
+  CadastroDaEmpresa,
+  DadosFiscaisDaEmpresa,
+  EnderecoDaEmpresa,
+  EnquadramentoSimples,
+  EtapaDaEmpresa,
+  IdentificacaoDaEmpresa,
+  Inscricao,
+  RegimeTributario,
+  SituacaoDeInscricao,
+  StatusDaEmpresa,
+} from './empresa/cadastro.js';
