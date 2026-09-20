@@ -174,9 +174,15 @@ export class EmpresaService {
    * Cria a empresa como `CADASTRO_INCOMPLETO`. Duplicidade no tenant não cria
    * segunda empresa: devolve a que existe para o front abrir a retomada ou a
    * consulta (§3.4).
+   *
+   * O pré-preenchimento (§3.3) parte de uma consulta feita aqui, no servidor, e
+   * não de dados reenviados pelo cliente: o que o navegador manda de volta é
+   * entrada externa e não pode ser gravada como se viesse da fonte oficial.
+   * Falha da consulta não impede criar — só entra sem dado e sem validação.
    */
   async criar(tenantId: string, cnpjInformado: string): Promise<VisaoDaEmpresa> {
     const cnpj = normalizarCnpj(cnpjInformado);
+    const consulta = await this.cnpja.consultar(cnpj);
 
     return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
       const existente = await empresaComCnpj(cliente, tenantId, cnpj);
@@ -189,6 +195,11 @@ export class EmpresaService {
       }
 
       const empresaId = await criarEmpresa(cliente, tenantId, cnpj);
+
+      if (consulta.ok) {
+        await this.preencherComFonteExterna(cliente, tenantId, empresaId, consulta.dados);
+      }
+
       const criada = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (criada === null) {
@@ -197,6 +208,77 @@ export class EmpresaService {
 
       return this.paraVisao(criada.id, criada.cadastro);
     });
+  }
+
+  /**
+   * Grava os campos previstos pela SPEC §3.3 — e somente eles. Os valores
+   * seguem editáveis: o que chega aqui é sugestão da fonte, não verdade final.
+   *
+   * O regime tributário fica de fora de propósito: a fonte diz se a empresa
+   * optou pelo Simples, mas não dizer nada não significa Presumido nem Real —
+   * essa escolha é humana (§12, "Nunca fazer"). Só o enquadramento no Simples
+   * é derivável, e apenas quando a fonte afirma a opção.
+   */
+  private async preencherComFonteExterna(
+    cliente: Parameters<typeof carregarEmpresa>[0],
+    tenantId: string,
+    empresaId: string,
+    dados: DadosPublicosDoCnpj,
+  ): Promise<void> {
+    await salvarIdentificacaoDaEmpresa(
+      cliente,
+      tenantId,
+      empresaId,
+      {
+        cnpj: dados.cnpj,
+        razaoSocial: dados.razaoSocial ?? '',
+        nomeFantasia: dados.nomeFantasia ?? dados.razaoSocial ?? '',
+        logoArquivoId: null,
+        telefone: dados.telefone,
+        email: dados.email,
+      },
+      { situacaoCadastralExterna: dados.situacaoCadastral, validado: true },
+    );
+
+    if (dados.cnaePrincipal !== null) {
+      await salvarDadosFiscais(cliente, tenantId, empresaId, {
+        // `null` mantém a etapa fiscal pendente até a escolha humana do regime.
+        regimeTributario: dados.optanteSimples === true ? 'SIMPLES_NACIONAL' : null,
+        enquadramentoSimples:
+          dados.optanteSimples === true && dados.mei !== null
+            ? dados.mei
+              ? 'MEI'
+              : 'NAO_MEI'
+            : null,
+        cnaePrincipal: dados.cnaePrincipal,
+        cnaesSecundarios: dados.cnaesSecundarios,
+        inscricaoEstadual: { situacao: 'NAO_SE_APLICA', numero: null },
+        inscricaoMunicipal: { situacao: 'NAO_SE_APLICA', numero: null },
+      });
+    }
+
+    const { endereco } = dados;
+
+    // Endereço só entra completo: meio endereço gravado faria a etapa parecer
+    // preenchida e esconderia o que falta.
+    if (
+      endereco.cep !== null &&
+      endereco.logradouro !== null &&
+      endereco.numero !== null &&
+      endereco.bairro !== null &&
+      endereco.municipio !== null &&
+      endereco.uf !== null
+    ) {
+      await salvarEnderecoDaEmpresa(cliente, tenantId, empresaId, {
+        cep: endereco.cep,
+        logradouro: endereco.logradouro,
+        numero: endereco.numero,
+        complemento: endereco.complemento,
+        bairro: endereco.bairro,
+        municipio: endereco.municipio,
+        uf: endereco.uf,
+      });
+    }
   }
 
   async salvarIdentificacao(

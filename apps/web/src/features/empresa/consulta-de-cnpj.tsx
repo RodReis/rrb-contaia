@@ -108,7 +108,10 @@ export const ConsultaDeCnpj = () => {
         })}
         className="flex flex-col gap-lg"
       >
-        <div className="tablet:max-w-sm">
+        {/* Largura em valor explícito: este projeto define `--spacing-*` mas
+            não a escala de containers do Tailwind, então `max-w-sm` resolve
+            pela escala de spacing e vira 0.5rem — o campo colapsa para 8px. */}
+        <div className="w-full tablet:max-w-[24rem]">
           <CampoControlado
             control={formulario.control}
             name="cnpj"

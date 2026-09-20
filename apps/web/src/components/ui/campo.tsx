@@ -65,7 +65,10 @@ export const Campo = ({
   );
 
   return (
-    <div className="flex flex-col gap-xs">
+    // `w-full`: o campo se estica quando é filho direto de um flex column, mas
+    // dentro de um contêiner de largura própria o wrapper encolhe ao conteúdo
+    // e o input colapsa para poucos pixels.
+    <div className="flex w-full flex-col gap-xs">
       <label htmlFor={idDoCampo} className="text-label-md text-foreground">
         {rotulo}
         {obrigatorio ? (

@@ -272,7 +272,7 @@ const Revisao = ({
             </AlertDialog.Trigger>
             <AlertDialog.Portal>
               <AlertDialog.Overlay className="fixed inset-0 z-50 bg-primary/40" />
-              <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 flex w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-md rounded-lg border border-border bg-popover p-lg text-popover-foreground shadow-lg">
+              <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 flex w-[calc(100vw-2rem)] max-w-[28rem] -translate-x-1/2 -translate-y-1/2 flex-col gap-md rounded-lg border border-border bg-popover p-lg text-popover-foreground shadow-lg">
                 <AlertDialog.Title className="text-headline-sm text-foreground">
                   Ativar {nome} com situação {visao.cadastro.situacaoCadastralExterna}?
                 </AlertDialog.Title>

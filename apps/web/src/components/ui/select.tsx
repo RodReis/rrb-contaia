@@ -49,7 +49,7 @@ export const Select = ({
   const temErro = erro !== undefined && erro.length > 0;
 
   return (
-    <div className="flex flex-col gap-xs">
+    <div className="flex w-full flex-col gap-xs">
       <label htmlFor={id} className="text-label-md text-foreground">
         {rotulo}
         {obrigatorio ? (

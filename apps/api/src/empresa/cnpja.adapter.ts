@@ -9,7 +9,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 
-import { normalizarCnpj } from '@contaia/domain';
+import { ehEmailValido, ehTelefoneValido, normalizarCnpj } from '@contaia/domain';
 import type { DadosPublicosDoCnpj, ResultadoDaConsulta } from '@contaia/shared';
 
 const URL_PADRAO = 'https://open.cnpja.com/office';
@@ -81,10 +81,18 @@ const codigoDaAtividade = (
 
 const mapear = (bruto: z.infer<typeof respostaSchema>, cnpj: string): DadosPublicosDoCnpj => {
   const telefone = bruto.phones?.[0];
-  const numeroDeTelefone =
+  const numeroBruto =
     telefone === undefined
       ? null
       : textoOuNulo(`${telefone.area ?? ''}${telefone.number ?? ''}`.replace(/\D/gu, ''));
+
+  // A base pública guarda número em formato antigo — celular de 8 dígitos
+  // anterior ao nono dígito, por exemplo. Sugerir um valor que a própria
+  // validação do produto recusa entregaria ao usuário um campo pré-preenchido
+  // e inválido, que ele teria de apagar para prosseguir. Só propomos o que
+  // passa na nossa regra; o resto fica em branco para digitação.
+  const numeroDeTelefone =
+    numeroBruto !== null && ehTelefoneValido(numeroBruto) ? numeroBruto : null;
 
   return {
     cnpj,
@@ -96,7 +104,11 @@ const mapear = (bruto: z.infer<typeof respostaSchema>, cnpj: string): DadosPubli
       .map(codigoDaAtividade)
       .filter((codigo): codigo is string => codigo !== null),
     telefone: numeroDeTelefone,
-    email: textoOuNulo(bruto.emails?.[0]?.address)?.toLowerCase() ?? null,
+    email: (() => {
+      const endereco = textoOuNulo(bruto.emails?.[0]?.address)?.toLowerCase() ?? null;
+
+      return endereco !== null && ehEmailValido(endereco) ? endereco : null;
+    })(),
     endereco: {
       cep: textoOuNulo(bruto.address?.zip)?.replace(/\D/gu, '') ?? null,
       logradouro: textoOuNulo(bruto.address?.street),

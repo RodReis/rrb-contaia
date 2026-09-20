@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { avisarFalha } from '../escritorio/queries';
@@ -43,8 +43,10 @@ export const useListaDeEmpresas = (filtro: FiltroDaLista) =>
     queryKey: chaveDaLista(filtro),
     queryFn: () => listarEmpresas(filtro),
     // A listagem é conferida: manter a página anterior visível enquanto a nova
-    // carrega evita a tabela sumir a cada tecla da busca.
-    placeholderData: (anterior) => anterior,
+    // carrega evita a tabela sumir a cada tecla da busca. `keepPreviousData` é
+    // o helper oficial da v5 — a função inline equivalente existe, mas o helper
+    // é o caminho que a documentação garante.
+    placeholderData: keepPreviousData,
   });
 
 export const useEmpresa = (empresaId: string) =>

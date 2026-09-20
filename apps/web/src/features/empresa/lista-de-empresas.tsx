@@ -256,7 +256,7 @@ export const ListaDeEmpresas = () => {
           ajuda="A busca considera nome fantasia, razão social e CNPJ."
         />
       </div>
-      <div className="tablet:w-56">
+      <div className="w-full tablet:w-[14rem]">
         <Select
           rotulo="Situação"
           opcoes={OPCOES_DE_STATUS}

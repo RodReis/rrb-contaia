@@ -131,6 +131,29 @@ describe('consulta bem-sucedida', () => {
     }
   });
 
+  it('descarta telefone e e-mail que a validação do produto recusa', async () => {
+    // Caso real observado na base pública com o CNPJ de teste da SPEC: celular
+    // de Goiás em formato anterior ao nono dígito (`6285250959`). Propor esse
+    // valor deixaria o campo pré-preenchido e inválido, e o usuário teria de
+    // apagá-lo para salvar a etapa.
+    responderCom({
+      ...respostaCompleta,
+      phones: [{ area: '62', number: '85250959' }],
+      emails: [{ address: 'sem-arroba' }],
+    });
+
+    const resultado = await adaptador.consultar(CNPJ);
+
+    expect(resultado.ok).toBe(true);
+    if (resultado.ok) {
+      expect(resultado.dados.telefone).toBeNull();
+      expect(resultado.dados.email).toBeNull();
+      // O resto do registro continua aproveitável: um campo ruim não descarta
+      // a consulta inteira.
+      expect(resultado.dados.razaoSocial).toBe('PADARIA AURORA COMERCIO DE ALIMENTOS LTDA');
+    }
+  });
+
   it('aceita registro incompleto: base pública irregular não é resposta inválida', async () => {
     responderCom({ taxId: CNPJ });
 
