@@ -237,25 +237,28 @@ export class DocumentosDaEmpresaService {
   ): Promise<VisaoDosDocumentos> {
     const exigencias = await listarExigencias(cliente, tenantId, empresaId);
 
-    const comVersoes = await Promise.all(
-      exigencias.map(async (exigencia): Promise<ExigenciaNaVisao> => {
-        const versoes = await listarVersoes(cliente, tenantId, exigencia.id);
-        const vigente = versoes.find((versao) => versao.vigente) ?? null;
+    // Sequencial, e não `Promise.all`: o `PoolClient` é uma conexão só e
+    // executa uma consulta por vez. Disparar em paralelo faz o `pg` enfileirar
+    // com aviso de depreciação — e o comportamento sai no pg@9.
+    const comVersoes: ExigenciaNaVisao[] = [];
 
-        return {
-          id: exigencia.id,
-          codigo: exigencia.codigo,
-          nome: exigencia.nome,
-          descricao: exigencia.descricao,
-          dataLimite: exigencia.dataLimite,
-          estado: estadoComVencimento(exigencia.estado, vigente?.validade ?? null, agora),
-          justificativa: exigencia.justificativa,
-          aplicavel: exigencia.aplicavel,
-          versao: exigencia.versao,
-          versoes: versoes.map(paraVersaoNaVisao),
-        };
-      }),
-    );
+    for (const exigencia of exigencias) {
+      const versoes = await listarVersoes(cliente, tenantId, exigencia.id);
+      const vigente = versoes.find((versao) => versao.vigente) ?? null;
+
+      comVersoes.push({
+        id: exigencia.id,
+        codigo: exigencia.codigo,
+        nome: exigencia.nome,
+        descricao: exigencia.descricao,
+        dataLimite: exigencia.dataLimite,
+        estado: estadoComVencimento(exigencia.estado, vigente?.validade ?? null, agora),
+        justificativa: exigencia.justificativa,
+        aplicavel: exigencia.aplicavel,
+        versao: exigencia.versao,
+        versoes: versoes.map(paraVersaoNaVisao),
+      });
+    }
 
     return { empresaId, exigencias: comVersoes };
   }
