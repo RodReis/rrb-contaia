@@ -52,8 +52,12 @@ const paraExigenciaPersistida = (linha: LinhaDaExigencia): ExigenciaPersistida =
 });
 
 /**
- * Exigências ativas da empresa. O checklist padrão vem primeiro, na ordem em
- * que foi criado; as específicas do escritório vêm depois, por nome.
+ * Exigências ativas da empresa.
+ *
+ * O checklist padrão vem primeiro, **na ordem da SPEC-004 §2.1**, e não por
+ * `criado_em`: o semeio grava as sete na mesma transação, onde `now()` é o
+ * início dela e empata em todas — a ordem sairia arbitrária. As específicas do
+ * escritório vêm depois, por nome.
  */
 export const listarExigencias = async (
   cliente: PoolClient,
@@ -63,7 +67,13 @@ export const listarExigencias = async (
   const { rows } = await cliente.query<LinhaDaExigencia>(
     `select ${COLUNAS_DA_EXIGENCIA} from app.empresa_exigencia_documental
       where tenant_id = $1 and empresa_id = $2 and situacao = 'ativo'
-      order by (codigo is null), criado_em, nome`,
+      order by (codigo is null),
+               array_position(array[
+                 'CONTRATO_SOCIAL', 'CARTAO_CNPJ', 'INSCRICAO_ESTADUAL',
+                 'INSCRICAO_MUNICIPAL', 'ALVARA_DE_FUNCIONAMENTO',
+                 'DOCUMENTO_DO_RESPONSAVEL', 'COMPROVANTE_DE_ENDERECO'
+               ], codigo),
+               nome`,
     [tenantId, empresaId],
   );
 

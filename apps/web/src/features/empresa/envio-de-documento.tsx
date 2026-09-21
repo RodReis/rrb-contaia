@@ -19,17 +19,10 @@ import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Campo } from '@/components/ui/campo';
+import { tamanhoEmTexto } from '@/lib/arquivo';
 import { cn } from '@/lib/cn';
 
 const REGRA = REGRAS_DE_ARQUIVO.DOCUMENTO_DA_EMPRESA;
-
-const formatarTamanho = (bytes: number): string => {
-  const mega = bytes / (1024 * 1024);
-
-  return mega >= 1
-    ? `${mega.toFixed(1).replace('.', ',')} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-};
 
 const hojeEmSaoPaulo = (): string =>
   new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -168,7 +161,7 @@ export const EnvioDeDocumento = ({
             <p id={idDaDescricaoDaZona} className="text-body-sm text-muted-foreground">
               {arquivo === null
                 ? `${REGRA.extensoesAceitas.join(', ')} · até 20 MB`
-                : formatarTamanho(arquivo.size)}
+                : tamanhoEmTexto(arquivo.size)}
             </p>
 
             <input

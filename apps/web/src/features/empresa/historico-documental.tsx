@@ -102,11 +102,12 @@ export const HistoricoDocumental = ({ empresaId }: { empresaId: string }) => {
       </div>
 
       {/*
-        Tabela numa coluna só abaixo de 768px seria ilegível com cinco campos
-        por linha; a lista de blocos preserva a ordem e a leitura.
+        `min-w-0` no contêiner: sem ele o filho de um flex assume `min-width:
+        auto`, a tabela comprime em vez de rolar e o texto quebra em três
+        linhas por célula em 768px — foi o que a prova visual mostrou.
       */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] border-collapse text-left">
+      <div className="min-w-0 overflow-x-auto">
+        <table className="w-full min-w-[44rem] border-collapse text-left">
           <caption className="sr-only">
             Eventos documentais da empresa, do mais recente para o mais antigo
           </caption>

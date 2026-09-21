@@ -34,6 +34,7 @@ import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
+import { formatarTamanho } from '@/lib/arquivo';
 import { cn } from '@/lib/cn';
 import { DialogoDeJustificativa } from './dialogo-de-justificativa';
 import { enderecoDoConteudo, type ExigenciaDocumental } from './documentos-api';
@@ -60,12 +61,18 @@ const formatarDataCivil = (data: string): string => {
     : `${dia}/${mes}/${ano}`;
 };
 
-const formatarTamanho = (bytes: number): string => {
-  const mega = bytes / (1024 * 1024);
-
-  return mega >= 1
-    ? `${mega.toFixed(1).replace('.', ',')} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+/**
+ * Exigência que ainda cobra providência ganha destaque; a resolvida recua.
+ * Sem isso, sete cartões idênticos escondem justamente o que falta fazer —
+ * hierarquia por estado, não por ordem de leitura.
+ */
+const DESTAQUE_POR_ESTADO: Readonly<Record<EstadoDoDocumento, string>> = {
+  PENDENTE: 'border-border',
+  ENVIADO: 'border-info-indicator/40 bg-info/30',
+  APROVADO: 'border-border',
+  REJEITADO: 'border-danger-indicator/50 bg-danger/30',
+  VENCIDO: 'border-warning-indicator/50 bg-warning/30',
+  DISPENSADO: 'border-border',
 };
 
 /** Ações possíveis por estado (§2.4). Fonte única, para tela e teste. */
@@ -107,11 +114,10 @@ const LinhaDaExigencia = ({
       className={cn(
         'flex flex-col gap-md rounded-lg border bg-card p-lg',
         // Tingimento sutil reforça o badge, nunca o substitui (COMPONENTS.md §3.1).
-        exigencia.estado === 'REJEITADO'
-          ? 'border-danger-indicator/40'
-          : exigencia.estado === 'VENCIDO'
-            ? 'border-warning-indicator/40'
-            : 'border-border',
+        DESTAQUE_POR_ESTADO[exigencia.estado],
+        // Resolvida recua sem sumir: continua legível e conferível.
+        (exigencia.estado === 'APROVADO' || exigencia.estado === 'DISPENSADO') &&
+          'border-dashed',
         !exigencia.aplicavel && 'opacity-70',
       )}
     >
@@ -142,8 +148,11 @@ const LinhaDaExigencia = ({
               <FileText className="size-icon-sm shrink-0" aria-hidden="true" />
               <span className="text-foreground">{vigente.nomeOriginal}</span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono text-code-sm tabular-nums">
-                {formatarTamanho(vigente.tamanhoBytes)}
+              <span>
+                <span className="font-mono text-code-sm tabular-nums">
+                  {formatarTamanho(vigente.tamanhoBytes).valor}
+                </span>{' '}
+                {formatarTamanho(vigente.tamanhoBytes).unidade}
               </span>
               <span aria-hidden="true">·</span>
               <span>versão {vigente.numero}</span>
@@ -509,8 +518,6 @@ export const AbaDeDocumentos = ({
         </div>
       </div>
 
-      {historicoAberto ? <HistoricoDocumental empresaId={empresaId} /> : null}
-
       {data.exigencias.length === 0 ? (
         <EmptyState
           icone={<FileText />}
@@ -551,6 +558,12 @@ export const AbaDeDocumentos = ({
           </ul>
         </section>
       )}
+
+      {/*
+        O histórico vem depois do checklist: aberto no topo, empurrava para
+        baixo da dobra justamente a lista que a pessoa veio resolver.
+      */}
+      {historicoAberto ? <HistoricoDocumental empresaId={empresaId} /> : null}
     </div>
   );
 };
