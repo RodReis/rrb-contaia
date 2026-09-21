@@ -44,10 +44,10 @@ import {
 } from '@contaia/db';
 import type { ArquivoDoEscritorio, EnderecoPersistido } from '@contaia/db';
 import { mensagemDaFalha, validarArquivo } from '@contaia/shared';
-import type { TipoDeArquivo } from '@contaia/shared';
+import type { TipoDeArquivoDoEscritorio } from '@contaia/shared';
 
 import { PoolDoBanco } from '../banco/pool.provider';
-import { StorageService, type ArquivoRecebido } from './storage.service';
+import { StorageService, type ArquivoRecebido } from '../comum/storage.service';
 
 export type VisaoDoCadastro = Readonly<{
   tenantId: string;
@@ -204,7 +204,7 @@ export class EscritorioService {
   /** Persiste o arquivo primeiro; só conta como enviado depois disso. */
   async enviarArquivo(
     tenantId: string,
-    tipo: TipoDeArquivo,
+    tipo: TipoDeArquivoDoEscritorio,
     arquivo: ArquivoRecebido,
   ): Promise<VisaoDoCadastro> {
     const falha = validarArquivo(tipo, {

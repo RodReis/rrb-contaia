@@ -56,6 +56,20 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.EMPRESA_NAO_ARQUIVADA]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.CNPJ_IMUTAVEL]: HttpStatus.CONFLICT,
+  // SPEC-004. Exigência e versão de outro escritório respondem como
+  // inexistentes, pela mesma razão da empresa: 404 não revela dado alheio.
+  [CODIGOS_DE_ERRO.EXIGENCIA_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.VERSAO_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
+  // Transição recusada e exigência já atendida são conflito de estado: a
+  // requisição está bem formada e o documento é que não aceita a operação.
+  [CODIGOS_DE_ERRO.TRANSICAO_DOCUMENTAL_INVALIDA]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.EXIGENCIA_DUPLICADA]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.EXIGENCIA_NAO_APLICAVEL]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.VERSAO_NAO_VIGENTE]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.DOCUMENTO_SEM_ARQUIVO]: HttpStatus.CONFLICT,
+  // Arquivo ausente no storage é falha de infraestrutura, não entrada inválida:
+  // a tela precisa distinguir "não existe" de "não consegui buscar agora".
+  [CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL]: HttpStatus.BAD_GATEWAY,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>

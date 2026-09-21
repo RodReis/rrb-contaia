@@ -166,3 +166,35 @@ export const filtroDoHistoricoSchema = z.object({
   limite: z.coerce.number().int().min(1).max(100).default(25),
   deslocamento: z.coerce.number().int().min(0).default(0),
 });
+
+// -- Documentos da empresa (SPEC-004) ----------------------------------------
+
+/** Exigência específica do escritório: nome obrigatório, prazo opcional (§2.1). */
+export const exigenciaEspecificaSchema = z.object({
+  nome: texto(120),
+  descricao: opcional(500),
+  dataLimite: dataCivil.nullish().transform((valor) => valor ?? null),
+});
+
+/**
+ * Análise exige a versão lida da exigência: é o que transforma duas telas
+ * abertas em conflito explícito em vez de sobrescrita silenciosa (§5).
+ */
+export const analiseSchema = z.object({
+  versao: z.coerce.number().int().min(0),
+});
+
+export const analiseComJustificativaSchema = analiseSchema.extend({
+  justificativa: texto(500),
+});
+
+/** Validade do arquivo chega como campo do multipart, ao lado do arquivo. */
+export const envioDeDocumentoSchema = z.object({
+  validade: dataCivil.nullish().transform((valor) => valor ?? null),
+  versao: z.coerce.number().int().min(0),
+});
+
+export const paginacaoDoHistoricoSchema = z.object({
+  limite: z.coerce.number().int().min(1).max(100).default(25),
+  deslocamento: z.coerce.number().int().min(0).default(0),
+});

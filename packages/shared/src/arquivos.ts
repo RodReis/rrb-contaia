@@ -31,6 +31,14 @@ export const TIPOS_DE_DOCUMENTO_DA_EMPRESA = [
 
 export type TipoDeArquivo = 'LOGO' | 'DOCUMENTO' | 'DOCUMENTO_DA_EMPRESA';
 
+/**
+ * Arquivo do cadastro do escritório (SPEC-001). Tipo próprio para o
+ * compilador recusar o documento da empresa nesse caminho: a coluna `tipo` de
+ * `escritorio_arquivo` só admite estes dois, e alargar `TipoDeArquivo` sem
+ * estreitar aqui deixaria o erro chegar ao banco.
+ */
+export type TipoDeArquivoDoEscritorio = Extract<TipoDeArquivo, 'LOGO' | 'DOCUMENTO'>;
+
 export type RegraDeArquivo = Readonly<{
   limiteBytes: number;
   tiposAceitos: readonly string[];
