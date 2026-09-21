@@ -13,14 +13,65 @@ const pool = new Pool({
     'postgresql://contaia:contaia_local@127.0.0.1:15432/contaia',
 });
 
+/** CNPJ próprio: a prova visual não depende da ordem entre suítes. */
+const CNPJ = '27865757000102';
+
 let empresaId = '';
 
 test.beforeAll(async () => {
-  const { rows } = await pool.query<{ id: string }>(
-    "select id from app.empresa where cnpj = '19131243000197'",
+  const tenant = await pool.query<{ id: string }>(
+    `update app.tenant set status = 'ATIVO'
+      where cnpj = '11222333000181'
+      returning id`,
   );
 
-  empresaId = rows[0]?.id ?? '';
+  const tenantId = tenant.rows[0]?.id;
+
+  if (tenantId === undefined) {
+    throw new Error('nenhum tenant semeado: rode `pnpm db:seed` antes do E2E');
+  }
+
+  // A empresa é criada aqui, e não reaproveitada da suíte da SPEC-004: o
+  // Playwright roda os arquivos em paralelo e não garante ordem entre eles.
+  //
+  // Os quatro testes deste arquivo também rodam em paralelo e executam este
+  // mesmo `beforeAll`, então o insert é idempotente: `on conflict` sobre o
+  // índice de CNPJ por tenant faz o segundo a chegar reaproveitar a linha do
+  // primeiro em vez de estourar unicidade.
+  const empresa = await pool.query<{ id: string }>(
+    `with nova as (
+       insert into app.empresa
+         (tenant_id, status, cnpj, razao_social, nome_fantasia, regime_tributario,
+          enquadramento_simples, cnae_principal, inscricao_estadual_situacao,
+          inscricao_municipal_situacao, situacao_cadastral_externa,
+          validado_por_fonte_externa)
+       values ($1, 'ATIVA', $2, 'Provas Visuais LTDA', 'Provas Visuais',
+               'SIMPLES_NACIONAL', 'NAO_MEI', '4712100', 'POSSUI', 'NAO_SE_APLICA',
+               'Ativa', true)
+       on conflict do nothing
+       returning id
+     )
+     select id from nova
+     union all
+     select id from app.empresa where tenant_id = $1 and cnpj = $2
+     limit 1`,
+    [tenantId, CNPJ],
+  );
+
+  empresaId = empresa.rows[0]?.id ?? '';
+
+  await pool.query(
+    `insert into app.empresa_endereco
+       (tenant_id, empresa_id, finalidade, principal, cep, logradouro, numero,
+        bairro, municipio, uf)
+     select $1, $2, 'FISCAL', true, '74000000', 'Rua Um', '10', 'Centro',
+            'Goiania', 'GO'
+      where not exists (
+        select 1 from app.empresa_endereco
+         where empresa_id = $2 and finalidade = 'FISCAL' and situacao = 'ativo'
+      )`,
+    [tenantId, empresaId],
+  );
 });
 
 test.afterAll(async () => {
@@ -49,7 +100,7 @@ const entrar = async (page: Page): Promise<void> => {
 for (const tema of ['light', 'dark'] as const) {
   for (const largura of [1440, 768]) {
     test(`aba Documentos no tema ${tema} em ${largura}px`, async ({ page }) => {
-      expect(empresaId, 'rode a suíte da SPEC-004 antes: ela cria a empresa').not.toBe('');
+      expect(empresaId).not.toBe('');
 
       await page.setViewportSize({ width: largura, height: 1200 });
       await entrar(page);
@@ -67,7 +118,9 @@ for (const tema of ['light', 'dark'] as const) {
       await page.getByRole('tab', { name: 'Documentos' }).click();
       await page.getByRole('heading', { name: 'Cartão CNPJ' }).waitFor();
 
-      // O histórico entra na prova: é metade da tela da fatia.
+      // O histórico entra na prova: é metade da tela da fatia. A empresa desta
+      // suíte tem só os eventos de criação do checklist, que já exercitam a
+      // tabela, a paginação e o badge de estado.
       await page.getByRole('button', { name: /histórico documental/iu }).click();
       await page.getByRole('table', { name: /eventos documentais/iu }).waitFor();
 
