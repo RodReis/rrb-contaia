@@ -16,15 +16,21 @@ import {
   ErroDeDominio,
   ErroDeValidacao,
   aprovarVersao,
+  causasDocumentais,
   dispensarExigencia,
   estadoComVencimento,
   exigenciasDaAplicabilidade,
+  reconciliarPendencias,
   registrarEnvio,
   rejeitarVersao,
   validarNomeDaExigencia,
   validarValidade,
 } from '@contaia/domain';
-import type { CodigoDoChecklist, EstadoDoDocumento } from '@contaia/domain';
+import type {
+  CodigoDoChecklist,
+  EstadoDoDocumento,
+  ExigenciaParaReconciliar,
+} from '@contaia/domain';
 import {
   arquivarVersaoVigente,
   carregarEmpresa,
@@ -35,9 +41,11 @@ import {
   definirEstadoDaExigencia,
   inserirExigencia,
   inserirVersao,
+  listarAbertasDaEmpresa,
   listarExigencias,
   listarHistoricoDocumental,
   listarVersoes,
+  reconciliar as reconciliarPendenciasNoBanco,
   registrarEventosDocumentais,
 } from '@contaia/db';
 import type {
@@ -455,6 +463,8 @@ export class DocumentosDaEmpresaService {
         },
       ]);
 
+      await this.reconciliarPendenciasDocumentais(cliente, tenantId, empresaId, agora);
+
       return this.montarVisao(cliente, tenantId, empresaId, agora);
     });
   }
@@ -516,6 +526,8 @@ export class DocumentosDaEmpresaService {
           usuarioId: autor.usuarioId,
         },
       ]);
+
+      await this.reconciliarPendenciasDocumentais(cliente, tenantId, empresaId, agora);
 
       return this.montarVisao(cliente, tenantId, empresaId, agora);
     });
@@ -653,6 +665,40 @@ export class DocumentosDaEmpresaService {
     return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
       listarHistoricoDocumental(cliente, tenantId, empresaId, paginacao),
     );
+  }
+
+  // -- Central de Pendências (SPEC-005) ---------------------------------------
+
+  /**
+   * Reconcilia pendências documentais da Central (SPEC-005 §2) na mesma
+   * transação: recalcula a partir do estado atual de todas as exigências,
+   * não um diff da exigência isolada.
+   */
+  private async reconciliarPendenciasDocumentais(
+    cliente: PoolClient,
+    tenantId: string,
+    empresaId: string,
+    agora: Date,
+  ): Promise<void> {
+    const exigencias = await listarExigencias(cliente, tenantId, empresaId);
+
+    const paraReconciliar: ExigenciaParaReconciliar[] = [];
+    for (const exigencia of exigencias) {
+      const vigente = await carregarVersaoVigente(cliente, tenantId, empresaId, exigencia.id);
+      paraReconciliar.push({
+        id: exigencia.id,
+        estado: exigencia.estado,
+        dataLimite: exigencia.dataLimite,
+        validade: vigente?.validade ?? null,
+        codigo: exigencia.codigo,
+      });
+    }
+
+    const causas = causasDocumentais(paraReconciliar, agora);
+    const abertas = await listarAbertasDaEmpresa(cliente, empresaId);
+    const { paraAbrir, paraResolver } = reconciliarPendencias(causas, abertas);
+
+    await reconciliarPendenciasNoBanco(cliente, tenantId, empresaId, paraAbrir, paraResolver, null);
   }
 }
 

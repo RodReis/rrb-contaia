@@ -123,6 +123,11 @@ vi.mock('@contaia/db', () => ({
   },
   listarHistorico: async () => ({ eventos: [], total: 0 }),
   camposComHistorico: async () => [],
+  // Central de Pendências (SPEC-005): os hooks de reconciliação chamam estas
+  // duas direto no repositório, dentro da mesma transação. Sem mocká-las, o
+  // teste chamaria a implementação real e tentaria conectar ao banco.
+  listarAbertasDaEmpresa: async () => [],
+  reconciliar: async () => undefined,
 }));
 
 const criarServico = (consultar = vi.fn()) => {
