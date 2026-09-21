@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -55,7 +55,6 @@ updated: 2026-09-20
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
 - [MVP1][SPEC-005][F5] Central de Pendências cadastrais (#6)
-- [MVP1][SPEC-004][F4] Documentos da empresa (#5)
 
 ## Em Andamento
 
@@ -71,6 +70,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-004][F4] Documentos da empresa (#5, finalizado em: 2026-09-21)
 - [MVP1][SPEC-003][F3] Manutenção da empresa cliente (#4, finalizado em: 2026-09-20)
 - [MVP1][SPEC-001][F1] Acesso inicial e conclusão do cadastro do escritório (#2, finalizado em: 2026-09-20)
 - [MVP1][SPEC-002][F2] Cadastro e ativação da empresa cliente (#3, finalizado em: 2026-09-20)
