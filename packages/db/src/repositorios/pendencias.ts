@@ -8,6 +8,7 @@
  * filtram por `empresa_id`/`id`, não por `tenant_id`). A cobertura de
  * isolamento entre tenants está nos testes de concorrência/RLS (Task 3/7).
  */
+import type { OrigemDaPendencia } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 
 export type PendenciaPersistida = Readonly<{
@@ -70,13 +71,25 @@ const linhaParaPendencia = (linha: LinhaDaPendencia): PendenciaPersistida => ({
   resolvidoEm: linha.resolvido_em === null ? null : linha.resolvido_em.toISOString(),
 });
 
+/**
+ * `origem` filtra a reconciliação por fonte (§2, §5.2, §9): o hook cadastral só
+ * conhece causas `campo:*` e o documental só conhece causas `exigencia:*` —
+ * misturar as duas faria um hook resolver, por engano, pendência aberta da
+ * outra origem (evento `RESOLUCAO` falso, append-only, não corrigível depois).
+ * `null` devolve as duas origens juntas, para quem realmente precisa ver tudo
+ * (nenhum chamador de produção usa isso hoje; preservado para não estreitar a
+ * função além do que o bug pede).
+ */
 export const listarAbertasDaEmpresa = async (
   cliente: PoolClient,
   empresaId: string,
+  origem: OrigemDaPendencia | null,
 ): Promise<readonly Readonly<{ chave: string }>[]> => {
   const resultado = await cliente.query<{ chave: string }>(
-    `select chave from app.empresa_pendencia where empresa_id = $1 and estado = 'ABERTA'`,
-    [empresaId],
+    `select chave from app.empresa_pendencia
+      where empresa_id = $1 and estado = 'ABERTA'
+        and ($2::text is null or origem = $2)`,
+    [empresaId, origem],
   );
 
   return resultado.rows;
@@ -183,7 +196,7 @@ const ORDEM_DE_PRIORIDADE = `
       when p.data_limite is not null
        and p.data_limite >= $1::date and p.data_limite <= ($1::date + 3) then 3
       else 4
-    end, p.criado_em asc`;
+    end, p.criado_em asc, p.id`;
 
 export const listarCentral = async (
   cliente: PoolClient,

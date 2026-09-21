@@ -436,6 +436,12 @@ export class ManutencaoDaEmpresaService {
         },
       ]);
 
+      // Endereço Fiscal novo pode corrigir a pendência de endereço principal
+      // ausente (§2): recarrega o cadastro para `enderecoPrincipal` refletir o
+      // que acabou de ser gravado (`carregarEmpresa` deriva do banco, não do
+      // objeto em memória — ver `packages/db/src/repositorios/empresa.ts`).
+      await this.reconciliarPendenciasCadastraisDoEndereco(cliente, tenantId, empresaId);
+
       return listarEnderecosDaEmpresa(cliente, tenantId, empresaId);
     });
   }
@@ -509,6 +515,12 @@ export class ManutencaoDaEmpresaService {
             usuarioId: autor.usuarioId,
           },
         ]);
+
+        // Só o Fiscal alimenta `enderecoPrincipal` (§2); editar um endereço de
+        // outra finalidade não muda nenhuma causa cadastral.
+        if (endereco.finalidade === 'FISCAL') {
+          await this.reconciliarPendenciasCadastraisDoEndereco(cliente, tenantId, empresaId);
+        }
       }
 
       return listarEnderecosDaEmpresa(cliente, tenantId, empresaId);
@@ -908,9 +920,30 @@ export class ManutencaoDaEmpresaService {
     }));
 
     const causas = causasCadastrais(campos);
-    const abertas = await listarAbertasDaEmpresa(cliente, empresaId);
+    const abertas = await listarAbertasDaEmpresa(cliente, empresaId, 'CADASTRAL');
     const { paraAbrir, paraResolver } = reconciliarPendencias(causas, abertas);
 
     await reconciliarPendenciasNoBanco(cliente, tenantId, empresaId, paraAbrir, paraResolver, null);
+  }
+
+  /**
+   * Mesma reconciliação cadastral, mas para as rotas de endereço: elas não têm
+   * o `cadastro` atualizado em mãos (só mexem na tabela de endereços), então
+   * recarrega a empresa para `enderecoPrincipal` refletir o que acabou de ser
+   * gravado (`carregarEmpresa` deriva do banco — ver
+   * `packages/db/src/repositorios/empresa.ts`).
+   */
+  private async reconciliarPendenciasCadastraisDoEndereco(
+    cliente: PoolClient,
+    tenantId: string,
+    empresaId: string,
+  ): Promise<void> {
+    const recarregada = await carregarEmpresa(cliente, tenantId, empresaId);
+
+    if (recarregada === null) {
+      return empresaNaoEncontrada();
+    }
+
+    await this.reconciliarPendenciasCadastrais(cliente, tenantId, empresaId, recarregada.cadastro);
   }
 }

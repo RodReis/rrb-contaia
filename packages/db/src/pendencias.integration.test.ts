@@ -8,6 +8,7 @@
  * aberta da mesma causa e resolve a que sumiu; a dispensa grava justificativa
  * no evento; e a Central ordena vencidas antes das demais.
  */
+import { reconciliarPendencias } from '@contaia/domain';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -176,7 +177,7 @@ describe('reconciliação (secao 2)', () => {
     );
 
     const abertas = await comTenant(tenantA, (cliente) =>
-      listarAbertasDaEmpresa(cliente, empresaId),
+      listarAbertasDaEmpresa(cliente, empresaId, null),
     );
 
     expect(abertas).toHaveLength(1);
@@ -194,10 +195,46 @@ describe('reconciliação (secao 2)', () => {
     );
 
     const abertas = await comTenant(tenantA, (cliente) =>
-      listarAbertasDaEmpresa(cliente, empresaId),
+      listarAbertasDaEmpresa(cliente, empresaId, null),
     );
 
     expect(abertas).toEqual([]);
+  });
+
+  it('reconciliar por origem só resolve a causa da própria origem (achado CRITICAL)', async () => {
+    // Prova direta do bug corrigido: o hook cadastral (que só conhece causas
+    // `campo:*`) não pode resolver, por engano, uma pendência DOCUMENTAL
+    // aberta — e vice-versa. Sem o filtro de `origem`, `reconciliar([], ...)`
+    // com a lista de abertas SEM filtro resolveria as duas.
+    const empresaId = await criarEmpresaAtiva(tenantA, `65${SUFIXO}000195`);
+    const causaCadastral = causaPadrao('campo:origem-mista');
+    const causaDocumental = {
+      origem: 'DOCUMENTAL',
+      tipo: 'DOCUMENTO_AUSENTE',
+      chave: 'exigencia:origem-mista',
+      dataLimite: null,
+    } as const;
+
+    await comTenant(tenantA, (cliente) =>
+      reconciliar(cliente, tenantA, empresaId, [causaCadastral, causaDocumental], [], null),
+    );
+
+    // Simula "cadastro corrigido": reconcilia só a origem CADASTRAL com uma
+    // lista de causas vazia — a DOCUMENTAL não deve ser tocada.
+    const abertasCadastrais = await comTenant(tenantA, (cliente) =>
+      listarAbertasDaEmpresa(cliente, empresaId, 'CADASTRAL'),
+    );
+    const { paraResolver } = reconciliarPendencias([], abertasCadastrais);
+
+    await comTenant(tenantA, (cliente) =>
+      reconciliar(cliente, tenantA, empresaId, [], paraResolver, null),
+    );
+
+    const abertas = await comTenant(tenantA, (cliente) =>
+      listarAbertasDaEmpresa(cliente, empresaId, null),
+    );
+
+    expect(abertas.map((pendencia) => pendencia.chave)).toEqual(['exigencia:origem-mista']);
   });
 });
 
@@ -251,7 +288,7 @@ describe('reconciliação — histórico e atomicidade (secao 2)', () => {
     ).rejects.toThrow();
 
     const abertas = await comTenant(tenantA, (cliente) =>
-      listarAbertasDaEmpresa(cliente, empresaId),
+      listarAbertasDaEmpresa(cliente, empresaId, null),
     );
     expect(abertas).toEqual([]);
 
@@ -288,7 +325,7 @@ describe('reconciliação — histórico e atomicidade (secao 2)', () => {
     await Promise.all([executarEmTransacaoPropria(), executarEmTransacaoPropria()]);
 
     const abertas = await comTenant(tenantA, (cliente) =>
-      listarAbertasDaEmpresa(cliente, empresaId),
+      listarAbertasDaEmpresa(cliente, empresaId, null),
     );
     expect(abertas).toHaveLength(1);
   });
@@ -318,7 +355,7 @@ describe('isolamento por tenant', () => {
     );
 
     const semContexto = await comTenant(null, (cliente) =>
-      listarAbertasDaEmpresa(cliente, empresaId),
+      listarAbertasDaEmpresa(cliente, empresaId, null),
     );
 
     expect(semContexto).toEqual([]);

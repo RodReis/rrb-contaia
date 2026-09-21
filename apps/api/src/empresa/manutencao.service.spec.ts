@@ -61,6 +61,7 @@ const { estado } = vi.hoisted(() => ({
     fiscaisSalvos: null as Record<string, unknown> | null,
     aplicabilidades: [] as { codigo: string; aplicavel: boolean }[],
     situacaoDefinida: null as string | null,
+    origemReconciliada: null as string | null,
   },
 }));
 
@@ -126,7 +127,14 @@ vi.mock('@contaia/db', () => ({
   // Central de Pendências (SPEC-005): os hooks de reconciliação chamam estas
   // duas direto no repositório, dentro da mesma transação. Sem mocká-las, o
   // teste chamaria a implementação real e tentaria conectar ao banco.
-  listarAbertasDaEmpresa: async () => [],
+  //
+  // Captura a `origem` recebida: prova do achado CRITICAL — o hook cadastral
+  // precisa filtrar só 'CADASTRAL', nunca ver pendências DOCUMENTAIS abertas.
+  listarAbertasDaEmpresa: async (_c: unknown, _e: string, origem: string | null) => {
+    estado.origemReconciliada = origem;
+
+    return [];
+  },
   reconciliar: async () => undefined,
 }));
 
@@ -495,6 +503,61 @@ describe('endereços (§3.4)', () => {
       ),
     ).toBe(CODIGOS_DE_ERRO.ENDERECO_FISCAL_OBRIGATORIO);
   });
+
+  it('criar endereço Fiscal reconcilia a Central cadastral (achado IMPORTANT)', async () => {
+    estado.enderecos = [];
+    const servico = criarServico();
+
+    await servico.criarEndereco(TENANT, EMPRESA, AUTOR, {
+      finalidade: 'FISCAL',
+      descricao: null,
+      cep: '74000000',
+      logradouro: 'Rua Um',
+      numero: '10',
+      complemento: null,
+      bairro: 'Centro',
+      municipio: 'Goiânia',
+      uf: 'GO',
+    });
+
+    expect(estado.origemReconciliada).toBe('CADASTRAL');
+  });
+
+  it('atualizar endereço Fiscal reconcilia a Central cadastral (achado IMPORTANT)', async () => {
+    estado.enderecoCarregado = {
+      id: 'a',
+      finalidade: 'FISCAL',
+      descricao: null,
+      cep: '74000000',
+      logradouro: 'Rua Um',
+      numero: '10',
+      complemento: null,
+      bairro: 'Centro',
+      municipio: 'Goiânia',
+      uf: 'GO',
+    };
+
+    await criarServico().atualizarEndereco(
+      TENANT,
+      EMPRESA,
+      'a',
+      AUTOR,
+      {
+        finalidade: 'FISCAL',
+        descricao: null,
+        cep: '74000000',
+        logradouro: 'Rua Dois',
+        numero: '20',
+        complemento: null,
+        bairro: 'Centro',
+        municipio: 'Goiânia',
+        uf: 'GO',
+      },
+      0,
+    );
+
+    expect(estado.origemReconciliada).toBe('CADASTRAL');
+  });
 });
 
 describe('concorrência de edição (§5 e §7)', () => {
@@ -580,5 +643,20 @@ describe('reconciliação da aplicabilidade documental (SPEC-004 §2.2)', () => 
       'INSCRICAO_ESTADUAL',
       'INSCRICAO_MUNICIPAL',
     ]);
+  });
+});
+
+describe('Central de Pendências — reconciliação por origem (SPEC-005, achado CRITICAL)', () => {
+  it('reconcilia só a origem CADASTRAL, nunca a DOCUMENTAL', async () => {
+    const servico = criarServico();
+
+    await servico.salvarIdentificacao(TENANT, EMPRESA, AUTOR, {
+      razaoSocial: 'Alfa Ltda',
+      nomeFantasia: 'Alfa',
+      telefone: '6230000000',
+      email: 'contato@alfa.com.br',
+    });
+
+    expect(estado.origemReconciliada).toBe('CADASTRAL');
   });
 });

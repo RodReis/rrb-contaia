@@ -79,6 +79,7 @@ const { estado } = vi.hoisted(() => ({
     arquivamentos: 0,
     gravacaoAceita: true,
     estadoDefinido: null as Record<string, unknown> | null,
+    origemReconciliada: null as string | null,
   },
 }));
 
@@ -153,7 +154,14 @@ vi.mock('@contaia/db', () => ({
   // Central de Pendências (SPEC-005): os hooks de reconciliação chamam estas
   // duas direto no repositório, dentro da mesma transação. Sem mocká-las, o
   // teste chamaria a implementação real e tentaria conectar ao banco.
-  listarAbertasDaEmpresa: async () => [],
+  //
+  // Captura a `origem` recebida: prova do achado CRITICAL — o hook documental
+  // precisa filtrar só 'DOCUMENTAL', nunca ver pendências CADASTRAIS abertas.
+  listarAbertasDaEmpresa: async (_c: unknown, _e: string, origem: string | null) => {
+    estado.origemReconciliada = origem;
+
+    return [];
+  },
   reconciliar: async () => undefined,
 }));
 
@@ -239,6 +247,16 @@ describe('checklist padrão', () => {
     expect(estado.eventos.filter((evento) => evento['acao'] === 'EXIGENCIA_CRIADA')).toHaveLength(
       7,
     );
+  });
+
+  it('reconcilia a Central assim que semeia o checklist (achado IMPORTANT)', async () => {
+    // Antes da correção, o checklist padrão só virava pendência na Central na
+    // próxima mutação (envio, análise etc.) — não na primeira abertura da aba.
+    estado.exigencias = [];
+
+    await criarService().consultar(TENANT, EMPRESA, AUTOR, HOJE);
+
+    expect(estado.origemReconciliada).toBe('DOCUMENTAL');
   });
 });
 
@@ -564,6 +582,31 @@ describe('exigência específica (§2.1)', () => {
         { campo: 'nome', codigo: CODIGOS_DE_ERRO.NOME_DA_EXIGENCIA_OBRIGATORIO },
       ]);
     }
+  });
+
+  it('reconcilia a Central imediatamente após criar a exigência (achado IMPORTANT)', async () => {
+    // Antes da correção, `criarExigencia` não chamava o hook de reconciliação:
+    // a exigência só virava pendência na próxima mutação qualquer.
+    await criarService().criarExigencia(
+      TENANT,
+      EMPRESA,
+      AUTOR,
+      { nome: 'Termo de adesão', descricao: null, dataLimite: null },
+      HOJE,
+    );
+
+    expect(estado.origemReconciliada).toBe('DOCUMENTAL');
+  });
+});
+
+describe('Central de Pendências — reconciliação por origem (SPEC-005, achado CRITICAL)', () => {
+  it('reconcilia só a origem DOCUMENTAL, nunca a CADASTRAL', async () => {
+    estado.exigencias = [exigenciaPersistida({ estado: 'ENVIADO' })];
+    estado.versoes = [versaoPersistida()];
+
+    await criarService().aprovar(TENANT, EMPRESA, EXIGENCIA, AUTOR, 0, HOJE);
+
+    expect(estado.origemReconciliada).toBe('DOCUMENTAL');
   });
 });
 
