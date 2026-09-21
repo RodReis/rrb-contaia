@@ -8,6 +8,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'jest-axe';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -101,6 +102,54 @@ describe('estado de carregamento', () => {
   });
 });
 
+describe('estado de erro', () => {
+  it('mostra a falha em linguagem de usuário com o correlationId copiável', async () => {
+    responderCom(
+      respostaJson(
+        {
+          type: 'https://contaia.local/erros/interno',
+          title: 'falha',
+          status: 500,
+          code: 'ERRO_INTERNO',
+          correlationId: 'corr-321',
+        },
+        500,
+      ),
+    );
+
+    renderizar();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível carregar as pendências',
+    );
+    expect(screen.getByText('corr-321')).toBeInTheDocument();
+  });
+
+  it('permite tentar de novo, refazendo a busca', async () => {
+    const usuario = userEvent.setup();
+    responderCom(
+      respostaJson(
+        {
+          type: 'https://contaia.local/erros/interno',
+          title: 'falha',
+          status: 500,
+          code: 'ERRO_INTERNO',
+          correlationId: 'corr-322',
+        },
+        500,
+      ),
+      respostaJson(comPendencias),
+    );
+
+    renderizar();
+
+    await screen.findByRole('alert');
+    await usuario.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+
+    expect((await screen.findAllByText('Padaria Aurora')).length).toBeGreaterThan(0);
+  });
+});
+
 describe('estado vazio', () => {
   it('sem nenhuma pendência aberta, o texto é positivo e não alarmante', async () => {
     responderCom(respostaJson(vazia));
@@ -177,6 +226,37 @@ describe('filtro na URL', () => {
   });
 });
 
+describe('paginação', () => {
+  it('trocar de página mantém os filtros na URL', async () => {
+    const usuario = userEvent.setup();
+    parametrosAtuais = new URLSearchParams({ origem: 'DOCUMENTAL' });
+    responderCom(
+      respostaJson({ pendencias: [pendenciaAberta], total: 40 }),
+      respostaJson({ pendencias: [pendenciaAberta], total: 40 }),
+    );
+
+    renderizar();
+    await screen.findAllByText('Padaria Aurora');
+
+    await usuario.click(screen.getByRole('button', { name: 'Próxima' }));
+
+    expect(substituir).toHaveBeenCalledWith(
+      '/pendencias?origem=DOCUMENTAL&pagina=2',
+      { scroll: false },
+    );
+  });
+
+  it('desabilita "Anterior" na primeira página e "Próxima" na última', async () => {
+    responderCom(respostaJson({ pendencias: [pendenciaAberta], total: 40 }));
+
+    renderizar();
+    await screen.findAllByText('Padaria Aurora');
+
+    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Próxima' })).not.toBeDisabled();
+  });
+});
+
 describe('ação de dispensa', () => {
   it('abre o DialogoDeJustificativa e, ao confirmar, chama o endpoint de dispensa', async () => {
     const usuario = userEvent.setup();
@@ -213,5 +293,45 @@ describe('ação de dispensa', () => {
 
     await screen.findAllByText('Padaria Aurora');
     expect(screen.queryByRole('button', { name: 'Dispensar' })).not.toBeInTheDocument();
+  });
+});
+
+describe('acessibilidade', () => {
+  it('a listagem não tem violação detectável pelo axe', async () => {
+    responderCom(respostaJson(comPendencias));
+
+    const { container } = renderizar();
+    await screen.findAllByText('Padaria Aurora');
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('o estado vazio não tem violação detectável pelo axe', async () => {
+    responderCom(respostaJson(vazia));
+
+    const { container } = renderizar();
+    await screen.findByText('Sem pendências');
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('o estado de erro não tem violação detectável pelo axe', async () => {
+    responderCom(
+      respostaJson(
+        {
+          type: 'https://contaia.local/erros/interno',
+          title: 'falha',
+          status: 500,
+          code: 'ERRO_INTERNO',
+          correlationId: 'corr-999',
+        },
+        500,
+      ),
+    );
+
+    const { container } = renderizar();
+    await screen.findByRole('alert');
+
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

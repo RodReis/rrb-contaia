@@ -32,6 +32,8 @@ import { ClipboardCheck, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 
+import { dataCivilEmSaoPaulo } from '@contaia/domain';
+
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { Select } from '@/components/ui/select';
@@ -101,13 +103,20 @@ const ehVencimento = (valor: string | null): valor is 'VENCIDAS' | 'PROXIMAS' =>
  * Mapeamento tom/rótulo do tipo, combinando urgência de prazo (SPEC-005 §6,
  * sugestão do brief da Task 9): vencida ou rejeitada é `critico`; o que falta
  * ou pede decisão é `atencao`; resolvida é `conforme`.
+ *
+ * `dataLimite` já vem como string civil `YYYY-MM-DD` do backend (mesmo
+ * formato usado em `listarCentral`, `packages/db/src/repositorios/pendencias.ts`).
+ * Comparar como string contra a data civil de hoje em `America/Sao_Paulo`
+ * (`dataCivilEmSaoPaulo`, `@contaia/domain`) evita o problema de fuso perto da
+ * meia-noite que `new Date(...)` teria — mesma técnica de `validarVigencia`
+ * em `packages/domain/src/empresa/manutencao.ts`.
  */
-const tomDaPendencia = (pendencia: Pendencia): TomDoStatus => {
+const tomDaPendencia = (pendencia: Pendencia, hoje: string): TomDoStatus => {
   if (pendencia.estado === 'RESOLVIDA') {
     return 'conforme';
   }
 
-  const vencida = pendencia.dataLimite !== null && new Date(pendencia.dataLimite) < new Date();
+  const vencida = pendencia.dataLimite !== null && pendencia.dataLimite < hoje;
 
   if (vencida || pendencia.tipo === 'DOCUMENTO_VENCIDO' || pendencia.tipo === 'DOCUMENTO_REJEITADO') {
     return 'critico';
@@ -159,14 +168,14 @@ const AcaoDeDispensa = ({ pendencia }: { pendencia: Pendencia }) => {
   );
 };
 
-const LinhaDaPendencia = ({ pendencia }: { pendencia: Pendencia }) => (
+const LinhaDaPendencia = ({ pendencia, hoje }: { pendencia: Pendencia; hoje: string }) => (
   <tr className="border-b border-border last:border-b-0 hover:bg-accent/40">
     <td className="px-md py-sm text-body-md text-foreground">{pendencia.empresaNome}</td>
     <td className="px-md py-sm text-body-sm text-muted-foreground">
       {ROTULO_DA_ORIGEM[pendencia.origem]}
     </td>
     <td className="px-md py-sm text-body-md">
-      <StatusBadge tom={tomDaPendencia(pendencia)} rotulo={ROTULO_DO_TIPO[pendencia.tipo]} />
+      <StatusBadge tom={tomDaPendencia(pendencia, hoje)} rotulo={ROTULO_DO_TIPO[pendencia.tipo]} />
     </td>
     <td className="px-md py-sm text-body-sm text-muted-foreground">
       {formatarData(pendencia.dataLimite)}
@@ -177,11 +186,11 @@ const LinhaDaPendencia = ({ pendencia }: { pendencia: Pendencia }) => (
   </tr>
 );
 
-const CartaoDaPendencia = ({ pendencia }: { pendencia: Pendencia }) => (
+const CartaoDaPendencia = ({ pendencia, hoje }: { pendencia: Pendencia; hoje: string }) => (
   <li className="flex flex-col gap-sm rounded-lg border border-border bg-card p-md">
     <div className="flex items-start justify-between gap-sm">
       <span className="text-title-sm text-foreground">{pendencia.empresaNome}</span>
-      <StatusBadge tom={tomDaPendencia(pendencia)} rotulo={ROTULO_DO_TIPO[pendencia.tipo]} />
+      <StatusBadge tom={tomDaPendencia(pendencia, hoje)} rotulo={ROTULO_DO_TIPO[pendencia.tipo]} />
     </div>
     <span className="text-body-sm text-muted-foreground">
       {ROTULO_DA_ORIGEM[pendencia.origem]} · Prazo: {formatarData(pendencia.dataLimite)}
@@ -225,6 +234,11 @@ export const CentralDePendencias = () => {
   );
 
   const { data, isPending, isError, error, refetch, isPlaceholderData } = usePendencias(filtro);
+
+  // Data civil de hoje em `America/Sao_Paulo`, recalculada a cada render:
+  // é uma string curta e barata de derivar, sem justificar `useMemo`
+  // (regra do projeto: nunca `useEffect` para estado derivado).
+  const hoje = dataCivilEmSaoPaulo(new Date());
 
   const definirFiltro = (chave: string, valor: string | null): void => {
     const proximos = new URLSearchParams(parametros.toString());
@@ -377,7 +391,7 @@ export const CentralDePendencias = () => {
         >
           <ul className="flex flex-col gap-sm tablet:hidden">
             {data.pendencias.map((pendencia) => (
-              <CartaoDaPendencia key={pendencia.id} pendencia={pendencia} />
+              <CartaoDaPendencia key={pendencia.id} pendencia={pendencia} hoje={hoje} />
             ))}
           </ul>
 
@@ -407,7 +421,7 @@ export const CentralDePendencias = () => {
               </thead>
               <tbody>
                 {data.pendencias.map((pendencia) => (
-                  <LinhaDaPendencia key={pendencia.id} pendencia={pendencia} />
+                  <LinhaDaPendencia key={pendencia.id} pendencia={pendencia} hoje={hoje} />
                 ))}
               </tbody>
             </table>

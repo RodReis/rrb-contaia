@@ -2,9 +2,11 @@
  * Repositório da Central de Pendências (SPEC-005).
  *
  * O caso de uso controla a transação (`comContextoDeTenant`); aqui só SQL.
- * Toda consulta filtra por `tenant_id`/`empresa_id` explicitamente, além da
- * RLS: a política é a rede de segurança, não a autorização (mesmo padrão de
- * `repositorios/empresa.ts`).
+ * O isolamento de tenant nesta tabela é garantido por RLS forçada
+ * (`FORCE ROW LEVEL SECURITY`) na sessão aberta pelo caso de uso — não por
+ * filtro explícito de `tenant_id` em cada query aqui (as funções abaixo
+ * filtram por `empresa_id`/`id`, não por `tenant_id`). A cobertura de
+ * isolamento entre tenants está nos testes de concorrência/RLS (Task 3/7).
  */
 import type { PoolClient } from 'pg';
 
