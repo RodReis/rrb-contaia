@@ -34,7 +34,6 @@ let poolApp: Pool;
 let tenantA = '';
 let tenantB = '';
 let usuarioA = '';
-let usuarioB = '';
 
 const comTenant = async <T>(
   tenantId: string | null,
@@ -130,7 +129,6 @@ beforeAll(async () => {
   );
 
   usuarioA = usuarios.rows[0]?.id ?? '';
-  usuarioB = usuarios.rows[1]?.id ?? '';
 
   poolApp = new Pool({ connectionString: urlDaAplicacao(), max: 5 });
 });
