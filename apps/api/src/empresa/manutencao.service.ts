@@ -16,19 +16,23 @@ import {
   camposAlteradosNaIdentificacao,
   camposAlteradosNosDadosFiscais,
   camposInvalidosDaEtapaDaEmpresa,
+  causasCadastrais,
   diferencasDaFonteExterna,
   normalizarCep,
   normalizarEmail,
   normalizarTelefone,
   planejarTrocaDeFinalidadeFiscal,
   reativarEmpresa,
+  reconciliarPendencias,
   validarEnderecoComFinalidade,
   validarJustificativa,
   validarVigencia,
 } from '@contaia/domain';
 import type {
   AbaDoHistorico,
+  CadastroDaEmpresa,
   CampoAlterado,
+  CampoCadastralObrigatorio,
   DadosFiscaisDaEmpresa,
   DiferencaExterna,
   EnderecoComFinalidade,
@@ -46,8 +50,10 @@ import {
   comContextoDeTenant,
   definirSituacaoDaEmpresa,
   inserirEndereco,
+  listarAbertasDaEmpresa,
   listarEnderecosDaEmpresa,
   listarHistorico,
+  reconciliar as reconciliarPendenciasNoBanco,
   registrarEventos,
   salvarDadosFiscais,
   salvarIdentificacaoDaEmpresa,
@@ -226,6 +232,11 @@ export class ManutencaoDaEmpresaService {
         camposAlteradosNaIdentificacao(anterior, identificacao),
       );
 
+      await this.reconciliarPendenciasCadastrais(cliente, tenantId, empresaId, {
+        ...atual.cadastro,
+        identificacao,
+      });
+
       return this.recarregar(cliente, tenantId, empresaId);
     });
   }
@@ -339,6 +350,11 @@ export class ManutencaoDaEmpresaService {
         entrada.inscricaoMunicipal.situacao !== 'NAO_SE_APLICA',
       );
 
+      await this.reconciliarPendenciasCadastrais(cliente, tenantId, empresaId, {
+        ...atual.cadastro,
+        dadosFiscais: entrada,
+      });
+
       return this.recarregar(cliente, tenantId, empresaId);
     });
   }
@@ -420,6 +436,12 @@ export class ManutencaoDaEmpresaService {
         },
       ]);
 
+      // Endereço Fiscal novo pode corrigir a pendência de endereço principal
+      // ausente (§2): recarrega o cadastro para `enderecoPrincipal` refletir o
+      // que acabou de ser gravado (`carregarEmpresa` deriva do banco, não do
+      // objeto em memória — ver `packages/db/src/repositorios/empresa.ts`).
+      await this.reconciliarPendenciasCadastraisDoEndereco(cliente, tenantId, empresaId);
+
       return listarEnderecosDaEmpresa(cliente, tenantId, empresaId);
     });
   }
@@ -493,6 +515,12 @@ export class ManutencaoDaEmpresaService {
             usuarioId: autor.usuarioId,
           },
         ]);
+
+        // Só o Fiscal alimenta `enderecoPrincipal` (§2); editar um endereço de
+        // outra finalidade não muda nenhuma causa cadastral.
+        if (endereco.finalidade === 'FISCAL') {
+          await this.reconciliarPendenciasCadastraisDoEndereco(cliente, tenantId, empresaId);
+        }
       }
 
       return listarEnderecosDaEmpresa(cliente, tenantId, empresaId);
@@ -869,5 +897,53 @@ export class ManutencaoDaEmpresaService {
     return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) =>
       camposComHistorico(cliente, tenantId, aba),
     );
+  }
+
+  // -- Central de Pendências (SPEC-005) ---------------------------------------
+
+  /**
+   * Reconcilia pendências cadastrais da Central (SPEC-005 §2) na mesma
+   * transação da escrita: recalcula o estado inteiro do cadastro (não um
+   * diff do campo isolado) e abre/resolve o que mudou.
+   */
+  private async reconciliarPendenciasCadastrais(
+    cliente: PoolClient,
+    tenantId: string,
+    empresaId: string,
+    cadastro: CadastroDaEmpresa,
+  ): Promise<void> {
+    const invalidos = camposInvalidosDaEtapaDaEmpresa(cadastro, 'revisao');
+    const campos: CampoCadastralObrigatorio[] = invalidos.map((invalido) => ({
+      chave: `campo:${invalido.campo}`,
+      preenchido: invalido.codigo !== CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO,
+      valido: false,
+    }));
+
+    const causas = causasCadastrais(campos);
+    const abertas = await listarAbertasDaEmpresa(cliente, empresaId, 'CADASTRAL');
+    const { paraAbrir, paraResolver } = reconciliarPendencias(causas, abertas);
+
+    await reconciliarPendenciasNoBanco(cliente, tenantId, empresaId, paraAbrir, paraResolver, null);
+  }
+
+  /**
+   * Mesma reconciliação cadastral, mas para as rotas de endereço: elas não têm
+   * o `cadastro` atualizado em mãos (só mexem na tabela de endereços), então
+   * recarrega a empresa para `enderecoPrincipal` refletir o que acabou de ser
+   * gravado (`carregarEmpresa` deriva do banco — ver
+   * `packages/db/src/repositorios/empresa.ts`).
+   */
+  private async reconciliarPendenciasCadastraisDoEndereco(
+    cliente: PoolClient,
+    tenantId: string,
+    empresaId: string,
+  ): Promise<void> {
+    const recarregada = await carregarEmpresa(cliente, tenantId, empresaId);
+
+    if (recarregada === null) {
+      return empresaNaoEncontrada();
+    }
+
+    await this.reconciliarPendenciasCadastrais(cliente, tenantId, empresaId, recarregada.cadastro);
   }
 }

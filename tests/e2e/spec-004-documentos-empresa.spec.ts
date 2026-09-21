@@ -98,6 +98,27 @@ test.beforeAll(async () => {
     'alter table app.empresa_documento_versao enable trigger empresa_documento_versao_somente_leitura',
   );
 
+  // `empresa_evento_de_pendencia` também é append-only (mesmo padrão de F4) e
+  // tem FK para `empresa_pendencia`: precisa ser desligado e limpo antes. A
+  // reconciliação automática da F5 passou a criar pendências a partir da
+  // rejeição/aprovação de documento que este spec já exercita.
+  await pool.query(
+    'alter table app.empresa_evento_de_pendencia disable trigger empresa_evento_de_pendencia_append_only',
+  );
+  await pool.query(
+    `delete from app.empresa_evento_de_pendencia
+      where empresa_id in (select id from app.empresa where cnpj = $1)`,
+    [CNPJ],
+  );
+  await pool.query(
+    `delete from app.empresa_pendencia
+      where empresa_id in (select id from app.empresa where cnpj = $1)`,
+    [CNPJ],
+  );
+  await pool.query(
+    'alter table app.empresa_evento_de_pendencia enable trigger empresa_evento_de_pendencia_append_only',
+  );
+
   await pool.query(
     `delete from app.empresa_exigencia_documental
       where empresa_id in (select id from app.empresa where cnpj = $1)`,

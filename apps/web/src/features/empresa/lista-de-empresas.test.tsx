@@ -31,6 +31,7 @@ const empresa = {
   regimeTributario: 'SIMPLES_NACIONAL',
   status: 'ATIVA',
   situacao: 'ativo',
+  pendenciasAbertas: 0,
 } as const;
 
 const comEmpresas: Resposta = { empresas: [empresa], total: 1 };

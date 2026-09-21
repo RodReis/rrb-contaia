@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { PoolDoBanco } from './banco/pool.provider';
 import { SessaoService } from './auth/sessao.service';
 import { GuardDeCadastro, GuardDeSessao } from './auth/sessao.guard';
+import { GuardDePapel } from './auth/papel.guard';
 import { ConsultaDeCnpjNaCnpja } from './empresa/cnpja.adapter';
 import { DocumentosDaEmpresaController } from './empresa/documentos.controller';
 import { DocumentosDaEmpresaService } from './empresa/documentos.service';
@@ -18,19 +19,28 @@ import { EscritorioService } from './escritorio/escritorio.service';
 import { PainelController } from './escritorio/painel.controller';
 import { StorageService } from './comum/storage.service';
 import { HealthController } from './health/health.controller';
+import {
+  PendenciasController,
+  PendenciasDaEmpresaController,
+} from './pendencias/pendencias.controller';
+import { PendenciasService } from './pendencias/pendencias.service';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
   // casa rotas na ordem de registro, e `empresas/:empresaId` capturaria
-  // `empresas/<id>/manutencao/...` se viesse primeiro.
+  // `empresas/<id>/manutencao/...` se viesse primeiro. Mesma prudência para
+  // `PendenciasDaEmpresaController` (`empresas/:empresaId/pendencias`), que
+  // por isso também vem antes de `DocumentosDaEmpresaController`.
   controllers: [
     HealthController,
     EscritorioController,
     PainelController,
     HistoricoController,
     ManutencaoDaEmpresaController,
+    PendenciasDaEmpresaController,
     DocumentosDaEmpresaController,
     EmpresaController,
+    PendenciasController,
   ],
   providers: [
     PoolDoBanco,
@@ -40,9 +50,11 @@ import { HealthController } from './health/health.controller';
     EmpresaService,
     ManutencaoDaEmpresaService,
     DocumentosDaEmpresaService,
+    PendenciasService,
     ConsultaDeCnpjNaCnpja,
     GuardDeSessao,
     GuardDeCadastro,
+    GuardDePapel,
   ],
 })
 export class AppModule {}

@@ -116,7 +116,15 @@ const LinhaDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
           : (ROTULO_DO_REGIME[empresa.regimeTributario] ?? empresa.regimeTributario)}
       </td>
       <td className="px-md py-sm text-body-md">
-        <StatusBadge tom={status.tom} rotulo={status.rotulo} />
+        <div className="flex flex-wrap items-center gap-xs">
+          <StatusBadge tom={status.tom} rotulo={status.rotulo} />
+          {/* Só empresa com pendência aberta exibe o badge; zero não é estado
+              a comunicar aqui (Task 8). Tom `atencao`: pendência é tarefa que
+              pede ação, não falha — `critico` fica reservado a erro real. */}
+          {empresa.pendenciasAbertas > 0 ? (
+            <StatusBadge tom="atencao" rotulo={`Pendências: ${empresa.pendenciasAbertas}`} />
+          ) : null}
+        </div>
       </td>
       <td className="px-md py-sm text-right text-body-md">
         <Button asChild variante="fantasma" tamanho="compacto">
@@ -137,7 +145,12 @@ const CartaoDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
     <li className="flex flex-col gap-sm rounded-lg border border-border bg-card p-md">
       <div className="flex items-start justify-between gap-sm">
         <span className="text-title-sm text-foreground">{nome}</span>
-        <StatusBadge tom={status.tom} rotulo={status.rotulo} />
+        <div className="flex flex-wrap items-center justify-end gap-xs">
+          <StatusBadge tom={status.tom} rotulo={status.rotulo} />
+          {empresa.pendenciasAbertas > 0 ? (
+            <StatusBadge tom="atencao" rotulo={`Pendências: ${empresa.pendenciasAbertas}`} />
+          ) : null}
+        </div>
       </div>
       <span className="font-mono text-code-sm tabular-nums text-muted-foreground">
         {formatarCnpj(empresa.cnpj)}
