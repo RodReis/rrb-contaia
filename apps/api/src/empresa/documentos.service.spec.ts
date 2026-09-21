@@ -106,6 +106,7 @@ vi.mock('@contaia/db', () => ({
   definirEstadoDaExigencia: async (
     _c: unknown,
     _t: string,
+    _e: string,
     _id: string,
     entrada: Record<string, unknown>,
   ) => {
@@ -165,12 +166,13 @@ const criarService = (): DocumentosDaEmpresaService =>
     storage as never,
   );
 
-const pdf = (tamanho = 2048) =>
-  ({
-    nomeOriginal: 'cartao.pdf',
-    tipoConteudo: 'application/pdf',
-    conteudo: Buffer.alloc(tamanho, 1),
-  }) as const;
+/** Com assinatura `%PDF`: o caso de uso confere os bytes, não só o tipo. */
+const pdf = (tamanho = 2048) => {
+  const conteudo = Buffer.alloc(tamanho, 1);
+  conteudo.write('%PDF-1.4', 0, 'ascii');
+
+  return { nomeOriginal: 'cartao.pdf', tipoConteudo: 'application/pdf', conteudo } as const;
+};
 
 const codigoDoErro = async (executar: () => Promise<unknown>): Promise<string> => {
   try {
@@ -244,6 +246,7 @@ describe('envio de arquivo', () => {
       AUTOR,
       pdf(),
       null,
+      0,
       HOJE,
     );
 
@@ -266,6 +269,7 @@ describe('envio de arquivo', () => {
           conteudo: Buffer.alloc(16, 1),
         },
         null,
+        0,
         HOJE,
       ),
     );
@@ -283,6 +287,7 @@ describe('envio de arquivo', () => {
         AUTOR,
         pdf(20 * 1024 * 1024 + 1),
         null,
+        0,
         HOJE,
       ),
     );
@@ -302,6 +307,7 @@ describe('envio de arquivo', () => {
       AUTOR,
       pdf(),
       null,
+      0,
       HOJE,
     );
 
@@ -315,7 +321,7 @@ describe('envio de arquivo', () => {
     estado.exigencias = [exigenciaPersistida({ aplicavel: false })];
 
     const codigo = await codigoDoErro(() =>
-      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, HOJE),
+      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 0, HOJE),
     );
 
     expect(codigo).toBe(CODIGOS_DE_ERRO.EXIGENCIA_NAO_APLICAVEL);
@@ -328,7 +334,7 @@ describe('envio de arquivo', () => {
     ];
 
     const codigo = await codigoDoErro(() =>
-      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, HOJE),
+      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 0, HOJE),
     );
 
     expect(codigo).toBe(CODIGOS_DE_ERRO.TRANSICAO_DOCUMENTAL_INVALIDA);
@@ -339,7 +345,7 @@ describe('envio de arquivo', () => {
     estado.empresa = empresaPersistida('arquivado');
 
     const codigo = await codigoDoErro(() =>
-      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, HOJE),
+      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 0, HOJE),
     );
 
     expect(codigo).toBe(CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA);
@@ -354,6 +360,7 @@ describe('envio de arquivo', () => {
         AUTOR,
         pdf(),
         '20/09/2026',
+        0,
         HOJE,
       ),
     );
@@ -552,5 +559,63 @@ describe('exigência específica (§2.1)', () => {
         { campo: 'nome', codigo: CODIGOS_DE_ERRO.NOME_DA_EXIGENCIA_OBRIGATORIO },
       ]);
     }
+  });
+});
+
+describe('achados da revisão de segurança', () => {
+  it('recusa arquivo cujos bytes não conferem com o tipo declarado', async () => {
+    // HTML renomeado para `.pdf` e anunciado como `application/pdf`: o
+    // `Content-Type` do multipart é escolhido por quem envia.
+    const codigo = await codigoDoErro(() =>
+      criarService().enviarArquivo(
+        TENANT,
+        EMPRESA,
+        EXIGENCIA,
+        AUTOR,
+        {
+          nomeOriginal: 'cartao.pdf',
+          tipoConteudo: 'application/pdf',
+          conteudo: Buffer.from('<html><script>alert(1)</script></html>'),
+        },
+        null,
+        0,
+        HOJE,
+      ),
+    );
+
+    expect(codigo).toBe(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO);
+    expect(storage.enviar).not.toHaveBeenCalled();
+  });
+
+  it('recusa o envio quando a versão lida pelo cliente já não é a atual', async () => {
+    estado.exigencias = [exigenciaPersistida({ versao: 3 })];
+
+    const codigo = await codigoDoErro(() =>
+      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 1, HOJE),
+    );
+
+    expect(codigo).toBe(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO);
+    // O conflito é detectado antes do upload: 20 MB não sobem à toa.
+    expect(storage.enviar).not.toHaveBeenCalled();
+  });
+
+  it('recusa a gravação quando a empresa é arquivada durante o upload', async () => {
+    // O upload leva tempo; entre a conferência inicial e a gravação, outra
+    // pessoa arquiva a empresa. Arquivar não mexe na versão da exigência,
+    // então só a revalidação alcança este caso.
+    storage.enviar.mockImplementationOnce(async () => {
+      estado.empresa = empresaPersistida('arquivado');
+
+      return 'tenant/documento_da_empresa/novo.pdf';
+    });
+
+    const codigo = await codigoDoErro(() =>
+      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 0, HOJE),
+    );
+
+    expect(codigo).toBe(CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA);
+    // Nada gravado: nem versão, nem evento.
+    expect(estado.versaoInserida).toBeNull();
+    expect(estado.eventos).toHaveLength(0);
   });
 });

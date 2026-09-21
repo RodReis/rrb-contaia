@@ -63,7 +63,47 @@ export const REGRAS_DE_ARQUIVO: Readonly<Record<TipoDeArquivo, RegraDeArquivo>> 
   },
 };
 
-export type FalhaDeArquivo = 'TIPO_NAO_ACEITO' | 'TAMANHO_EXCEDIDO' | 'ARQUIVO_VAZIO';
+export type FalhaDeArquivo =
+  | 'TIPO_NAO_ACEITO'
+  | 'TAMANHO_EXCEDIDO'
+  | 'ARQUIVO_VAZIO'
+  | 'CONTEUDO_NAO_CONFERE';
+
+/**
+ * Assinatura dos formatos aceitos, em bytes iniciais.
+ *
+ * O `Content-Type` do multipart é declarado pelo navegador e um cliente
+ * qualquer o escolhe livremente: sem conferir os bytes, o metadado gravado no
+ * banco é o que o remetente quis dizer, não o que o arquivo é.
+ */
+const ASSINATURAS: Readonly<Record<string, readonly (readonly number[])[]>> = {
+  'application/pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  'image/png': [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+  'image/jpeg': [[0xff, 0xd8, 0xff]],
+};
+
+/**
+ * Confere se os bytes iniciais correspondem ao tipo declarado.
+ *
+ * Tipo sem assinatura conhecida passa: esta função recusa a divergência, não
+ * assume o papel do allowlist — quem decide o que é aceito é `validarArquivo`.
+ */
+export const conteudoConfereComOTipo = (
+  tipoConteudo: string,
+  inicio: Uint8Array,
+): boolean => {
+  const assinaturas = ASSINATURAS[tipoConteudo];
+
+  if (assinaturas === undefined) {
+    return true;
+  }
+
+  return assinaturas.some(
+    (assinatura) =>
+      inicio.length >= assinatura.length &&
+      assinatura.every((byte, indice) => inicio[indice] === byte),
+  );
+};
 
 export const formatarLimite = (bytes: number): string =>
   `${Math.round((bytes / (1024 * 1024)) * 10) / 10} MB`;
@@ -100,5 +140,7 @@ export const mensagemDaFalha = (tipo: TipoDeArquivo, falha: FalhaDeArquivo): str
       return `Formato não aceito. Envie ${regra.extensoesAceitas.join(', ')}.`;
     case 'TAMANHO_EXCEDIDO':
       return `Arquivo acima do limite de ${formatarLimite(regra.limiteBytes)}.`;
+    case 'CONTEUDO_NAO_CONFERE':
+      return 'O conteúdo do arquivo não corresponde à extensão informada.';
   }
 };

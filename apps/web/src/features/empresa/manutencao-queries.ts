@@ -5,6 +5,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { toast } from 'sonner';
 
 import { avisarFalha } from '../escritorio/queries';
+import { CHAVE_DOS_DOCUMENTOS } from './documentos-queries';
 import type { VisaoDaEmpresa } from './api';
 import {
   aplicarDaFonte,
@@ -49,6 +50,11 @@ export const chaveDoHistorico = (filtro: FiltroDoHistorico): readonly unknown[] 
  * Toda alteração desta fatia gera evento: invalidar o histórico junto com a
  * empresa evita que a aba de auditoria mostre a lista de antes da mudança que
  * o usuário acabou de fazer.
+ *
+ * Os documentos entram na invalidação porque mudar a situação de uma inscrição
+ * reconcilia o checklist no servidor (SPEC-004 §2.2): sem isso, a aba
+ * Documentos continuaria servindo do cache e cobrando uma exigência que o
+ * cadastro já não justifica, até a pessoa recarregar a página.
  */
 const useMutacaoDeManutencao = <Entrada>(
   executar: (entrada: Entrada) => Promise<VisaoDaEmpresa>,
@@ -62,6 +68,7 @@ const useMutacaoDeManutencao = <Entrada>(
       clienteDeQuery.setQueryData(chaveDaEmpresa(visao.id), visao);
       void clienteDeQuery.invalidateQueries({ queryKey: CHAVE_DAS_EMPRESAS });
       void clienteDeQuery.invalidateQueries({ queryKey: CHAVE_DO_HISTORICO });
+      void clienteDeQuery.invalidateQueries({ queryKey: CHAVE_DOS_DOCUMENTOS });
       aoConcluir?.(visao);
     },
     onError: avisarFalha,

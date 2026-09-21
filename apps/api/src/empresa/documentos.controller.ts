@@ -142,6 +142,7 @@ export class DocumentosDaEmpresaController {
       autorDa(requisicao),
       exigirArquivo(arquivo),
       entrada.validade,
+      entrada.versao,
     );
   }
 

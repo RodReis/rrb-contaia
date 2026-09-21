@@ -276,7 +276,7 @@ describe('isolamento por tenant (I-1, I-2)', () => {
       listarHistoricoDocumental(cliente, tenantB, empresaId, { limite: 50, deslocamento: 0 }),
     );
     const versoesPeloB = await comTenant(tenantB, (cliente) =>
-      listarVersoes(cliente, tenantB, exigenciaId),
+      listarVersoes(cliente, tenantB, empresaId, exigenciaId),
     );
 
     expect(versaoPeloB).toBeNull();
@@ -303,7 +303,7 @@ describe('uma versão vigente por exigência (§2.3)', () => {
         ...arquivo('primeira.pdf'),
       });
 
-      await arquivarVersaoVigente(cliente, tenantA, exigenciaId);
+      await arquivarVersaoVigente(cliente, tenantA, empresaId, exigenciaId);
 
       const segunda = await inserirVersao(cliente, tenantA, empresaId, {
         exigenciaId,
@@ -315,10 +315,10 @@ describe('uma versão vigente por exigência (§2.3)', () => {
     });
 
     const versoes = await comTenant(tenantA, (cliente) =>
-      listarVersoes(cliente, tenantA, exigenciaId),
+      listarVersoes(cliente, tenantA, empresaId, exigenciaId),
     );
     const vigente = await comTenant(tenantA, (cliente) =>
-      carregarVersaoVigente(cliente, tenantA, exigenciaId),
+      carregarVersaoVigente(cliente, tenantA, empresaId, exigenciaId),
     );
 
     expect(primeira.numero).toBe(1);
@@ -561,7 +561,7 @@ describe('atomicidade entre ação e evento (§3.2, §5)', () => {
 
     await expect(
       comTenant(tenantA, async (cliente) => {
-        const aplicado = await definirEstadoDaExigencia(cliente, tenantA, exigenciaId, {
+        const aplicado = await definirEstadoDaExigencia(cliente, tenantA, empresaId, exigenciaId, {
           estado: 'DISPENSADO',
           justificativa: 'Dispensada nesta transação.',
           versaoEsperada: 0,
@@ -604,7 +604,7 @@ describe('análise concorrente (§5)', () => {
     );
 
     const primeira = await comTenant(tenantA, (cliente) =>
-      definirEstadoDaExigencia(cliente, tenantA, exigenciaId, {
+      definirEstadoDaExigencia(cliente, tenantA, empresaId, exigenciaId, {
         estado: 'DISPENSADO',
         justificativa: 'Primeira análise.',
         versaoEsperada: 0,
@@ -613,7 +613,7 @@ describe('análise concorrente (§5)', () => {
 
     // Mesma versão lida antes: é o cenário de duas telas abertas.
     const segunda = await comTenant(tenantA, (cliente) =>
-      definirEstadoDaExigencia(cliente, tenantA, exigenciaId, {
+      definirEstadoDaExigencia(cliente, tenantA, empresaId, exigenciaId, {
         estado: 'APROVADO',
         justificativa: null,
         versaoEsperada: 0,
@@ -661,7 +661,7 @@ describe('aplicabilidade das inscrições (§2.2)', () => {
       carregarExigencia(cliente, tenantA, empresaId, exigenciaId),
     );
     const versoes = await comTenant(tenantA, (cliente) =>
-      listarVersoes(cliente, tenantA, exigenciaId),
+      listarVersoes(cliente, tenantA, empresaId, exigenciaId),
     );
 
     expect(exigencia?.aplicavel).toBe(false);
@@ -755,5 +755,38 @@ describe('autoria do evento', () => {
         ]),
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe('concorrência real de envio (§7, categoria Banco)', () => {
+  it('duas transações simultâneas não deixam duas versões vigentes', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, `69${SUFIXO}000171`);
+
+    const exigenciaId = await comTenant(tenantA, (cliente) =>
+      inserirExigencia(cliente, tenantA, empresaId, exigenciaPadrao()),
+    );
+
+    // Nenhuma das duas arquiva antes, que é o que acontece quando as duas leem
+    // "sem vigente" ao mesmo tempo. O índice parcial único é a única coisa
+    // entre isso e dois arquivos valendo na mesma exigência.
+    const envio = (nome: string) =>
+      comTenant(tenantA, (cliente) =>
+        inserirVersao(cliente, tenantA, empresaId, {
+          exigenciaId,
+          enviadoPor: usuarioA,
+          ...arquivo(nome),
+        }),
+      );
+
+    const resultados = await Promise.allSettled([envio('a.pdf'), envio('b.pdf')]);
+
+    expect(resultados.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(resultados.filter((r) => r.status === 'rejected')).toHaveLength(1);
+
+    const versoes = await comTenant(tenantA, (cliente) =>
+      listarVersoes(cliente, tenantA, empresaId, exigenciaId),
+    );
+
+    expect(versoes.filter((versao) => versao.vigente)).toHaveLength(1);
   });
 });

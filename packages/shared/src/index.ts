@@ -9,6 +9,7 @@ export {
   TIPOS_DE_DOCUMENTO,
   TIPOS_DE_DOCUMENTO_DA_EMPRESA,
   TIPOS_DE_LOGO,
+  conteudoConfereComOTipo,
   formatarLimite,
   mensagemDaFalha,
   validarArquivo,

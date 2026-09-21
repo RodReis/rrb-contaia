@@ -46,7 +46,7 @@ import type {
   ExigenciaPersistida,
   VersaoPersistida,
 } from '@contaia/db';
-import { mensagemDaFalha, validarArquivo } from '@contaia/shared';
+import { conteudoConfereComOTipo, mensagemDaFalha, validarArquivo } from '@contaia/shared';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 
@@ -243,7 +243,7 @@ export class DocumentosDaEmpresaService {
     const comVersoes: ExigenciaNaVisao[] = [];
 
     for (const exigencia of exigencias) {
-      const versoes = await listarVersoes(cliente, tenantId, exigencia.id);
+      const versoes = await listarVersoes(cliente, tenantId, empresaId, exigencia.id);
       const vigente = versoes.find((versao) => versao.vigente) ?? null;
 
       comVersoes.push({
@@ -333,6 +333,7 @@ export class DocumentosDaEmpresaService {
     autor: Autor,
     arquivo: ArquivoRecebido,
     validade: string | null,
+    versaoEsperada: number,
     agora: Date = new Date(),
   ): Promise<VisaoDosDocumentos> {
     const falha = validarArquivo(TIPO_DO_ARQUIVO, {
@@ -344,6 +345,17 @@ export class DocumentosDaEmpresaService {
       throw new ErroDeDominio(
         CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,
         mensagemDaFalha(TIPO_DO_ARQUIVO, falha),
+        [{ campo: 'arquivo', codigo: CODIGOS_DE_ERRO.ARQUIVO_INVALIDO }],
+      );
+    }
+
+    // O `Content-Type` do multipart é declarado por quem envia: sem conferir
+    // os bytes, o metadado gravado — e servido de volta no download — é o que
+    // o remetente quis dizer, não o que o arquivo é.
+    if (!conteudoConfereComOTipo(arquivo.tipoConteudo, arquivo.conteudo.subarray(0, 16))) {
+      throw new ErroDeDominio(
+        CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,
+        mensagemDaFalha(TIPO_DO_ARQUIVO, 'CONTEUDO_NAO_CONFERE'),
         [{ campo: 'arquivo', codigo: CODIGOS_DE_ERRO.ARQUIVO_INVALIDO }],
       );
     }
@@ -369,6 +381,14 @@ export class DocumentosDaEmpresaService {
           );
         }
 
+        // O conflito é conferido contra a versão que o **cliente** leu, não
+        // contra a que o servidor acabou de ler: só assim duas telas abertas
+        // viram conflito explícito em vez de a segunda sobrescrever a primeira
+        // (§5). Conferir aqui também evita gastar o upload de 20 MB.
+        if (exigencia.versao !== versaoEsperada) {
+          return conflitoDeVersao();
+        }
+
         // Valida a transição sem persistir: o domínio recusa envio em
         // exigência dispensada antes de qualquer byte subir.
         registrarEnvio(exigencia.estado);
@@ -380,18 +400,25 @@ export class DocumentosDaEmpresaService {
     const chave = await this.storage.enviar(tenantId, TIPO_DO_ARQUIVO, arquivo);
 
     return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+      // Revalidada aqui, e não só antes do upload: a empresa pode ter sido
+      // arquivada enquanto os 20 MB subiam, e gravar assim mesmo violaria
+      // silenciosamente o "arquivada fica somente para consulta" (SPEC-003
+      // §3.5). Arquivar não mexe na `versao` da exigência, então o
+      // compare-and-swap abaixo não alcança este caso.
+      await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
+
       const exigencia = await this.exigirExigencia(cliente, tenantId, empresaId, exigenciaId);
 
       if (exigencia.versao !== anterior.versao) {
         return conflitoDeVersao();
       }
 
-      const vigenteAnterior = await carregarVersaoVigente(cliente, tenantId, exigenciaId);
+      const vigenteAnterior = await carregarVersaoVigente(cliente, tenantId, empresaId, exigenciaId);
       const estadoNovo = registrarEnvio(exigencia.estado);
 
       // Substituição: a anterior sai de vigente e fica preservada, somente
       // leitura (§2.3).
-      await arquivarVersaoVigente(cliente, tenantId, exigenciaId);
+      await arquivarVersaoVigente(cliente, tenantId, empresaId, exigenciaId);
 
       const versao = await inserirVersao(cliente, tenantId, empresaId, {
         exigenciaId,
@@ -403,7 +430,7 @@ export class DocumentosDaEmpresaService {
         enviadoPor: autor.usuarioId,
       });
 
-      const aplicado = await definirEstadoDaExigencia(cliente, tenantId, exigenciaId, {
+      const aplicado = await definirEstadoDaExigencia(cliente, tenantId, empresaId, exigenciaId, {
         estado: estadoNovo,
         // A justificativa da rejeição anterior sai de cena quando chega
         // versão nova: ela já está preservada no histórico.
@@ -448,7 +475,7 @@ export class DocumentosDaEmpresaService {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
       const exigencia = await this.exigirExigencia(cliente, tenantId, empresaId, exigenciaId);
 
-      const vigente = await carregarVersaoVigente(cliente, tenantId, exigenciaId);
+      const vigente = await carregarVersaoVigente(cliente, tenantId, empresaId, exigenciaId);
 
       // O estado analisado é o observado, com vencimento aplicado: aprovar um
       // documento já vencido seria aprovar o que a tela mostra como inválido.
@@ -467,7 +494,7 @@ export class DocumentosDaEmpresaService {
 
       const estadoNovo = decidir(estadoAtual);
 
-      const aplicado = await definirEstadoDaExigencia(cliente, tenantId, exigenciaId, {
+      const aplicado = await definirEstadoDaExigencia(cliente, tenantId, empresaId, exigenciaId, {
         estado: estadoNovo,
         justificativa,
         versaoEsperada,

@@ -38,6 +38,7 @@ import type {
 import {
   aplicarTrocaDeFinalidade,
   arquivarEndereco,
+  definirAplicabilidade,
   atualizarEndereco,
   camposComHistorico,
   carregarEmpresa,
@@ -315,6 +316,28 @@ export class ManutencaoDaEmpresaService {
         vigencia: mudouRegimeOuCnae ? vigencia : null,
         aba: 'DADOS_FISCAIS',
       });
+
+      // Reconciliação da aplicabilidade documental (SPEC-004 §2.2): mudar a
+      // situação da inscrição aqui muda o que a aba Documentos cobra. Na mesma
+      // transação do salvamento — se o fiscal grava e a reconciliação não, a
+      // aba passa a cobrar documento que o cadastro já não justifica.
+      //
+      // Marca como inaplicável em vez de apagar: a exigência e as versões já
+      // enviadas continuam, fora do checklist ativo.
+      await definirAplicabilidade(
+        cliente,
+        tenantId,
+        empresaId,
+        'INSCRICAO_ESTADUAL',
+        entrada.inscricaoEstadual.situacao !== 'NAO_SE_APLICA',
+      );
+      await definirAplicabilidade(
+        cliente,
+        tenantId,
+        empresaId,
+        'INSCRICAO_MUNICIPAL',
+        entrada.inscricaoMunicipal.situacao !== 'NAO_SE_APLICA',
+      );
 
       return this.recarregar(cliente, tenantId, empresaId);
     });

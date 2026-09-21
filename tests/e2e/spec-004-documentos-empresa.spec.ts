@@ -267,3 +267,50 @@ test('contrafactual: o servidor recusa exclusão de versão e de evento', async 
     pool.query('delete from app.empresa_evento_documental where empresa_id = $1', [empresaId]),
   ).rejects.toThrow();
 });
+
+test('a mudança de inscrição na F3 reconcilia o checklist da F4 (§2.2)', async ({ page }) => {
+  await entrar(page);
+
+  // Estado de partida: estadual POSSUI (aplicável), municipal NAO_SE_APLICA.
+  await abrirDocumentos(page);
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Inscrição estadual' }).first(),
+  ).toBeVisible();
+
+  // A empresa perde a inscrição estadual na aba Dados fiscais.
+  await page.getByRole('tab', { name: 'Dados fiscais' }).click();
+
+  // O Select do catálogo é Radix, não `<select>` nativo (COMPONENTS.md §1.4).
+  await page.getByRole('combobox', { name: 'Inscrição estadual' }).click();
+  await page.getByRole('option', { name: 'Não se aplica' }).click();
+
+  // O formulário da F3 pede vigência nesta tela; o servidor só a exige quando
+  // regime ou CNAE mudam, mas preencher é o caminho real do usuário.
+  await page
+    .getByRole('textbox', { name: 'Vigência da alteração' })
+    .fill(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }));
+
+  await page.getByRole('button', { name: /salvar alterações/iu }).click();
+
+  // O salvamento e a reconciliação vivem na mesma transação: esperar o toast
+  // garante que o servidor respondeu antes de a aba ser reaberta.
+  await expect(page.getByText(/dados fiscais salvos/iu)).toBeVisible();
+
+  // A exigência sai do checklist ativo sem perder o que já existia.
+  await page.getByRole('tab', { name: 'Documentos' }).click();
+
+  // A seção de inaplicáveis é a que carrega o próprio título; `hasText` num
+  // `section` casaria também com os ancestrais, então a busca parte do título.
+  const tituloDosInaplicaveis = page.getByRole('heading', {
+    name: /não se aplicam a esta empresa/iu,
+  });
+
+  await expect(tituloDosInaplicaveis).toBeVisible();
+
+  const inaplicaveis = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Inscrição estadual' })
+    .filter({ hasText: 'Não se aplica' });
+
+  await expect(inaplicaveis).toHaveCount(1);
+});

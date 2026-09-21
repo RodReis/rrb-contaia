@@ -144,6 +144,7 @@ export const inserirExigencia = async (
 export const definirEstadoDaExigencia = async (
   cliente: PoolClient,
   tenantId: string,
+  empresaId: string,
   exigenciaId: string,
   entrada: Readonly<{
     estado: EstadoDoDocumento;
@@ -153,11 +154,13 @@ export const definirEstadoDaExigencia = async (
 ): Promise<boolean> => {
   const { rowCount } = await cliente.query(
     `update app.empresa_exigencia_documental
-        set estado = $3, justificativa = $4,
+        set estado = $4, justificativa = $5,
             atualizado_em = now(), versao = versao + 1
-      where tenant_id = $1 and id = $2 and versao = $5 and situacao = 'ativo'`,
+      where tenant_id = $1 and empresa_id = $2 and id = $3
+        and versao = $6 and situacao = 'ativo'`,
     [
       tenantId,
+      empresaId,
       exigenciaId,
       entrada.estado,
       entrada.justificativa,
@@ -239,17 +242,25 @@ const paraVersaoPersistida = (linha: LinhaDaVersao): VersaoPersistida => ({
   criadoEm: linha.criado_em.toISOString(),
 });
 
-/** Versões da exigência, da mais recente para a mais antiga. */
+/**
+ * Versões da exigência, da mais recente para a mais antiga.
+ *
+ * Filtra `empresa_id` além de `exigencia_id` por defesa em profundidade: hoje
+ * todo caminho passa antes por `carregarExigencia`, que já cruza os dois, mas
+ * um chamador futuro que pule esse portão não deve conseguir ler versões de
+ * outra empresa informando só o id da exigência.
+ */
 export const listarVersoes = async (
   cliente: PoolClient,
   tenantId: string,
+  empresaId: string,
   exigenciaId: string,
 ): Promise<readonly VersaoPersistida[]> => {
   const { rows } = await cliente.query<LinhaDaVersao>(
     `select ${COLUNAS_DA_VERSAO} from app.empresa_documento_versao
-      where tenant_id = $1 and exigencia_id = $2
+      where tenant_id = $1 and empresa_id = $2 and exigencia_id = $3
       order by numero desc`,
-    [tenantId, exigenciaId],
+    [tenantId, empresaId, exigenciaId],
   );
 
   return rows.map(paraVersaoPersistida);
@@ -274,12 +285,13 @@ export const carregarVersao = async (
 export const carregarVersaoVigente = async (
   cliente: PoolClient,
   tenantId: string,
+  empresaId: string,
   exigenciaId: string,
 ): Promise<VersaoPersistida | null> => {
   const { rows } = await cliente.query<LinhaDaVersao>(
     `select ${COLUNAS_DA_VERSAO} from app.empresa_documento_versao
-      where tenant_id = $1 and exigencia_id = $2 and vigente`,
-    [tenantId, exigenciaId],
+      where tenant_id = $1 and empresa_id = $2 and exigencia_id = $3 and vigente`,
+    [tenantId, empresaId, exigenciaId],
   );
 
   const linha = rows[0];
@@ -290,12 +302,13 @@ export const carregarVersaoVigente = async (
 export const arquivarVersaoVigente = async (
   cliente: PoolClient,
   tenantId: string,
+  empresaId: string,
   exigenciaId: string,
 ): Promise<void> => {
   await cliente.query(
     `update app.empresa_documento_versao set vigente = false
-      where tenant_id = $1 and exigencia_id = $2 and vigente`,
-    [tenantId, exigenciaId],
+      where tenant_id = $1 and empresa_id = $2 and exigencia_id = $3 and vigente`,
+    [tenantId, empresaId, exigenciaId],
   );
 };
 

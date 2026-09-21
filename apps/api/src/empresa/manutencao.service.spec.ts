@@ -59,6 +59,7 @@ const { estado } = vi.hoisted(() => ({
     identificacaoSalva: null as Record<string, unknown> | null,
     gravacaoAceita: true,
     fiscaisSalvos: null as Record<string, unknown> | null,
+    aplicabilidades: [] as { codigo: string; aplicavel: boolean }[],
     situacaoDefinida: null as string | null,
   },
 }));
@@ -111,6 +112,15 @@ vi.mock('@contaia/db', () => ({
 
     return true;
   },
+  definirAplicabilidade: async (
+    _c: unknown,
+    _t: string,
+    _e: string,
+    codigo: string,
+    aplicavel: boolean,
+  ) => {
+    estado.aplicabilidades.push({ codigo, aplicavel });
+  },
   listarHistorico: async () => ({ eventos: [], total: 0 }),
   camposComHistorico: async () => [],
 }));
@@ -147,6 +157,7 @@ beforeEach(() => {
   estado.gravacaoAceita = true;
   estado.fiscaisSalvos = null;
   estado.situacaoDefinida = null;
+  estado.aplicabilidades = [];
 });
 
 describe('CNPJ imutável após a ativação (§3.2)', () => {
@@ -501,5 +512,68 @@ describe('concorrência de edição (§5 e §7)', () => {
     // Recusado antes do histórico: evento com `valorAnterior` já defasado seria
     // pior que não registrar nada.
     expect(estado.eventos).toEqual([]);
+  });
+});
+
+describe('reconciliação da aplicabilidade documental (SPEC-004 §2.2)', () => {
+  const fiscaisSemEstadual = {
+    ...dadosFiscais,
+    inscricaoEstadual: { situacao: 'NAO_SE_APLICA', numero: null },
+  } as const;
+
+  it('marca a exigência como inaplicável quando a inscrição deixa de existir', async () => {
+    const servico = criarServico();
+
+    await servico.salvarFiscal(
+      TENANT,
+      EMPRESA,
+      AUTOR,
+      fiscaisSemEstadual,
+      '2026-09-20',
+      new Date('2026-09-20T12:00:00Z'),
+    );
+
+    // A aba Documentos precisa parar de cobrar o que o cadastro já não
+    // justifica — sem apagar o que foi enviado.
+    expect(estado.aplicabilidades).toContainEqual({
+      codigo: 'INSCRICAO_ESTADUAL',
+      aplicavel: false,
+    });
+  });
+
+  it('torna a exigência aplicável de novo quando a inscrição volta', async () => {
+    const servico = criarServico();
+
+    await servico.salvarFiscal(
+      TENANT,
+      EMPRESA,
+      AUTOR,
+      { ...dadosFiscais, inscricaoMunicipal: { situacao: 'POSSUI', numero: '123' } },
+      '2026-09-20',
+      new Date('2026-09-20T12:00:00Z'),
+    );
+
+    expect(estado.aplicabilidades).toContainEqual({
+      codigo: 'INSCRICAO_MUNICIPAL',
+      aplicavel: true,
+    });
+  });
+
+  it('reconcilia as duas inscrições em toda gravação fiscal', async () => {
+    const servico = criarServico();
+
+    await servico.salvarFiscal(
+      TENANT,
+      EMPRESA,
+      AUTOR,
+      dadosFiscais,
+      '2026-09-20',
+      new Date('2026-09-20T12:00:00Z'),
+    );
+
+    expect(estado.aplicabilidades.map((item) => item.codigo)).toEqual([
+      'INSCRICAO_ESTADUAL',
+      'INSCRICAO_MUNICIPAL',
+    ]);
   });
 });
