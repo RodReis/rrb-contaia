@@ -345,7 +345,7 @@ export class DocumentosDaEmpresaService {
       );
     }
 
-    const camposDaValidade = validarValidade(validade, agora);
+    const camposDaValidade = validarValidade(validade);
 
     if (camposDaValidade.length > 0) {
       throw new ErroDeValidacao(camposDaValidade);

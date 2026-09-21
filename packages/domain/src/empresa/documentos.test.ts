@@ -171,17 +171,17 @@ describe('dispensa', () => {
 
 describe('validade', () => {
   it('aceita ausência de validade: a data é opcional', () => {
-    expect(validarValidade(null, HOJE)).toEqual([]);
+    expect(validarValidade(null)).toEqual([]);
   });
 
   it('recusa data fora do formato de data civil', () => {
-    expect(validarValidade('20/09/2026', HOJE)).toEqual([
+    expect(validarValidade('20/09/2026')).toEqual([
       { campo: 'validade', codigo: CODIGOS_DE_ERRO.VALIDADE_INVALIDA },
     ]);
   });
 
   it('aceita validade futura: o documento vence depois, não agora', () => {
-    expect(validarValidade('2027-01-31', HOJE)).toEqual([]);
+    expect(validarValidade('2027-01-31')).toEqual([]);
   });
 
   it('vira VENCIDO quando a validade do aprovado já passou em São Paulo', () => {

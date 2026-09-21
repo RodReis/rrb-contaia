@@ -216,13 +216,11 @@ const FORMATO_DE_DATA_CIVIL = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Validade é opcional (§2.4). Diferente da vigência da F3, validade **futura é
- * o caso normal** — o documento vale até lá. O que se valida aqui é só o
- * formato de data civil.
+ * o caso normal** — o documento vale até lá, e por isso nada aqui compara com
+ * o "agora": o que se valida é só o formato de data civil. Quem decide se já
+ * venceu é `estadoComVencimento`, que recebe o relógio por parâmetro.
  */
-export const validarValidade = (
-  validade: string | null,
-  _agora: Date,
-): readonly CampoInvalido[] => {
+export const validarValidade = (validade: string | null): readonly CampoInvalido[] => {
   if (validade === null) {
     return [];
   }

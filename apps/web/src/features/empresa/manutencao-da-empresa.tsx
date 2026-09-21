@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/cn';
+import { AbaDeDocumentos } from './aba-de-documentos';
 import { AbaDeEnderecos } from './aba-de-enderecos';
 import { AtualizacaoPelaCnpja } from './atualizacao-pela-cnpja';
 import { DialogoDeJustificativa } from './dialogo-de-justificativa';
@@ -34,12 +35,13 @@ const ABAS = [
   { id: 'identificacao', rotulo: 'Identificação' },
   { id: 'fiscal', rotulo: 'Dados fiscais' },
   { id: 'enderecos', rotulo: 'Endereços' },
+  { id: 'documentos', rotulo: 'Documentos' },
 ] as const;
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
 const CLASSES_DA_ABA = [
-  // `basis-0 min-w-[8rem]`: as três abas dividem a linha por igual e param de
+  // `basis-0 min-w-[8rem]`: as abas dividem a linha por igual e param de
   // encolher antes de o rótulo quebrar no meio, como acontecia em 375px.
   'flex-1 basis-0 min-w-[8rem] rounded-md px-md py-sm text-center text-title-sm transition-colors duration-fast ease-out',
   'text-muted-foreground hover:text-foreground',
@@ -212,6 +214,10 @@ export const ManutencaoDaEmpresa = ({
 
         <Tabs.Content value="enderecos" className="focus-visible:outline-none">
           <AbaDeEnderecos empresaId={visao.id} somenteLeitura={arquivada} />
+        </Tabs.Content>
+
+        <Tabs.Content value="documentos" className="focus-visible:outline-none">
+          <AbaDeDocumentos empresaId={visao.id} somenteLeitura={arquivada} />
         </Tabs.Content>
       </Tabs.Root>
     </div>
