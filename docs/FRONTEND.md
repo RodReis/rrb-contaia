@@ -505,8 +505,8 @@ Esta regra vale para **toda fatia com UI do MVP-1 ao MVP-4, desde a primeira tel
 2. Construir o shell, componentes, estados e responsividade finais na própria fatia. É proibido entregar wireframe, tela sem tema, shadcn-default genérico ou “funcional primeiro, visual depois”.
 3. Comparar a implementação renderizada com `screen.png`/`code.html` e com os contratos normativos, nos dois temas e em 768, 1024 e 1440 px.
 4. Verificar caminho real com mouse e teclado: carregando, vazio, erro, sucesso, disabled, permissão insuficiente, conteúdo longo e ausência de conteúdo quando aplicável.
-5. Depois de funcionalmente completa, usar a skill `impeccable` para um passe de acabamento: inspecionar desktop e mobile juntos, classificar defeitos, corrigir tudo em um único lote e fazer no máximo uma rodada de confirmação. Polimento preserva identidade, conteúdo e comportamento; não é redesign oculto.
-6. Quando não houver hook automático do `impeccable`, executar uma vez o detector mecânico sobre os alvos alterados após o acabamento; detector limpo não substitui inspeção visual.
+5. Depois de funcionalmente completa, usar a skill `impeccable critique bolder animate colorize layout clarify optimize polish` para um passe de acabamento: inspecionar desktop e mobile juntos, classificar defeitos, corrigir tudo em um único lote e fazer no máximo uma rodada de confirmação. Polimento preserva identidade, conteúdo e comportamento; não é redesign oculto.
+6. Quando não houver hook automático do `impeccable critique bolder animate colorize layout clarify optimize polish`, executar uma vez o detector mecânico sobre os alvos alterados após o acabamento; detector limpo não substitui inspeção visual.
 7. Anexar à PR as provas antes/depois ou protótipo/implementação, claro/escuro, viewports verificadas, estados cobertos, achados corrigidos e exceções intencionais estreitas.
 
 **Falha em qualquer etapa acima impede considerar a UI entregue**, mesmo com testes e CI verdes.
