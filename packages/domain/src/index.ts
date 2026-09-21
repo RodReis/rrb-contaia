@@ -126,3 +126,17 @@ export type {
   ItemDoChecklist,
   MotivoDaExigencia,
 } from './empresa/documentos.js';
+export {
+  causasCadastrais,
+  causasDocumentais,
+  prioridadeDaPendencia,
+  reconciliarPendencias,
+} from './pendencias/pendencias.js';
+export type {
+  CampoCadastralObrigatorio,
+  CausaDaPendencia,
+  EstadoDaPendencia,
+  ExigenciaParaReconciliar,
+  OrigemDaPendencia,
+  TipoDaPendencia,
+} from './pendencias/pendencias.js';
