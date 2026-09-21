@@ -3,15 +3,23 @@ export { health } from './health.js';
 export type { ProblemDetails } from './problem.js';
 export {
   LIMITE_DE_DOCUMENTO_BYTES,
+  LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
   LIMITE_DE_LOGO_BYTES,
   REGRAS_DE_ARQUIVO,
   TIPOS_DE_DOCUMENTO,
+  TIPOS_DE_DOCUMENTO_DA_EMPRESA,
   TIPOS_DE_LOGO,
+  conteudoConfereComOTipo,
   formatarLimite,
   mensagemDaFalha,
   validarArquivo,
 } from './arquivos.js';
-export type { FalhaDeArquivo, RegraDeArquivo, TipoDeArquivo } from './arquivos.js';
+export type {
+  FalhaDeArquivo,
+  RegraDeArquivo,
+  TipoDeArquivo,
+  TipoDeArquivoDoEscritorio,
+} from './arquivos.js';
 export { MOTIVOS_DE_FALHA_DA_CONSULTA, mensagemDaFalhaDaConsulta } from './cnpja.js';
 export type {
   ConsultaBemSucedida,

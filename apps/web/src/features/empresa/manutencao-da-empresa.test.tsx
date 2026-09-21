@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 describe('abas da manutenção (§3.1)', () => {
-  it('oferece Identificação, Dados fiscais e Endereços', () => {
+  it('oferece Identificação, Dados fiscais, Endereços e Documentos', () => {
     renderizar();
 
     const abas = screen.getByRole('tablist', { name: /seções da empresa/iu });
@@ -102,12 +102,9 @@ describe('abas da manutenção (§3.1)', () => {
     expect(within(abas).getByRole('tab', { name: 'Identificação' })).toBeInTheDocument();
     expect(within(abas).getByRole('tab', { name: 'Dados fiscais' })).toBeInTheDocument();
     expect(within(abas).getByRole('tab', { name: 'Endereços' })).toBeInTheDocument();
-  });
-
-  it('não tem aba Documentos, que pertence à F4', () => {
-    renderizar();
-
-    expect(screen.queryByRole('tab', { name: /documentos/iu })).not.toBeInTheDocument();
+    // A aba Documentos entrou na F4 (SPEC-004); as provas dela ficam em
+    // `aba-de-documentos.test.tsx`.
+    expect(within(abas).getByRole('tab', { name: 'Documentos' })).toBeInTheDocument();
   });
 });
 

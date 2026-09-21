@@ -1,5 +1,6 @@
 /**
- * Armazenamento de logo e documentos do escritório.
+ * Armazenamento de arquivos do produto: logo e documentos do escritório
+ * (SPEC-001) e documentos cadastrais da empresa cliente (SPEC-004).
  *
  * Storage local compatível com S3 (MinIO, ADR-012). A chave carrega o
  * `tenantId` no prefixo: o isolamento não depende só do banco.
@@ -7,10 +8,12 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
   CreateBucketCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
 
@@ -20,6 +23,11 @@ export type ArquivoRecebido = Readonly<{
   nomeOriginal: string;
   tipoConteudo: string;
   conteudo: Buffer;
+}>;
+
+export type ArquivoArmazenado = Readonly<{
+  conteudo: Buffer;
+  tipoConteudo: string | null;
 }>;
 
 @Injectable()
@@ -69,5 +77,40 @@ export class StorageService implements OnModuleInit {
     );
 
     return chave;
+  }
+
+  /**
+   * Lê o arquivo pela chave. Não há URL assinada nem acesso direto do
+   * navegador ao storage: o conteúdo passa pela aplicação, que já autorizou
+   * tenant e empresa e registra o acesso (SPEC-004 §3.2). Bucket público ou
+   * link assinado entregariam o documento sem trilha.
+   *
+   * Falha de leitura vira `ARQUIVO_INDISPONIVEL`, que a tela trata como erro
+   * acionável — e o caso de uso não registra acesso concluído (§4).
+   */
+  async obter(chave: string): Promise<ArquivoArmazenado> {
+    try {
+      const resposta = await this.cliente.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: chave }),
+      );
+
+      const corpo = resposta.Body;
+
+      if (corpo === undefined) {
+        throw new Error('resposta do storage sem corpo');
+      }
+
+      return {
+        conteudo: Buffer.from(await corpo.transformToByteArray()),
+        tipoConteudo: resposta.ContentType ?? null,
+      };
+    } catch (erro) {
+      this.logger.error(`falha ao ler ${chave} do storage`, erro);
+
+      throw new ErroDeDominio(
+        CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL,
+        'O arquivo não está disponível no momento. Tente novamente.',
+      );
+    }
   }
 }

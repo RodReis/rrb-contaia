@@ -104,3 +104,25 @@ export type {
   FinalidadeDeEndereco,
   SituacaoDeRegistro,
 } from './empresa/manutencao.js';
+export {
+  CHECKLIST_PADRAO,
+  CODIGOS_DO_CHECKLIST,
+  ESTADOS_DO_DOCUMENTO,
+  aprovarVersao,
+  dispensarExigencia,
+  ehEstadoDoDocumento,
+  estadoComVencimento,
+  exigenciasDaAplicabilidade,
+  registrarEnvio,
+  rejeitarVersao,
+  validarNomeDaExigencia,
+  validarValidade,
+} from './empresa/documentos.js';
+export type {
+  AplicabilidadeDasInscricoes,
+  CodigoDoChecklist,
+  EstadoDoDocumento,
+  ExigenciaCalculada,
+  ItemDoChecklist,
+  MotivoDaExigencia,
+} from './empresa/documentos.js';

@@ -4,7 +4,7 @@ import { FileText, Trash2, Upload } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 
 import { REGRAS_DE_ARQUIVO, mensagemDaFalha, validarArquivo } from '@contaia/shared';
-import type { TipoDeArquivo } from '@contaia/shared';
+import type { TipoDeArquivoDoEscritorio } from '@contaia/shared';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
@@ -24,7 +24,7 @@ export const UploadDeArquivo = ({
   arquivos,
   permiteRemover = false,
 }: {
-  tipo: TipoDeArquivo;
+  tipo: TipoDeArquivoDoEscritorio;
   rotulo: string;
   descricao: string;
   obrigatorio?: boolean;

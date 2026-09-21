@@ -129,8 +129,8 @@ test('mantém a empresa, aplica a CNPJá seletivamente e registra no histórico'
   await expect(page.getByRole('tab', { name: 'Identificação' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Dados fiscais' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Endereços' })).toBeVisible();
-  // Documentos é da F4 e não pode aparecer aqui (§3.1).
-  await expect(page.getByRole('tab', { name: /documentos/iu })).toHaveCount(0);
+  // Documentos entrou na F4 (SPEC-004); as provas da aba ficam na suíte dela.
+  await expect(page.getByRole('tab', { name: 'Documentos' })).toBeVisible();
 
   // O CNPJ é exibido e não oferece edição (§3.2).
   await expect(page.getByText(CNPJ_FORMATADO).first()).toBeVisible();
