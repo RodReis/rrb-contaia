@@ -81,3 +81,17 @@ export type {
   NovaVersao,
   VersaoPersistida,
 } from './repositorios/documentos-empresa.js';
+export {
+  contarAbertasPorEmpresa,
+  dispensar,
+  listarAbertasDaEmpresa,
+  listarCentral,
+  reconciliar,
+} from './repositorios/pendencias.js';
+export type {
+  CausaParaReconciliar,
+  FiltroDaCentral,
+  PaginaDePendencias,
+  PendenciaComEmpresa,
+  PendenciaPersistida,
+} from './repositorios/pendencias.js';
