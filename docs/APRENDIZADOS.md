@@ -32,6 +32,26 @@
 
 ---
 
+## Rotina de consolidação (gate de MVP)
+
+Dispara **uma vez por MVP**, no card `[GATE]`, como pré-requisito do item "aprendizados consolidados" de [`../prd/mvp/README.md`](../prd/mvp/README.md) §7 — nunca por card individual.
+
+1. Levantar todo comentário de encerramento do MVP (ajustar `[MVP<n>]` e o repositório):
+
+   ```bash
+   gh issue list --repo RodReis/rrb-contaia --state closed --search "[MVP1] in:title" \
+     --json number --jq '.[].number' | while read -r n; do
+     gh issue view "$n" --repo RodReis/rrb-contaia --json comments \
+       --jq '.comments[] | select(.body | test("## Encerramento")) | .body' \
+       | awk -v n="$n" 'BEGIN{print "### Issue #" n} /### Aprendizado/{f=1} f; /### Imprevistos/{f=0}'
+   done
+   ```
+
+2. Sobre essa saída, aplicar os critérios já existentes acima (fonte verificável, recorrência entre cards, teto de 25 linhas) — **o comando levanta, não decide**.
+3. Item que aparece numa issue só continua só no comentário de origem; não sobe para cá.
+
+---
+
 ## Armadilhas
 
 _(vazio — nenhum card entregue ainda)_
