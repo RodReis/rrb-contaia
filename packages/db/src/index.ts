@@ -57,3 +57,27 @@ export type {
 } from './repositorios/manutencao-empresa.js';
 export { resolverIdentidade } from './repositorios/identidade.js';
 export type { IdentidadeResolvida } from './repositorios/identidade.js';
+export {
+  ACOES_DOCUMENTAIS,
+  arquivarVersaoVigente,
+  carregarExigencia,
+  carregarVersao,
+  carregarVersaoVigente,
+  definirAplicabilidade,
+  definirEstadoDaExigencia,
+  inserirExigencia,
+  inserirVersao,
+  listarExigencias,
+  listarHistoricoDocumental,
+  listarVersoes,
+  registrarEventosDocumentais,
+} from './repositorios/documentos-empresa.js';
+export type {
+  AcaoDocumental,
+  EventoDocumentalNaLista,
+  EventoDocumentalParaRegistrar,
+  ExigenciaPersistida,
+  NovaExigencia,
+  NovaVersao,
+  VersaoPersistida,
+} from './repositorios/documentos-empresa.js';

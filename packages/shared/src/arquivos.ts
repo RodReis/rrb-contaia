@@ -7,6 +7,8 @@
 
 export const LIMITE_DE_LOGO_BYTES = 2 * 1024 * 1024;
 export const LIMITE_DE_DOCUMENTO_BYTES = 10 * 1024 * 1024;
+/** Documento cadastral da empresa cliente (SPEC-004 §2.3). */
+export const LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES = 20 * 1024 * 1024;
 
 export const TIPOS_DE_LOGO = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'] as const;
 export const TIPOS_DE_DOCUMENTO = [
@@ -16,7 +18,18 @@ export const TIPOS_DE_DOCUMENTO = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const;
 
-export type TipoDeArquivo = 'LOGO' | 'DOCUMENTO';
+/**
+ * O documento da empresa aceita menos formatos que o do escritório: a SPEC-004
+ * §2.3 fixa PDF, JPG e PNG, porque todos precisam ser visualizáveis no
+ * navegador — `.docx` não é.
+ */
+export const TIPOS_DE_DOCUMENTO_DA_EMPRESA = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+] as const;
+
+export type TipoDeArquivo = 'LOGO' | 'DOCUMENTO' | 'DOCUMENTO_DA_EMPRESA';
 
 export type RegraDeArquivo = Readonly<{
   limiteBytes: number;
@@ -34,6 +47,11 @@ export const REGRAS_DE_ARQUIVO: Readonly<Record<TipoDeArquivo, RegraDeArquivo>> 
     limiteBytes: LIMITE_DE_DOCUMENTO_BYTES,
     tiposAceitos: TIPOS_DE_DOCUMENTO,
     extensoesAceitas: ['.pdf', '.png', '.jpg', '.jpeg', '.docx'],
+  },
+  DOCUMENTO_DA_EMPRESA: {
+    limiteBytes: LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
+    tiposAceitos: TIPOS_DE_DOCUMENTO_DA_EMPRESA,
+    extensoesAceitas: ['.pdf', '.png', '.jpg', '.jpeg'],
   },
 };
 
