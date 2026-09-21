@@ -135,7 +135,7 @@ Um MVP fecha quando, **cumulativamente**:
 - [ ] todas as fatias do checklist estão `finalizado` (aceite do PI);
 - [ ] o card `[GATE]` de homologação passou;
 - [ ] a matriz de [`RASTREABILIDADE.md`](RASTREABILIDADE.md) não tem requisito sem destino;
-- [ ] os aprendizados foram consolidados em [`../../APRENDIZADOS.md`](../../APRENDIZADOS.md);
+- [ ] os aprendizados foram consolidados em [`../../APRENDIZADOS.md`](../../APRENDIZADOS.md) — rotina e comando na seção "Rotina de consolidação" do próprio arquivo;
 - [ ] [`../../STATUS.md`](../../STATUS.md) e [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) refletem o estado real.
 - [ ] todas as fatias com UI comprovaram fidelidade, os dois temas e acabamento pelo protocolo de [`../../FRONTEND.md`](../../FRONTEND.md) §20.1 — dívida visual não é empurrada para o MVP seguinte.
 
