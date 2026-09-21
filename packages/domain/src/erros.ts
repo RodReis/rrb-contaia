@@ -60,6 +60,7 @@ export const CODIGOS_DE_ERRO = {
   // Central de pendências (SPEC-005).
   PENDENCIA_NAO_ENCONTRADA: 'PENDENCIA_NAO_ENCONTRADA',
   PENDENCIA_JA_RESOLVIDA: 'PENDENCIA_JA_RESOLVIDA',
+  SEM_AUTORIZACAO: 'SEM_AUTORIZACAO',
 } as const;
 
 export type CodigoDeErro = (typeof CODIGOS_DE_ERRO)[keyof typeof CODIGOS_DE_ERRO];
