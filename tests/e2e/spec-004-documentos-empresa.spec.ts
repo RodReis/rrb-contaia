@@ -314,3 +314,43 @@ test('a mudança de inscrição na F3 reconcilia o checklist da F4 (§2.2)', asy
 
   await expect(inaplicaveis).toHaveCount(1);
 });
+
+/**
+ * Prova visual da aba nos dois temas e em duas larguras (FRONTEND.md §20).
+ *
+ * Vive nesta suíte, e não em arquivo próprio, porque depende da empresa e do
+ * tenant ativo que o `beforeAll` daqui prepara: o Playwright roda arquivos em
+ * paralelo, e um arquivo separado dependeria de uma ordem que não existe.
+ */
+for (const tema of ['light', 'dark'] as const) {
+  for (const largura of [1440, 768]) {
+    test(`prova visual: aba Documentos no tema ${tema} em ${largura}px`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: 1200 });
+      await entrar(page);
+
+      await page.goto(`/empresas/${empresaId}`);
+      await page.evaluate((valor) => {
+        try {
+          localStorage.setItem('contaia-theme', valor);
+        } catch {
+          // Janela privada pode lançar; o atributo abaixo já basta.
+        }
+        document.documentElement.setAttribute('data-theme', valor);
+      }, tema);
+
+      await page.getByRole('tab', { name: 'Documentos' }).click();
+      await page.getByRole('heading', { name: 'Cartão CNPJ' }).waitFor();
+
+      // O histórico entra na prova: é metade da tela da fatia.
+      await page.getByRole('button', { name: /histórico documental/iu }).click();
+      await page.getByRole('table', { name: /eventos documentais/iu }).waitFor();
+
+      await expect(page.locator('html')).toHaveAttribute('data-theme', tema);
+
+      await page.screenshot({
+        path: `test-results/provas/f4-documentos-${tema}-${largura}.png`,
+        fullPage: true,
+      });
+    });
+  }
+}
