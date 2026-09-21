@@ -203,6 +203,99 @@ describe('reconciliação (secao 2)', () => {
   });
 });
 
+describe('reconciliação — histórico e atomicidade (secao 2)', () => {
+  it('grava evento de CRIACAO ao abrir e de RESOLUCAO ao fechar a mesma pendência', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, `62${SUFIXO}000192`);
+    const causa = causaPadrao('campo:historico');
+
+    await comTenant(tenantA, (cliente) =>
+      reconciliar(cliente, tenantA, empresaId, [causa], [], usuarioA),
+    );
+
+    const abertaId = await comTenant(tenantA, async (cliente) => {
+      const resultado = await cliente.query<{ id: string }>(
+        `select id from app.empresa_pendencia where empresa_id = $1 and chave = $2`,
+        [empresaId, causa.chave],
+      );
+      return resultado.rows[0]?.id ?? '';
+    });
+    expect(abertaId).not.toBe('');
+
+    await comTenant(tenantA, (cliente) =>
+      reconciliar(cliente, tenantA, empresaId, [], [causa.chave], usuarioA),
+    );
+
+    const eventos = await comTenant(tenantA, (cliente) =>
+      cliente.query<{ acao: string }>(
+        `select acao from app.empresa_evento_de_pendencia
+         where pendencia_id = $1 order by sequencia asc`,
+        [abertaId],
+      ),
+    );
+
+    expect(eventos.rows.map((linha) => linha.acao)).toEqual(['CRIACAO', 'RESOLUCAO']);
+  });
+
+  it('não deixa pendência nem evento parcial quando a reconciliação falha no meio do lote', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, `63${SUFIXO}000193`);
+    const causaValida = causaPadrao('campo:atomicidade-valida');
+    const causaInvalida = {
+      origem: 'CADASTRAL',
+      tipo: 'TIPO_QUE_NAO_EXISTE',
+      chave: 'campo:atomicidade-invalida',
+      dataLimite: null,
+    } as const;
+
+    await expect(
+      comTenant(tenantA, (cliente) =>
+        reconciliar(cliente, tenantA, empresaId, [causaValida, causaInvalida], [], null),
+      ),
+    ).rejects.toThrow();
+
+    const abertas = await comTenant(tenantA, (cliente) =>
+      listarAbertasDaEmpresa(cliente, empresaId),
+    );
+    expect(abertas).toEqual([]);
+
+    const eventos = await comTenant(tenantA, (cliente) =>
+      cliente.query<{ id: string }>(
+        `select ev.id from app.empresa_evento_de_pendencia ev
+         join app.empresa_pendencia p on p.id = ev.pendencia_id
+         where p.empresa_id = $1`,
+        [empresaId],
+      ),
+    );
+    expect(eventos.rows).toEqual([]);
+  });
+
+  it('duas reconciliações concorrentes com a mesma causa não duplicam a pendência aberta', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, `64${SUFIXO}000194`);
+    const causa = causaPadrao('campo:concorrencia');
+
+    const executarEmTransacaoPropria = async (): Promise<void> => {
+      const cliente = await poolApp.connect();
+      try {
+        await cliente.query('begin');
+        await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+        await reconciliar(cliente, tenantA, empresaId, [causa], [], null);
+        await cliente.query('commit');
+      } catch (erro) {
+        await cliente.query('rollback');
+        throw erro;
+      } finally {
+        cliente.release();
+      }
+    };
+
+    await Promise.all([executarEmTransacaoPropria(), executarEmTransacaoPropria()]);
+
+    const abertas = await comTenant(tenantA, (cliente) =>
+      listarAbertasDaEmpresa(cliente, empresaId),
+    );
+    expect(abertas).toHaveLength(1);
+  });
+});
+
 describe('isolamento por tenant', () => {
   it('não vaza pendências entre tenants', async () => {
     const empresaA = await criarEmpresaAtiva(tenantA, `96${SUFIXO}000186`);
