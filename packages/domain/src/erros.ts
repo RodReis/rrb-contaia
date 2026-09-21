@@ -57,9 +57,11 @@ export const CODIGOS_DE_ERRO = {
   VERSAO_NAO_ENCONTRADA: 'VERSAO_NAO_ENCONTRADA',
   ARQUIVO_INDISPONIVEL: 'ARQUIVO_INDISPONIVEL',
   VALIDADE_INVALIDA: 'VALIDADE_INVALIDA',
-  // Central de pendências (SPEC-005).
+  // Central de pendências (SPEC-005). `PendenciasService.dispensar` usa este
+  // único código tanto para "não existe" quanto para "já resolvida" — o
+  // repositório não distingue os dois casos, e criar `PENDENCIA_JA_RESOLVIDA`
+  // sem um chamador que o produza seria dead code (achado MINOR).
   PENDENCIA_NAO_ENCONTRADA: 'PENDENCIA_NAO_ENCONTRADA',
-  PENDENCIA_JA_RESOLVIDA: 'PENDENCIA_JA_RESOLVIDA',
   SEM_AUTORIZACAO: 'SEM_AUTORIZACAO',
 } as const;
 

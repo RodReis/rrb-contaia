@@ -1,5 +1,6 @@
 /**
- * Alerta persistente de pendências cadastrais abertas (SPEC-005 §2, Task 8).
+ * Alerta persistente de pendências abertas — cadastrais e documentais juntas
+ * (SPEC-005 §2, Task 8).
  *
  * Decisão de design (protocolo `frontend-design` aplicado manualmente — ver
  * relatório da Task 8: a sessão interativa da skill não se aplica a um ajuste
@@ -35,9 +36,7 @@ export const AlertaDePendencias = ({ empresaId }: { empresaId: string }) => {
       <AlertTriangle aria-hidden="true" className="mt-[0.125rem] size-icon-sm" />
       <span className="flex flex-1 flex-wrap items-center gap-x-sm gap-y-xs">
         <span>
-          {data.total === 1
-            ? '1 pendência cadastral aberta.'
-            : `${data.total} pendências cadastrais abertas.`}
+          {data.total === 1 ? '1 pendência aberta.' : `${data.total} pendências abertas.`}
         </span>
         <Link
           href={`/pendencias?empresaId=${empresaId}`}
