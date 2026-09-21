@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/cn';
+import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
 import { AbaDeDocumentos } from './aba-de-documentos';
 import { AbaDeEnderecos } from './aba-de-enderecos';
 import { AtualizacaoPelaCnpja } from './atualizacao-pela-cnpja';
@@ -63,64 +64,68 @@ const Cabecalho = ({
   const reativar = useReativarEmpresa(visao.id);
 
   return (
-    <header className="flex flex-col gap-md tablet:flex-row tablet:items-start tablet:justify-between">
-      <div className="flex flex-col gap-xs">
-        <div className="flex flex-wrap items-center gap-sm">
-          <h1 className="font-display text-headline-lg text-foreground">{nome}</h1>
-          <StatusBadge
-            tom={arquivada ? 'neutro' : 'conforme'}
-            rotulo={arquivada ? 'Arquivada' : 'Ativa'}
-          />
+    <div className="flex flex-col gap-md">
+      <header className="flex flex-col gap-md tablet:flex-row tablet:items-start tablet:justify-between">
+        <div className="flex flex-col gap-xs">
+          <div className="flex flex-wrap items-center gap-sm">
+            <h1 className="font-display text-headline-lg text-foreground">{nome}</h1>
+            <StatusBadge
+              tom={arquivada ? 'neutro' : 'conforme'}
+              rotulo={arquivada ? 'Arquivada' : 'Ativa'}
+            />
+          </div>
+          <p className="font-mono text-code-sm tabular-nums text-muted-foreground">
+            {formatarCnpj(identificacao?.cnpj ?? '')}
+          </p>
+          {identificacao?.razaoSocial !== undefined &&
+          identificacao.razaoSocial !== nome ? (
+            <p className="text-body-sm text-muted-foreground">{identificacao.razaoSocial}</p>
+          ) : null}
         </div>
-        <p className="font-mono text-code-sm tabular-nums text-muted-foreground">
-          {formatarCnpj(identificacao?.cnpj ?? '')}
-        </p>
-        {identificacao?.razaoSocial !== undefined &&
-        identificacao.razaoSocial !== nome ? (
-          <p className="text-body-sm text-muted-foreground">{identificacao.razaoSocial}</p>
-        ) : null}
-      </div>
 
-      <div className="flex flex-wrap gap-sm">
-        <Button asChild variante="fantasma" tamanho="compacto">
-          <Link href={`/historico?empresaId=${visao.id}`}>
-            <History aria-hidden="true" />
-            Ver histórico
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-sm">
+          <Button asChild variante="fantasma" tamanho="compacto">
+            <Link href={`/historico?empresaId=${visao.id}`}>
+              <History aria-hidden="true" />
+              Ver histórico
+            </Link>
+          </Button>
 
-        {arquivada ? (
-          <DialogoDeJustificativa
-            gatilho={
-              <Button tamanho="compacto">
-                <RotateCcw aria-hidden="true" />
-                Reativar empresa
-              </Button>
-            }
-            titulo={`Reativar ${nome}?`}
-            descricao="A empresa volta a ficar editável com todos os dados preservados. A reativação fica registrada com autor, data e justificativa."
-            rotuloDeConfirmacao="Reativar empresa"
-            ocupado={reativar.isPending}
-            aoConfirmar={(justificativa) => reativar.mutateAsync(justificativa)}
-          />
-        ) : (
-          <DialogoDeJustificativa
-            gatilho={
-              <Button variante="contorno" tamanho="compacto">
-                <Archive aria-hidden="true" />
-                Arquivar empresa
-              </Button>
-            }
-            titulo={`Arquivar ${nome}?`}
-            descricao="A empresa fica somente para consulta até ser reativada. Nenhum dado é excluído, e o arquivamento fica registrado com autor, data e justificativa."
-            rotuloDeConfirmacao="Arquivar empresa"
-            destrutivo
-            ocupado={arquivar.isPending}
-            aoConfirmar={(justificativa) => arquivar.mutateAsync(justificativa)}
-          />
-        )}
-      </div>
-    </header>
+          {arquivada ? (
+            <DialogoDeJustificativa
+              gatilho={
+                <Button tamanho="compacto">
+                  <RotateCcw aria-hidden="true" />
+                  Reativar empresa
+                </Button>
+              }
+              titulo={`Reativar ${nome}?`}
+              descricao="A empresa volta a ficar editável com todos os dados preservados. A reativação fica registrada com autor, data e justificativa."
+              rotuloDeConfirmacao="Reativar empresa"
+              ocupado={reativar.isPending}
+              aoConfirmar={(justificativa) => reativar.mutateAsync(justificativa)}
+            />
+          ) : (
+            <DialogoDeJustificativa
+              gatilho={
+                <Button variante="contorno" tamanho="compacto">
+                  <Archive aria-hidden="true" />
+                  Arquivar empresa
+                </Button>
+              }
+              titulo={`Arquivar ${nome}?`}
+              descricao="A empresa fica somente para consulta até ser reativada. Nenhum dado é excluído, e o arquivamento fica registrado com autor, data e justificativa."
+              rotuloDeConfirmacao="Arquivar empresa"
+              destrutivo
+              ocupado={arquivar.isPending}
+              aoConfirmar={(justificativa) => arquivar.mutateAsync(justificativa)}
+            />
+          )}
+        </div>
+      </header>
+
+      <AlertaDePendencias empresaId={visao.id} />
+    </div>
   );
 };
 

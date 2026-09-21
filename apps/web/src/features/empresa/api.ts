@@ -34,6 +34,8 @@ export type EmpresaNaLista = Readonly<{
   status: StatusDaEmpresa;
   /** `arquivado` não é um status: é a situação do registro (SPEC-003 §3.1). */
   situacao: SituacaoDeRegistro;
+  /** Contagem de pendências cadastrais abertas (SPEC-005, já enviada desde a Task 6a). */
+  pendenciasAbertas: number;
 }>;
 
 /** O que a lista oferece como filtro; `ARQUIVADA` cruza status e situação. */
