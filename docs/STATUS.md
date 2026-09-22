@@ -4,7 +4,7 @@
 > O **Índice Fatia ↔ SPEC** (§3) é **fonte única da numeração** e é mantido pelo **Cowork**. O **progresso** (§2) é mantido pelo **Code**, dentro da PR.
 > Em conflito de merge neste arquivo: **a versão da `main` vence**; o Code reaplica só o próprio progresso (`CLAUDE.md`).
 
-**Atualizado em:** 20/09/2026
+**Atualizado em:** 22/09/2026
 
 ---
 
@@ -20,7 +20,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
 | Fatias/SPECs | F1/SPEC-001 a F38/SPEC-038 aprovadas |
-| Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa) e #4 F3 (manutenção da empresa e Histórico de Informações) |
+| Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa), #4 F3 (manutenção da empresa e Histórico de Informações), #5 F4 (documentos da empresa), #6 F5 (Central de Pendências cadastrais) e #7 F6 (Notificações de pendências) |
 
 ---
 
@@ -29,11 +29,11 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Coluna | Cards |
 |---|---|
 | `proplan:planejado` | — |
-| `proplan:backlog` | #47 `[FIX] app.uuid_v7()` · #7 F6/SPEC-006 · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 · #32 F28/SPEC-028 · #33 F29/SPEC-029 · #34 F30/SPEC-030 · #35 F31/SPEC-031 · #36 F32/SPEC-032 · #37 F33/SPEC-033 · #38 F34/SPEC-034 · #39 F35/SPEC-035 · #41 F36/SPEC-036 · #43 F37/SPEC-037 · #44 F38/SPEC-038 |
-| `proplan:todo` | #6 F5/SPEC-005 |
-| `proplan:doing` | #5 F4/SPEC-004 |
-| `proplan:done` | #45 `[FIX]` · #4 F3/SPEC-003 |
-| `proplan:finalizado` | #1 `[INFRA] Bootstrap local do MVP-1` · #2 F1/SPEC-001 · #3 F2/SPEC-002 |
+| `proplan:backlog` | #47 `[FIX] app.uuid_v7()` · #9 F7/SPEC-007 · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 · #32 F28/SPEC-028 · #33 F29/SPEC-029 · #34 F30/SPEC-030 · #35 F31/SPEC-031 · #36 F32/SPEC-032 · #37 F33/SPEC-033 · #38 F34/SPEC-034 · #39 F35/SPEC-035 · #41 F36/SPEC-036 · #43 F37/SPEC-037 · #44 F38/SPEC-038 |
+| `proplan:todo` | — |
+| `proplan:doing` | — |
+| `proplan:done` | — |
+| `proplan:finalizado` | #1 `[INFRA] Bootstrap local do MVP-1` · #2 F1/SPEC-001 · #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 · #6 F5/SPEC-005 · #7 F6/SPEC-006 · #45 `[FIX] ambiente local` |
 
 Quem move o quê: `CLAUDE.md`, "Ciclo de vida do card".
 
@@ -47,10 +47,10 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 |---|---|---|---|---|---|---|
 | MVP-1 | F1 | SPEC-001 | PRD §§4.1, 4.3, 4.4 e 15 | Acesso inicial e conclusão do cadastro do escritório | #2 | `proplan:finalizado` |
 | MVP-1 | F2 | SPEC-002 | PRD §§4.1, 4.3, 4.4 e 15 | Cadastro e ativação da empresa cliente | #3 | `proplan:finalizado` |
-| MVP-1 | F3 | SPEC-003 | PRD §4.1 | Manutenção da empresa cliente | #4 | `proplan:done` |
-| MVP-1 | F4 | SPEC-004 | PRD §4.1 | Documentos da empresa | #5 | `proplan:doing` |
-| MVP-1 | F5 | SPEC-005 | PRD §§4.1 e 9.1 | Central de Pendências cadastrais | #6 | `proplan:todo` |
-| MVP-1 | F6 | SPEC-006 | PRD §§4.1 e 9.1 | Notificações de pendências | #7 | `proplan:backlog` |
+| MVP-1 | F3 | SPEC-003 | PRD §4.1 | Manutenção da empresa cliente | #4 | `proplan:finalizado` |
+| MVP-1 | F4 | SPEC-004 | PRD §4.1 | Documentos da empresa | #5 | `proplan:finalizado` |
+| MVP-1 | F5 | SPEC-005 | PRD §§4.1 e 9.1 | Central de Pendências cadastrais | #6 | `proplan:finalizado` |
+| MVP-1 | F6 | SPEC-006 | PRD §§4.1 e 9.1 | Notificações de pendências | #7 | `proplan:finalizado` |
 | MVP-1 | F7 | SPEC-007 | PRD §§4.3, 4.4 e 15 | Gestão de usuários e papéis padrão | #9 | `proplan:backlog` |
 | MVP-1 | F8 | SPEC-008 | PRD §§4.3, 4.4 e 15 | Papéis personalizados e permissões | #10 | `proplan:backlog` |
 | MVP-1 | F9 | SPEC-009 | PRD §§4.3, 4.4, 4.6 e 15 | Carteira do colaborador e isolamento por empresa | #11 | `proplan:backlog` |
@@ -92,7 +92,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 
 | Fase | Entregas | Situação |
 |---|---|---|
-| **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#6, F1/SPEC-001 a F5/SPEC-005, em `proplan:todo`; F6/SPEC-006 a F23/SPEC-023 em backlog; demais fatias pendentes |
+| **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#7, F1/SPEC-001 a F6/SPEC-006, `proplan:finalizado`; F7/SPEC-007 a F25/SPEC-025 em backlog; demais fatias pendentes |
 | **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F38/SPEC-038 aprovadas; demais fatias pendentes |
 | **[MVP-3](prd/mvp/MVP-3-dp-portal-e-comunicacao.md)** | RF-05 (DP/eSocial) · portal white-label · canal ativo · Copiloto · Coletor | macroescopo aprovado; fatias pendentes |
 | **[MVP-4](prd/mvp/MVP-4-administracao-e-evolucao.md)** | RF-08 completo · IBS/CBS completo · API pública · Marketplace · colaboração multiagente · preparação para certificações | macroescopo aprovado; API e Marketplace têm decisões pendentes |
