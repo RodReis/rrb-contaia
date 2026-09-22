@@ -62,6 +62,8 @@ export const CODIGOS_DE_ERRO = {
   // repositório não distingue os dois casos, e criar `PENDENCIA_JA_RESOLVIDA`
   // sem um chamador que o produza seria dead code (achado MINOR).
   PENDENCIA_NAO_ENCONTRADA: 'PENDENCIA_NAO_ENCONTRADA',
+  // Notificacoes de pendencias (SPEC-006).
+  NOTIFICACAO_NAO_ENCONTRADA: 'NOTIFICACAO_NAO_ENCONTRADA',
   SEM_AUTORIZACAO: 'SEM_AUTORIZACAO',
 } as const;
 

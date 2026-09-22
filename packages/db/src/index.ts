@@ -95,3 +95,15 @@ export type {
   PendenciaComEmpresa,
   PendenciaPersistida,
 } from './repositorios/pendencias.js';
+export {
+  contarNaoLidas,
+  criarNotificacoes,
+  listarHistorico as listarHistoricoDeNotificacoes,
+  listarPainel,
+  marcarComoLida,
+  marcarVariasComoLidas,
+} from './repositorios/notificacoes.js';
+export type {
+  NotificacaoPersistida,
+  PaginaDeNotificacoes,
+} from './repositorios/notificacoes.js';

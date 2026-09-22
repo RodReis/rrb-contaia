@@ -140,3 +140,5 @@ export type {
   OrigemDaPendencia,
   TipoDaPendencia,
 } from './pendencias/pendencias.js';
+export { tipoDeNotificacaoParaCausa } from './notificacoes/notificacoes.js';
+export type { CausaParaNotificar, TipoDeNotificacao } from './notificacoes/notificacoes.js';
