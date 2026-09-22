@@ -15,6 +15,12 @@
  *
  * Comparação visual ao vivo (Playwright, ambos os temas) é responsabilidade
  * da Task 11 (impeccable) — não executada nesta task.
+ *
+ * Acabamento (Task 11, impeccable): `text-body-xs` (data/status de cada
+ * linha) não existe em TOKENS.md §5.2 nem em `globals.css` (escala real é
+ * `body-lg/md/sm`, `label-md/sm` — sem `body-xs`), então a classe Tailwind
+ * não tinha efeito nenhum (tamanho herdado do pai). Trocado para `body-sm`
+ * ("Texto de apoio, descrição"), o token correto para este uso.
  */
 'use client';
 
@@ -127,12 +133,12 @@ export const PaginaDeHistorico = () => {
                       {RESUMO_POR_TIPO[notificacao.tipo] ?? notificacao.tipo}
                       {!notificacao.lida ? <span className="sr-only"> (não lida)</span> : null}
                     </p>
-                    <p className="text-body-xs text-muted-foreground">
+                    <p className="text-body-sm text-muted-foreground">
                       {formatarQuando(notificacao.criadoEm)}
                     </p>
                   </div>
                 </div>
-                <span className="text-body-xs text-muted-foreground">
+                <span className="text-body-sm text-muted-foreground">
                   {notificacao.lida ? 'Lida' : 'Não lida'}
                 </span>
               </li>

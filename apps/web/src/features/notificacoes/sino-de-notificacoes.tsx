@@ -18,6 +18,13 @@
  * dava 3.76:1 no claro e 1.7:1 no escuro — falha grave no escuro. Preto dá
  * 5.58:1 (claro) e 12.37:1 (escuro), muito acima do mínimo 3:1 para texto
  * pequeno/UI nos dois temas (fix round 1, task-8-report.md).
+ *
+ * Acabamento (Task 11, impeccable): texto de apoio do item ("Nova pendência ·
+ * 21/09 14:32") trocado de `text-label-sm` para `text-body-sm` — TOKENS.md
+ * §5.2 define `label-sm` como "Header de tabela (uppercase), eyebrow" e
+ * `body-sm` como "Texto de apoio, descrição", que é exatamente este uso.
+ * Achado Minor herdado da Task 8 (token semanticamente incorreto, não visual
+ * — mesmo tamanho/peso resultante), corrigido aqui.
  */
 'use client';
 
@@ -190,7 +197,7 @@ export const SinoDeNotificacoes = () => {
                       {notificacao.empresaNome}
                       {!notificacao.lida ? <span className="sr-only"> (não lida)</span> : null}
                     </p>
-                    <p className="text-label-sm text-muted-foreground">
+                    <p className="text-body-sm text-muted-foreground">
                       {RESUMO_POR_TIPO[notificacao.tipo] ?? notificacao.tipo} ·{' '}
                       {formatarQuando(notificacao.criadoEm)}
                     </p>
