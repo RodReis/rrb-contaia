@@ -37,6 +37,8 @@
 - Alterar requisito de produto, política de aceite ou escopo de uma fatia: SPEC/emenda do PI **antes** de implementar.
 
 ## Testes e CI
+- Para CI remoto, usar `gh pr checks <n>` ou `gh pr checks <n> --watch`. Não confiar em silêncio de
+  watcher, print antigo, aba aberta ou status lembrado.
 - Ler o conforme `docs/CI-PR.md`.
 
 
