@@ -72,7 +72,9 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | 2 | [#2](https://github.com/RodReis/rrb-contaia/issues/2) `[MVP1][SPEC-001][F1]` Acesso inicial e conclusão do cadastro do escritório | F1 / SPEC-001 | entregue | #7 | acesso OIDC, wizard de 5 etapas, edição por abas, RLS por tenant |
 | 3 | [#3](https://github.com/RodReis/rrb-contaia/issues/3) `[MVP1][SPEC-002][F2]` Cadastro e ativação da empresa cliente | F2 / SPEC-002 | entregue | #42 | consulta CNPJá, wizard de 4 etapas, listagem com filtro na URL, unicidade por tenant |
 | 4 | [#4](https://github.com/RodReis/rrb-contaia/issues/4) `[MVP1][SPEC-003][F3]` Manutenção da empresa cliente | F3 / SPEC-003 | entregue | #48 | abas de manutenção, finalidade de endereço, arquivamento com justificativa, Histórico de Informações append-only |
-| 5 | [#5](https://github.com/RodReis/rrb-contaia/issues/5) `[MVP1][SPEC-004][F4]` Documentos da empresa | F4 / SPEC-004 | em revisão | — | checklist, upload com versões, análise explícita, storage privado, histórico documental append-only |
+| 5 | [#5](https://github.com/RodReis/rrb-contaia/issues/5) `[MVP1][SPEC-004][F4]` Documentos da empresa | F4 / SPEC-004 | entregue | #49 | checklist, upload com versões, análise explícita, storage privado, histórico documental append-only |
+| 6 | [#6](https://github.com/RodReis/rrb-contaia/issues/6) `[MVP1][SPEC-005][F5]` Central de Pendências cadastrais | F5 / SPEC-005 | entregue | #50 | reconciliação síncrona cadastral/documental, indicador na lista, dispensa com justificativa, histórico append-only |
+| 7 | [#7](https://github.com/RodReis/rrb-contaia/issues/7) `[MVP1][SPEC-006][F6]` Notificações de pendências | F6 / SPEC-006 | entregue | #51 | sino, badge, painel das 15 mais recentes, seleção individual/lote, histórico paginado, notificação na mesma transação da reconciliação |
 
 ---
 
@@ -123,6 +125,24 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] `EmptyState` e `ErroDeTela` com `nivel` — o `<h3>` fixo pulava nível depois do `<h1>` e reprovava no `heading-order`
 - [x] Telas nos temas CLARO e ESCURO, com os quatro estados e sem violação de acessibilidade
 - [x] Provas: 107 de regras, 50 de banco, 21 de tela e 4 E2E; prova externa real executada fora da CI com o CNPJ de teste da SPEC
+
+### Card #7 — `[MVP1][SPEC-006][F6]` Notificações de pendências (PR #51)
+
+- [x] Notificação nasce na mesma transação síncrona que já reconcilia pendências (F4/F5) — sem fila nem worker novo; gatilho de "documento vence" é recalculado na leitura, mesmo padrão de vencimento documental de F4, porque não existe worker/cron no repositório
+- [x] **Índice único de idempotência precisa incluir o `tipo` da notificação, não só `(empresa_id, chave)`** — achado da revisão final: a `chave` de pendência (`exigencia:<id>`) é compartilhada por três causas da mesma exigência (nova pendência, documento rejeitado, documento vencido); sem `tipo` no índice, uma notificação não lida de um tipo descarta em silêncio a de outro tipo da mesma exigência. Corrigido para `(empresa_id, chave, tipo)` antes do merge
+- [x] `marcarComoLida`/`marcarVariasComoLidas` não recebem `empresaId` — a rota de notificação não é aninhada em empresa (diferente de pendências); `tenant_id` + `id` bastam, RLS forçada cobre o isolamento, e `empresa_id` do evento vem do próprio `RETURNING` do UPDATE, não de entrada do cliente
+- [x] FK composta `(usuario_id, tenant_id)` no evento de notificação — mesmo padrão de F4/F5 (FK simples não impede evento apontar usuário de outro tenant)
+- [x] Badge do sino usa `bg-danger-indicator` com texto preto, não branco — branco sobre a cor do tema escuro dava contraste 1.7:1 (falha WCAG); preto dá 5.58:1 (claro) e 12.37:1 (escuro)
+- [x] Histórico é do tenant inteiro, não por empresa (SPEC-006 §3) — E2E que consulta o histórico sem escopar pelo nome/CNPJ da própria empresa fixture colide com notificações de outros specs no mesmo tenant seed sob paralelismo real de CI, mesmo passando sempre isolado localmente
+- [x] Provas: 156 de regras no domínio, 93 na API, 103 de banco (RLS real, sem bypass, concorrência com transações independentes), 93 de tela, 3 E2E rodados contra stack real autenticada
+- [ ] Pendência de produto registrada na PR: gatilho de vencimento síncrono (não por cron) e leitura de "notificação equivalente" (mesma causa **e** mesmo tipo) — decisões do PI, ambas confirmadas via pop-up de encerramento
+
+### Card #6 — `[MVP1][SPEC-005][F5]` Central de Pendências cadastrais (PR #50)
+
+- [x] Reconciliação síncrona compara causas calculadas com pendências abertas e aplica só o diff — nunca recria o que já existe, nunca perde histórico do que foi resolvido
+- [x] Índice único parcial `(empresa_id, chave) WHERE estado = 'ABERTA'` — mesma causa não duplica pendência aberta, idempotente sob reprocessamento e concorrência real
+- [x] Histórico append-only por trigger, mesmo padrão de F3/F4
+- [x] Provas: banco com RLS real e concorrência via transações independentes, tela e E2E cobrindo o caminho crítico ponta a ponta
 
 ### Card #5 — `[MVP1][SPEC-004][F4]` Documentos da empresa
 
