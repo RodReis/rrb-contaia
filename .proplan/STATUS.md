@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-09-21
+updated: 2026-09-22
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -60,9 +60,7 @@ _(vazio)_
 
 ## Feito
 
-### Sem épico
-
-- [MVP1][SPEC-002][FIX] ambiente local nao subia a Web/API e desalinhamentos no wizard/listagem (#45)
+_(vazio)_
 
 ## Finalizado
 
@@ -76,6 +74,7 @@ _(vazio)_
 
 ### Sem épico
 
+- [MVP1][SPEC-002][FIX] ambiente local nao subia a Web/API e desalinhamentos no wizard/listagem (#45, finalizado em: 2026-09-22)
 - [INFRA] Bootstrap local do MVP-1 (#1, finalizado em: 2026-09-18)
 
 ## Descartado
