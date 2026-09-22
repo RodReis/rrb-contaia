@@ -288,14 +288,19 @@ test.describe('SPEC-006 — Notificações de pendências', () => {
     await expect(badgeAntes).toBeVisible();
     const totalAntes = Number(await badgeAntes.textContent());
 
-    // Reenvia e rejeita de novo o mesmo documento (mesma causa/chave
-    // `DOCUMENTO_REJEITADO` desta exigência): como a notificação anterior já
-    // foi lida, o índice único permite uma notificação NOVA para esta
-    // rejeição — mas a rejeição em si não deve gerar duplicata se repetida
-    // sem reenvio intermediário. Aqui provamos o caso do brief: reabrir a
-    // página (segunda leitura) não duplica nem recria o que já está lido.
+    // Histórico é do tenant inteiro, não por empresa (SPEC-006 §3): outros
+    // specs E2E (004, 005) rodam em paralelo no mesmo tenant seed e também
+    // rejeitam documentos, cada um gerando sua própria notificação
+    // DOCUMENTO_REJEITADO. Filtrar só pelo texto "documento rejeitado" pega
+    // as notificações alheias — escopar também pelo nome desta empresa
+    // (como o teste 1 já faz) isola a prova ao que este spec realmente criou.
+    // Aqui provamos o caso do brief: reabrir a página (segunda leitura) não
+    // duplica nem recria o que já está lido.
     await page.goto('/notificacoes');
-    const linhasRejeicao = page.getByRole('listitem').filter({ hasText: /documento rejeitado/iu });
+    const linhasRejeicao = page
+      .getByRole('listitem')
+      .filter({ hasText: /documento rejeitado/iu })
+      .filter({ hasText: /notificacoes comercio/iu });
     await expect(linhasRejeicao).toHaveCount(1);
 
     await page.goto('/empresas');
@@ -316,20 +321,28 @@ test.describe('SPEC-006 — Notificações de pendências', () => {
 
     await page.getByRole('button', { name: 'Notificações' }).click();
 
+    // O painel sempre mostra as 15 mais recentes, lidas e não lidas (SPEC-006
+    // §3) — não fica vazio ao marcar como lida. A prova de "marcou em lote" é
+    // que os itens visíveis (todos desta empresa, fixture isolada por CNPJ)
+    // deixam de carregar o indicador `sr-only` "(não lida)".
     const painel = page.getByRole('list');
-    await expect(painel.getByRole('listitem').first()).toBeVisible();
+    const itensDoPainel = painel.getByRole('listitem');
+    await expect(itensDoPainel.first()).toBeVisible();
+    const naoLidasNoPainelAntes = await itensDoPainel.filter({ hasText: /\(não lida\)/iu }).count();
+    expect(naoLidasNoPainelAntes).toBeGreaterThan(0);
 
     const checkboxTodas = page.getByRole('checkbox', { name: 'Todas' });
     await checkboxTodas.check();
 
     await page.getByRole('button', { name: /marcar como lidas/iu }).click();
 
-    // O painel fecha a seleção e o badge zera: todas as visíveis (até 15,
-    // aqui bem menos) foram marcadas como lidas em lote.
-    await expect(page.getByTestId('badge-nao-lidas')).toHaveCount(0);
+    await expect(itensDoPainel.filter({ hasText: /\(não lida\)/iu })).toHaveCount(0);
 
-    // Histórico: nenhuma notificação desta empresa continua "Não lida".
+    // Histórico: nenhuma notificação DESTA empresa continua "Não lida" —
+    // escopar pelo nome da empresa evita colidir com notificações "Não lida"
+    // de outros specs E2E rodando no mesmo tenant em paralelo.
     await page.goto('/notificacoes');
-    await expect(page.getByText('Não lida')).toHaveCount(0);
+    const itensDaEmpresa = page.getByRole('listitem').filter({ hasText: /notificacoes comercio/iu });
+    await expect(itensDaEmpresa.filter({ hasText: /não lida/iu })).toHaveCount(0);
   });
 });
