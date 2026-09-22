@@ -11,9 +11,13 @@
  *
  * Decisão de token de cor (task-8-report.md): o círculo do badge usa
  * `bg-danger-indicator` (cor sólida `#ef4444`/`#ffb4ab`), não `bg-danger`
- * (fundo suave usado em `ErroDeTela`) — ver TOKENS.md §3.4. Texto do badge é
- * branco fixo: não há token "on-danger-indicator" e o indicator é sempre
- * saturado o bastante nos dois temas para contraste com texto branco.
+ * (fundo suave usado em `ErroDeTela`) — ver TOKENS.md §3.4.
+ *
+ * Texto do badge é `text-black` fixo (não há token "on-danger-indicator" no
+ * design system). Contraste medido (WCAG): branco sobre `--danger-indicator`
+ * dava 3.76:1 no claro e 1.7:1 no escuro — falha grave no escuro. Preto dá
+ * 5.58:1 (claro) e 12.37:1 (escuro), muito acima do mínimo 3:1 para texto
+ * pequeno/UI nos dois temas (fix round 1, task-8-report.md).
  */
 'use client';
 
@@ -110,7 +114,7 @@ export const SinoDeNotificacoes = () => {
           {naoLidas > 0 ? (
             <span
               data-testid="badge-nao-lidas"
-              className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-indicator px-1 text-[10px] font-bold text-white"
+              className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-indicator px-1 text-[10px] font-bold text-black"
             >
               {naoLidas}
             </span>
