@@ -44,7 +44,6 @@ updated: 2026-09-22
 - [MVP1][SPEC-009][F9] Carteira do colaborador e isolamento por empresa (#11)
 - [MVP1][SPEC-008][F8] Papéis personalizados e permissões (#10)
 - [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9)
-- [MVP1][SPEC-006][F6] Notificações de pendências (#7)
 
 ### Sem épico
 
@@ -66,6 +65,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-006][F6] Notificações de pendências (#7, finalizado em: 2026-09-22)
 - [MVP1][SPEC-005][F5] Central de Pendências cadastrais (#6, finalizado em: 2026-09-21)
 - [MVP1][SPEC-004][F4] Documentos da empresa (#5, finalizado em: 2026-09-21)
 - [MVP1][SPEC-003][F3] Manutenção da empresa cliente (#4, finalizado em: 2026-09-20)
