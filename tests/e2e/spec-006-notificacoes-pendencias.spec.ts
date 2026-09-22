@@ -203,29 +203,15 @@ test.describe('SPEC-006 — Notificações de pendências', () => {
 
     const cartao = page.getByRole('listitem').filter({ hasText: 'Cartão CNPJ' }).first();
     // Espera o checklist renderizar (prova de que o semeamento no servidor já
-    // terminou) antes de consultar o banco diretamente logo abaixo.
+    // terminou) antes de seguir com envio/rejeição abaixo.
     await expect(cartao).toBeVisible();
 
     // A notificação NOVA_PENDENCIA do próprio Cartão CNPJ usa a mesma chave
-    // (`exigencia:<id>`) que a futura DOCUMENTO_REJEITADO: o índice único
-    // "uma causa, uma notificação não lida por vez" (0008_notificacoes.sql)
-    // faria a rejeição abaixo ser ignorada em silêncio se essa notificação
-    // do checklist continuasse não lida. Lê-la primeiro replica o uso real
-    // (o escritório vê a pendência antes de agir) e libera a chave.
-    const idDaExigenciaDoCartao = await pool
-      .query<{ id: string }>(
-        `select id from app.empresa_exigencia_documental
-          where empresa_id = $1 and codigo = 'CARTAO_CNPJ'`,
-        [empresaId],
-      )
-      .then((resultado) => resultado.rows[0]?.id);
-    expect(idDaExigenciaDoCartao, 'exigência CARTAO_CNPJ deveria existir após semear o checklist')
-      .toBeTruthy();
-    await pool.query(
-      `update app.empresa_notificacao set lida = true, lida_em = now()
-        where empresa_id = $1 and chave = $2 and lida = false`,
-      [empresaId, `exigencia:${idDaExigenciaDoCartao}`],
-    );
+    // (`exigencia:<id>`) que a futura DOCUMENTO_REJEITADO, mas tipo diferente:
+    // o índice único de idempotência é (empresa_id, chave, tipo) — não
+    // (empresa_id, chave) — então as duas coexistem não lidas sem conflito
+    // (0008_notificacoes.sql, fix do achado C1). Não é mais preciso marcar a
+    // notificação do checklist como lida antes de prosseguir.
 
     // 2. Envio do documento.
     await cartao.getByRole('button', { name: /enviar arquivo/iu }).click();
@@ -292,7 +278,7 @@ test.describe('SPEC-006 — Notificações de pendências', () => {
     await expect(linhaHistorico.getByText('Lida')).toBeVisible();
   });
 
-  test('reprocessar a mesma rejeição não duplica notificação nem aumenta o badge', async ({
+  test('histórico preserva a notificação já lida sem duplicar ao reabrir a página', async ({
     page,
   }) => {
     await entrar(page);

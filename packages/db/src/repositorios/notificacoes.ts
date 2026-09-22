@@ -72,7 +72,7 @@ export const criarNotificacoes = async (
       `insert into app.empresa_notificacao
          (tenant_id, empresa_id, tipo, chave)
        values ($1, $2, $3, $4)
-       on conflict (empresa_id, chave) where lida = false do nothing
+       on conflict (empresa_id, chave, tipo) where lida = false do nothing
        returning id`,
       [tenantId, empresaId, causa.tipo, causa.chave],
     );

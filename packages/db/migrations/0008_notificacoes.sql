@@ -54,8 +54,15 @@ CREATE INDEX empresa_notificacao_nao_lidas_idx
 -- unico sobre nao lidas — uma nova notificacao da MESMA causa soh nasce depois
 -- que a anterior foi lida (mesmo espirito de `empresa_pendencia_causa_aberta_unica_idx`,
 -- adaptado: aqui nao ha "resolucao" da notificacao, soh leitura).
+--
+-- Inclui `tipo`: `chave` sozinha (ex. `exigencia:<id>`) e identica entre as
+-- causas PENDENTE (-> NOVA_PENDENCIA), REJEITADO (-> DOCUMENTO_REJEITADO) e
+-- vencida (-> DOCUMENTO_VENCIDO) da MESMA exigencia. Sem `tipo` no indice, uma
+-- NOVA_PENDENCIA nao lida bloquearia silenciosamente a DOCUMENTO_REJEITADO/
+-- DOCUMENTO_VENCIDO da mesma exigencia via `on conflict ... do nothing`
+-- (achado C1 da revisao final).
 CREATE UNIQUE INDEX empresa_notificacao_causa_nao_lida_unica_idx
-  ON app.empresa_notificacao (empresa_id, chave)
+  ON app.empresa_notificacao (empresa_id, chave, tipo)
   WHERE lida = false;
 
 ALTER TABLE app.empresa_notificacao ENABLE ROW LEVEL SECURITY;

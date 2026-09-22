@@ -234,6 +234,41 @@ describe('criação de notificações (secao 2)', () => {
 
     expect(daMesmaCausa).toHaveLength(1);
   });
+
+  it('não descarta notificação de outro tipo da mesma chave (achado C1)', async () => {
+    // Mesma `chave` (mesma exigência), tipos diferentes: NOVA_PENDENCIA e
+    // DOCUMENTO_REJEITADO da exigência X são causas distintas e devem
+    // coexistir não lidas — o índice único é (empresa_id, chave, tipo), não
+    // (empresa_id, chave). Antes do fix, a segunda inserção era descartada em
+    // silêncio pelo `on conflict (empresa_id, chave) where lida = false`.
+    const empresaId = await criarEmpresaAtiva(tenantA);
+    const antes = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA));
+
+    await comTenant(tenantA, (cliente) =>
+      criarNotificacoes(cliente, tenantA, empresaId, [
+        { chave: 'exigencia:mesma-causa', tipo: 'NOVA_PENDENCIA' },
+      ]),
+    );
+    await comTenant(tenantA, (cliente) =>
+      criarNotificacoes(cliente, tenantA, empresaId, [
+        { chave: 'exigencia:mesma-causa', tipo: 'DOCUMENTO_REJEITADO' },
+      ]),
+    );
+
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
+    const daMesmaChave = painel.filter(
+      (n) => n.empresaId === empresaId && n.chave === 'exigencia:mesma-causa',
+    );
+
+    expect(daMesmaChave).toHaveLength(2);
+    expect(daMesmaChave.map((n) => n.tipo).sort()).toEqual([
+      'DOCUMENTO_REJEITADO',
+      'NOVA_PENDENCIA',
+    ]);
+
+    const depois = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA));
+    expect(depois).toBe(antes + 2);
+  });
 });
 
 describe('contagem de não lidas (badge)', () => {

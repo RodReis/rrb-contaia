@@ -17,17 +17,11 @@ const CHAVE_DO_PAINEL = ['notificacoes', 'painel'] as const;
 // pois é montado sob demanda; o sino fica sempre visível no header).
 const INTERVALO_DE_ATUALIZACAO_MS = 30_000;
 
-export const useContadorDeNotificacoes = () =>
-  useQuery({
-    queryKey: CHAVE_DO_PAINEL,
-    queryFn: buscarPainelDeNotificacoes,
-    refetchInterval: INTERVALO_DE_ATUALIZACAO_MS,
-  });
-
 export const usePainelDeNotificacoes = () =>
   useQuery({
     queryKey: CHAVE_DO_PAINEL,
     queryFn: buscarPainelDeNotificacoes,
+    refetchInterval: INTERVALO_DE_ATUALIZACAO_MS,
   });
 
 export const chaveDoHistorico = (pagina: number, porPagina: number): readonly unknown[] => [

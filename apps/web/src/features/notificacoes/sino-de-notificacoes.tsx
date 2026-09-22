@@ -36,12 +36,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, Skeleton } from '@/components/ui/estados';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
-import {
-  useContadorDeNotificacoes,
-  useMarcarComoLida,
-  useMarcarVariasComoLidas,
-  usePainelDeNotificacoes,
-} from './queries';
+import { useMarcarComoLida, useMarcarVariasComoLidas, usePainelDeNotificacoes } from './queries';
 
 const rotaDaPendencia = (empresaId: string): string => `/pendencias?empresaId=${empresaId}`;
 
@@ -64,12 +59,11 @@ const formatarQuando = (isoString: string): string =>
 export const SinoDeNotificacoes = () => {
   const [aberto, setAberto] = useState(false);
   const [selecionados, setSelecionados] = useState<ReadonlySet<string>>(new Set());
-  const { data: contador } = useContadorDeNotificacoes();
   const { data: painel, isPending, isError } = usePainelDeNotificacoes();
   const marcarComoLida = useMarcarComoLida();
   const marcarVariasComoLidas = useMarcarVariasComoLidas();
 
-  const naoLidas = contador?.naoLidas ?? 0;
+  const naoLidas = painel?.naoLidas ?? 0;
   const notificacoes = painel?.notificacoes ?? [];
   const todasSelecionadas = notificacoes.length > 0 && selecionados.size === notificacoes.length;
 
