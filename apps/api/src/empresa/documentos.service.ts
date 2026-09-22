@@ -23,10 +23,12 @@ import {
   reconciliarPendencias,
   registrarEnvio,
   rejeitarVersao,
+  tipoDeNotificacaoParaCausa,
   validarNomeDaExigencia,
   validarValidade,
 } from '@contaia/domain';
 import type {
+  CausaParaNotificar,
   CodigoDoChecklist,
   EstadoDoDocumento,
   ExigenciaParaReconciliar,
@@ -38,6 +40,7 @@ import {
   carregarVersao,
   carregarVersaoVigente,
   comContextoDeTenant,
+  criarNotificacoes,
   definirEstadoDaExigencia,
   inserirExigencia,
   inserirVersao,
@@ -714,6 +717,17 @@ export class DocumentosDaEmpresaService {
     const { paraAbrir, paraResolver } = reconciliarPendencias(causas, abertas);
 
     await reconciliarPendenciasNoBanco(cliente, tenantId, empresaId, paraAbrir, paraResolver, null);
+
+    const causasParaNotificar = paraAbrir
+      .map((causa) => {
+        const tipo = tipoDeNotificacaoParaCausa(causa.tipo);
+        return tipo === null ? null : { chave: causa.chave, tipo };
+      })
+      .filter((causa): causa is CausaParaNotificar => causa !== null);
+
+    if (causasParaNotificar.length > 0) {
+      await criarNotificacoes(cliente, tenantId, empresaId, causasParaNotificar);
+    }
   }
 }
 

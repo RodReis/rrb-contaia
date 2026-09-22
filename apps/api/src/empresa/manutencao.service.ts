@@ -24,6 +24,7 @@ import {
   planejarTrocaDeFinalidadeFiscal,
   reativarEmpresa,
   reconciliarPendencias,
+  tipoDeNotificacaoParaCausa,
   validarEnderecoComFinalidade,
   validarJustificativa,
   validarVigencia,
@@ -33,6 +34,7 @@ import type {
   CadastroDaEmpresa,
   CampoAlterado,
   CampoCadastralObrigatorio,
+  CausaParaNotificar,
   DadosFiscaisDaEmpresa,
   DiferencaExterna,
   EnderecoComFinalidade,
@@ -48,6 +50,7 @@ import {
   carregarEmpresa,
   carregarEndereco,
   comContextoDeTenant,
+  criarNotificacoes,
   definirSituacaoDaEmpresa,
   inserirEndereco,
   listarAbertasDaEmpresa,
@@ -924,6 +927,17 @@ export class ManutencaoDaEmpresaService {
     const { paraAbrir, paraResolver } = reconciliarPendencias(causas, abertas);
 
     await reconciliarPendenciasNoBanco(cliente, tenantId, empresaId, paraAbrir, paraResolver, null);
+
+    const causasParaNotificar = paraAbrir
+      .map((causa) => {
+        const tipo = tipoDeNotificacaoParaCausa(causa.tipo);
+        return tipo === null ? null : { chave: causa.chave, tipo };
+      })
+      .filter((causa): causa is CausaParaNotificar => causa !== null);
+
+    if (causasParaNotificar.length > 0) {
+      await criarNotificacoes(cliente, tenantId, empresaId, causasParaNotificar);
+    }
   }
 
   /**

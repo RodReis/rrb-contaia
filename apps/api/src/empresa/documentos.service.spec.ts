@@ -80,6 +80,7 @@ const { estado } = vi.hoisted(() => ({
     gravacaoAceita: true,
     estadoDefinido: null as Record<string, unknown> | null,
     origemReconciliada: null as string | null,
+    causasNotificadas: [] as Record<string, unknown>[],
   },
 }));
 
@@ -108,10 +109,18 @@ vi.mock('@contaia/db', () => ({
     _c: unknown,
     _t: string,
     _e: string,
-    _id: string,
+    id: string,
     entrada: Record<string, unknown>,
   ) => {
     estado.estadoDefinido = entrada;
+
+    if (estado.gravacaoAceita) {
+      estado.exigencias = estado.exigencias.map((exigencia) =>
+        exigencia['id'] === id
+          ? { ...exigencia, estado: entrada['estado'], justificativa: entrada['justificativa'] }
+          : exigencia,
+      );
+    }
 
     return estado.gravacaoAceita;
   },
@@ -163,6 +172,14 @@ vi.mock('@contaia/db', () => ({
     return [];
   },
   reconciliar: async () => undefined,
+  criarNotificacoes: async (
+    _c: unknown,
+    _t: string,
+    _e: string,
+    causas: Record<string, unknown>[],
+  ) => {
+    estado.causasNotificadas.push(...causas);
+  },
 }));
 
 const storage = {
@@ -206,6 +223,7 @@ beforeEach(() => {
   estado.arquivamentos = 0;
   estado.gravacaoAceita = true;
   estado.estadoDefinido = null;
+  estado.causasNotificadas = [];
   storage.enviar.mockClear();
   storage.obter.mockClear();
 });
@@ -435,6 +453,25 @@ describe('análise', () => {
       justificativa: 'Documento ilegível.',
     });
     expect(estado.eventos.at(-1)?.['justificativa']).toBe('Documento ilegível.');
+  });
+
+  it('cria notificação para cada pendência documental aberta na reconciliação', async () => {
+    estado.exigencias = [exigenciaPersistida({ estado: 'ENVIADO' })];
+    estado.versoes = [versaoPersistida()];
+
+    await criarService().rejeitar(
+      TENANT,
+      EMPRESA,
+      EXIGENCIA,
+      AUTOR,
+      'Documento ilegível.',
+      0,
+      HOJE,
+    );
+
+    expect(estado.causasNotificadas).toEqual(
+      expect.arrayContaining([expect.objectContaining({ tipo: 'DOCUMENTO_REJEITADO' })]),
+    );
   });
 
   it('dispensa não exige arquivo, mas exige justificativa', async () => {

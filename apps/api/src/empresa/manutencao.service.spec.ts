@@ -62,6 +62,7 @@ const { estado } = vi.hoisted(() => ({
     aplicabilidades: [] as { codigo: string; aplicavel: boolean }[],
     situacaoDefinida: null as string | null,
     origemReconciliada: null as string | null,
+    causasNotificadas: [] as Record<string, unknown>[],
   },
 }));
 
@@ -136,6 +137,14 @@ vi.mock('@contaia/db', () => ({
     return [];
   },
   reconciliar: async () => undefined,
+  criarNotificacoes: async (
+    _c: unknown,
+    _t: string,
+    _e: string,
+    causas: Record<string, unknown>[],
+  ) => {
+    estado.causasNotificadas.push(...causas);
+  },
 }));
 
 const criarServico = (consultar = vi.fn()) => {
@@ -171,6 +180,7 @@ beforeEach(() => {
   estado.fiscaisSalvos = null;
   estado.situacaoDefinida = null;
   estado.aplicabilidades = [];
+  estado.causasNotificadas = [];
 });
 
 describe('CNPJ imutável após a ativação (§3.2)', () => {
@@ -658,5 +668,22 @@ describe('Central de Pendências — reconciliação por origem (SPEC-005, achad
     });
 
     expect(estado.origemReconciliada).toBe('CADASTRAL');
+  });
+
+  it('cria notificação para cada pendência cadastral aberta na reconciliação', async () => {
+    const servico = criarServico();
+
+    // Fixture base não tem enderecoPrincipal: a reconciliação em 'revisao'
+    // encontra CAMPO_OBRIGATORIO no endereço, virando causa CADASTRAL.
+    await servico.salvarIdentificacao(TENANT, EMPRESA, AUTOR, {
+      razaoSocial: 'Alfa Ltda',
+      nomeFantasia: 'Alfa',
+      telefone: '6230000000',
+      email: 'contato@alfa.com.br',
+    });
+
+    expect(estado.causasNotificadas).toEqual(
+      expect.arrayContaining([expect.objectContaining({ tipo: 'NOVA_PENDENCIA' })]),
+    );
   });
 });
