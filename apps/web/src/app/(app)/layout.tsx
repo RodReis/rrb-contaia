@@ -7,6 +7,7 @@ import { AlternarTema } from '@/components/layout/alternar-tema';
 import { Button } from '@/components/ui/button';
 import { MarcaContaia } from '@/components/layout/marca';
 import { Provedores } from '@/components/layout/provedores';
+import { SinoDeNotificacoes } from '@/features/notificacoes/sino-de-notificacoes';
 import { COOKIE_DE_SESSAO } from '@/lib/oidc';
 
 /**
@@ -56,6 +57,7 @@ export default async function LayoutDaAplicacao({
           </div>
           <div className="flex shrink-0 items-center gap-xs">
             <AlternarTema />
+            <SinoDeNotificacoes />
             <Button asChild variante="fantasma" tamanho="compacto">
               <a href="/api/auth/sair">
                 <LogOut aria-hidden="true" />
