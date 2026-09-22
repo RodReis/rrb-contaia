@@ -71,6 +71,9 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   // Arquivo ausente no storage é falha de infraestrutura, não entrada inválida:
   // a tela precisa distinguir "não existe" de "não consegui buscar agora".
   [CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL]: HttpStatus.BAD_GATEWAY,
+  // SPEC-006. Notificação de outro tenant responde como inexistente — mesma
+  // razão de empresa/exigência: 404 não revela dado alheio.
+  [CODIGOS_DE_ERRO.NOTIFICACAO_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>

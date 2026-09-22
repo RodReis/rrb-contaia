@@ -19,6 +19,8 @@ import { EscritorioService } from './escritorio/escritorio.service';
 import { PainelController } from './escritorio/painel.controller';
 import { StorageService } from './comum/storage.service';
 import { HealthController } from './health/health.controller';
+import { NotificacoesController } from './notificacoes/notificacoes.controller';
+import { NotificacoesService } from './notificacoes/notificacoes.service';
 import {
   PendenciasController,
   PendenciasDaEmpresaController,
@@ -41,6 +43,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     DocumentosDaEmpresaController,
     EmpresaController,
     PendenciasController,
+    NotificacoesController,
   ],
   providers: [
     PoolDoBanco,
@@ -51,6 +54,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     ManutencaoDaEmpresaService,
     DocumentosDaEmpresaService,
     PendenciasService,
+    NotificacoesService,
     ConsultaDeCnpjNaCnpja,
     GuardDeSessao,
     GuardDeCadastro,
