@@ -150,6 +150,6 @@ Os quatro macroescopos foram aprovados pelo PI:
 - [`MVP-3-dp-portal-e-comunicacao.md`](MVP-3-dp-portal-e-comunicacao.md)
 - [`MVP-4-administracao-e-evolucao.md`](MVP-4-administracao-e-evolucao.md)
 
-O MVP-1 possui F1/SPEC-001 a F25/SPEC-025 aprovadas. O MVP-2 possui F26/SPEC-026 a F40/SPEC-040 aprovadas. As demais capacidades aguardam decomposição.
+O MVP-1 possui F1/SPEC-001 a F25/SPEC-025 aprovadas. O MVP-2 possui F26/SPEC-026 a F41/SPEC-041 aprovadas. As demais capacidades aguardam decomposição.
 
-Próximo número livre: **F41 / SPEC-041**.
+Próximo número livre: **F42 / SPEC-042**.

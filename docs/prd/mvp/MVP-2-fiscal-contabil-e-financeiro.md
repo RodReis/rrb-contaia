@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F40/SPEC-040 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F41/SPEC-041 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -30,11 +30,12 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F38 / SPEC-038:** apuração trimestral de IRPJ e CSLL para comércio de autopeças no Lucro Presumido, nos quatro trimestres de 2026, com receitas e deduções comprovadas, regras e vigências próprias, aprovação humana, quota única ou até três quotas e rascunhos locais separados; ECF, DCTF, PER/DCOMP, transmissão, pagamento, escrituração e demais regimes/atividades permanecem em fatias próprias.
 - [ ] **F39 / SPEC-039:** catálogo contábil operacional por empresa, com manutenção manual do plano de contas importado pela F13, centros de custo hierárquicos, classe contábil separada do saldo normal, política de centro por conta analítica, arquivamento, reativação e auditoria; partidas, lançamentos, rateios, razão, fechamento, ECD e plano referencial permanecem em fatias próprias.
 - [ ] **F40 / SPEC-040:** lançamentos contábeis manuais balanceados por empresa, com rascunho editável, efetivação imutável, numeração sequencial por exercício, conta e centro validados pela F39, cancelamento e estorno auditados; geração automática, rateio, razão, saldos, fechamento e escrituração permanecem em fatias próprias.
+- [ ] **F41 / SPEC-041:** motor determinístico de partidas contábeis por empresa, convertendo DF-e e apurações tributárias aprovadas em rascunhos F40 idempotentes, com regras versionadas, rateio percentual, pendência por ausência ou ambiguidade e revisão humana antes da efetivação; razão, saldos, fechamento, escrituração, classificação por IA e origens financeiras permanecem em fatias próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
-- [ ] Plano de contas e centros de custo operacionais — F39/SPEC-039 inicia o catálogo; seu uso em partidas e rateios permanece nas capacidades próprias.
-- [ ] Motor de partidas dobradas.
+- [ ] Plano de contas e centros de custo operacionais — F39/SPEC-039 entrega o catálogo; F40/SPEC-040 o consome manualmente e F41/SPEC-041 aplica rateio percentual em rascunhos automáticos.
+- [ ] Motor de partidas dobradas — F40/SPEC-040 entrega o núcleo manual; F41/SPEC-041 acrescenta geração determinística por DF-e e apurações aprovadas; demais origens permanecem em fatias próprias.
 - [ ] Razão contábil e fechamento de competência.
 - [ ] Estorno, cancelamento controlado e reabertura auditada.
 - [ ] Escrituração dos livros fiscais.
@@ -65,7 +66,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |
-| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome esse catálogo em lançamentos manuais balanceados, com uma conta e no máximo um centro por partida; rateio, razão, fechamento e plano referencial permanecem em fatias próprias |
+| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome o catálogo em lançamentos manuais; F41/SPEC-041 gera rascunhos determinísticos com rateio percentual por centro; razão, fechamento e plano referencial permanecem em fatias próprias |
 | RF-04 | entrou | inclui financeiro, Open Finance, ITP, Pix e conciliação |
 | Malha preventiva | entrou | cruzamento antes do fechamento |
 | Agentes Classificador e Conciliador | entrou | dentro dos fluxos, não como cards horizontais |
