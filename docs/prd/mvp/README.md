@@ -150,6 +150,6 @@ Os quatro macroescopos foram aprovados pelo PI:
 - [`MVP-3-dp-portal-e-comunicacao.md`](MVP-3-dp-portal-e-comunicacao.md)
 - [`MVP-4-administracao-e-evolucao.md`](MVP-4-administracao-e-evolucao.md)
 
-O MVP-1 possui F1/SPEC-001 a F25/SPEC-025 aprovadas. O MVP-2 possui F26/SPEC-026 a F48/SPEC-048 aprovadas. As demais capacidades aguardam decomposição.
+O MVP-1 possui F1/SPEC-001 a F25/SPEC-025 aprovadas. O MVP-2 possui F26/SPEC-026 a F49/SPEC-049 aprovadas. A F49/SPEC-049 é uma exceção `Enorme` pontual, expressamente aprovada pelo PI em 25/09/2026 para manter as cinco formas da ECD e seus pré-requisitos no mesmo contrato; ela não altera a régua geral de decomposição. As demais capacidades aguardam decomposição.
 
-Próximo número livre: **F49 / SPEC-049**.
+Próximo número livre: **F50 / SPEC-050**.

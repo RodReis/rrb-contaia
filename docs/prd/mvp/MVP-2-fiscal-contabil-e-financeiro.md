@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F48/SPEC-048 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F49/SPEC-049 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -14,6 +14,8 @@ Toda capacidade com tela entrega a interface final desde sua própria fatia, nos
 ## 2. Capacidades aprovadas
 
 Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reserva de F/SPEC. Nenhum item grande abaixo autoriza uma única issue monolítica.
+
+**Exceção pontual:** o PI aprovou em 25/09/2026 a F49/SPEC-049 como fatia `Enorme`, reunindo as formas G, R, A, B e Z da ECD, seus livros auxiliares, demonstrações, signatários e anexos. A exceção vale somente para a F49 e não altera a regra geral acima.
 
 - [ ] **F26 / SPEC-026:** resolução tributária de entradas NF-e modelo 55 para Simples Nacional e Lucro Presumido em Goiás, com pacote oficial curado, tratamento, elegibilidade, memória e snapshots versionados; exceções e expansão territorial permanecem em fatias próprias.
 - [ ] **F27 / SPEC-027:** ICMS-ST já retido em entradas de autopeças para revenda em Goiás, nos regimes Simples Nacional e Lucro Presumido, com enquadramento CEST/NCM e validação declarativa; cálculo, complemento, restituição, ressarcimento e demais segmentos permanecem em fatias próprias.
@@ -38,6 +40,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F46 / SPEC-046:** modelos de DRE tenant-wide, criados manualmente ou de versão empresarial sanitizada, com publicação versionada, histórico imutável e aplicação unitária como novo rascunho independente da F45, sempre sem vínculos contábeis automáticos; aplicação em lote, propagação, mapeamento assistido e demais relatórios permanecem em fatias próprias.
 - [ ] **F47 / SPEC-047:** plano referencial contábil por empresa e exercício, com pacotes oficiais versionados, vínculo-base por conta e exceção por centro, edição manual/CSV, cobertura integral, versões imutáveis e configuração opcional para Simples Nacional sem inferir obrigação; livros, arquivo ECD, validação e transmissão permanecem em fatias próprias.
 - [ ] **F48 / SPEC-048:** formalização interna do Livro Diário Geral e Livro Razão Analítico por empresa, para exercício ou situação especial com competências contínuas e fechadas, termos cadastrais completos, numeração automática não reutilizável, versões imutáveis e artefatos PDF/CSV/JSON reproduzíveis; ECD, PVA, assinatura, registro e transmissão permanecem em fatias próprias.
+- [ ] **F49 / SPEC-049:** geração interna completa do arquivo ECD por empresa, para Lucro Presumido e Simples Nacional opcional, em exercício ou situação especial, com pacote oficial versionado, formas G/R/A/B/Z, livros auxiliares, BP, DRE contábil, DLPA/DMPL, signatários, J800, revisão segregada e artefatos TXT/manifesto/diagnóstico reproduzíveis; PVA, assinatura, registro, transmissão, substituição oficial e Bloco K permanecem em fatias próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
@@ -47,7 +50,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] Estorno, cancelamento controlado e reabertura auditada — F40/SPEC-040 entrega cancelamento e estorno; F43/SPEC-043 aplica os bloqueios do período fechado e a reabertura auditada.
 - [ ] Escrituração dos livros fiscais.
 - [ ] SPED Fiscal.
-- [ ] SPED Contábil/ECD.
+- [ ] SPED Contábil/ECD — F49/SPEC-049 gera o arquivo interno completo nas formas G/R/A/B/Z; PVA, assinatura, registro, transmissão, substituição oficial e Bloco K permanecem em fatias próprias.
 - [ ] Motor completo de obrigações por regime, UF e CNAE.
 - [ ] Pré-requisitos, penalidades, dependências e sucessão tributária.
 - [ ] Malha preventiva: SPED × DF-e × extrato antes do fechamento.
@@ -73,7 +76,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |
-| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome o catálogo em lançamentos manuais; F41/SPEC-041 gera rascunhos determinísticos com rateio percentual por centro; F42/SPEC-042 projeta razão e balancete; F43/SPEC-043 fecha e reabre competências com snapshot reproduzível; F44/SPEC-044 entrega saldo de abertura aprovado por empresa; F45/SPEC-045 vincula contas de resultado a uma DRE gerencial versionada; F46/SPEC-046 reutiliza somente a estrutura e exige novo vínculo explícito por empresa; F47/SPEC-047 entrega o DE-PARA referencial por empresa e exercício; F48/SPEC-048 formaliza Diário e Razão; geração da ECD permanece em fatia própria |
+| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome o catálogo em lançamentos manuais; F41/SPEC-041 gera rascunhos determinísticos com rateio percentual por centro; F42/SPEC-042 projeta razão e balancete; F43/SPEC-043 fecha e reabre competências com snapshot reproduzível; F44/SPEC-044 entrega saldo de abertura aprovado por empresa; F45/SPEC-045 vincula contas de resultado a uma DRE gerencial versionada; F46/SPEC-046 reutiliza somente a estrutura e exige novo vínculo explícito por empresa; F47/SPEC-047 entrega o DE-PARA referencial por empresa e exercício; F48/SPEC-048 formaliza Diário e Razão; F49/SPEC-049 gera o arquivo ECD interno completo; PVA, assinatura, registro, transmissão, substituição oficial e Bloco K permanecem em fatias próprias |
 | RF-04 | entrou parcialmente | F45/SPEC-045 entrega DRE gerencial por empresa alimentada pelo razão; F46/SPEC-046 entrega modelos do escritório por cópia independente; contas, Open Finance, ITP, Pix, conciliação e demais relatórios permanecem em fatias próprias |
 | Malha preventiva | entrou | cruzamento antes do fechamento |
 | Agentes Classificador e Conciliador | entrou | dentro dos fluxos, não como cards horizontais |
