@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F45/SPEC-045 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F46/SPEC-046 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -35,6 +35,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F43 / SPEC-043:** fechamento e reabertura mensal de competência contábil por empresa, com integridade da projeção F42, ausência de rascunhos, sequência obrigatória, snapshot reproduzível, bloqueio de operações incompatíveis, estorno preservado e reabertura administrativa auditada; saldo de abertura, DRE, malha, escrituração e fechamento em lote permanecem em fatias próprias.
 - [ ] **F44 / SPEC-044:** saldos de abertura contábil por empresa, com entrada manual e CSV, data-base única, prévia atômica, equilíbrio obrigatório, aprovação humana, movimento próprio no razão, versões imutáveis e substituição bloqueada por competência fechada; DRE, plano referencial, livros, SPED e ECD permanecem em fatias próprias.
 - [ ] **F45 / SPEC-045:** DRE gerencial por empresa alimentada exclusivamente pelo razão, com estrutura configurável e versionada, visões sintética/analítica e mensal/acumulada, competência aberta como prévia, competência fechada reproduzível, comparação com período equivalente anterior, AV/AH e exportações PDF/CSV; modelos do escritório ficam em F46/SPEC-046 e os demais relatórios, orçamento, IA e escrituração permanecem em fatias próprias.
+- [ ] **F46 / SPEC-046:** modelos de DRE tenant-wide, criados manualmente ou de versão empresarial sanitizada, com publicação versionada, histórico imutável e aplicação unitária como novo rascunho independente da F45, sempre sem vínculos contábeis automáticos; aplicação em lote, propagação, mapeamento assistido e demais relatórios permanecem em fatias próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
@@ -51,7 +52,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] Contas a pagar e receber.
 - [ ] Importação de boleto e CNAB 240/400.
 - [ ] Aging e fluxo de caixa projetado.
-- [ ] DRE gerencial alimentada pelo razão — F45/SPEC-045 entrega a estrutura e o relatório por empresa; modelos reutilizáveis do escritório ficam em F46/SPEC-046.
+- [ ] DRE gerencial alimentada pelo razão — F45/SPEC-045 entrega a estrutura e o relatório por empresa; F46/SPEC-046 entrega modelos reutilizáveis do escritório aplicados como cópia independente.
 - [ ] Open Finance com consentimento, extratos, saldos e webhooks.
 - [ ] ITP, com autorização final exclusivamente no banco.
 - [ ] Cobrança Pix e baixa idempotente.
@@ -70,8 +71,8 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |
-| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome o catálogo em lançamentos manuais; F41/SPEC-041 gera rascunhos determinísticos com rateio percentual por centro; F42/SPEC-042 projeta razão e balancete; F43/SPEC-043 fecha e reabre competências com snapshot reproduzível; F44/SPEC-044 entrega saldo de abertura aprovado por empresa; F45/SPEC-045 vincula contas de resultado a uma DRE gerencial versionada; plano referencial permanece em fatia própria |
-| RF-04 | entrou parcialmente | F45/SPEC-045 entrega DRE gerencial por empresa alimentada pelo razão; modelos do escritório ficam em F46/SPEC-046; contas, Open Finance, ITP, Pix, conciliação e demais relatórios permanecem em fatias próprias |
+| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome o catálogo em lançamentos manuais; F41/SPEC-041 gera rascunhos determinísticos com rateio percentual por centro; F42/SPEC-042 projeta razão e balancete; F43/SPEC-043 fecha e reabre competências com snapshot reproduzível; F44/SPEC-044 entrega saldo de abertura aprovado por empresa; F45/SPEC-045 vincula contas de resultado a uma DRE gerencial versionada; F46/SPEC-046 reutiliza somente a estrutura e exige novo vínculo explícito por empresa; plano referencial permanece em fatia própria |
+| RF-04 | entrou parcialmente | F45/SPEC-045 entrega DRE gerencial por empresa alimentada pelo razão; F46/SPEC-046 entrega modelos do escritório por cópia independente; contas, Open Finance, ITP, Pix, conciliação e demais relatórios permanecem em fatias próprias |
 | Malha preventiva | entrou | cruzamento antes do fechamento |
 | Agentes Classificador e Conciliador | entrou | dentro dos fluxos, não como cards horizontais |
 | Compliance | entrou | motor completo e rascunhos; comunicação ativa fica no MVP-3 |

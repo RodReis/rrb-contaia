@@ -54,7 +54,7 @@
 | RF-03 §6.3 Agenda mínima, vencimentos e alertas D-3 | P1 | Mantido | MVP-1 | F22 / SPEC-022 |
 | RF-03 §6.3 Motor completo por regime/UF/CNAE, pré-requisitos, penalidades, dependências e sucessão | P1 | Transferido | MVP-2 | — |
 | RF-03 §6.4 Malha fiscal preventiva contínua | MVP-2 | Transferido | MVP-2 | — |
-| **RF-04** Gestão financeira integrada | P1 | Transferido | MVP-2 | F45 / SPEC-045 entrega DRE gerencial por empresa, com estrutura versionada, comparação e exportações; F46 / SPEC-046 recebe modelos reutilizáveis do escritório; demais capacidades permanecem em fatias próprias |
+| **RF-04** Gestão financeira integrada | P1 | Transferido | MVP-2 | F45 / SPEC-045 entrega DRE gerencial por empresa, com estrutura versionada, comparação e exportações; F46 / SPEC-046 entrega modelos reutilizáveis do escritório, versionados e aplicados individualmente como cópia independente sem vínculos contábeis automáticos; demais capacidades permanecem em fatias próprias |
 | RF-04 §7.2 Open Finance e ITP | P1 | Transferido | MVP-2 | — |
 | RF-04 §7.3 Pix via BaaS/PSP | P1 | Transferido | MVP-2 | — |
 | RF-04 §7.4 Conciliação multi-critério | P1 | Transferido | MVP-2 | — |
