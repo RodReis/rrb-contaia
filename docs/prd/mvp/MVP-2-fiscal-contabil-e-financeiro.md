@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F43/SPEC-043 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F44/SPEC-044 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -33,12 +33,13 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F41 / SPEC-041:** motor determinístico de partidas contábeis por empresa, convertendo DF-e e apurações tributárias aprovadas em rascunhos F40 idempotentes, com regras versionadas, rateio percentual, pendência por ausência ou ambiguidade e revisão humana antes da efetivação; razão, saldos, fechamento, escrituração, classificação por IA e origens financeiras permanecem em fatias próprias.
 - [ ] **F42 / SPEC-042:** razão contábil analítico e balancete por período, projetados de forma persistida, transacional, idempotente e reconstruível a partir dos lançamentos efetivados da F40/F41, com saldo anterior, débitos, créditos, saldo final, cancelamento e estorno rastreáveis; saldos de abertura, fechamento, DRE e escrituração permanecem em fatias próprias.
 - [ ] **F43 / SPEC-043:** fechamento e reabertura mensal de competência contábil por empresa, com integridade da projeção F42, ausência de rascunhos, sequência obrigatória, snapshot reproduzível, bloqueio de operações incompatíveis, estorno preservado e reabertura administrativa auditada; saldo de abertura, DRE, malha, escrituração e fechamento em lote permanecem em fatias próprias.
+- [ ] **F44 / SPEC-044:** saldos de abertura contábil por empresa, com entrada manual e CSV, data-base única, prévia atômica, equilíbrio obrigatório, aprovação humana, movimento próprio no razão, versões imutáveis e substituição bloqueada por competência fechada; DRE, plano referencial, livros, SPED e ECD permanecem em fatias próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
 - [ ] Plano de contas e centros de custo operacionais — F39/SPEC-039 entrega o catálogo; F40/SPEC-040 o consome manualmente e F41/SPEC-041 aplica rateio percentual em rascunhos automáticos.
 - [ ] Motor de partidas dobradas — F40/SPEC-040 entrega o núcleo manual; F41/SPEC-041 acrescenta geração determinística por DF-e e apurações aprovadas; demais origens permanecem em fatias próprias.
-- [ ] Razão contábil e fechamento de competência — F42/SPEC-042 entrega razão e balancete; F43/SPEC-043 entrega fechamento e reabertura mensal por empresa.
+- [ ] Razão contábil e fechamento de competência — F42/SPEC-042 entrega razão e balancete; F43/SPEC-043 entrega fechamento e reabertura mensal por empresa; F44/SPEC-044 estabelece o saldo anterior conhecido por abertura aprovada.
 - [ ] Estorno, cancelamento controlado e reabertura auditada — F40/SPEC-040 entrega cancelamento e estorno; F43/SPEC-043 aplica os bloqueios do período fechado e a reabertura auditada.
 - [ ] Escrituração dos livros fiscais.
 - [ ] SPED Fiscal.
@@ -68,7 +69,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 | Agenda mínima do MVP-1 | entrou | evolui para motor completo de obrigações |
 | IBS/CBS capturado no MVP-1 | entrou parcialmente | apuração entra agora; transição completa até 2033 no MVP-4 |
 | RF-03 | entrou | inclui partidas dobradas, livros, SPED e ECD |
-| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome o catálogo em lançamentos manuais; F41/SPEC-041 gera rascunhos determinísticos com rateio percentual por centro; F42/SPEC-042 projeta razão e balancete; F43/SPEC-043 fecha e reabre competências com snapshot reproduzível; saldos de abertura e plano referencial permanecem em fatias próprias |
+| Plano de contas importado no MVP-1 | entrou parcialmente | F39/SPEC-039 entrega manutenção manual, classificação explícita e centros de custo hierárquicos; F40/SPEC-040 consome o catálogo em lançamentos manuais; F41/SPEC-041 gera rascunhos determinísticos com rateio percentual por centro; F42/SPEC-042 projeta razão e balancete; F43/SPEC-043 fecha e reabre competências com snapshot reproduzível; F44/SPEC-044 entrega saldo de abertura aprovado por empresa; plano referencial permanece em fatia própria |
 | RF-04 | entrou | inclui financeiro, Open Finance, ITP, Pix e conciliação |
 | Malha preventiva | entrou | cruzamento antes do fechamento |
 | Agentes Classificador e Conciliador | entrou | dentro dos fluxos, não como cards horizontais |
