@@ -150,6 +150,6 @@ Os quatro macroescopos foram aprovados pelo PI:
 - [`MVP-3-dp-portal-e-comunicacao.md`](MVP-3-dp-portal-e-comunicacao.md)
 - [`MVP-4-administracao-e-evolucao.md`](MVP-4-administracao-e-evolucao.md)
 
-O MVP-1 possui F1/SPEC-001 a F25/SPEC-025 aprovadas. O MVP-2 possui F26/SPEC-026 a F50/SPEC-050 aprovadas. A F49/SPEC-049 é uma exceção `Enorme` pontual, expressamente aprovada pelo PI em 25/09/2026 para manter as cinco formas da ECD e seus pré-requisitos no mesmo contrato. A F50/SPEC-050 é uma segunda exceção `Enorme`, expressamente aprovada pelo PI na mesma data para reunir a ECF original e retificadora, os blocos aplicáveis, recuperação da ECD, e-Lalur/e-Lacs, revisão e artefatos no mesmo contrato. As exceções valem somente para essas fatias e não alteram a régua geral de decomposição. As demais capacidades aguardam decomposição.
+O MVP-1 possui F1/SPEC-001 a F25/SPEC-025 aprovadas. O MVP-2 possui F26/SPEC-026 a F51/SPEC-051 aprovadas. A F49/SPEC-049 é uma exceção `Enorme` pontual, expressamente aprovada pelo PI em 25/09/2026 para manter as cinco formas da ECD e seus pré-requisitos no mesmo contrato. A F50/SPEC-050 é uma segunda exceção `Enorme`, expressamente aprovada pelo PI na mesma data para reunir a ECF original e retificadora, os blocos aplicáveis, recuperação da ECD, e-Lalur/e-Lacs, revisão e artefatos no mesmo contrato. A F51/SPEC-051 é uma terceira exceção `Enorme`, expressamente aprovada pelo PI na mesma data para reunir livros de entradas, saídas e apurações com fechamento e reabertura fiscal. As exceções valem somente para essas fatias e não alteram a régua geral de decomposição. As demais capacidades aguardam decomposição.
 
-Próximo número livre: **F51 / SPEC-051**.
+Próximo número livre: **F52 / SPEC-052**.
