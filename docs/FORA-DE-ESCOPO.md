@@ -31,7 +31,7 @@ Não são "depois": são **não-objetivos declarados**.
 | Item | Motivo | Destino | Gatilho |
 |---|---|---|---|
 | Billing, planos e preço (RF-08) | Não é pré-requisito para os MVPs anteriores | **MVP-4** | MVP-3 finalizado |
-| Escrituração completa, SPED Fiscal e ECD (RF-03) | Depende do motor de regras e do razão estabilizados | **Fase 2** | MVP homologado |
+| Livros fiscais e SPED Fiscal (RF-03) | ECD interna entrou na F49/SPEC-049 e ECF interna entrou na F50/SPEC-050; livros fiscais e SPED Fiscal ainda dependem do motor de regras estabilizado | **MVP-2, em fatias próprias** | fontes fiscais e apurações aplicáveis aprovadas |
 | Open Finance, ITP, Pix, conciliação (RF-04) | Depende de lançamento contábil existindo | **Fase 2** | idem |
 | Departamento pessoal e eSocial (RF-05) | Domínio inteiro, com risco de multa próprio | **Fase 3** | Fase 2 entregue |
 | Portal do cliente white-label e Copiloto | Valor depende de já haver dado do cliente na plataforma | **Fase 3** | idem |
