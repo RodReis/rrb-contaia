@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F51/SPEC-051 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F52/SPEC-052 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -15,7 +15,7 @@ Toda capacidade com tela entrega a interface final desde sua própria fatia, nos
 
 Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reserva de F/SPEC. Nenhum item grande abaixo autoriza uma única issue monolítica.
 
-**Exceções pontuais:** o PI aprovou em 25/09/2026 a F49/SPEC-049 como fatia `Enorme`, reunindo as formas G, R, A, B e Z da ECD, seus livros auxiliares, demonstrações, signatários e anexos; a F50/SPEC-050 como fatia `Enorme`, reunindo a ECF original e retificadora, seus blocos aplicáveis, recuperação da ECD, e-Lalur/e-Lacs, revisão e artefatos; e a F51/SPEC-051 como fatia `Enorme`, reunindo livros de entradas, saídas e apurações com fechamento e reabertura fiscal. As exceções valem somente para F49, F50 e F51 e não alteram a regra geral acima.
+**Exceções pontuais:** o PI aprovou em 25/09/2026 a F49/SPEC-049 como fatia `Enorme`, reunindo as formas G, R, A, B e Z da ECD, seus livros auxiliares, demonstrações, signatários e anexos; a F50/SPEC-050 como fatia `Enorme`, reunindo a ECF original e retificadora, seus blocos aplicáveis, recuperação da ECD, e-Lalur/e-Lacs, revisão e artefatos; a F51/SPEC-051 como fatia `Enorme`, reunindo livros de entradas, saídas e apurações com fechamento e reabertura fiscal; e a F52/SPEC-052 como fatia `Enorme`, reunindo enquadramento evidenciado, blocos aplicáveis completos, arquivo original e retificador, parser independente, revisão segregada e artefatos da EFD ICMS/IPI. As exceções valem somente para F49, F50, F51 e F52 e não alteram a regra geral acima.
 
 - [ ] **F26 / SPEC-026:** resolução tributária de entradas NF-e modelo 55 para Simples Nacional e Lucro Presumido em Goiás, com pacote oficial curado, tratamento, elegibilidade, memória e snapshots versionados; exceções e expansão territorial permanecem em fatias próprias.
 - [ ] **F27 / SPEC-027:** ICMS-ST já retido em entradas de autopeças para revenda em Goiás, nos regimes Simples Nacional e Lucro Presumido, com enquadramento CEST/NCM e validação declarativa; cálculo, complemento, restituição, ressarcimento e demais segmentos permanecem em fatias próprias.
@@ -43,6 +43,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F49 / SPEC-049:** geração interna completa do arquivo ECD por empresa, para Lucro Presumido e Simples Nacional opcional, em exercício ou situação especial, com pacote oficial versionado, formas G/R/A/B/Z, livros auxiliares, BP, DRE contábil, DLPA/DMPL, signatários, J800, revisão segregada e artefatos TXT/manifesto/diagnóstico reproduzíveis; PVA, assinatura, registro, transmissão, substituição oficial e Bloco K permanecem em fatias próprias.
 - [ ] **F50 / SPEC-050:** geração interna completa da ECF por empresa no Leiaute 12, para ano-calendário 2025 e situações especiais de 2026, cobrindo Lucro Presumido e Simples Nacional opcional, ECF original e retificadora, recuperação da ECD, blocos aplicáveis, IRPJ/CSLL, e-Lalur/e-Lacs, impacto da Parte B, revisão segregada e artefatos TXT/manifesto/diagnóstico reproduzíveis; PVA, assinatura, transmissão, recibo oficial, demais regimes e produção permanecem em capacidades próprias.
 - [ ] **F51 / SPEC-051:** escrituração e fechamento fiscal mensal por empresa para comércio de autopeças em Goiás, com livros de entradas, saídas e apurações, ICMS/DAS desde setembro de 2026, PIS/Pasep e Cofins cumulativos do Lucro Presumido em 2026, formalização, fechamento sequencial, reabertura auditada e artefatos PDF/CSV/JSON reproduzíveis; inventário, EFD, transmissão e produção permanecem em capacidades próprias.
+- [ ] **F52 / SPEC-052:** geração interna completa da EFD ICMS/IPI por estabelecimento de Goiás desde setembro de 2026, para Lucro Presumido e Simples Nacional quando especificamente obrigado, com perfil A/B/C evidenciado, pacote normativo vigente, blocos aplicáveis cobertos, arquivo original e retificador, parser independente, revisão segregada e artefatos TXT/manifesto/diagnóstico reproduzíveis; Blocos H/K, PVA, assinatura, transmissão, recibo, substituição oficial e produção permanecem em capacidades próprias.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
@@ -51,7 +52,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] Razão contábil e fechamento de competência — F42/SPEC-042 entrega razão e balancete; F43/SPEC-043 entrega fechamento e reabertura mensal por empresa; F44/SPEC-044 estabelece o saldo anterior conhecido por abertura aprovada; F48/SPEC-048 formaliza Diário e Razão sobre competências fechadas.
 - [ ] Estorno, cancelamento controlado e reabertura auditada — F40/SPEC-040 entrega cancelamento e estorno; F43/SPEC-043 aplica os bloqueios do período fechado e a reabertura auditada.
 - [ ] Escrituração dos livros fiscais — F51/SPEC-051 entrega entradas, saídas, apurações, fechamento e reabertura fiscal no recorte aprovado; inventário permanece em fatia própria.
-- [ ] SPED Fiscal — F52/SPEC-052 fica reservado para EFD ICMS/IPI e F53/SPEC-053 para EFD-Contribuições.
+- [ ] SPED Fiscal — F52/SPEC-052 gera internamente a EFD ICMS/IPI completa no recorte aprovado; F53/SPEC-053 fica reservada para EFD-Contribuições; Blocos H/K, PVA e entrega oficial permanecem em fatias próprias.
 - [ ] SPED Contábil/ECD — F49/SPEC-049 gera o arquivo interno completo nas formas G/R/A/B/Z; PVA, assinatura, registro, transmissão, substituição oficial e Bloco K permanecem em fatias próprias.
 - [ ] ECF — F50/SPEC-050 gera o arquivo interno completo original e retificador no Leiaute 12, com recuperação da ECD e controles fiscais aplicáveis; PVA, assinatura, transmissão, recibo oficial e demais regimes permanecem em fatias próprias.
 - [ ] Motor completo de obrigações por regime, UF e CNAE.

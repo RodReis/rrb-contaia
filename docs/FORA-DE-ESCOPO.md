@@ -31,7 +31,7 @@ Não são "depois": são **não-objetivos declarados**.
 | Item | Motivo | Destino | Gatilho |
 |---|---|---|---|
 | Billing, planos e preço (RF-08) | Não é pré-requisito para os MVPs anteriores | **MVP-4** | MVP-3 finalizado |
-| SPED Fiscal, inventário e entrega oficial (RF-03) | F51/SPEC-051 entrega livros de entradas, saídas e apurações com fechamento fiscal; inventário depende de estoque, e os arquivos digitais dependem dos livros fechados | **MVP-2: F52/SPEC-052 para EFD ICMS/IPI, F53/SPEC-053 para EFD-Contribuições e fatias próprias para inventário/PVA/transmissão** | F51 implementada e fontes específicas aprovadas |
+| EFD-Contribuições, inventário/Bloco H, Bloco K e entrega oficial (RF-03) | F51/SPEC-051 entrega livros e fechamento fiscal; F52/SPEC-052 gera internamente a EFD ICMS/IPI, sem estoque, produção ou efeito externo | **MVP-2: F53/SPEC-053 para EFD-Contribuições e fatias próprias para inventário/Bloco H, produção/Bloco K, PVA, assinatura e transmissão** | F52 implementada e fontes específicas aprovadas |
 | Open Finance, ITP, Pix, conciliação (RF-04) | Depende de lançamento contábil existindo | **Fase 2** | idem |
 | Departamento pessoal e eSocial (RF-05) | Domínio inteiro, com risco de multa próprio | **Fase 3** | Fase 2 entregue |
 | Portal do cliente white-label e Copiloto | Valor depende de já haver dado do cliente na plataforma | **Fase 3** | idem |
