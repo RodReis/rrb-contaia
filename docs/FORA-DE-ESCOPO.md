@@ -31,7 +31,7 @@ Não são "depois": são **não-objetivos declarados**.
 | Item | Motivo | Destino | Gatilho |
 |---|---|---|---|
 | Billing, planos e preço (RF-08) | Não é pré-requisito para os MVPs anteriores | **MVP-4** | MVP-3 finalizado |
-| Inventário/Bloco H, Bloco K, Lucro Real/não cumulatividade e entrega oficial das EFDs (RF-03) | F51/SPEC-051 entrega livros e fechamento fiscal; F52/SPEC-052 gera internamente a EFD ICMS/IPI; F53/SPEC-053 gera internamente a EFD-Contribuições no recorte aprovado, sem efeito externo | **MVP-2: fatias próprias para inventário/Bloco H, produção/Bloco K, Lucro Real/não cumulatividade, PVA, assinatura, transmissão, recibo e substituição oficial** | Fontes específicas e recorte aprovados |
+| Bloco K, Lucro Real/não cumulatividade e entrega oficial das EFDs (RF-03) | F51/SPEC-051 entrega livros e fechamento fiscal; F52/SPEC-052 gera internamente a EFD ICMS/IPI; F53/SPEC-053 gera internamente a EFD-Contribuições; F54/SPEC-054 entrega estoque, inventário físico e Bloco H no recorte aprovado, sem efeito externo | **MVP-2: fatias próprias para produção/Bloco K, Lucro Real/não cumulatividade, PVA, assinatura, transmissão, recibo e substituição oficial** | Fontes específicas e recorte aprovados |
 | Open Finance, ITP, Pix, conciliação (RF-04) | Depende de lançamento contábil existindo | **Fase 2** | idem |
 | Departamento pessoal e eSocial (RF-05) | Domínio inteiro, com risco de multa próprio | **Fase 3** | Fase 2 entregue |
 | Portal do cliente white-label e Copiloto | Valor depende de já haver dado do cliente na plataforma | **Fase 3** | idem |
