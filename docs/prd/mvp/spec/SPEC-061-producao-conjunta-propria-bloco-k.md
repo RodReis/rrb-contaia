@@ -255,7 +255,7 @@ A implementação entrega temas CLARO e ESCURO, viewports de 375, 768, 1280 e 15
 
 | Item | Destino obrigatório |
 |---|---|
-| Produção conjunta efetuada por terceiros (`K300/K301/K302`) | capacidade própria posterior do MVP-2, sem F/SPEC reservada antecipadamente |
+| Produção conjunta efetuada por terceiros (`K300/K301/K302`) | F62/SPEC-062 |
 | Correção ou substituição da fonte importada | correção ocorre no sistema de origem e entra por nova revisão integral |
 | Cálculo de rateio, rendimento, perda ou equivalência econômica | excluído da F61; somente poderá entrar por nova capacidade com regra de produto aprovada |
 | ERP, ordem operacional, planejamento, execução ou chão de fábrica | excluído pelo PRD §1.5 |
