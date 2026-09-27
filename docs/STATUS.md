@@ -19,7 +19,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Contratos de engenharia | escritos: arquitetura, domínio, frontend, git, PR, CI, teste, revisão, auditoria |
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
-| Fatias/SPECs | F1/SPEC-001 a F60/SPEC-060 aprovadas |
+| Fatias/SPECs | F1/SPEC-001 a F61/SPEC-061 aprovadas |
 | Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa), #4 F3 (manutenção da empresa e Histórico de Informações), #5 F4 (documentos da empresa), #6 F5 (Central de Pendências cadastrais) e #7 F6 (Notificações de pendências) |
 
 ---
@@ -105,8 +105,9 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-2 | F58 | SPEC-058 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Industrialização efetuada por terceiros no Bloco K completo | #72 | `proplan:backlog` |
 | MVP-2 | F59 | SPEC-059 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Reprocessamento e reparo no Bloco K completo | #73 | `proplan:backlog` |
 | MVP-2 | F60 | SPEC-060 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Correções de desmontagem e movimentação interna no Bloco K | #74 | `proplan:backlog` |
+| MVP-2 | F61 | SPEC-061 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Produção conjunta própria no Bloco K completo | #75 | `proplan:backlog` |
 
-Próximo número livre: **F61 / SPEC-061**.
+Próximo número livre: **F62 / SPEC-062**.
 
 ---
 
@@ -115,7 +116,7 @@ Próximo número livre: **F61 / SPEC-061**.
 | Fase | Entregas | Situação |
 |---|---|---|
 | **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#7, F1/SPEC-001 a F6/SPEC-006, `proplan:finalizado`; F7/SPEC-007 a F25/SPEC-025 em backlog; demais fatias pendentes |
-| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F60/SPEC-060 aprovadas; demais fatias pendentes |
+| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F61/SPEC-061 aprovadas; demais fatias pendentes |
 | **[MVP-3](prd/mvp/MVP-3-dp-portal-e-comunicacao.md)** | RF-05 (DP/eSocial) · portal white-label · canal ativo · Copiloto · Coletor | macroescopo aprovado; fatias pendentes |
 | **[MVP-4](prd/mvp/MVP-4-administracao-e-evolucao.md)** | RF-08 completo · IBS/CBS completo · API pública · Marketplace · colaboração multiagente · preparação para certificações | macroescopo aprovado; API e Marketplace têm decisões pendentes |
 | **Produção** | hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração, rollback e piloto real | somente após o MVP-4 |
