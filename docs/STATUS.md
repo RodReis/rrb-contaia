@@ -121,8 +121,9 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-2 | F74 | SPEC-074 | PRD §§3, 5.3, 7.1, 9.1, 10.4, 12, 13.2, 14, 15 e 16 | Pagamentos tributários BB sem código de barras por CNAB 240 | #88 | `proplan:backlog` |
 | MVP-2 | F75 | SPEC-075 | PRD §§3, 5.3, 7.1, 9.1, 10.4, 12, 13.2, 14, 15 e 16 | Validação de DARF numerado e integração com pagamentos BB | #89 | `proplan:backlog` |
 | MVP-2 | F76 | SPEC-076 | PRD §§3, 5.3, 7.1, 12, 13.2, 14, 15 e 16 | Validação de folha mensal BB por CNAB 240 | #90 | `proplan:backlog` |
+| MVP-2 | F77 | SPEC-077 | PRD §§3, 5.3, 7.1, 12, 13.2, 14, 15 e 16 | Validação de folha mensal em poupança BB por CNAB 240 | #91 | `proplan:backlog` |
 
-Próximo número livre: **F77 / SPEC-077**.
+Próximo número livre: **F78 / SPEC-078**.
 
 ---
 
@@ -131,7 +132,7 @@ Próximo número livre: **F77 / SPEC-077**.
 | Fase | Entregas | Situação |
 |---|---|---|
 | **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#7, F1/SPEC-001 a F6/SPEC-006, `proplan:finalizado`; F7/SPEC-007 a F25/SPEC-025 em backlog; demais fatias pendentes |
-| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F76/SPEC-076 aprovadas; demais fatias pendentes |
+| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F77/SPEC-077 aprovadas; demais fatias pendentes |
 | **[MVP-3](prd/mvp/MVP-3-dp-portal-e-comunicacao.md)** | RF-05 (DP/eSocial) · portal white-label · canal ativo · Copiloto · Coletor | macroescopo aprovado; fatias pendentes |
 | **[MVP-4](prd/mvp/MVP-4-administracao-e-evolucao.md)** | RF-08 completo · IBS/CBS completo · API pública · Marketplace · colaboração multiagente · preparação para certificações | macroescopo aprovado; API e Marketplace têm decisões pendentes |
 | **Produção** | hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração, rollback e piloto real | somente após o MVP-4 |
