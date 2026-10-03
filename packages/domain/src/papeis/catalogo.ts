@@ -13,6 +13,7 @@ export const ROTULO_DA_ACAO = {
   arquivar: 'Arquivar',
   reativar: 'Reativar',
   dispensar: 'Dispensar',
+  desativar: 'Desativar',
   enviar: 'Enviar',
   substituir: 'Substituir',
   visualizar: 'Visualizar',
@@ -82,6 +83,18 @@ export const CATALOGO = [
     rotulo: 'Notificações de pendências',
     funcionalidades: [
       { id: 'sino', rotulo: 'Sino e histórico', acoes: ['consultar', 'marcar_lida'] },
+    ],
+  },
+  {
+    id: 'certificados',
+    rotulo: 'Cofre de certificados A1',
+    funcionalidades: [
+      {
+        id: 'cofre',
+        rotulo: 'Cofre',
+        acoes: ['consultar', 'criar', 'substituir', 'editar', 'desativar'],
+      },
+      { id: 'historico', rotulo: 'Histórico de certificados', acoes: ['consultar'] },
     ],
   },
   {

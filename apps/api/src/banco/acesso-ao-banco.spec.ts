@@ -21,7 +21,7 @@ const arquivosDeProducao = (pasta: string): string[] =>
       return arquivosDeProducao(caminho);
     }
 
-    return nome.endsWith('.ts') && !nome.endsWith('.spec.ts') && nome !== 'banco-em-memoria.ts'
+    return nome.endsWith('.ts') && !nome.endsWith('.spec.ts') && !nome.endsWith('.integration.test.ts') && nome !== 'banco-em-memoria.ts'
       ? [caminho]
       : [];
   });

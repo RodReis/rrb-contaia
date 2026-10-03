@@ -9,7 +9,11 @@ export type TipoDeNotificacao =
   | 'DOCUMENTO_VENCIDO'
   | 'NOVA_EXIGENCIA'
   // Aviso consolidado de mudança de carteira (SPEC-009): sem empresa, com o resumo da operação.
-  | 'CARTEIRA_ALTERADA';
+  | 'CARTEIRA_ALTERADA'
+  // Alertas do cofre de certificados (SPEC-011 §3.6): um por marco e por certificado
+  // (`CERTIFICADO_D30`, `CERTIFICADO_VENCIDO`, `CERTIFICADO_RESPONSAVEL_INCONSISTENTE`…).
+  // Tolerante a marcos novos: o prefixo é o contrato, o sufixo só escolhe o rótulo.
+  | `CERTIFICADO_${string}`;
 
 export type EmpresaDoAviso = Readonly<{ id: string; nome: string; cnpj: string }>;
 

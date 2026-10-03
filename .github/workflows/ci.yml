@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROVA_ESCOPO: SPEC-010
+  PROVA_ESCOPO: SPEC-011
 
 jobs:
   quality:
@@ -187,6 +187,19 @@ jobs:
       S3_BUCKET: contaia-documentos
       MINIO_ROOT_USER: contaia_local
       MINIO_ROOT_PASSWORD: contaia_local_secret
+      # Cofre local de certificados A1 (SPEC-011). Os segredos e os caminhos do Vault são
+      # gerados em tempo de execução pelo passo "Subir o Vault efêmero" (nada fixo no repositório).
+      VAULT_IMAGE: hashicorp/vault:1.20
+      VAULT_ADDR: http://127.0.0.1:18200
+      VAULT_CONTAINER: contaia-vault
+      COFRE_PORT: '15104'
+      COFRE_PUBLIC_URL: http://127.0.0.1:15104
+      COFRE_URL: http://127.0.0.1:15104
+      # Embutida pelo Next no `pnpm build`: o navegador só envia o certificado a esta origem.
+      NEXT_PUBLIC_COFRE_URL: http://127.0.0.1:15104
+      COFRE_HOST: 127.0.0.1
+      COFRE_API_URL: http://127.0.0.1:15101
+      COFRE_ORIGENS_PERMITIDAS: http://127.0.0.1:15100
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -235,6 +248,40 @@ jobs:
           docker logs contaia-minio 2>&1 | tail -20
           docker logs contaia-keycloak 2>&1 | tail -40
           exit 1
+      # SPEC-011: Vault em modo servidor (nunca -dev) e material 100% efêmero. Tudo que é
+      # sensível (unseal key, root token, tokens técnicos, PKI de teste) fica em
+      # $RUNNER_TEMP, FORA de test-results/, para nunca entrar em artefato da CI.
+      - name: Subir o Vault efêmero, fazer o bootstrap e gerar a PKI de teste
+        run: |
+          ticket_secret="$(openssl rand -hex 32)"
+          service_token="$(openssl rand -hex 32)"
+          admin_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$ticket_secret"
+          echo "::add-mask::$service_token"
+          echo "::add-mask::$admin_token"
+
+          vault_dir="$RUNNER_TEMP/vault-local"
+          mkdir -p "$vault_dir"
+
+          {
+            echo "COFRE_TICKET_SECRET=$ticket_secret"
+            echo "COFRE_SERVICE_TOKEN=$service_token"
+            echo "COFRE_ADMIN_TOKEN=$admin_token"
+            echo "VAULT_LOCAL_DIR=$vault_dir"
+            echo "COFRE_VAULT_TOKEN_FILE=$vault_dir/token-cofre-ingestao"
+            echo "COFRE_RAIZES_ICP_DIR=$vault_dir/raizes-icp"
+          } >> "$GITHUB_ENV"
+
+          docker run -d --name "$VAULT_CONTAINER"             -p 127.0.0.1:18200:8200             -e VAULT_ADDR=http://127.0.0.1:8200             -e SKIP_SETCAP=true             -e 'VAULT_LOCAL_CONFIG={"storage":{"file":{"path":"/vault/file"}},"listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":true}},"disable_mlock":true,"ui":false,"api_addr":"http://127.0.0.1:8200"}'             "$VAULT_IMAGE" server
+
+          # O bootstrap espera o Vault subir, inicializa, desseleia e configura (idempotente).
+          if ! VAULT_LOCAL_DIR="$vault_dir" node infra/docker/vault/bootstrap.mjs; then
+            docker logs "$VAULT_CONTAINER" 2>&1 | tail -40
+            exit 1
+          fi
+
+          # Raiz e PFXs sintéticos; nada disto é ICP-Brasil real nem vai para o repositório.
+          node scripts/gerar-pki-de-teste.mjs --saida "$vault_dir"
       - run: pnpm db:migrate
       - run: pnpm db:seed
       - run: pnpm build

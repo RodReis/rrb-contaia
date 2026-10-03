@@ -46,3 +46,31 @@ export const resolverIdentidade = async (
     statusDoTenant: linha.tenant_status,
   };
 };
+
+/**
+ * Identidade de um usuário já conhecido (papéis padrão e matriz dos papéis personalizados
+ * vigentes), para quem age em nome dele fora de uma sessão — o ticket de ingestão do cofre
+ * (SPEC-011). Mesma função de banco da sessão, então a permissão vale AGORA, não a de quando
+ * o ticket foi emitido. `null` quando o usuário não está ativo ou não é do tenant.
+ */
+export const identidadeDoUsuario = async (
+  cliente: PoolClient,
+  tenantId: string,
+  usuarioId: string,
+): Promise<IdentidadeResolvida | null> => {
+  const { rows } = await cliente.query<{ sub_oidc: string }>(
+    'select sub_oidc from app.usuario where tenant_id = $1 and id = $2',
+    [tenantId, usuarioId],
+  );
+  const sub = rows[0]?.sub_oidc;
+
+  if (sub === undefined) {
+    return null;
+  }
+
+  const identidade = await resolverIdentidade(cliente, sub);
+
+  return identidade !== null && identidade.usuarioId === usuarioId && identidade.tenantId === tenantId
+    ? identidade
+    : null;
+};

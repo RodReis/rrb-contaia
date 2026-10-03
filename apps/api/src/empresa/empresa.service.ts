@@ -4,6 +4,8 @@
  * O caso de uso controla a transação e decide; o domínio valida; o repositório
  * persiste; o adaptador fala com a fonte externa. Nenhuma regra no controller.
  */
+import { randomUUID } from 'node:crypto';
+
 import { Injectable } from '@nestjs/common';
 
 import {
@@ -13,6 +15,7 @@ import {
   ErroDeValidacao,
   ativarEmpresa,
   camposInvalidosDaEtapaDaEmpresa,
+  dataCivilEmSaoPaulo,
   etapasConcluidasDaEmpresa,
   exigeConfirmacaoDeSituacaoExterna,
   normalizarCep,
@@ -40,6 +43,7 @@ import {
   empresaComCnpj,
   listarEmpresas,
   marcarEmpresaComoAtiva,
+  reconciliarCofre,
   salvarDadosFiscais,
   salvarEnderecoDaEmpresa,
   salvarIdentificacaoDaEmpresa,
@@ -542,6 +546,14 @@ export class EmpresaService {
 
       if (ativado.status === 'ATIVA' && atual.cadastro.status !== 'ATIVA') {
         await marcarEmpresaComoAtiva(cliente, tenantId, empresaId);
+        // Empresa ativa nasce sem certificado: abre a pendência de certificado ausente (SPEC-011 §3.4).
+        await reconciliarCofre(cliente, {
+          tenantId,
+          usuarioId,
+          correlationId: randomUUID(),
+          hoje: dataCivilEmSaoPaulo(new Date()),
+          empresaIds: [empresaId],
+        });
       }
 
       return this.recarregar(cliente, tenantId, empresaId);

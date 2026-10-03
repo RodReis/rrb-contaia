@@ -100,6 +100,43 @@ describe('SinoDeNotificacoes', () => {
     ).toHaveAttribute('href', '/carteira');
   });
 
+  it.each([
+    ['CERTIFICADO_D30', 'Certificado vence em 30 dias'],
+    ['CERTIFICADO_D15', 'Certificado vence em 15 dias'],
+    ['CERTIFICADO_D7', 'Certificado vence em 7 dias'],
+    ['CERTIFICADO_VENCIDO', 'Certificado vencido'],
+    ['CERTIFICADO_RESPONSAVEL_INCONSISTENTE', 'Certificado sem responsável ativo'],
+    ['CERTIFICADO_MARCO_FUTURO', 'Certificado digital'],
+  ] as const)('aviso do cofre %s nomeia a empresa e abre o registro dela no cofre', async (tipo, rotulo) => {
+    vi.mocked(requisitar).mockResolvedValue({
+      notificacoes: [
+        {
+          id: 'k1',
+          empresaId: 'e-valido',
+          empresaNome: 'Padaria Aurora',
+          adicionadas: null,
+          removidas: null,
+          tipo,
+          chave: 'certificado:1',
+          lida: false,
+          lidaEm: null,
+          criadoEm: new Date().toISOString(),
+        },
+      ],
+      naoLidas: 1,
+    });
+    const usuario = userEvent.setup();
+
+    renderizar();
+    await usuario.click(await screen.findByRole('button', { name: /notifica/iu }));
+
+    const painel = await screen.findByRole('dialog');
+    const link = within(painel).getByRole('link', { name: /Padaria Aurora/ });
+
+    expect(link).toHaveTextContent(rotulo);
+    expect(link).toHaveAttribute('href', '/configuracoes/cofre?empresa=e-valido');
+  });
+
   it('colaborador que perdeu a última empresa ainda vê o aviso, não a orientação de ausência de alçada', async () => {
     vi.mocked(requisitar).mockResolvedValue({ notificacoes: [AVISO_DE_CARTEIRA], naoLidas: 1 });
     const usuario = userEvent.setup();

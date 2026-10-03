@@ -30,11 +30,18 @@ export type CorpoDoProblema = Readonly<{
 
 const TIPO_BASE = 'https://contaia.local/erros';
 
-/** O `correlationId` acompanha a requisição inteira e é o que o suporte pede. */
+/**
+ * O `correlationId` acompanha a requisição inteira e é o que o suporte pede. Vem de fora (web,
+ * cofre) e vai parar em log, evento de auditoria e resposta: só se aceita UUID ou o formato
+ * `[A-Za-z0-9-]{8,64}`; qualquer outra coisa (tamanho, espaço, quebra de linha, símbolo)
+ * é descartada e substituída por um UUID novo.
+ */
+const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
+
 export const obterCorrelationId = (requisicao: Request): CorrelationId => {
   const cabecalho = requisicao.header('x-correlation-id');
 
-  return (cabecalho !== undefined && cabecalho.length > 0
+  return (cabecalho !== undefined && CORRELATION_ID_VALIDO.test(cabecalho)
     ? cabecalho
     : randomUUID()) as CorrelationId;
 };
@@ -103,6 +110,16 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.TRANSICAO_DE_PAPEL_INVALIDA]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.REDUCAO_NAO_CONFIRMADA]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.REVISAO_NAO_CONFIRMADA]: HttpStatus.CONFLICT,
+  // SPEC-011 §7. Ticket inválido (forjado, vencido ou já usado) é 403 sem dizer qual; o tamanho
+  // vira 413; o cofre fora do ar é falha de dependência (503) com `correlationId`. As demais
+  // recusas de arquivo (senha, tipo, CNPJ, validade) são regra de negócio: 422 padrão.
+  [CODIGOS_DE_ERRO.CERTIFICADO_TICKET_INVALIDO]: HttpStatus.FORBIDDEN,
+  [CODIGOS_DE_ERRO.CERTIFICADO_TAMANHO_EXCEDIDO]: HttpStatus.PAYLOAD_TOO_LARGE,
+  [CODIGOS_DE_ERRO.COFRE_INDISPONIVEL]: HttpStatus.SERVICE_UNAVAILABLE,
+  // Estado do cofre da empresa que não aceita a operação: a requisição está bem formada.
+  [CODIGOS_DE_ERRO.CERTIFICADO_JA_VIGENTE]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.CERTIFICADO_VIGENTE_INEXISTENTE]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL]: HttpStatus.CONFLICT,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>

@@ -86,7 +86,17 @@ const ITENS_DO_SINO = `
   select c.id, null::uuid, null::text, 'CARTEIRA_ALTERADA', c.evento_id::text,
          c.lida, c.lida_em, c.criado_em, c.sequencia, c.adicionadas, c.removidas
     from app.carteira_notificacao c
-   where c.tenant_id = $1 and c.usuario_id = $2`;
+   where c.tenant_id = $1 and c.usuario_id = $2
+  union all
+  -- Alerta do cofre de certificados (SPEC-011 §3.6): individual, uma vez por marco. O tipo
+  -- leva o marco (CERTIFICADO_D30...) e a chave aponta o certificado; a RLS limita às
+  -- empresas da carteira de quem lê. Abre o cofre da empresa, que mostra o estado atual.
+  select k.id, k.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj),
+         'CERTIFICADO_' || k.marco, 'certificado:' || k.certificado_id::text || ':' || k.marco,
+         k.lida, k.lida_em, k.criado_em, k.sequencia, null::jsonb, null::jsonb
+    from app.empresa_certificado_notificacao k
+    join app.empresa e on e.id = k.empresa_id
+   where k.tenant_id = $1 and k.usuario_id = $2`;
 
 const SELECAO_DO_SINO = `select * from (${ITENS_DO_SINO}) itens`;
 
@@ -261,5 +271,12 @@ export const marcarVariasComoLidas = async (
     [ids, tenantId, usuarioId],
   );
 
-  return deEmpresa.rows.length + (deCarteira.rowCount ?? 0);
+  const doCofre = await cliente.query(
+    `update app.empresa_certificado_notificacao
+        set lida = true, lida_em = now()
+      where id = any($1) and tenant_id = $2 and usuario_id = $3 and lida = false`,
+    [ids, tenantId, usuarioId],
+  );
+
+  return deEmpresa.rows.length + (deCarteira.rowCount ?? 0) + (doCofre.rowCount ?? 0);
 };

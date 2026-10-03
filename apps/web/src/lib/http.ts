@@ -34,7 +34,7 @@ const PROBLEMA_DE_REDE: Omit<Problema, 'correlationId'> = {
   code: 'FALHA_DE_REDE',
 };
 
-const ehProblema = (valor: unknown): valor is Problema =>
+export const ehProblema = (valor: unknown): valor is Problema =>
   typeof valor === 'object' &&
   valor !== null &&
   typeof (valor as { code?: unknown }).code === 'string';

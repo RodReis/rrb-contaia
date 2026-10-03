@@ -19,6 +19,13 @@ import {
 } from '@contaia/domain';
 
 import { AppModule } from '../app.module';
+import {
+  CertificadosController,
+  CertificadosDaEmpresaController,
+  CofreInternoController,
+  HistoricoDeCertificadosController,
+} from '../certificados/certificados.controller';
+import { GuardDeServicoInterno } from '../certificados/servico-interno.guard';
 import { CarteirasController, HistoricoDeCarteirasController } from '../carteira/carteira.controller';
 import { DocumentosDaEmpresaController } from '../empresa/documentos.controller';
 import { EmpresaController } from '../empresa/empresa.controller';
@@ -55,15 +62,26 @@ const manipuladoresDe = (controller: Classe): ReadonlyArray<readonly [string, Me
 
 // Controllers sem sessão são decisão explícita: qualquer um novo precisa entrar aqui de propósito.
 const PUBLICOS = new Set(['HealthController', 'ConvitesController']);
+// Rotas internas (cofre → API): sem sessão de usuário, mas SÓ com o Bearer de serviço. Falha fechado.
+const INTERNOS = new Set([CofreInternoController.name]);
 
 describe('cobertura de ações nas rotas autenticadas', () => {
   it('só os controllers públicos conhecidos dispensam GuardDeSessao', () => {
     const semSessao = controllersDoModulo()
       .filter((controller) => !guardsDe(controller).includes(GuardDeSessao))
       .map((controller) => controller.name)
-      .filter((nome) => !PUBLICOS.has(nome));
+      .filter((nome) => !PUBLICOS.has(nome) && !INTERNOS.has(nome));
 
     expect(semSessao).toEqual([]);
+  });
+
+  it('controller interno sem sessão exige o guard de serviço, e só ele', () => {
+    const internos = controllersDoModulo().filter((controller) => INTERNOS.has(controller.name));
+
+    expect(internos.map((controller) => controller.name)).toEqual(['CofreInternoController']);
+    for (const controller of internos) {
+      expect(guardsDe(controller)).toEqual([GuardDeServicoInterno]);
+    }
   });
 
   it('todo controller com GuardDeSessao também usa GuardDeAcao', () => {
@@ -188,6 +206,15 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais, agora por permissão do cat�
     [CarteirasController, 'colaboradoresDaEmpresa', so('admin_escritorio')],
     [CarteirasController, 'alterar', so('admin_escritorio')],
     [HistoricoDeCarteirasController, 'listar', so('admin_escritorio', 'auditor_readonly')],
+    // Cofre de certificados A1 (SPEC-011 §3.2): mutação só admin/contador; auxiliar e auditor consultam
+    [CertificadosController, 'listar', TODOS],
+    [CertificadosDaEmpresaController, 'detalhe', TODOS],
+    [CertificadosDaEmpresaController, 'responsaveis', TODOS],
+    [CertificadosDaEmpresaController, 'trocarResponsavel', so('admin_escritorio', 'contador')],
+    [CertificadosDaEmpresaController, 'desativar', so('admin_escritorio', 'contador')],
+    // A chave de `ingestoes` é a de consulta: criar/substituir é conferido no caso de uso, por operação.
+    [CertificadosDaEmpresaController, 'ingestoes', TODOS],
+    [HistoricoDeCertificadosController, 'listar', so('admin_escritorio', 'contador', 'auditor_readonly')],
     // Papéis personalizados e catálogo: leitura para quem consulta usuários, mutação só do admin
     [PapeisController, 'catalogo', so('admin_escritorio', 'auditor_readonly')],
     [PapeisController, 'listar', so('admin_escritorio', 'auditor_readonly')],
@@ -261,6 +288,21 @@ describe('papel personalizado nas rotas reais (SPEC-008 §3.4)', () => {
     [CarteirasController, 'colaboradores', ['empresas.cadastro.consultar'], 'negado'],
     [CarteirasController, 'minha', [], 'permitido'],
     [HistoricoDeCarteirasController, 'listar', ['historico.global.consultar'], 'negado'],
+    // Cofre: chave por ação; nenhuma de consulta concede mutação; histórico exige as duas chaves.
+    [CertificadosDaEmpresaController, 'desativar', ['certificados.cofre.consultar'], 'negado'],
+    [CertificadosDaEmpresaController, 'desativar', ['certificados.cofre.desativar'], 'permitido'],
+    [CertificadosDaEmpresaController, 'trocarResponsavel', ['certificados.cofre.desativar'], 'negado'],
+    [CertificadosDaEmpresaController, 'trocarResponsavel', ['certificados.cofre.editar'], 'permitido'],
+    [CertificadosDaEmpresaController, 'detalhe', ['certificados.historico.consultar'], 'negado'],
+    [HistoricoDeCertificadosController, 'listar', ['certificados.historico.consultar'], 'negado'],
+    [HistoricoDeCertificadosController, 'listar', ['historico.global.consultar'], 'negado'],
+    [
+      HistoricoDeCertificadosController,
+      'listar',
+      ['historico.global.consultar', 'certificados.historico.consultar'],
+      'permitido',
+    ],
+    [CertificadosController, 'listar', [], 'negado'],
     // Sem permissão alguma, nada é aberto (exceto rota livre).
     [EmpresaController, 'listar', [], 'negado'],
     [UsuariosController, 'eu', [], 'permitido'],

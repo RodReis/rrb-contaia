@@ -100,6 +100,15 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     origem: 'F6 / SPEC-006',
     appendOnly: true,
   },
+  { tabela: 'app.empresa_certificado', classe: 'empresa', origem: 'F11 / SPEC-011' },
+  {
+    tabela: 'app.empresa_certificado_evento',
+    classe: 'empresa',
+    origem: 'F11 / SPEC-011',
+    appendOnly: true,
+  },
+  { tabela: 'app.empresa_certificado_ingestao', classe: 'empresa', origem: 'F11 / SPEC-011' },
+  { tabela: 'app.empresa_certificado_notificacao', classe: 'empresa', origem: 'F11 / SPEC-011' },
   { tabela: 'app.carteira_vinculo', classe: 'vinculo', origem: 'F9 / SPEC-009' },
   {
     tabela: 'app.usuario',

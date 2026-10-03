@@ -323,7 +323,7 @@ test('convite completo: convidar, capturar o e-mail, definir a senha e entrar se
   await expect(usuario.getByRole('link', { name: /Cadastrar empresa/ })).toHaveCount(0);
 
   // Contador não administra nem consulta usuários: o menu não os oferece...
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Histórico de Informações', 'Minha carteira']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados']);
 
   // ...e a API recusa o acesso direto mesmo assim.
   await usuario.goto('/configuracoes/usuarios');
@@ -333,7 +333,10 @@ test('convite completo: convidar, capturar o e-mail, definir a senha e entrar se
 test('alterar papéis vale na próxima requisição, com a mesma sessão', async () => {
   await abrirLista(admin, EMAIL_A);
   await admin.getByRole('link', { name: `Editar — ${NOME_A}` }).first().click();
-  await admin.getByRole('tab', { name: 'Papéis' }).click();
+  // Espera a edição carregar: sem isso, a lista ainda na tela tem a aba "Papéis e permissões",
+  // que o nome parcial "Papéis" também encontra.
+  await admin.getByRole('heading', { level: 1, name: NOME_A }).waitFor();
+  await admin.getByRole('tab', { name: 'Papéis', exact: true }).click();
   await admin.getByRole('checkbox', { name: 'Auditor (somente leitura)' }).check();
   await admin.getByRole('button', { name: 'Salvar alterações' }).click();
   await expect(admin.getByText('Usuário atualizado.')).toBeVisible();
@@ -342,7 +345,7 @@ test('alterar papéis vale na próxima requisição, com a mesma sessão', async
   await usuario.goto('/empresas');
   await expect
     .poll(() => itensDoMenu(usuario))
-    .toEqual(['Empresas', 'Histórico de Informações', 'Minha carteira', 'Usuários e permissões']);
+    .toEqual(['Empresas', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados', 'Usuários e permissões']);
 
   await usuario.getByRole('link', { name: 'Usuários e permissões' }).click();
   await expect(usuario.getByRole('table')).toBeVisible();

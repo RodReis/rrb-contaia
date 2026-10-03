@@ -37,6 +37,12 @@ const ESPERADO = [
   'pendencias.pendencias.abrir_origem',
   'notificacoes.sino.consultar',
   'notificacoes.sino.marcar_lida',
+  'certificados.cofre.consultar',
+  'certificados.cofre.criar',
+  'certificados.cofre.substituir',
+  'certificados.cofre.editar',
+  'certificados.cofre.desativar',
+  'certificados.historico.consultar',
   'historico.global.consultar',
 ];
 

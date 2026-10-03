@@ -23,10 +23,13 @@
     "check:gate": "node --test scripts/ci/validate-gate.test.mjs",
     "docker:up": "docker compose --env-file .env -f infra/docker/compose.yml up -d",
     "docker:down": "docker compose --env-file .env -f infra/docker/compose.yml down",
-    "docker:ps": "docker compose --env-file .env -f infra/docker/compose.yml ps"
+    "docker:ps": "docker compose --env-file .env -f infra/docker/compose.yml ps",
+    "vault:bootstrap": "node --env-file-if-exists=.env infra/docker/vault/bootstrap.mjs",
+    "cofre:pki-teste": "node scripts/gerar-pki-de-teste.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
+    "node-forge": "^1.4.0",
     "pg": "8.23.0",
     "turbo": "2.10.13",
     "typescript": "5.9.3",

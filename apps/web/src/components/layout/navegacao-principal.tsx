@@ -9,18 +9,18 @@
  */
 'use client';
 
-import type { ChaveDePermissao } from '@contaia/domain';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
+import { CONSULTA_DO_COFRE, concede } from '@/features/cofre/permissoes';
 import { useSessao } from '@/features/usuarios/queries';
 
 type ItemDoMenu = Readonly<{
   href: string;
   rotulo: string;
   /** O item aparece para quem tem todas estas permissões: as mesmas que a API exige da rota. */
-  consultas: readonly ChaveDePermissao[];
+  consultas: readonly string[];
 }>;
 
 const ITENS: readonly ItemDoMenu[] = [
@@ -35,6 +35,8 @@ const ITENS: readonly ItemDoMenu[] = [
   },
   // A carteira é de qualquer usuário ativo: sem permissão de catálogo, só a própria lista.
   { href: '/carteira', rotulo: 'Minha carteira', consultas: [] },
+  // Cofre local de certificados A1 (SPEC-011): quem consulta o catálogo `certificados.cofre`.
+  { href: '/configuracoes/cofre', rotulo: 'Cofre de certificados', consultas: [CONSULTA_DO_COFRE] },
   {
     href: '/configuracoes/usuarios',
     rotulo: 'Usuários e permissões',
@@ -49,7 +51,7 @@ export const NavegacaoPrincipal = () => {
   const visiveis = ITENS.filter((item) =>
     sessao === undefined
       ? item.href === '/empresas' || item.href === '/carteira'
-      : item.consultas.every((chave) => sessao.permissoes.includes(chave)),
+      : item.consultas.every((chave) => concede(sessao, chave)),
   );
 
   return (

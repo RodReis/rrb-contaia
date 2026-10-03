@@ -11,7 +11,7 @@
 import type { EstadoDoDocumento } from '../empresa/documentos.js';
 import { dataCivilEmSaoPaulo } from '../empresa/manutencao.js';
 
-export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL';
+export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO';
 
 export type TipoDaPendencia =
   | 'CAMPO_AUSENTE'
@@ -19,7 +19,11 @@ export type TipoDaPendencia =
   | 'DOCUMENTO_AUSENTE'
   | 'DOCUMENTO_REJEITADO'
   | 'DOCUMENTO_VENCIDO'
-  | 'EXIGENCIA_ESPECIFICA';
+  | 'EXIGENCIA_ESPECIFICA'
+  // Cofre de certificados A1 (SPEC-011 §3.4–3.6).
+  | 'CERTIFICADO_AUSENTE'
+  | 'CERTIFICADO_VENCIDO'
+  | 'CERTIFICADO_SEM_RESPONSAVEL';
 
 export type EstadoDaPendencia = 'ABERTA' | 'RESOLVIDA';
 

@@ -29,6 +29,8 @@ import { mensagemDoCodigo } from '@/lib/mensagens';
 import type { EventoDoHistorico } from '../empresa/manutencao-api';
 import { useCamposDoHistorico, useHistorico } from '../empresa/manutencao-queries';
 import { ABA_DE_CARTEIRAS, HistoricoDeCarteiras } from '../carteira/historico-de-carteiras';
+import { ABA_DE_CERTIFICADOS, HistoricoDeCertificados } from '../cofre/historico-de-certificados';
+import { CONSULTA_DO_HISTORICO_DE_CERTIFICADOS, concede } from '../cofre/permissoes';
 import { ABA_DE_USUARIOS, HistoricoDeUsuarios } from '../usuarios/historico-de-usuarios';
 import { pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
@@ -374,12 +376,23 @@ export const HistoricoDeInformacoes = () => {
     sessao !== undefined &&
     pode(sessao, 'historico.global.consultar', 'usuarios.usuarios_e_papeis.consultar');
 
+  // A aba "Certificados" depende da própria chave do cofre (SPEC-011 §3.7); a API recusa sem ela.
+  const veCertificados =
+    sessao !== undefined && concede(sessao, CONSULTA_DO_HISTORICO_DE_CERTIFICADOS);
+
   const abaNaUrl = parametros.get('aba');
   const aba: AbaDoHistorico = ehAba(abaNaUrl) ? abaNaUrl : 'DADOS_CADASTRAIS';
   const naAbaDeUsuarios = abaNaUrl === ABA_DE_USUARIOS && veUsuarios;
   // A aba "Carteiras" tem a mesma exigência da de usuários: ler o Histórico e ler usuários.
   const naAbaDeCarteiras = abaNaUrl === ABA_DE_CARTEIRAS && veUsuarios;
-  const abaAtiva = naAbaDeUsuarios ? ABA_DE_USUARIOS : naAbaDeCarteiras ? ABA_DE_CARTEIRAS : aba;
+  const naAbaDeCertificados = abaNaUrl === ABA_DE_CERTIFICADOS && veCertificados;
+  const abaAtiva = naAbaDeUsuarios
+    ? ABA_DE_USUARIOS
+    : naAbaDeCarteiras
+      ? ABA_DE_CARTEIRAS
+      : naAbaDeCertificados
+        ? ABA_DE_CERTIFICADOS
+        : aba;
 
   return (
     <div className="flex flex-col gap-xl">
@@ -421,6 +434,11 @@ export const HistoricoDeInformacoes = () => {
               Carteiras
             </Tabs.Trigger>
           ) : null}
+          {veCertificados ? (
+            <Tabs.Trigger value={ABA_DE_CERTIFICADOS} className={cn(CLASSES_DA_ABA)}>
+              Certificados
+            </Tabs.Trigger>
+          ) : null}
         </Tabs.List>
 
         <Tabs.Content
@@ -431,6 +449,8 @@ export const HistoricoDeInformacoes = () => {
             <HistoricoDeUsuarios />
           ) : naAbaDeCarteiras ? (
             <HistoricoDeCarteiras />
+          ) : naAbaDeCertificados ? (
+            <HistoricoDeCertificados />
           ) : (
             <HistoricoDeEmpresas aba={aba} />
           )}

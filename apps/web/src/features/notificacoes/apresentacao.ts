@@ -16,14 +16,30 @@ const RESUMO_POR_TIPO: Readonly<Record<string, string>> = {
   CARTEIRA_ALTERADA: 'Carteira atualizada',
 };
 
+/** Alertas de vencimento do cofre (SPEC-011 §3.6): rótulo por marco, com fallback para marco novo. */
+const RESUMO_DO_CERTIFICADO: Readonly<Record<string, string>> = {
+  CERTIFICADO_D30: 'Certificado vence em 30 dias',
+  CERTIFICADO_D15: 'Certificado vence em 15 dias',
+  CERTIFICADO_D7: 'Certificado vence em 7 dias',
+  CERTIFICADO_VENCIDO: 'Certificado vencido',
+  CERTIFICADO_RESPONSAVEL_INCONSISTENTE: 'Certificado sem responsável ativo',
+};
+
+const RESUMO_GENERICO_DO_CERTIFICADO = 'Certificado digital';
+
 export const ehAvisoDeCarteira = (notificacao: Notificacao): boolean =>
   notificacao.tipo === 'CARTEIRA_ALTERADA';
+
+export const ehAvisoDeCertificado = (notificacao: Notificacao): boolean =>
+  notificacao.tipo.startsWith('CERTIFICADO_');
 
 export const tituloDaNotificacao = (notificacao: Notificacao): string =>
   ehAvisoDeCarteira(notificacao) ? 'Sua carteira foi atualizada' : (notificacao.empresaNome ?? '');
 
 export const tipoDaNotificacao = (notificacao: Notificacao): string =>
-  RESUMO_POR_TIPO[notificacao.tipo] ?? notificacao.tipo;
+  ehAvisoDeCertificado(notificacao)
+    ? (RESUMO_DO_CERTIFICADO[notificacao.tipo] ?? RESUMO_GENERICO_DO_CERTIFICADO)
+    : (RESUMO_POR_TIPO[notificacao.tipo] ?? notificacao.tipo);
 
 /** Linha de apoio do aviso de carteira: o efeito, com nomes e contagem. */
 export const resumoDaCarteira = (notificacao: Notificacao): string => {
@@ -45,7 +61,19 @@ export const resumoDaCarteira = (notificacao: Notificacao): string => {
   return partes.join(' · ');
 };
 
-export const rotaDaNotificacao = (notificacao: Notificacao): string =>
-  ehAvisoDeCarteira(notificacao)
-    ? '/carteira'
-    : `/pendencias?empresaId=${notificacao.empresaId ?? ''}`;
+/**
+ * Cada aviso abre o lugar onde a pessoa age: a carteira, o registro da empresa no
+ * cofre (que sempre mostra o estado de agora, mesmo depois de lida a notificação) ou
+ * as pendências da empresa.
+ */
+export const rotaDaNotificacao = (notificacao: Notificacao): string => {
+  if (ehAvisoDeCarteira(notificacao)) {
+    return '/carteira';
+  }
+
+  if (ehAvisoDeCertificado(notificacao)) {
+    return `/configuracoes/cofre?empresa=${notificacao.empresaId ?? ''}`;
+  }
+
+  return `/pendencias?empresaId=${notificacao.empresaId ?? ''}`;
+};

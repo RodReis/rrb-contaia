@@ -6,14 +6,19 @@
  */
 import { requisitar } from '@/lib/http';
 
-export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL';
+// `CERTIFICADO` é do cofre A1 (SPEC-011 §3.4–3.6): a pendência se resolve cadastrando
+// certificado ou escolhendo responsável, nunca por dispensa.
+export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO';
 export type TipoDaPendencia =
   | 'CAMPO_AUSENTE'
   | 'CAMPO_INVALIDO'
   | 'DOCUMENTO_AUSENTE'
   | 'DOCUMENTO_REJEITADO'
   | 'DOCUMENTO_VENCIDO'
-  | 'EXIGENCIA_ESPECIFICA';
+  | 'EXIGENCIA_ESPECIFICA'
+  | 'CERTIFICADO_AUSENTE'
+  | 'CERTIFICADO_VENCIDO'
+  | 'CERTIFICADO_SEM_RESPONSAVEL';
 export type EstadoDaPendencia = 'ABERTA' | 'RESOLVIDA';
 
 export type Pendencia = Readonly<{
