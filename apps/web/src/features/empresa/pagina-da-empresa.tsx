@@ -8,8 +8,11 @@
  */
 'use client';
 
+import { Lock } from 'lucide-react';
+import Link from 'next/link';
+
 import { Button } from '@/components/ui/button';
-import { ErroDeTela, Skeleton } from '@/components/ui/estados';
+import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { ManutencaoDaEmpresa } from './manutencao-da-empresa';
@@ -32,6 +35,32 @@ export const PaginaDaEmpresa = ({ empresaId }: { empresaId: string }) => {
 
   if (isError) {
     const problema = error instanceof ErroDaApi ? error.problema : null;
+
+    // Empresa do próprio escritório, fora da carteira (SPEC-009 §3.5): a recusa diz qual empresa
+    // (nome e CNPJ) e que falta alçada, e nada além — nenhum outro dado ou ação é liberado.
+    if (problema?.code === 'EMPRESA_FORA_DA_CARTEIRA') {
+      const empresa = problema.detalhes?.['empresa'] as { nome?: string; cnpj?: string } | undefined;
+
+      return (
+        <EmptyState
+          nivel={2}
+          icone={<Lock />}
+          titulo="Esta empresa não está na sua carteira"
+          descricao={
+            empresa?.nome === undefined
+              ? mensagemDoCodigo(problema.code)
+              : `Você não tem acesso a ${empresa.nome}${
+                  empresa.cnpj === undefined ? '' : ` (CNPJ ${empresa.cnpj})`
+                }. Seu papel só vale sobre as empresas atribuídas à sua carteira; peça a um administrador do escritório para atribuí-la.`
+          }
+          acao={
+            <Button asChild variante="contorno" tamanho="compacto">
+              <Link href="/carteira">Ver minha carteira</Link>
+            </Button>
+          }
+        />
+      );
+    }
 
     return (
       <ErroDeTela

@@ -7,12 +7,18 @@ export type TipoDeNotificacao =
   | 'NOVA_PENDENCIA'
   | 'DOCUMENTO_REJEITADO'
   | 'DOCUMENTO_VENCIDO'
-  | 'NOVA_EXIGENCIA';
+  | 'NOVA_EXIGENCIA'
+  // Aviso consolidado de mudança de carteira (SPEC-009): sem empresa, com o resumo da operação.
+  | 'CARTEIRA_ALTERADA';
+
+export type EmpresaDoAviso = Readonly<{ id: string; nome: string; cnpj: string }>;
 
 export type Notificacao = Readonly<{
   id: string;
-  empresaId: string;
-  empresaNome: string;
+  empresaId: string | null;
+  empresaNome: string | null;
+  adicionadas: readonly EmpresaDoAviso[] | null;
+  removidas: readonly EmpresaDoAviso[] | null;
   tipo: TipoDeNotificacao;
   chave: string;
   lida: boolean;

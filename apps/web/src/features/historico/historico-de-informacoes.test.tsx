@@ -257,8 +257,26 @@ describe('aba "Usuários e acessos" (SPEC-007 §3.5)', () => {
 
     renderizar();
 
-    await waitFor(async () => expect(await nomesDasAbas()).toHaveLength(5));
-    expect((await nomesDasAbas()).at(-1)).toBe('Usuários e acessos');
+    // Quatro abas de empresa, "Usuários e acessos" e "Carteiras" (SPEC-009 §3.6).
+    await waitFor(async () => expect(await nomesDasAbas()).toHaveLength(6));
+    expect((await nomesDasAbas()).slice(-2)).toEqual(['Usuários e acessos', 'Carteiras']);
+  });
+
+  it('a aba Carteiras tem a mesma exigência da de usuários e o link direto cai na primeira aba sem ela', async () => {
+    parametrosAtuais = new URLSearchParams({ aba: 'CARTEIRAS' });
+    responderCom(comEventos);
+
+    renderizar();
+
+    await screen.findAllByRole('listitem');
+
+    expect(await nomesDasAbas()).toHaveLength(4);
+    expect(screen.getByRole('tab', { name: 'Dados cadastrais' })).toHaveAttribute('data-state', 'active');
+    expect(
+      (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some(([url]) =>
+        String(url).includes('/historico/carteiras'),
+      ),
+    ).toBe(false);
   });
 
   it('não aparece para quem lê o Histórico mas não os usuários, e o link direto cai na primeira aba', async () => {

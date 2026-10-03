@@ -37,16 +37,14 @@ import { EmptyState, Skeleton } from '@/components/ui/estados';
 import { SemCarteira } from '@/components/ui/sem-carteira';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
+import {
+  ehAvisoDeCarteira,
+  resumoDaCarteira,
+  rotaDaNotificacao,
+  tipoDaNotificacao,
+  tituloDaNotificacao,
+} from './apresentacao';
 import { useMarcarComoLida, useMarcarVariasComoLidas, usePainelDeNotificacoes } from './queries';
-
-const rotaDaPendencia = (empresaId: string): string => `/pendencias?empresaId=${empresaId}`;
-
-const RESUMO_POR_TIPO: Readonly<Record<string, string>> = {
-  NOVA_PENDENCIA: 'Nova pendência',
-  DOCUMENTO_REJEITADO: 'Documento rejeitado',
-  DOCUMENTO_VENCIDO: 'Documento vencido',
-  NOVA_EXIGENCIA: 'Nova exigência',
-};
 
 const formatarQuando = (isoString: string): string =>
   new Intl.DateTimeFormat('pt-BR', {
@@ -179,11 +177,11 @@ export const SinoDeNotificacoes = () => {
                     type="checkbox"
                     checked={selecionados.has(notificacao.id)}
                     onChange={() => alternarSelecao(notificacao.id)}
-                    aria-label={`Selecionar notificação de ${notificacao.empresaNome}`}
+                    aria-label={`Selecionar notificação: ${tituloDaNotificacao(notificacao)}`}
                     className="mt-1 size-icon-sm accent-[var(--color-primary)] focus-visible:outline-none"
                   />
                   <Link
-                    href={rotaDaPendencia(notificacao.empresaId)}
+                    href={rotaDaNotificacao(notificacao)}
                     onClick={() => abrirNotificacao(notificacao.id, notificacao.lida)}
                     className="flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -194,13 +192,18 @@ export const SinoDeNotificacoes = () => {
                           className="size-2 shrink-0 rounded-full bg-danger-indicator"
                         />
                       ) : null}
-                      {notificacao.empresaNome}
+                      {tituloDaNotificacao(notificacao)}
                       {!notificacao.lida ? <span className="sr-only"> (não lida)</span> : null}
                     </p>
                     <p className="text-body-sm text-muted-foreground">
-                      {RESUMO_POR_TIPO[notificacao.tipo] ?? notificacao.tipo} ·{' '}
-                      {formatarQuando(notificacao.criadoEm)}
+                      {tipoDaNotificacao(notificacao)} · {formatarQuando(notificacao.criadoEm)}
                     </p>
+                    {ehAvisoDeCarteira(notificacao) ? (
+                      // Um aviso só por operação, com o resumo do que entrou e do que saiu.
+                      <p className="break-words text-body-sm text-foreground">
+                        {resumoDaCarteira(notificacao)}
+                      </p>
+                    ) : null}
                   </Link>
                 </div>
               </li>

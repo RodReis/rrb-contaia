@@ -17,7 +17,10 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/cn';
+import { AbaDeColaboradores } from '../carteira/aba-de-colaboradores';
 import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
+import { ADMINISTRACAO_DE_USUARIOS, pode } from '../usuarios/permissoes';
+import { useSessao } from '../usuarios/queries';
 import { AbaDeDocumentos } from './aba-de-documentos';
 import { AbaDeEnderecos } from './aba-de-enderecos';
 import { AtualizacaoPelaCnpja } from './atualizacao-pela-cnpja';
@@ -37,6 +40,7 @@ const ABAS = [
   { id: 'fiscal', rotulo: 'Dados fiscais' },
   { id: 'enderecos', rotulo: 'Endereços' },
   { id: 'documentos', rotulo: 'Documentos' },
+  { id: 'colaboradores', rotulo: 'Colaboradores' },
 ] as const;
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
@@ -138,6 +142,12 @@ export const ManutencaoDaEmpresa = ({
 }) => {
   const salvarIdentificacao = useSalvarIdentificacaoMantida(visao.id);
   const salvarFiscais = useSalvarFiscaisMantidos(visao.id);
+  const { data: sessao } = useSessao();
+  // Só o administrador gere carteira (SPEC-009 §3.1): a aba não existe para os demais papéis.
+  const administraCarteira = sessao !== undefined && pode(sessao, ADMINISTRACAO_DE_USUARIOS);
+  const abas = ABAS.filter((aba) => aba.id !== 'colaboradores' || administraCarteira);
+  const nomeDaEmpresa =
+    visao.cadastro.identificacao?.nomeFantasia ?? visao.cadastro.identificacao?.razaoSocial ?? 'a empresa';
 
   return (
     <div className="flex flex-col gap-xl">
@@ -158,7 +168,7 @@ export const ManutencaoDaEmpresa = ({
           aria-label="Seções da empresa"
           className="flex flex-wrap gap-xs rounded-md bg-secondary p-xs"
         >
-          {ABAS.map((aba) => (
+          {abas.map((aba) => (
             <Tabs.Trigger key={aba.id} value={aba.id} className={cn(CLASSES_DA_ABA)}>
               {aba.rotulo}
             </Tabs.Trigger>
@@ -224,6 +234,12 @@ export const ManutencaoDaEmpresa = ({
         <Tabs.Content value="documentos" className="focus-visible:outline-none">
           <AbaDeDocumentos empresaId={visao.id} somenteLeitura={arquivada} />
         </Tabs.Content>
+
+        {administraCarteira ? (
+          <Tabs.Content value="colaboradores" className="focus-visible:outline-none">
+            <AbaDeColaboradores empresaId={visao.id} empresaNome={nomeDaEmpresa} />
+          </Tabs.Content>
+        ) : null}
       </Tabs.Root>
     </div>
   );

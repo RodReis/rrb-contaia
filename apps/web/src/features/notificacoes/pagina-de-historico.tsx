@@ -33,16 +33,18 @@ import { SemCarteira } from '@/components/ui/sem-carteira';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 
+import Link from 'next/link';
+
+import {
+  ehAvisoDeCarteira,
+  resumoDaCarteira,
+  rotaDaNotificacao,
+  tipoDaNotificacao,
+  tituloDaNotificacao,
+} from './apresentacao';
 import { useHistoricoDeNotificacoes } from './queries';
 
 const POR_PAGINA = 25;
-
-const RESUMO_POR_TIPO: Readonly<Record<string, string>> = {
-  NOVA_PENDENCIA: 'Nova pendência',
-  DOCUMENTO_REJEITADO: 'Documento rejeitado',
-  DOCUMENTO_VENCIDO: 'Documento vencido',
-  NOVA_EXIGENCIA: 'Nova exigência',
-};
 
 const formatarQuando = (isoString: string): string =>
   new Intl.DateTimeFormat('pt-BR', {
@@ -132,10 +134,20 @@ export const PaginaDeHistorico = () => {
                   ) : null}
                   <div>
                     <p className="text-body-sm font-medium text-foreground">
-                      {notificacao.empresaNome} —{' '}
-                      {RESUMO_POR_TIPO[notificacao.tipo] ?? notificacao.tipo}
+                      {tituloDaNotificacao(notificacao)} — {tipoDaNotificacao(notificacao)}
                       {!notificacao.lida ? <span className="sr-only"> (não lida)</span> : null}
                     </p>
+                    {ehAvisoDeCarteira(notificacao) ? (
+                      <p className="break-words text-body-sm text-foreground">
+                        {resumoDaCarteira(notificacao)}{' '}
+                        <Link
+                          href={rotaDaNotificacao(notificacao)}
+                          className="underline underline-offset-2 hover:no-underline"
+                        >
+                          Ver minha carteira
+                        </Link>
+                      </p>
+                    ) : null}
                     <p className="text-body-sm text-muted-foreground">
                       {formatarQuando(notificacao.criadoEm)}
                     </p>
