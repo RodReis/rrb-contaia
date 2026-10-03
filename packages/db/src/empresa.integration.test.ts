@@ -15,7 +15,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { criarPool } from './client.js';
 import {
   carregarEmpresa,
-  criarEmpresa,
   empresaComCnpj,
   listarEmpresas,
   marcarEmpresaComoAtiva,
@@ -24,6 +23,7 @@ import {
   salvarIdentificacaoDaEmpresa,
 } from './repositorios/empresa.js';
 import { criarUsuario } from './repositorios/usuarios.js';
+import { comoUsuario, criarEmpresaNaCarteira } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -37,31 +37,13 @@ const poolAdmin = criarPool();
 let poolApp: Pool;
 let tenantA = '';
 let tenantB = '';
+let usuarioA = '';
+let usuarioB = '';
 
-const comTenant = async <T>(
+const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => {
-  const cliente = await poolApp.connect();
-
-  try {
-    await cliente.query('begin');
-
-    if (tenantId !== null) {
-      await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId]);
-    }
-
-    const resultado = await executar(cliente);
-    await cliente.query('commit');
-
-    return resultado;
-  } catch (erro) {
-    await cliente.query('rollback');
-    throw erro;
-  } finally {
-    cliente.release();
-  }
-};
+): Promise<T> => comoUsuario(poolApp, tenantId, tenantId === tenantA ? usuarioA : usuarioB, executar, 'COMUM');
 
 /** CNPJs exclusivos desta suíte, para não colidir com dado de outra origem. */
 const CNPJ_ESCRITORIO_A = '34238864000168';
@@ -110,6 +92,23 @@ beforeAll(async () => {
   tenantA = rows[0]?.id ?? '';
   tenantB = rows[1]?.id ?? '';
 
+  const usuarios = await poolAdmin.query<{ id: string }>(
+    `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+     values ($1, $3, $5, 'Admin Empresa A', 'ATIVO'), ($2, $4, $6, 'Admin Empresa B', 'ATIVO')
+     returning id`,
+    [
+      tenantA,
+      tenantB,
+      `sub-empresa-a-${process.pid}`,
+      `sub-empresa-b-${process.pid}`,
+      `empresa-a-${process.pid}@local`,
+      `empresa-b-${process.pid}@local`,
+    ],
+  );
+
+  usuarioA = usuarios.rows[0]?.id ?? '';
+  usuarioB = usuarios.rows[1]?.id ?? '';
+
   poolApp = new Pool({ connectionString: urlDaAplicacao(), max: 5 });
 });
 
@@ -150,7 +149,7 @@ const enderecoCompleto = {
 describe('isolamento entre escritórios (invariantes I-2 e §4.5)', () => {
   it('sem contexto de tenant não retorna nada', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, CNPJ_OUTRA_EMPRESA),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, CNPJ_OUTRA_EMPRESA),
     );
 
     const linhas = await comTenant(null, async (cliente) => {
@@ -172,7 +171,7 @@ describe('isolamento entre escritórios (invariantes I-2 e §4.5)', () => {
 
   it('o escritório B não carrega, não lista nem descobre a empresa do A', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, CNPJ_EMPRESA),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, CNPJ_EMPRESA),
     );
 
     // Carregar com o id em mãos não revela nada: nem "existe e é de outro".
@@ -199,7 +198,7 @@ describe('isolamento entre escritórios (invariantes I-2 e §4.5)', () => {
 
   it('o mesmo CNPJ pode existir em escritórios distintos, sem vazamento', async () => {
     const noB = await comTenant(tenantB, async (cliente) =>
-      criarEmpresa(cliente, tenantB, CNPJ_EMPRESA),
+      criarEmpresaNaCarteira(cliente, tenantB, tenantB === tenantA ? usuarioA : usuarioB, CNPJ_EMPRESA),
     );
 
     const doB = await comTenant(tenantB, async (cliente) =>
@@ -221,7 +220,7 @@ describe('isolamento entre escritórios (invariantes I-2 e §4.5)', () => {
 
   it('não permite duas empresas com o mesmo CNPJ dentro do mesmo escritório', async () => {
     await expect(
-      comTenant(tenantA, async (cliente) => criarEmpresa(cliente, tenantA, CNPJ_EMPRESA)),
+      comTenant(tenantA, async (cliente) => criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, CNPJ_EMPRESA)),
     ).rejects.toThrow(/empresa_cnpj_por_tenant_idx|duplicate key/u);
   });
 
@@ -241,7 +240,7 @@ describe('isolamento entre escritórios (invariantes I-2 e §4.5)', () => {
 describe('persistência por etapa e retomada', () => {
   it('salva cada etapa e recompõe o cadastro completo', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, '27865757000102'),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, '27865757000102'),
     );
 
     await comTenant(tenantA, async (cliente) => {
@@ -274,7 +273,7 @@ describe('persistência por etapa e retomada', () => {
 
   it('empresa recém-criada tem dados fiscais nulos, para o wizard abrir na etapa certa', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, '42591651000143'),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, '42591651000143'),
     );
 
     const nova = await comTenant(tenantA, async (cliente) =>
@@ -287,7 +286,7 @@ describe('persistência por etapa e retomada', () => {
 
   it('regravar o endereço substitui o principal em vez de criar um segundo', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, '05570714000159'),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, '05570714000159'),
     );
 
     await comTenant(tenantA, async (cliente) => {
@@ -316,7 +315,7 @@ describe('persistência por etapa e retomada', () => {
 
   it('substituir CNAEs secundários arquiva os anteriores, sem exclusão física', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, '07526557000100'),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, '07526557000100'),
     );
 
     await comTenant(tenantA, async (cliente) => {
@@ -345,7 +344,7 @@ describe('persistência por etapa e retomada', () => {
 
   it('enquadramento e número de inscrição não são gravados quando não se aplicam', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, '02558157000162'),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, '02558157000162'),
     );
 
     await comTenant(tenantA, async (cliente) =>
@@ -372,7 +371,7 @@ describe('persistência por etapa e retomada', () => {
 describe('ativação', () => {
   it('leva a empresa para ATIVA e é idempotente na repetição', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, '33014556000196'),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, '33014556000196'),
     );
 
     await comTenant(tenantA, async (cliente) =>
@@ -400,7 +399,7 @@ describe('ativação', () => {
 
   it('o escritório B não consegue ativar empresa do A', async () => {
     const empresaId = await comTenant(tenantA, async (cliente) =>
-      criarEmpresa(cliente, tenantA, '60746948000112'),
+      criarEmpresaNaCarteira(cliente, tenantA, tenantA === tenantA ? usuarioA : usuarioB, '60746948000112'),
     );
 
     await comTenant(tenantB, async (cliente) =>
@@ -431,6 +430,8 @@ describe('listagem, busca e filtros', () => {
       }),
     );
 
+    // Só usuário ATIVO alcança dado empresarial: o convidado não passa pela RLS.
+    await poolAdmin.query(`update app.usuario set estado = 'ATIVO' where id = $1`, [listadorA]);
     await poolAdmin.query(
       `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id)
        select tenant_id, $1, id from app.empresa
@@ -440,7 +441,7 @@ describe('listagem, busca e filtros', () => {
   });
 
   it('filtra por status e conta o total do universo', async () => {
-    const lista = await comTenant(tenantA, async (cliente) =>
+    const lista = await comoUsuario(poolApp, tenantA, listadorA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
         carteiraDoUsuarioId: listadorA,
         veArquivadasDoTenant: false,
@@ -457,7 +458,7 @@ describe('listagem, busca e filtros', () => {
 
   it('busca por nome fantasia, razão social e CNPJ', async () => {
     for (const busca of ['Aurora', 'Padaria Aurora Comércio', CNPJ_EMPRESA]) {
-      const lista = await comTenant(tenantA, async (cliente) =>
+      const lista = await comoUsuario(poolApp, tenantA, listadorA, async (cliente) =>
         listarEmpresas(cliente, tenantA, {
           carteiraDoUsuarioId: listadorA,
           veArquivadasDoTenant: false,
@@ -473,7 +474,7 @@ describe('listagem, busca e filtros', () => {
   });
 
   it('trata curinga digitado pelo usuário como texto literal', async () => {
-    const lista = await comTenant(tenantA, async (cliente) =>
+    const lista = await comoUsuario(poolApp, tenantA, listadorA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
         carteiraDoUsuarioId: listadorA,
         veArquivadasDoTenant: false,
@@ -489,7 +490,7 @@ describe('listagem, busca e filtros', () => {
   });
 
   it('pagina no servidor, preservando o total', async () => {
-    const primeira = await comTenant(tenantA, async (cliente) =>
+    const primeira = await comoUsuario(poolApp, tenantA, listadorA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
         carteiraDoUsuarioId: listadorA,
         veArquivadasDoTenant: false,
@@ -500,7 +501,7 @@ describe('listagem, busca e filtros', () => {
       }),
     );
 
-    const segunda = await comTenant(tenantA, async (cliente) =>
+    const segunda = await comoUsuario(poolApp, tenantA, listadorA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
         carteiraDoUsuarioId: listadorA,
         veArquivadasDoTenant: false,

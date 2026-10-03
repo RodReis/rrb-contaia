@@ -33,6 +33,7 @@ import {
   registrarEventoDeUsuario,
   substituirPapeis,
 } from './repositorios/usuarios.js';
+import { USUARIO_AVULSO, aplicarContextoDeTeste, comoUsuario } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -54,30 +55,10 @@ const RAZOES = [`Escritório Papéis A ${SUFIXO}`, `Escritório Papéis B ${SUFI
 const email = (nome: string): string => `${nome}.${SUFIXO}@papeis.local`;
 const subDe = (nome: string): string => `sub-papeis-${nome}-${SUFIXO}`;
 
-const comTenant = async <T>(
+const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => {
-  const cliente = await poolApp.connect();
-
-  try {
-    await cliente.query('begin');
-
-    if (tenantId !== null) {
-      await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId]);
-    }
-
-    const resultado = await executar(cliente);
-    await cliente.query('commit');
-
-    return resultado;
-  } catch (erro) {
-    await cliente.query('rollback');
-    throw erro;
-  } finally {
-    cliente.release();
-  }
-};
+): Promise<T> => comoUsuario(poolApp, tenantId, (tenantId === tenantA ? adminA : adminB) || USUARIO_AVULSO, executar, 'ADMIN_ACESSO');
 
 const novoUsuario = async (
   tenantId: string,
@@ -533,11 +514,11 @@ describe('vínculos com usuários', () => {
 
     try {
       await arquivando.query('begin');
-      await arquivando.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(arquivando, tenantA, adminA, 'ADMIN_ACESSO');
       await carregarPapel(arquivando, tenantA, papel, { travar: true });
 
       await atribuindo.query('begin');
-      await atribuindo.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(atribuindo, tenantA, adminA, 'ADMIN_ACESSO');
 
       // A atribuição espera o arquivamento terminar: nunca decide sobre estado antigo.
       const pendente = carregarPapeisParaAtribuir(atribuindo, tenantA, [papel]);
@@ -578,11 +559,11 @@ describe('edição concorrente do mesmo papel', () => {
 
     try {
       await primeira.query('begin');
-      await primeira.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(primeira, tenantA, adminA, 'ADMIN_ACESSO');
       await carregarPapel(primeira, tenantA, papel, { travar: true });
 
       await segunda.query('begin');
-      await segunda.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(segunda, tenantA, adminA, 'ADMIN_ACESSO');
 
       const esperando = carregarPapel(segunda, tenantA, papel, { travar: true });
       const antesDoCommit = await Promise.race([

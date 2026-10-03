@@ -13,7 +13,6 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
-import { criarEmpresa } from './repositorios/empresa.js';
 import {
   contarAbertasPorEmpresa,
   dispensar,
@@ -21,6 +20,7 @@ import {
   listarCentral,
   reconciliar,
 } from './repositorios/pendencias.js';
+import { aplicarContextoDeTeste, comoUsuario, criarEmpresaNaCarteira } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -37,30 +37,10 @@ let tenantB = '';
 let usuarioA = '';
 let usuarioB = '';
 
-const comTenant = async <T>(
+const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => {
-  const cliente = await poolApp.connect();
-
-  try {
-    await cliente.query('begin');
-
-    if (tenantId !== null) {
-      await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId]);
-    }
-
-    const resultado = await executar(cliente);
-    await cliente.query('commit');
-
-    return resultado;
-  } catch (erro) {
-    await cliente.query('rollback');
-    throw erro;
-  } finally {
-    cliente.release();
-  }
-};
+): Promise<T> => comoUsuario(poolApp, tenantId, tenantId === tenantA ? usuarioA : usuarioB, executar, 'COMUM');
 
 // Mesmo motivo das suítes de F3/F4: as suítes de banco rodam em paralelo sobre
 // o mesmo PostgreSQL, então cada execução gera os próprios CNPJs e limpa
@@ -148,21 +128,17 @@ const criarEmpresaAtiva = async (
   cnpj: string = CNPJ_EMPRESA,
 ): Promise<string> =>
   comTenant(tenantId, async (cliente) => {
-    const empresaId = await criarEmpresa(cliente, tenantId, cnpj);
+    const empresaId = await criarEmpresaNaCarteira(
+      cliente,
+      tenantId,
+      tenantId === tenantA ? usuarioA : usuarioB,
+      cnpj,
+    );
 
     await cliente.query(
       `update app.empresa set status = 'ATIVA', razao_social = 'Empresa Pendências'
         where tenant_id = $1 and id = $2`,
       [tenantId, empresaId],
-    );
-
-    return empresaId;
-  }).then(async (empresaId) => {
-    // A Central só mostra pendência de empresa da carteira de quem consulta (SPEC-009 §3.5): o
-    // administrador do escritório da fixture entra na carteira de toda empresa que ela cria.
-    await poolAdmin.query(
-      `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id) values ($1, $2, $3)`,
-      [tenantId, tenantId === tenantA ? usuarioA : usuarioB, empresaId],
     );
 
     return empresaId;
@@ -323,7 +299,7 @@ describe('reconciliação — histórico e atomicidade (secao 2)', () => {
       const cliente = await poolApp.connect();
       try {
         await cliente.query('begin');
-        await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+        await aplicarContextoDeTeste(cliente, tenantA, usuarioA, 'COMUM');
         await reconciliar(cliente, tenantA, empresaId, [causa], [], null);
         await cliente.query('commit');
       } catch (erro) {

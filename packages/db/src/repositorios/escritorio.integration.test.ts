@@ -5,7 +5,8 @@
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { comContextoDeTenant, semContexto } from '../contexto.js';
+import { semContexto } from '../contexto.js';
+import { USUARIO_AVULSO, comoUsuario } from '../testes/suporte.js';
 import { criarPool } from '../client.js';
 import {
   arquivarArquivo,
@@ -85,7 +86,7 @@ afterAll(async () => {
 
 describe('persistência por etapa', () => {
   it('parte de um cadastro incompleto e sem etapa alguma salva', async () => {
-    const cadastro = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const cadastro = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       carregarCadastro(cliente, tenantA),
     );
 
@@ -96,7 +97,7 @@ describe('persistência por etapa', () => {
   });
 
   it('salva identificação, responsável, endereço e documento e recarrega tudo', async () => {
-    await comContextoDeTenant(poolApp, tenantA, async (cliente) => {
+    await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, async (cliente) => {
       const logoId = await registrarArquivo(cliente, tenantA, {
         tipo: 'LOGO',
         chaveStorage: `${tenantA}/logo.png`,
@@ -138,7 +139,7 @@ describe('persistência por etapa', () => {
       });
     });
 
-    const cadastro = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const cadastro = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       carregarCadastro(cliente, tenantA),
     );
 
@@ -151,7 +152,7 @@ describe('persistência por etapa', () => {
   });
 
   it('substitui o endereço principal em vez de criar um segundo', async () => {
-    await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       salvarEnderecoPrincipal(cliente, tenantA, {
         cep: '04538133',
         logradouro: 'Avenida Brigadeiro Faria Lima',
@@ -163,7 +164,7 @@ describe('persistência por etapa', () => {
       }),
     );
 
-    const cadastro = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const cadastro = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       carregarCadastro(cliente, tenantA),
     );
 
@@ -180,18 +181,18 @@ describe('persistência por etapa', () => {
 
 describe('arquivos', () => {
   it('arquiva em vez de apagar: a linha continua no banco', async () => {
-    const arquivos = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const arquivos = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       listarArquivos(cliente, tenantA),
     );
 
     const documento = arquivos.find((arquivo) => arquivo.tipo === 'DOCUMENTO');
     expect(documento).toBeDefined();
 
-    await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       arquivarArquivo(cliente, tenantA, documento?.id ?? ''),
     );
 
-    const restantes = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const restantes = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       listarArquivos(cliente, tenantA),
     );
 
@@ -208,14 +209,14 @@ describe('arquivos', () => {
 
 describe('unicidade global do CNPJ', () => {
   it('acusa CNPJ em uso por outro tenant sem revelar de quem é', async () => {
-    const emUso = await comContextoDeTenant(poolApp, tenantB, (cliente) =>
+    const emUso = await comoUsuario(poolApp, tenantB, USUARIO_AVULSO, (cliente) =>
       cnpjEmUsoPorOutroTenant(cliente, CNPJ_DA_SUITE, tenantB),
     );
 
     expect(emUso).toBe(true);
 
     // O tenant B continua sem enxergar o escritório A.
-    const visiveis = await comContextoDeTenant(poolApp, tenantB, (cliente) =>
+    const visiveis = await comoUsuario(poolApp, tenantB, USUARIO_AVULSO, (cliente) =>
       cliente.query('select id from app.tenant'),
     );
 
@@ -223,7 +224,7 @@ describe('unicidade global do CNPJ', () => {
   });
 
   it('não acusa o próprio CNPJ como em uso', async () => {
-    const emUso = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const emUso = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       cnpjEmUsoPorOutroTenant(cliente, CNPJ_DA_SUITE, tenantA),
     );
 
@@ -233,17 +234,17 @@ describe('unicidade global do CNPJ', () => {
 
 describe('ativação', () => {
   it('ativa o tenant e é idempotente na segunda chamada', async () => {
-    await comContextoDeTenant(poolApp, tenantA, (cliente) => marcarComoAtivo(cliente, tenantA));
+    await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) => marcarComoAtivo(cliente, tenantA));
 
-    const depoisDaPrimeira = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const depoisDaPrimeira = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       carregarCadastro(cliente, tenantA),
     );
 
     expect(depoisDaPrimeira?.status).toBe('ATIVO');
 
-    await comContextoDeTenant(poolApp, tenantA, (cliente) => marcarComoAtivo(cliente, tenantA));
+    await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) => marcarComoAtivo(cliente, tenantA));
 
-    const depoisDaSegunda = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const depoisDaSegunda = await comoUsuario(poolApp, tenantA, USUARIO_AVULSO, (cliente) =>
       carregarCadastro(cliente, tenantA),
     );
 

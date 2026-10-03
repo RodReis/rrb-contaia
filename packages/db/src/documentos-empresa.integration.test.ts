@@ -13,7 +13,6 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
-import { criarEmpresa } from './repositorios/empresa.js';
 import {
   arquivarVersaoVigente,
   carregarExigencia,
@@ -28,6 +27,7 @@ import {
   listarVersoes,
   registrarEventosDocumentais,
 } from './repositorios/documentos-empresa.js';
+import { comoUsuario, criarEmpresaNaCarteira } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -44,30 +44,10 @@ let tenantB = '';
 let usuarioA = '';
 let usuarioB = '';
 
-const comTenant = async <T>(
+const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => {
-  const cliente = await poolApp.connect();
-
-  try {
-    await cliente.query('begin');
-
-    if (tenantId !== null) {
-      await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId]);
-    }
-
-    const resultado = await executar(cliente);
-    await cliente.query('commit');
-
-    return resultado;
-  } catch (erro) {
-    await cliente.query('rollback');
-    throw erro;
-  } finally {
-    cliente.release();
-  }
-};
+): Promise<T> => comoUsuario(poolApp, tenantId, tenantId === tenantA ? usuarioA : usuarioB, executar, 'COMUM');
 
 // Mesmo motivo da suíte da F3: as suítes de banco rodam em paralelo sobre o
 // mesmo PostgreSQL, então cada execução gera os próprios CNPJs e limpa
@@ -122,6 +102,7 @@ const limpar = async (): Promise<void> => {
     'delete from app.empresa_exigencia_documental where tenant_id = any($1)',
     [ids],
   );
+  await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.usuario where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.tenant where id = any($1)', [ids]);
@@ -142,10 +123,10 @@ beforeAll(async () => {
 
   const usuarios = await poolAdmin.query<{ id: string }>(
     `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
-     values ($1, $3, 'docs-a@local', 'Admin Docs A', 'ATIVO'),
-            ($2, $4, 'docs-b@local', 'Admin Docs B', 'ATIVO')
+     values ($1, $3, 'docs-a-' || $5 || '@local', 'Admin Docs A', 'ATIVO'),
+            ($2, $4, 'docs-b-' || $6 || '@local', 'Admin Docs B', 'ATIVO')
      returning id`,
-    [tenantA, tenantB, `sub-documentos-a-${SUFIXO}`, `sub-documentos-b-${SUFIXO}`],
+    [tenantA, tenantB, `sub-documentos-a-${SUFIXO}`, `sub-documentos-b-${SUFIXO}`, SUFIXO, SUFIXO],
   );
 
   usuarioA = usuarios.rows[0]?.id ?? '';
@@ -165,7 +146,12 @@ const criarEmpresaAtiva = async (
   cnpj: string = CNPJ_EMPRESA,
 ): Promise<string> =>
   comTenant(tenantId, async (cliente) => {
-    const empresaId = await criarEmpresa(cliente, tenantId, cnpj);
+    const empresaId = await criarEmpresaNaCarteira(
+      cliente,
+      tenantId,
+      tenantId === tenantA ? usuarioA : usuarioB,
+      cnpj,
+    );
 
     await cliente.query(
       `update app.empresa set status = 'ATIVA', razao_social = 'Empresa Documentos'

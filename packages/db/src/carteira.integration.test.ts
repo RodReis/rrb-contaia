@@ -13,7 +13,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
-import { comContextoDeTenant } from './contexto.js';
+import { comContextoHumano } from './contexto.js';
 import {
   aplicarEfeitos,
   autoatribuirEmpresa,
@@ -32,7 +32,7 @@ import {
   vinculoAtivo,
 } from './repositorios/carteira.js';
 import type { AfetadoDoEvento } from './repositorios/carteira.js';
-import { criarEmpresa, listarEmpresas, marcarEmpresaComoAtiva } from './repositorios/empresa.js';
+import { listarEmpresas } from './repositorios/empresa.js';
 import { listarHistorico, registrarEventos } from './repositorios/manutencao-empresa.js';
 import {
   contarNaoLidas,
@@ -43,6 +43,7 @@ import {
 } from './repositorios/notificacoes.js';
 import { dispensar, listarCentral, reconciliar } from './repositorios/pendencias.js';
 import { atualizarEstado, criarUsuario, substituirPapeis } from './repositorios/usuarios.js';
+import { USUARIO_AVULSO, aplicarContextoDeTeste, comoUsuario } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -69,30 +70,10 @@ const SUFIXO = String(process.pid).padStart(6, '0').slice(-6);
 const RAZOES = [`Escritório Carteira A ${SUFIXO}`, `Escritório Carteira B ${SUFIXO}`];
 const email = (nome: string): string => `${nome}.${SUFIXO}@carteira.local`;
 
-const comTenant = async <T>(
+const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => {
-  const cliente = await poolApp.connect();
-
-  try {
-    await cliente.query('begin');
-
-    if (tenantId !== null) {
-      await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId]);
-    }
-
-    const resultado = await executar(cliente);
-    await cliente.query('commit');
-
-    return resultado;
-  } catch (erro) {
-    await cliente.query('rollback');
-    throw erro;
-  } finally {
-    cliente.release();
-  }
-};
+): Promise<T> => comoUsuario(poolApp, tenantId, (tenantId === tenantA ? adminA : colabB) || USUARIO_AVULSO, executar, 'ADMIN_ACESSO');
 
 const novoUsuario = (
   tenantId: string,
@@ -114,12 +95,34 @@ const novoUsuario = (
     return id;
   });
 
-const novaEmpresa = (tenantId: string, cnpj: string): Promise<string> =>
-  comTenant(tenantId, async (cliente) => {
-    const id = await criarEmpresa(cliente, tenantId, cnpj);
-    await marcarEmpresaComoAtiva(cliente, tenantId, id);
-    return id;
-  });
+// A fixture nasce pelo semeador: a criação da empresa na aplicação é da F2, e o que esta suíte
+// prova é a carteira. Empresa ativa, sem vínculo algum — quem atribui é o teste.
+const novaEmpresa = async (tenantId: string, cnpj: string): Promise<string> => {
+  const { rows } = await poolAdmin.query<{ id: string }>(
+    `insert into app.empresa (tenant_id, cnpj, status) values ($1, $2, 'ATIVA') returning id`,
+    [tenantId, cnpj],
+  );
+
+  return rows[0]?.id ?? '';
+};
+
+/** Leitura e escrita empresariais só existem na finalidade comum: carteira, nunca a gestão de acesso. */
+const comoComum = <T>(
+  tenantId: string,
+  usuarioId: string,
+  executar: (cliente: PoolClient) => Promise<T>,
+): Promise<T> => comoUsuario(poolApp, tenantId, usuarioId, executar, 'COMUM');
+
+/** Fixture empresarial pelo semeador (papel dono da tabela), fora do caminho da aplicação. */
+const comoSemeador = async <T>(executar: (cliente: PoolClient) => Promise<T>): Promise<T> => {
+  const cliente = await poolAdmin.connect();
+
+  try {
+    return await executar(cliente);
+  } finally {
+    cliente.release();
+  }
+};
 
 const resumo = (id: string, nome: string, cnpj = '00000000000000') => ({ id, nome, cnpj });
 
@@ -208,6 +211,10 @@ beforeAll(async () => {
   colabA1 = await novoUsuario(tenantA, 'colabA1');
   colabA2 = await novoUsuario(tenantA, 'colabA2');
   colabB = await novoUsuario(tenantB, 'colabB');
+  await poolAdmin.query(
+    `insert into app.usuario_papel (tenant_id, usuario_id, papel) values ($1, $2, 'admin_escritorio')`,
+    [tenantA, adminA],
+  );
 
   empresaA1 = await novaEmpresa(tenantA, `71${SUFIXO}000171`);
   empresaA2 = await novaEmpresa(tenantA, `72${SUFIXO}000172`);
@@ -322,11 +329,11 @@ describe('revisão da carteira', () => {
 
     try {
       await primeiro.query('begin');
-      await primeiro.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(primeiro, tenantA, adminA, 'ADMIN_ACESSO');
       await carregarUsuariosDaOperacao(primeiro, tenantA, [colabA2]);
 
       await segundo.query('begin');
-      await segundo.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(segundo, tenantA, adminA, 'ADMIN_ACESSO');
       await segundo.query("set local lock_timeout = '300ms'");
 
       // O segundo não consegue travar o mesmo colaborador enquanto o primeiro não termina.
@@ -604,12 +611,13 @@ const adicionar2 = async (cliente: PoolClient, usuarioId: string, empresaId: str
   ]);
 };
 
-// `comContextoDeTenant` é o caminho real dos casos de uso; um fumo garante que o
+// `comContextoHumano` é o caminho real dos casos de uso; um fumo garante que o
 // repositório funciona também quando a transação vem dele.
 
 describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () => {
   let usuarioX = '';
   let usuarioY = '';
+  let adminX = '';
   let empresaX1 = '';
   let empresaX2 = '';
   let empresaArquivada = '';
@@ -630,6 +638,13 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
   beforeAll(async () => {
     usuarioX = await novoUsuario(tenantA, 'leitorX');
     usuarioY = await novoUsuario(tenantA, 'leitorY');
+    // Administrador do escritório com a empresa X1 na carteira: a exceção da F9 (arquivadas sem
+    // vínculo) é conferida pelo próprio banco, a partir do papel gravado.
+    adminX = await novoUsuario(tenantA, 'adminX');
+    await poolAdmin.query(
+      `insert into app.usuario_papel (tenant_id, usuario_id, papel) values ($1, $2, 'admin_escritorio')`,
+      [tenantA, adminX],
+    );
     empresaX1 = await novaEmpresa(tenantA, `66${SUFIXO}000166`);
     empresaX2 = await novaEmpresa(tenantA, `67${SUFIXO}000167`);
     empresaArquivada = await novaEmpresa(tenantA, `68${SUFIXO}000168`);
@@ -639,11 +654,12 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
 
     await adicionar(tenantA, usuarioX, [empresaX1]);
     await adicionar(tenantA, usuarioY, [empresaX2]);
+    await adicionar(tenantA, adminX, [empresaX1]);
 
     for (const empresaId of [empresaX1, empresaX2]) {
       const chave = `campo:${empresaId.slice(-4)}`;
 
-      await comTenant(tenantA, async (cliente) => {
+      await comoComum(tenantA, empresaId === empresaX1 ? usuarioX : usuarioY, async (cliente) => {
         await reconciliar(
           cliente,
           tenantA,
@@ -656,7 +672,7 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
       });
     }
 
-    await comTenant(tenantA, (cliente) =>
+    await comoSemeador((cliente) =>
       registrarEventos(
         cliente,
         tenantA,
@@ -676,10 +692,10 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
   });
 
   it('a lista de empresas devolve só as da carteira de quem pergunta', async () => {
-    const doX = await comTenant(tenantA, (c) =>
+    const doX = await comoComum(tenantA, usuarioX, (c) =>
       listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX)),
     );
-    const doY = await comTenant(tenantA, (c) =>
+    const doY = await comoComum(tenantA, usuarioY, (c) =>
       listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioY)),
     );
 
@@ -690,7 +706,7 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
 
   it('colaborador sem carteira vê lista vazia, nunca a base inteira', async () => {
     const sem = await novoUsuario(tenantA, 'semCarteira');
-    const lista = await comTenant(tenantA, (c) =>
+    const lista = await comoComum(tenantA, sem, (c) =>
       listarEmpresas(c, tenantA, filtroDeEmpresas(sem)),
     );
 
@@ -698,24 +714,24 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
   });
 
   it('só o admin alcança as arquivadas sem vínculo; a ativa continua exigindo vínculo', async () => {
-    const comoAdmin = await comTenant(tenantA, (c) =>
-      listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX, true, 'ARQUIVADA')),
+    const doAdmin = await comoComum(tenantA, adminX, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(adminX, true, 'ARQUIVADA')),
     );
-    const comoComum = await comTenant(tenantA, (c) =>
+    const doComum = await comoComum(tenantA, usuarioX, (c) =>
       listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX, false, 'ARQUIVADA')),
     );
-    const ativasDoAdmin = await comTenant(tenantA, (c) =>
-      listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX, true)),
+    const ativasDoAdmin = await comoComum(tenantA, adminX, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(adminX, true)),
     );
 
-    expect(comoAdmin.empresas.map((e) => e.id)).toContain(empresaArquivada);
-    expect(comoComum.empresas).toEqual([]);
+    expect(doAdmin.empresas.map((e) => e.id)).toContain(empresaArquivada);
+    expect(doComum.empresas).toEqual([]);
     expect(ativasDoAdmin.empresas.map((e) => e.id)).toEqual([empresaX1]);
   });
 
   it('a Central de Pendências só mostra pendência de empresa da carteira', async () => {
     const pagina = (usuarioId: string) =>
-      comTenant(tenantA, (c) =>
+      comoComum(tenantA, usuarioId, (c) =>
         listarCentral(
           c,
           {
@@ -739,7 +755,7 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
   it('o histórico das empresas respeita a carteira; o admin também lê o das arquivadas', async () => {
     const leitura = async (usuarioId: string, veArquivadas: boolean) =>
       (
-        await comTenant(tenantA, (c) =>
+        await comoComum(tenantA, usuarioId, (c) =>
           listarHistorico(c, tenantA, {
             carteiraDoUsuarioId: usuarioId,
             veArquivadasDoTenant: veArquivadas,
@@ -756,7 +772,7 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
       ).eventos.map((e) => e.empresaId);
 
     expect(await leitura(usuarioX, false)).toEqual([empresaX1]);
-    expect((await leitura(usuarioX, true)).sort()).toEqual([empresaX1, empresaArquivada].sort());
+    expect((await leitura(adminX, true)).sort()).toEqual([empresaX1, empresaArquivada].sort());
   });
 
   it('o sino mostra pendência só da carteira e o aviso consolidado só ao destinatário', async () => {
@@ -771,8 +787,8 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
       return id;
     });
 
-    const sinoX = await comTenant(tenantA, (c) => listarPainel(c, tenantA, usuarioX));
-    const sinoY = await comTenant(tenantA, (c) => listarPainel(c, tenantA, usuarioY));
+    const sinoX = await comoComum(tenantA, usuarioX, (c) => listarPainel(c, tenantA, usuarioX));
+    const sinoY = await comoComum(tenantA, usuarioY, (c) => listarPainel(c, tenantA, usuarioY));
 
     // X vê a pendência da empresa dele e o aviso; Y vê só a pendência da dele.
     expect(sinoX.map((n) => n.empresaId).filter((id) => id !== null)).toEqual([empresaX1]);
@@ -798,15 +814,15 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
       await criarNotificacoesDeCarteira(cliente, tenantA, id, afetados);
     });
 
-    const sino = await comTenant(tenantA, (c) => listarPainel(c, tenantA, solitario));
+    const sino = await comoComum(tenantA, solitario, (c) => listarPainel(c, tenantA, solitario));
 
     expect(sino).toHaveLength(1);
     expect(sino[0]?.tipo).toBe('CARTEIRA_ALTERADA');
-    expect(await comTenant(tenantA, (c) => contarNaoLidas(c, tenantA, solitario))).toBe(1);
+    expect(await comoComum(tenantA, solitario, (c) => contarNaoLidas(c, tenantA, solitario))).toBe(1);
   });
 
   it('ninguém marca como lida a notificação de outro: nem pendência fora da carteira, nem aviso alheio', async () => {
-    const sinoX = await comTenant(tenantA, (c) => listarPainel(c, tenantA, usuarioX));
+    const sinoX = await comoComum(tenantA, usuarioX, (c) => listarPainel(c, tenantA, usuarioX));
     const avisoDeX = sinoX.find((n) => n.tipo === 'CARTEIRA_ALTERADA');
     const pendenciaDeX = sinoX.find((n) => n.empresaId === empresaX1);
 
@@ -815,19 +831,19 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
 
     // Y tenta ler os dois ids de X: responde como inexistente e nada muda.
     expect(
-      await comTenant(tenantA, (c) => marcarComoLida(c, tenantA, avisoDeX?.id ?? '', usuarioY)),
+      await comoComum(tenantA, usuarioY, (c) => marcarComoLida(c, tenantA, avisoDeX?.id ?? '', usuarioY)),
     ).toBeNull();
     expect(
-      await comTenant(tenantA, (c) => marcarComoLida(c, tenantA, pendenciaDeX?.id ?? '', usuarioY)),
+      await comoComum(tenantA, usuarioY, (c) => marcarComoLida(c, tenantA, pendenciaDeX?.id ?? '', usuarioY)),
     ).toBeNull();
     expect(
-      await comTenant(tenantA, (c) =>
+      await comoComum(tenantA, usuarioY, (c) =>
         marcarVariasComoLidas(c, tenantA, [avisoDeX?.id ?? '', pendenciaDeX?.id ?? ''], usuarioY),
       ),
     ).toBe(0);
 
     // O destinatário marca o próprio aviso, e só ele.
-    const lida = await comTenant(tenantA, (c) =>
+    const lida = await comoComum(tenantA, usuarioX, (c) =>
       marcarComoLida(c, tenantA, avisoDeX?.id ?? '', usuarioX),
     );
     expect(lida?.lida).toBe(true);
@@ -871,7 +887,7 @@ describe('privilégios finos e empresa arquivada', () => {
 
   it('pendência de empresa arquivada não se dispensa: o admin a alcança sem vínculo, mas só para consultar', async () => {
     const empresaId = await novaEmpresa(tenantA, `69${SUFIXO}000169`);
-    await comTenant(tenantA, (cliente) =>
+    await comoSemeador((cliente) =>
       reconciliar(
         cliente,
         tenantA,
@@ -888,7 +904,7 @@ describe('privilégios finos e empresa arquivada', () => {
     ).rows[0]?.id;
     await poolAdmin.query(`update app.empresa set situacao = 'arquivado' where id = $1`, [empresaId]);
 
-    const dispensada = await comTenant(tenantA, (cliente) =>
+    const dispensada = await comoComum(tenantA, adminA, (cliente) =>
       dispensar(cliente, tenantA, empresaId, pendenciaId ?? '', adminA, 'Tentativa em empresa arquivada.'),
     );
 
@@ -896,9 +912,9 @@ describe('privilégios finos e empresa arquivada', () => {
   });
 });
 
-describe('com comContextoDeTenant', () => {
+describe('com comContextoHumano', () => {
   it('lê a carteira pelo mesmo caminho dos casos de uso', async () => {
-    const empresas = await comContextoDeTenant(poolApp, tenantA, (cliente) =>
+    const empresas = await comContextoHumano(poolApp, { tenantId: tenantA, usuarioId: adminA, finalidade: 'ADMIN_ACESSO' }, (cliente) =>
       empresasDaCarteira(cliente, tenantA, colabA1),
     );
     expect(empresas.length).toBeGreaterThan(0);
