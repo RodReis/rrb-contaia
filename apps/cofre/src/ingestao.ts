@@ -1,7 +1,8 @@
 /**
  * Caso de uso da ingestão (SPEC-011 §3.1, §3.3, §6.2): valida tudo ANTES de gravar,
- * grava no Vault com o token write-only, pede à API que ative e, se a ativação falhar,
- * compensa. Devolve só metadados ou um código estável — nunca arquivo, senha ou chave.
+ * grava no Vault com o token write-only, pede à API que ative e, se a API recusar de
+ * forma definitiva, compensa. Devolve só metadados ou um código estável — nunca arquivo,
+ * senha ou chave.
  */
 import { randomUUID } from 'node:crypto';
 import type forge from 'node-forge';
@@ -12,10 +13,10 @@ import {
   type CodigoDeRecusaDaIngestao,
   type RespostaDaIngestao,
 } from '@contaia/shared';
-import type { ClienteDaApi } from './api.js';
+import type { ClienteDaApi, RecusaDefinitiva, RespostaDaApi } from './api.js';
 import type { FormularioDeIngestao } from './multipart.js';
 import { abrirPkcs12 } from './pkcs12.js';
-import { ehCodigoDeRecusa } from './problema.js';
+import { CODIGOS_REPASSADOS_DA_API, ehCodigoDeRecusa, type ProblemaRepassado } from './problema.js';
 import { verificarTicket, type criarRegistroDeJti } from './ticket.js';
 import type { ClienteDoVault, EscopoDoSegredo } from './vault.js';
 
@@ -29,14 +30,37 @@ export type DependenciasDaIngestao = Readonly<{
   jti: ReturnType<typeof criarRegistroDeJti>;
   agora: () => Date;
   log: (registro: RegistroDeLog) => void;
+  /** Espera entre tentativas da ativação; injetável para o teste não dormir. */
+  esperar?: (ms: number) => Promise<void>;
 }>;
 
 export type ResultadoDaIngestao =
   | Readonly<{ ok: true; corpo: RespostaDaIngestao; correlationId: string }>
-  | Readonly<{ ok: false; codigo: CodigoDeRecusaDaIngestao; correlationId: string }>;
+  | Readonly<{ ok: false; codigo: CodigoDeRecusaDaIngestao; correlationId: string }>
+  /** Recusa definitiva da API com um código que o usuário precisa ver. */
+  | Readonly<{ ok: false; repassado: ProblemaRepassado; correlationId: string }>;
+
+/** Esperas entre as tentativas da ativação em desfecho ambíguo (rede, timeout, 5xx): 3 tentativas. */
+export const ESPERAS_ENTRE_TENTATIVAS_MS: readonly number[] = [250, 750];
+
+const dormir = (ms: number): Promise<void> => new Promise((resolver) => setTimeout(resolver, ms));
 
 const temExtensaoAceita = (nome: string): boolean =>
   EXTENSOES_DO_CERTIFICADO.some((extensao) => nome.toLowerCase().endsWith(extensao));
+
+/**
+ * Primeiro ato da ingestão, chamado assim que o campo `ticket` chega (antes do arquivo):
+ * assinatura + expiração, e o `jti` é consumido NA PRIMEIRA APRESENTAÇÃO, mesmo que a
+ * validação adiante falhe (nova tentativa = novo ticket).
+ */
+export const autorizarTicket = (
+  ticket: string,
+  deps: Pick<DependenciasDaIngestao, 'ticketSecret' | 'jti' | 'agora'>,
+): CargaDoTicket | null => {
+  const agora = deps.agora();
+  const carga = verificarTicket(ticket, deps.ticketSecret, agora);
+  return carga !== null && deps.jti.consumir(carga.jti, carga.exp, agora) ? carga : null;
+};
 
 /**
  * Compensação (SPEC-011 §7): a versão gravada não foi ativada, então some de vez.
@@ -62,27 +86,62 @@ const compensar = async (
   }
 };
 
-const codigoDaFalhaDaApi = (codigo: string | null): CodigoDeRecusaDaIngestao =>
-  ehCodigoDeRecusa(codigo) ? codigo : 'COFRE_INDISPONIVEL';
+/**
+ * A API pode ter comitado antes de a resposta se perder, então só um "não" definitivo
+ * autoriza destruir o segredo. Fora disso repete (a ativação é idempotente por ticket +
+ * referência); se continuar ambíguo, devolve o último desfecho SEM compensar.
+ */
+const ativarComTentativas = async (
+  deps: DependenciasDaIngestao,
+  pedido: Parameters<ClienteDaApi['ativar']>[0],
+  correlationId: string,
+): Promise<RespostaDaApi> => {
+  const esperar = deps.esperar ?? dormir;
+  let ultima: RespostaDaApi = { ok: false, definitiva: false, status: null };
 
+  for (let tentativa = 0; tentativa <= ESPERAS_ENTRE_TENTATIVAS_MS.length; tentativa++) {
+    if (tentativa > 0) await esperar(ESPERAS_ENTRE_TENTATIVAS_MS[tentativa - 1] ?? 0);
+    ultima = await deps.api.ativar(pedido, correlationId);
+    if (ultima.ok || ultima.definitiva) return ultima;
+  }
+
+  return ultima;
+};
+
+const resultadoDaRecusaDefinitiva = (recusa: RecusaDefinitiva, correlationId: string): ResultadoDaIngestao => {
+  if (ehCodigoDeRecusa(recusa.codigo)) return { ok: false, codigo: recusa.codigo, correlationId };
+
+  if (CODIGOS_REPASSADOS_DA_API.has(recusa.codigo)) {
+    return {
+      ok: false,
+      repassado: { codigo: recusa.codigo, status: recusa.status, titulo: recusa.titulo, detalhe: recusa.detalhe },
+      correlationId,
+    };
+  }
+
+  return { ok: false, codigo: 'COFRE_INDISPONIVEL', correlationId };
+};
+
+/**
+ * `carga` é o ticket já verificado por `autorizarTicket` (nulo = ticket inválido, replay ou
+ * corpo grande demais para sequer chegar ao ticket).
+ */
 export const ingerir = async (
   formulario: FormularioDeIngestao,
+  carga: CargaDoTicket | null,
   deps: DependenciasDaIngestao,
 ): Promise<ResultadoDaIngestao> => {
   const agora = deps.agora();
-  const carga: CargaDoTicket | null =
-    formulario.ticket === null ? null : verificarTicket(formulario.ticket, deps.ticketSecret, agora);
-  const semTicket = { ok: false, codigo: 'CERTIFICADO_TICKET_INVALIDO', correlationId: randomUUID() } as const;
 
-  // Corpo gigante cortado antes de chegar ao ticket: não há como auditar, mas o motivo é claro.
-  if (carga === null && formulario.excedeuLimite) {
-    return { ok: false, codigo: 'CERTIFICADO_TAMANHO_EXCEDIDO', correlationId: semTicket.correlationId };
-  }
-
-  // Primeira apresentação consome o jti, mesmo que a validação adiante falhe.
-  if (carga === null || formulario.ticket === null || !deps.jti.consumir(carga.jti, carga.exp, agora)) {
-    deps.log({ nivel: 'info', evento: 'ingestao_recusada', correlationId: semTicket.correlationId, codigo: semTicket.codigo });
-    return semTicket;
+  if (carga === null || formulario.ticket === null) {
+    const correlationId = randomUUID();
+    // Corpo gigante cortado antes de chegar ao ticket: não há como auditar, mas o motivo é claro.
+    const codigo =
+      formulario.excedeuLimite && formulario.ticket === null
+        ? 'CERTIFICADO_TAMANHO_EXCEDIDO'
+        : 'CERTIFICADO_TICKET_INVALIDO';
+    deps.log({ nivel: 'info', evento: 'ingestao_recusada', correlationId, codigo });
+    return { ok: false, codigo, correlationId };
   }
 
   const { correlationId } = carga;
@@ -102,7 +161,7 @@ export const ingerir = async (
     if (!temExtensaoAceita(arquivo.nome)) return await recusar('CERTIFICADO_EXTENSAO_INVALIDA');
     if (senha === null || senha === '') return await recusar('CERTIFICADO_SENHA_INCORRETA');
 
-    const aberto = abrirPkcs12(arquivo.bytes, senha, deps.raizes, agora);
+    const aberto = await abrirPkcs12(arquivo.bytes, senha, deps.raizes, agora);
     if (!aberto.ok) return await recusar(aberto.codigo);
 
     const avaliacao = avaliarCertificado(aberto.extraido, { cnpjDaEmpresa: carga.cnpjDaEmpresa, agora });
@@ -130,20 +189,40 @@ export const ingerir = async (
       return await recusar('COFRE_INDISPONIVEL');
     }
 
-    const ativacao = await deps.api.ativar(
+    const ativacao = await ativarComTentativas(
+      deps,
       { ticket, metadados: aberto.metadados, referenciaDoSegredo: escopo.referencia },
       correlationId,
     );
 
-    if (!ativacao.ok) {
-      await compensar(deps, escopo, correlationId);
-      const codigo = codigoDaFalhaDaApi(ativacao.codigo);
-      deps.log({ nivel: 'warn', evento: 'ativacao_falhou', correlationId, codigo, statusDaApi: ativacao.status });
-      return { ok: false, codigo, correlationId };
+    if (ativacao.ok) {
+      deps.log({ nivel: 'info', evento: 'ingestao_concluida', correlationId });
+      return { ok: true, corpo: ativacao.corpo, correlationId };
     }
 
-    deps.log({ nivel: 'info', evento: 'ingestao_concluida', correlationId });
-    return { ok: true, corpo: ativacao.corpo, correlationId };
+    if (ativacao.definitiva) {
+      // A API disse "não": nada foi ativado, o segredo gravado não serve a ninguém.
+      await compensar(deps, escopo, correlationId);
+      deps.log({
+        nivel: 'warn',
+        evento: 'ativacao_recusada',
+        correlationId,
+        codigo: ativacao.codigo,
+        statusDaApi: ativacao.status,
+      });
+      return resultadoDaRecusaDefinitiva(ativacao, correlationId);
+    }
+
+    // Ambíguo mesmo depois das tentativas: a API pode ter ativado. Destruir o segredo
+    // deixaria um certificado vigente sem segredo; uma referência órfã é inofensiva.
+    deps.log({
+      nivel: 'error',
+      evento: 'ativacao_ambigua',
+      correlationId,
+      referencia: escopo.referencia,
+      statusDaApi: ativacao.status,
+    });
+    return { ok: false, codigo: 'COFRE_INDISPONIVEL', correlationId };
   } finally {
     // O que dá para apagar da memória: os bytes do PKCS#12. (Strings JS são imutáveis.)
     formulario.arquivo?.bytes.fill(0);

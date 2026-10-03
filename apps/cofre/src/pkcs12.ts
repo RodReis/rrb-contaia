@@ -9,17 +9,8 @@ import { createHash } from 'node:crypto';
 import forge from 'node-forge';
 import type { CertificadoExtraido } from '@contaia/domain';
 import type { MetadadosExtraidos } from '@contaia/shared';
+import { abrirNoTrabalhador, type ChavePublica, type OpcoesDoTrabalho } from './pkcs12-trabalho.js';
 
-/**
- * Teto de iterações de KDF aceitas no contêiner. Cada iteração custa CPU síncrona
- * no processo do cofre; um PFX que declare milhões é ataque de negação de serviço.
- * Certificados reais usam de 2.048 a 100.000.
- * ponytail: sem limite de tempo além deste teto (forge é síncrono); mover o parse
- * para um worker com timeout se o teto passar a ser insuficiente.
- */
-export const MAXIMO_DE_ITERACOES = 250_000;
-/** Descida máxima na árvore ASN.1 (parâmetros de PBE ficam a ~10 níveis; abaixo disso é interior de certificado) e subida na cadeia. */
-const PROFUNDIDADE_DO_ASN1 = 14;
 const PROFUNDIDADE_DA_CADEIA = 8;
 
 const OID_CNPJ_DO_TITULAR = '2.16.76.1.3.3';
@@ -28,8 +19,11 @@ const OID_CERTIFICATE_POLICIES = '2.5.29.32';
 const OID_BASIC_CONSTRAINTS = '2.5.29.19';
 const OID_KEY_USAGE = '2.5.29.15';
 
+/** Metadados do cofre: os de contrato mais TODOS os CNPJs do SubjectAltName. */
+export type MetadadosDoCofre = MetadadosExtraidos & Readonly<{ cnpjsDoTitular: readonly string[] }>;
+
 export type ResultadoDaAbertura =
-  | Readonly<{ ok: true; extraido: CertificadoExtraido; metadados: MetadadosExtraidos }>
+  | Readonly<{ ok: true; extraido: CertificadoExtraido; metadados: MetadadosDoCofre }>
   | Readonly<{
       ok: false;
       codigo: 'CERTIFICADO_CONTEINER_INVALIDO' | 'CERTIFICADO_SENHA_INCORRETA';
@@ -37,49 +31,6 @@ export type ResultadoDaAbertura =
 
 const conteinerInvalido = { ok: false, codigo: 'CERTIFICADO_CONTEINER_INVALIDO' } as const;
 const senhaIncorreta = { ok: false, codigo: 'CERTIFICADO_SENHA_INCORRETA' } as const;
-
-const inteiro = (no: forge.asn1.Asn1): number => {
-  if (typeof no.value !== 'string') return Number.POSITIVE_INFINITY;
-  const hex = forge.util.bytesToHex(no.value);
-  return hex.length > 8 ? Number.POSITIVE_INFINITY : parseInt(hex || '0', 16);
-};
-
-/**
- * Maior contagem de iterações declarada em qualquer parâmetro de PBE/PBKDF2/MAC:
- * toda SEQUENCE em que um OCTET STRING (sal) é seguido de um INTEGER. Entra nos
- * OCTET STRING que parecem DER (o conteúdo dos `data` do PFX).
- */
-export const maiorIteracaoDeclarada = (no: forge.asn1.Asn1, profundidade = 0): number => {
-  if (profundidade > PROFUNDIDADE_DO_ASN1) return 0;
-  const { asn1 } = forge;
-
-  if (Array.isArray(no.value)) {
-    let maior = 0;
-    const filhos = no.value;
-    filhos.forEach((filho, i) => {
-      const proximo = filhos[i + 1];
-      if (
-        filho.type === asn1.Type.OCTETSTRING &&
-        filho.tagClass === asn1.Class.UNIVERSAL &&
-        proximo?.type === asn1.Type.INTEGER
-      ) {
-        maior = Math.max(maior, inteiro(proximo));
-      }
-      maior = Math.max(maior, maiorIteracaoDeclarada(filho, profundidade + 1));
-    });
-    return maior;
-  }
-
-  if (no.type === asn1.Type.OCTETSTRING && typeof no.value === 'string' && no.value.charCodeAt(0) === 0x30) {
-    try {
-      return maiorIteracaoDeclarada(asn1.fromDer(no.value, false), profundidade + 1);
-    } catch {
-      return 0;
-    }
-  }
-
-  return 0;
-};
 
 const textoDoOid = (no: forge.asn1.Asn1): string =>
   forge.asn1.derToOid(typeof no.value === 'string' ? no.value : '');
@@ -148,9 +99,9 @@ const nomeComum = (atributos: forge.pki.CertificateField[]): string =>
 /** O CN do e-CNPJ vem como `RAZAO SOCIAL:CNPJ`; a tela mostra só o nome. */
 const titularLegivel = (cn: string): string => cn.replace(/:[0-9A-Z]{14}$/i, '').trim();
 
-const mesmaChave = (cert: forge.pki.Certificate, chave: forge.pki.rsa.PrivateKey): boolean => {
-  const publica = cert.publicKey as forge.pki.rsa.PublicKey;
-  return publica.n?.compareTo(chave.n) === 0 && publica.e?.compareTo(chave.e) === 0;
+const mesmaChave = (cert: forge.pki.Certificate, chave: ChavePublica): boolean => {
+  const publica = cert.publicKey as Partial<forge.pki.rsa.PublicKey>;
+  return publica.n?.toString(16) === chave.n && publica.e?.toString(16) === chave.e;
 };
 
 const vigenteEm = (cert: forge.pki.Certificate, agora: Date): boolean =>
@@ -183,71 +134,63 @@ const intermediariasDe = (
 };
 
 const cadeiaConfiavel = (
-  cadeia: forge.pki.Certificate[],
+  cadeia: readonly [forge.pki.Certificate, ...forge.pki.Certificate[]],
   raizes: readonly forge.pki.Certificate[],
   agora: Date,
 ): boolean => {
   if (raizes.length === 0) return false;
   try {
     // A vigência do titular é decisão do domínio (data civil); aqui só as autoridades.
-    const confere = forge.pki.verifyCertificateChain(forge.pki.createCaStore([...raizes]), cadeia, {
+    const confere = forge.pki.verifyCertificateChain(forge.pki.createCaStore([...raizes]), [...cadeia], {
       validityCheckDate: null,
     });
     if (!confere) return false;
 
     const autoridades = cadeia.slice(1);
-    const raizUsada = raizes.find((r) => (cadeia.at(-1) ?? cadeia[0])!.isIssuer(r));
+    const raizUsada = raizes.find((r) => ultimoDa(cadeia).isIssuer(r));
     return [...autoridades, ...(raizUsada ? [raizUsada] : [])].every((c) => vigenteEm(c, agora));
   } catch {
     return false;
   }
 };
 
-const mensagemDeSenhaIncorreta = (erro: unknown): boolean =>
-  erro instanceof Error && /invalid password|MAC could not be verified/i.test(erro.message);
+const ultimoDa = (
+  cadeia: readonly [forge.pki.Certificate, ...forge.pki.Certificate[]],
+): forge.pki.Certificate => cadeia[cadeia.length - 1] ?? cadeia[0];
 
 /**
  * Abre o PFX e extrai os fatos. Não lança: todo defeito vira código estável.
- * `agora` só entra na checagem de vigência das autoridades.
+ * `agora` só entra na checagem de vigência das autoridades. A parte cara e perigosa
+ * (ASN.1, KDF) roda num worker com prazo; aqui só se monta o que o worker devolveu.
  */
-export const abrirPkcs12 = (
+export const abrirPkcs12 = async (
   bytes: Uint8Array,
   senha: string,
   raizes: readonly forge.pki.Certificate[],
   agora: Date,
-): ResultadoDaAbertura => {
-  let p12: forge.pkcs12.Pkcs12Pfx;
+  opcoes: OpcoesDoTrabalho = {},
+): Promise<ResultadoDaAbertura> => {
+  const aberto = await abrirNoTrabalhador(bytes, senha, opcoes);
+  if (!aberto.ok) return aberto.motivo === 'SENHA' ? senhaIncorreta : conteinerInvalido;
 
   try {
-    const raiz = forge.asn1.fromDer(forge.util.createBuffer(Buffer.from(bytes).toString('binary')));
-    if (maiorIteracaoDeclarada(raiz) > MAXIMO_DE_ITERACOES) return conteinerInvalido;
-    p12 = forge.pkcs12.pkcs12FromAsn1(raiz, false, senha);
-  } catch (erro) {
-    return mensagemDeSenhaIncorreta(erro) ? senhaIncorreta : conteinerInvalido;
-  }
-
-  try {
-    const certificados = (p12.getBags({ bagType: forge.pki.oids['certBag']! })[forge.pki.oids['certBag']!] ?? [])
-      .map((bag) => bag.cert)
-      .filter((c): c is forge.pki.Certificate => c !== undefined);
-    const chaves = [forge.pki.oids['pkcs8ShroudedKeyBag']!, forge.pki.oids['keyBag']!]
-      .flatMap((tipo) => p12.getBags({ bagType: tipo })[tipo] ?? [])
-      .map((bag) => bag.key)
-      .filter((k): k is forge.pki.rsa.PrivateKey => k !== undefined && k !== null);
-
-    if (certificados.length === 0) return conteinerInvalido;
+    const certificados = aberto.conteudo.certificados.map((der) =>
+      forge.pki.certificateFromAsn1(forge.asn1.fromDer(Buffer.from(der).toString('binary'))),
+    );
+    const { chaves } = aberto.conteudo;
 
     const titular =
       certificados.find((c) => chaves.some((k) => mesmaChave(c, k))) ??
       certificados.find((c) => !certificados.some((outro) => outro !== c && outro.isIssuer(c))) ??
-      certificados[0]!;
-    const possuiChavePrivada = chaves.some((k) => mesmaChave(titular, k));
-    const cadeia = [titular, ...intermediariasDe(titular, certificados)];
+      certificados[0];
+    if (titular === undefined) return conteinerInvalido;
 
-    const nomeDoTitular = nomeComum(titular.subject.attributes);
+    const possuiChavePrivada = chaves.some((k) => mesmaChave(titular, k));
+    const intermediarias = intermediariasDe(titular, certificados);
+    const cadeia: readonly [forge.pki.Certificate, ...forge.pki.Certificate[]] = [titular, ...intermediarias];
+
     const cnpjsDoTitular = cnpjsDoTitularDe(titular);
-    const cadeiaIcpValidada = cadeiaConfiavel(cadeia, raizes, agora);
-    const emissorDaCadeia = raizes.find((r) => cadeia.at(-1)!.isIssuer(r));
+    const emissorDaCadeia = raizes.find((r) => ultimoDa(cadeia).isIssuer(r));
 
     return {
       ok: true,
@@ -256,14 +199,15 @@ export const abrirPkcs12 = (
         oidsDePoliticas: politicasDe(titular),
         ehAutoridade: ehAutoridadeDe(titular),
         permiteAssinaturaDigital: permiteAssinaturaDe(titular),
-        cadeiaIcpValidada,
+        cadeiaIcpValidada: cadeiaConfiavel(cadeia, raizes, agora),
         possuiChavePrivada,
         naoAntes: titular.validity.notBefore,
         naoDepois: titular.validity.notAfter,
       },
       metadados: {
-        titular: titularLegivel(nomeDoTitular),
+        titular: titularLegivel(nomeComum(titular.subject.attributes)),
         cnpjTitular: cnpjsDoTitular[0] ?? '',
+        cnpjsDoTitular,
         autoridadeCertificadora: nomeComum(titular.issuer.attributes),
         cadeia: [
           ...cadeia.map((c) => nomeComum(c.subject.attributes)),
@@ -279,7 +223,7 @@ export const abrirPkcs12 = (
       },
     };
   } catch {
-    // Estrutura ASN.1 interna malformada: contêiner inválido, sem detalhe do motivo.
+    // Estrutura interna malformada: contêiner inválido, sem detalhe do motivo.
     return conteinerInvalido;
   }
 };

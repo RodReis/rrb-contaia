@@ -2,29 +2,45 @@
  * Servidor HTTP do cofre (SPEC-011 §6.2). Rotas:
  *  - GET  /health                                  saúde (Vault inicializado e desselado)
  *  - OPTIONS|POST /ingestao                        navegador → cofre, CORS restrito, sem cookies
- *  - POST /segredos/:referencia/inutilizar|restaurar   API → cofre, Bearer de serviço
+ *  - POST /segredos/:referencia/inutilizar|restaurar   API → cofre, Bearer COFRE_ADMIN_TOKEN
+ *    (credencial distinta da COFRE_SERVICE_TOKEN, que é a do sentido cofre → API)
  * Não há rota que leia ou devolva segredo, nem download.
  */
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type forge from 'node-forge';
 import type { ClienteDaApi } from './api.js';
-import { ingerir, type RegistroDeLog } from './ingestao.js';
-import { ErroDeFormulario, lerFormulario } from './multipart.js';
-import { montarProblema, type CodigoDoCofre } from './problema.js';
+import type { CargaDoTicket } from '@contaia/shared';
+import { autorizarTicket, ingerir, type RegistroDeLog } from './ingestao.js';
+import { descartarCorpo, ErroDeFormulario, lerFormulario } from './multipart.js';
+import { montarProblema, montarProblemaRepassado, type CodigoDoCofre } from './problema.js';
 import { criarRegistroDeJti } from './ticket.js';
-import { caminhoDoSegredo, ErroDoVault, type ClienteDoVault } from './vault.js';
+import type { ClienteDoVault, EscopoDoSegredo } from './vault.js';
 
 export type DependenciasDoServidor = Readonly<{
   vault: ClienteDoVault;
   api: ClienteDaApi;
   raizes: readonly forge.pki.Certificate[];
   ticketSecret: string;
-  serviceToken: string;
+  /** Bearer das rotas `/segredos/*` (API → cofre). Não é o token do sentido cofre → API. */
+  adminToken: string;
   origensPermitidas: readonly string[];
+  /** Ingestões em andamento ao mesmo tempo (cada uma pode reter ~10 MB + worker). */
+  maxIngestoesSimultaneas?: number;
   agora?: () => Date;
   log?: (registro: RegistroDeLog) => void;
+  esperar?: (ms: number) => Promise<void>;
 }>;
+
+export const MAX_INGESTOES_SIMULTANEAS_PADRAO = 4;
+const SEGUNDOS_PARA_TENTAR_DE_NOVO = 5;
+const CORRELATION_ID_VALIDO = /^[A-Za-z0-9._-]{1,64}$/;
+
+/** `x-correlation-id` vem de fora: só formato inofensivo entra em log e resposta. */
+export const correlationIdDe = (cabecalho: string | string[] | undefined): string =>
+  typeof cabecalho === 'string' && CORRELATION_ID_VALIDO.test(cabecalho) ? cabecalho : randomUUID();
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const LIMITE_DO_CORPO_INTERNO_BYTES = 4 * 1024;
 
@@ -39,6 +55,16 @@ const bearerValido = (req: IncomingMessage, esperado: string): boolean => {
   const recebido = cabecalho.startsWith('Bearer ') ? cabecalho.slice(7) : '';
   // Compara digests de tamanho fixo: o tempo não revela o comprimento do segredo.
   return timingSafeEqual(digest(recebido), digest(esperado));
+};
+
+/** `null` para qualquer coisa que não seja `{tenantId, empresaId}` com UUIDs. */
+const escopoDoCorpo = (corpo: unknown, referencia: string): EscopoDoSegredo | null => {
+  if (typeof corpo !== 'object' || corpo === null) return null;
+  const { tenantId, empresaId } = corpo as Record<string, unknown>;
+  if (typeof tenantId !== 'string' || typeof empresaId !== 'string') return null;
+  return [tenantId, empresaId, referencia].every((id) => UUID.test(id))
+    ? { tenantId, empresaId, referencia }
+    : null;
 };
 
 const lerCorpoJson = (req: IncomingMessage): Promise<unknown> =>
@@ -64,6 +90,8 @@ export const criarServidorDoCofre = (deps: DependenciasDoServidor): Server => {
   const agora = deps.agora ?? ((): Date => new Date());
   const log = deps.log ?? logPadrao;
   const jti = criarRegistroDeJti();
+  const maxIngestoes = deps.maxIngestoesSimultaneas ?? MAX_INGESTOES_SIMULTANEAS_PADRAO;
+  let ingestoesEmAndamento = 0;
 
   const responder = (
     res: ServerResponse,
@@ -117,32 +145,67 @@ export const criarServidorDoCofre = (deps: DependenciasDoServidor): Server => {
       return;
     }
 
-    let formulario;
+    // Capacidade: cada ingestão segura até ~10 MB do arquivo + um worker. Excedente espera fora.
+    if (ingestoesEmAndamento >= maxIngestoes) {
+      await descartarCorpo(req);
+      problema(res, 'COFRE_INDISPONIVEL', correlationId, {
+        ...cors,
+        'retry-after': String(SEGUNDOS_PARA_TENTAR_DE_NOVO),
+        connection: 'close',
+      });
+      return;
+    }
+
+    ingestoesEmAndamento++;
     try {
-      formulario = await lerFormulario(req);
-    } catch {
-      problema(res, 'REQUISICAO_INVALIDA', correlationId, cors);
-      return;
+      const dependencias = {
+        ticketSecret: deps.ticketSecret,
+        raizes: deps.raizes,
+        vault: deps.vault,
+        api: deps.api,
+        jti,
+        agora,
+        log,
+        ...(deps.esperar ? { esperar: deps.esperar } : {}),
+      };
+      // O ticket é conferido assim que chega, antes de o arquivo ser lido.
+      const autorizacao: { carga: CargaDoTicket | null } = { carga: null };
+      let formulario;
+      try {
+        formulario = await lerFormulario(req, (ticket) => {
+          autorizacao.carga = autorizarTicket(ticket, dependencias);
+          return autorizacao.carga !== null;
+        });
+      } catch {
+        problema(res, 'REQUISICAO_INVALIDA', correlationId, cors);
+        return;
+      }
+
+      const resultado = await ingerir(formulario, autorizacao.carga, dependencias);
+
+      if (resultado.ok) {
+        responder(res, 200, resultado.corpo, { ...cors, 'x-correlation-id': resultado.correlationId });
+        return;
+      }
+
+      if ('repassado' in resultado) {
+        const corpo = montarProblemaRepassado(resultado.repassado, resultado.correlationId);
+        responder(
+          res,
+          corpo.status,
+          corpo,
+          { ...cors, 'x-correlation-id': resultado.correlationId },
+          'application/problem+json',
+        );
+        return;
+      }
+
+      // Corpo acima do limite: a conexão não é reaproveitada; o resto do corpo é descartado (multipart.ts).
+      const cabecalhosExtras = resultado.codigo === 'CERTIFICADO_TAMANHO_EXCEDIDO' ? { connection: 'close' } : {};
+      problema(res, resultado.codigo, resultado.correlationId, { ...cors, ...cabecalhosExtras });
+    } finally {
+      ingestoesEmAndamento--;
     }
-
-    const resultado = await ingerir(formulario, {
-      ticketSecret: deps.ticketSecret,
-      raizes: deps.raizes,
-      vault: deps.vault,
-      api: deps.api,
-      jti,
-      agora,
-      log,
-    });
-
-    if (resultado.ok) {
-      responder(res, 200, resultado.corpo, { ...cors, 'x-correlation-id': resultado.correlationId });
-      return;
-    }
-
-    // Corpo acima do limite: a conexão não é reaproveitada; o resto do corpo é descartado (multipart.ts).
-    const cabecalhosExtras = resultado.codigo === 'CERTIFICADO_TAMANHO_EXCEDIDO' ? { connection: 'close' } : {};
-    problema(res, resultado.codigo, resultado.correlationId, { ...cors, ...cabecalhosExtras });
   };
 
   const tratarSegredo = async (
@@ -151,21 +214,17 @@ export const criarServidorDoCofre = (deps: DependenciasDoServidor): Server => {
     referencia: string,
     operacao: 'inutilizar' | 'restaurar',
   ): Promise<void> => {
-    const correlationId = (req.headers['x-correlation-id'] as string | undefined) ?? randomUUID();
+    const correlationId = correlationIdDe(req.headers['x-correlation-id']);
 
-    if (!bearerValido(req, deps.serviceToken)) {
+    if (!bearerValido(req, deps.adminToken)) {
       problema(res, 'NAO_AUTORIZADO', correlationId);
       return;
     }
 
     try {
-      const corpo = (await lerCorpoJson(req)) as { tenantId?: unknown; empresaId?: unknown };
-      const escopo = {
-        tenantId: String(corpo.tenantId),
-        empresaId: String(corpo.empresaId),
-        referencia,
-      };
-      caminhoDoSegredo(escopo); // valida UUIDs antes de tocar o Vault
+      const corpo = await lerCorpoJson(req);
+      const escopo = escopoDoCorpo(corpo, referencia);
+      if (escopo === null) throw new ErroDeFormulario('escopo');
       if (operacao === 'inutilizar') await deps.vault.inutilizar(escopo);
       else await deps.vault.restaurar(escopo);
       log({ nivel: 'info', evento: `segredo_${operacao}`, correlationId, referencia });
@@ -173,16 +232,14 @@ export const criarServidorDoCofre = (deps: DependenciasDoServidor): Server => {
         'x-correlation-id': correlationId,
       });
     } catch (erro) {
-      // Id fora do formato (nunca chegou ao Vault) ou corpo malformado: erro do chamador.
-      const invalida =
-        erro instanceof ErroDeFormulario ||
-        (erro instanceof ErroDoVault && erro.tipo === 'INESPERADA' && erro.statusHttp === null);
+      // Corpo malformado ou ids fora do formato (nunca chegou ao Vault): erro do chamador.
+      const invalida = erro instanceof ErroDeFormulario;
       log({ nivel: 'warn', evento: 'segredo_falhou', correlationId, operacao, invalida });
       problema(res, invalida ? 'REQUISICAO_INVALIDA' : 'COFRE_INDISPONIVEL', correlationId);
     }
   };
 
-  return createServer((req, res) => {
+  const servidor = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://cofre.local');
     const correlationId = randomUUID();
 
@@ -214,9 +271,17 @@ export const criarServidorDoCofre = (deps: DependenciasDoServidor): Server => {
       else res.end();
     });
   });
+
+  // Upload lento (slowloris) não pode prender uma vaga indefinidamente.
+  servidor.headersTimeout = 20_000;
+  servidor.requestTimeout = 120_000;
+  return servidor;
 };
 
-export const escutar = (server: Server, porta: number, host = '0.0.0.0'): Promise<Server> =>
+/** Padrão só loopback: expor o cofre em outra interface é decisão explícita (`COFRE_HOST`). */
+export const HOST_PADRAO = '127.0.0.1';
+
+export const escutar = (server: Server, porta: number, host = HOST_PADRAO): Promise<Server> =>
   new Promise((resolver) => {
     server.listen(porta, host, () => resolver(server));
   });

@@ -23,6 +23,7 @@ type EstadoDoVault = {
   chave: string;
   root: string;
   montagens: Record<string, { type: string; options: { version: string } }>;
+  casObrigatorio: boolean;
   auditoria: Record<string, unknown>;
   politicas: Record<string, string>;
   tokens: Map<string, string[]>;
@@ -39,6 +40,7 @@ const criarVaultFalso = () => {
     chave: '',
     root: '',
     montagens: {},
+    casObrigatorio: false,
     auditoria: {},
     politicas: {},
     tokens: new Map(),
@@ -90,6 +92,10 @@ const criarVaultFalso = () => {
     if (rota === 'sys/mounts/kv') {
       estado.montagens['kv/'] = corpo;
       return json({}, 204);
+    }
+    if (rota === 'kv/config') {
+      if (metodo === 'POST') estado.casObrigatorio = corpo.cas_required === true;
+      return metodo === 'GET' ? json({ data: { cas_required: estado.casObrigatorio } }) : json({}, 204);
     }
     if (rota === 'sys/audit' && metodo === 'GET') return json({ data: estado.auditoria });
     if (rota === 'sys/audit/file') {
@@ -189,6 +195,29 @@ describe('bootstrap do Vault — primeira execução', () => {
     for (const segredo of segredos.filter((s) => s.length > 8 && !s.startsWith('{'))) {
       expect(tudo).not.toContain(segredo);
     }
+  });
+});
+
+describe('bootstrap do Vault — cas_required', () => {
+  it('liga cas_required no KV na primeira execução e não reescreve na segunda', async () => {
+    const { estado, bootstrap } = montar();
+
+    await bootstrap.garantir();
+    expect(estado.casObrigatorio).toBe(true);
+
+    estado.casObrigatorio = true;
+    await bootstrap.garantir();
+    expect(estado.casObrigatorio).toBe(true);
+  });
+
+  it('religa se alguém desligou', async () => {
+    const { estado, bootstrap } = montar();
+    await bootstrap.garantir();
+    estado.casObrigatorio = false;
+
+    await bootstrap.garantir();
+
+    expect(estado.casObrigatorio).toBe(true);
   });
 });
 
@@ -336,12 +365,19 @@ describe('políticas mínimas', () => {
   it('cofre-ingestao é write-only: sem read, list, delete, sudo ou metadata', () => {
     const regras = POLITICAS['cofre-ingestao'] as { caminho: string; capacidades: string[] }[];
 
-    expect(capacidades('cofre-ingestao').sort()).toEqual(['create', 'update', 'update', 'update', 'update']);
+    expect(capacidades('cofre-ingestao').sort()).toEqual(['create', 'update', 'update', 'update']);
     expect(regras.every((r) => r.caminho.startsWith('kv/') && r.caminho.endsWith('/certificados/*'))).toBe(true);
     expect(regras.some((r) => r.caminho.includes('metadata'))).toBe(false);
     for (const proibida of ['read', 'list', 'delete', 'sudo']) {
       expect(capacidades('cofre-ingestao')).not.toContain(proibida);
     }
+  });
+
+  it('cofre-ingestao só CRIA em kv/data: sem update, não sobrescreve uma referência existente', () => {
+    const regras = POLITICAS['cofre-ingestao'] as { caminho: string; capacidades: string[] }[];
+    const dados = regras.find((r) => r.caminho === 'kv/data/certificados/*');
+
+    expect(dados?.capacidades).toEqual(['create']);
   });
 
   it('signer-leitura só lê o dado: sem list, metadata ou escrita', () => {

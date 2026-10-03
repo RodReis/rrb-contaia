@@ -195,6 +195,9 @@ jobs:
       COFRE_PORT: '15104'
       COFRE_PUBLIC_URL: http://127.0.0.1:15104
       COFRE_URL: http://127.0.0.1:15104
+      # Embutida pelo Next no `pnpm build`: o navegador só envia o certificado a esta origem.
+      NEXT_PUBLIC_COFRE_URL: http://127.0.0.1:15104
+      COFRE_HOST: 127.0.0.1
       COFRE_API_URL: http://127.0.0.1:15101
       COFRE_ORIGENS_PERMITIDAS: http://127.0.0.1:15100
     steps:
@@ -252,8 +255,10 @@ jobs:
         run: |
           ticket_secret="$(openssl rand -hex 32)"
           service_token="$(openssl rand -hex 32)"
+          admin_token="$(openssl rand -hex 32)"
           echo "::add-mask::$ticket_secret"
           echo "::add-mask::$service_token"
+          echo "::add-mask::$admin_token"
 
           vault_dir="$RUNNER_TEMP/vault-local"
           mkdir -p "$vault_dir"
@@ -261,6 +266,7 @@ jobs:
           {
             echo "COFRE_TICKET_SECRET=$ticket_secret"
             echo "COFRE_SERVICE_TOKEN=$service_token"
+            echo "COFRE_ADMIN_TOKEN=$admin_token"
             echo "VAULT_LOCAL_DIR=$vault_dir"
             echo "COFRE_VAULT_TOKEN_FILE=$vault_dir/token-cofre-ingestao"
             echo "COFRE_RAIZES_ICP_DIR=$vault_dir/raizes-icp"

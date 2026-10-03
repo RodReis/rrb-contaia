@@ -10,7 +10,7 @@
  * O que garante, sem recriar o que já existe:
  *   1. Vault inicializado (1 share / 1 threshold) → `init.json` com a chave de unseal e o root token;
  *   2. Vault desselado;
- *   3. KV v2 em `kv/`;
+ *   3. KV v2 em `kv/`, com `cas_required` (nenhuma gravação sobrescreve sem declarar a versão);
  *   4. audit device `file` (valores com HMAC: o log não carrega segredo);
  *   5. as três políticas mínimas (ingestão write-only, leitura do Signer, API sem acesso ao KV);
  *   6. um token periódico por política, gravado em arquivo local; um token existente só é
@@ -29,9 +29,11 @@ const INTERVALO_DE_RENOVACAO_MS = 6 * 60 * 60 * 1000;
 
 /** Política → regras. Fonte única: a HCL abaixo é gerada daqui, e os testes leem daqui. */
 export const POLITICAS = Object.freeze({
-  // Write-only: cria versões e muda a visibilidade das que criou. NÃO lê, NÃO lista.
+  // Write-only: CRIA versões novas (referência = UUID novo, nunca reescrita) e muda a
+  // visibilidade das que criou. NÃO lê, NÃO lista e NÃO sobrescreve: sem `update` em
+  // kv/data, gravar sobre uma referência existente é negado pela política.
   'cofre-ingestao': [
-    { caminho: 'kv/data/certificados/*', capacidades: ['create', 'update'] },
+    { caminho: 'kv/data/certificados/*', capacidades: ['create'] },
     { caminho: 'kv/delete/certificados/*', capacidades: ['update'] },
     { caminho: 'kv/undelete/certificados/*', capacidades: ['update'] },
     { caminho: 'kv/destroy/certificados/*', capacidades: ['update'] },
@@ -214,6 +216,16 @@ export const criarBootstrap = ({
     }
   };
 
+  // cas_required no mount: toda gravação do KV precisa declarar a versão esperada (o cofre
+  // grava com cas=0, "só se não existir"); segunda barreira além da política sem `update`.
+  const garantirCasObrigatorio = async (token) => {
+    const atual = dadosOuCorpo((await http('GET', 'kv/config', { token })).corpo);
+    if (atual.cas_required === true) return;
+    const resposta = await http('POST', 'kv/config', { token, corpo: { cas_required: true } });
+    if (resposta.status >= 300) throw new ErroDeBootstrap(`kv/config falhou (HTTP ${resposta.status})`);
+    log('cas_required habilitado em kv/');
+  };
+
   const garantirAuditoria = async (token) => {
     const dispositivos = dadosOuCorpo((await http('GET', 'sys/audit', { token })).corpo);
     if (dispositivos['file/'] !== undefined) return;
@@ -274,6 +286,7 @@ export const criarBootstrap = ({
     if (!estado.initialized || estado.sealed) await desselar(init);
 
     await garantirKv(init.root_token);
+    await garantirCasObrigatorio(init.root_token);
     await garantirAuditoria(init.root_token);
     await gravarPoliticas(init.root_token);
     const tokensReemitidos = await garantirTokens(init.root_token);

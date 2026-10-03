@@ -13,6 +13,7 @@ const ENV_VALIDO: NodeJS.ProcessEnv = {
   COFRE_API_URL: 'http://127.0.0.1:15101/',
   COFRE_TICKET_SECRET: 'a'.repeat(32),
   COFRE_SERVICE_TOKEN: 'b'.repeat(32),
+  COFRE_ADMIN_TOKEN: 'c'.repeat(32),
   COFRE_ORIGENS_PERMITIDAS: 'http://127.0.0.1:15100/, http://localhost:15100',
 };
 
@@ -28,7 +29,7 @@ describe('lerConfig', () => {
     });
   });
 
-  it.each(['VAULT_ADDR', 'COFRE_TICKET_SECRET', 'COFRE_SERVICE_TOKEN', 'COFRE_ORIGENS_PERMITIDAS', 'COFRE_API_URL'])(
+  it.each(['VAULT_ADDR', 'COFRE_TICKET_SECRET', 'COFRE_SERVICE_TOKEN', 'COFRE_ADMIN_TOKEN', 'COFRE_ORIGENS_PERMITIDAS', 'COFRE_API_URL'])(
     'falha fechado sem %s',
     (nome) => {
       expect(() => lerConfig({ ...ENV_VALIDO, [nome]: '' })).toThrow(nome);
@@ -37,7 +38,22 @@ describe('lerConfig', () => {
 
   it('recusa segredo com menos de 32 bytes', () => {
     expect(() => lerConfig({ ...ENV_VALIDO, COFRE_TICKET_SECRET: 'curto' })).toThrow(/32 bytes/);
-    expect(() => lerConfig({ ...ENV_VALIDO, COFRE_SERVICE_TOKEN: 'c'.repeat(31) })).toThrow(/32 bytes/);
+    expect(() => lerConfig({ ...ENV_VALIDO, COFRE_SERVICE_TOKEN: 'd'.repeat(31) })).toThrow(/32 bytes/);
+    expect(() => lerConfig({ ...ENV_VALIDO, COFRE_ADMIN_TOKEN: 'd'.repeat(31) })).toThrow(/32 bytes/);
+  });
+
+  it('as duas credenciais de serviço (cofre→API e API→cofre) precisam ser diferentes', () => {
+    expect(() => lerConfig({ ...ENV_VALIDO, COFRE_ADMIN_TOKEN: ENV_VALIDO['COFRE_SERVICE_TOKEN'] })).toThrow(
+      /diferentes/,
+    );
+    const config = lerConfig(ENV_VALIDO);
+    expect(config.serviceToken).not.toBe(config.adminToken);
+  });
+
+  it('escuta em 127.0.0.1 por padrão; COFRE_HOST é opt-in explícito', () => {
+    expect(lerConfig(ENV_VALIDO).host).toBe('127.0.0.1');
+    expect(lerConfig({ ...ENV_VALIDO, COFRE_HOST: '' }).host).toBe('127.0.0.1');
+    expect(lerConfig({ ...ENV_VALIDO, COFRE_HOST: '0.0.0.0' }).host).toBe('0.0.0.0');
   });
 
   it('caminho absoluto fica como está; relativo sobe até a raiz do workspace', () => {

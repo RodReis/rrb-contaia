@@ -59,3 +59,39 @@ export const montarProblema = (codigo: CodigoDoCofre, correlationId: string): Co
     detail: detalhe,
   };
 };
+
+/**
+ * Códigos da API principal que o cofre repassa ao navegador quando ela recusa a ativação
+ * (o usuário precisa da explicação real, não de "cofre indisponível"). Qualquer outro
+ * código definitivo vira COFRE_INDISPONIVEL.
+ */
+export const CODIGOS_REPASSADOS_DA_API: ReadonlySet<string> = new Set([
+  'CERTIFICADO_JA_VIGENTE',
+  'CERTIFICADO_VIGENTE_INEXISTENTE',
+  'EMPRESA_ARQUIVADA',
+  'EMPRESA_NAO_ATIVA',
+  'SEM_AUTORIZACAO',
+  'CONFLITO_DE_VERSAO',
+]);
+
+export type ProblemaRepassado = Readonly<{
+  codigo: string;
+  status: number;
+  titulo: string | null;
+  detalhe: string | null;
+}>;
+
+export const montarProblemaRepassado = (
+  repassado: ProblemaRepassado,
+  correlationId: string,
+): CorpoDoProblema => {
+  const titulo = repassado.titulo ?? repassado.detalhe ?? 'A API principal recusou a operação.';
+  return {
+    type: `${TIPO_BASE}/${repassado.codigo}`,
+    title: titulo,
+    status: repassado.status,
+    code: repassado.codigo,
+    correlationId,
+    detail: repassado.detalhe ?? titulo,
+  };
+};

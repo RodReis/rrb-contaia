@@ -16,11 +16,11 @@ const server = criarServidorDoCofre({
   api: criarClienteDaApi({ apiUrl: config.apiUrl, serviceToken: config.serviceToken }),
   raizes,
   ticketSecret: config.ticketSecret,
-  serviceToken: config.serviceToken,
+  adminToken: config.adminToken,
   origensPermitidas: config.origensPermitidas,
 });
 
-await escutar(server, config.porta);
+await escutar(server, config.porta, config.host);
 encerrarComGraca(server);
 
-console.warn(`[cofre] escutando em http://0.0.0.0:${config.porta} (saúde em /health)`);
+console.warn(`[cofre] escutando em http://${config.host}:${config.porta} (saúde em /health)`);

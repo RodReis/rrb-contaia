@@ -18,6 +18,7 @@ import { ErroDoVault, type ClienteDoVault, type EscopoDoSegredo } from './vault.
 
 const TICKET_SECRET = 'segredo-do-ticket-de-teste-com-32-bytes!';
 const SERVICE_TOKEN = 'token-de-servico-de-teste-com-32-bytes!!';
+const ADMIN_TOKEN = 'token-admin-de-teste-com-mais-de-32-bytes!!';
 const ORIGEM = 'http://web.local:15100';
 const SENTINELA_SENHA = 'SENTINELA-SENHA-7c1e9';
 const AGORA = new Date();
@@ -33,7 +34,7 @@ const pfxComSentinela = emitirPfx(pki, { senha: SENTINELA_SENHA }) as Pfx;
 const raizes = [forge.pki.certificateFromPem(raizConfiavelEmPem(pki) as string)];
 const TRECHO_DO_PFX = pfxComSentinela.pfx.toString('base64').slice(100, 160);
 
-const respostaDeSucesso = { certificado: { id: 'cert-1', versao: 1 } } as unknown as RespostaDaApi;
+const respostaDeSucesso = { ok: true, corpo: { certificado: { id: 'cert-1', versao: 1 } } } as unknown as RespostaDaApi;
 
 class VaultFalso implements ClienteDoVault {
   gravacoes: { escopo: EscopoDoSegredo; senha: string }[] = [];
@@ -66,14 +67,34 @@ class VaultFalso implements ClienteDoVault {
   }
 }
 
-class ApiFalsa implements ClienteDaApi {
-  ativacoes: { referenciaDoSegredo: string; metodoDoTicket: string }[] = [];
-  recusas: string[] = [];
-  resultado: RespostaDaApi | { ok: true; corpo: unknown } = { ok: true, corpo: respostaDeSucesso };
+const AMBIGUO_REDE: RespostaDaApi = { ok: false, definitiva: false, status: null };
+const AMBIGUO_500: RespostaDaApi = { ok: false, definitiva: false, status: 500 };
+const recusaDa = (codigo: string, status = 422, titulo: string | null = null): RespostaDaApi => ({
+  ok: false,
+  definitiva: true,
+  status,
+  codigo,
+  titulo,
+  detalhe: titulo,
+});
 
-  async ativar(pedido: { referenciaDoSegredo: string; ticket: string }): Promise<RespostaDaApi> {
-    this.ativacoes.push({ referenciaDoSegredo: pedido.referenciaDoSegredo, metodoDoTicket: pedido.ticket.slice(0, 4) });
-    return this.resultado as RespostaDaApi;
+class ApiFalsa implements ClienteDaApi {
+  ativacoes: { referenciaDoSegredo: string; ticket: string; cnpjsDoTitular: unknown }[] = [];
+  recusas: string[] = [];
+  /** Uma resposta por tentativa; a última se repete. */
+  sequencia: RespostaDaApi[] = [respostaDeSucesso];
+  /** Se definido, a ativação espera este portão (para segurar a ingestão em andamento). */
+  portao: Promise<void> | null = null;
+
+  async ativar(pedido: { referenciaDoSegredo: string; ticket: string; metadados: object }): Promise<RespostaDaApi> {
+    this.ativacoes.push({
+      referenciaDoSegredo: pedido.referenciaDoSegredo,
+      ticket: pedido.ticket,
+      cnpjsDoTitular: (pedido.metadados as { cnpjsDoTitular?: unknown }).cnpjsDoTitular,
+    });
+    if (this.portao) await this.portao;
+    const indice = Math.min(this.ativacoes.length - 1, this.sequencia.length - 1);
+    return this.sequencia[indice] ?? respostaDeSucesso;
   }
   async recusar(pedido: { codigo: string }): Promise<boolean> {
     this.recusas.push(pedido.codigo);
@@ -140,7 +161,9 @@ beforeAll(async () => {
     },
     raizes,
     ticketSecret: TICKET_SECRET,
-    serviceToken: SERVICE_TOKEN,
+    adminToken: ADMIN_TOKEN,
+    esperar: async () => {},
+    maxIngestoesSimultaneas: 2,
     origensPermitidas: [ORIGEM],
     log: (registro) => logs.push(registro),
   });
@@ -163,7 +186,7 @@ describe('POST /ingestao — caminho feliz', () => {
     const resposta = await enviarPfx('valido-e-cnpj-a1');
 
     expect(resposta.status).toBe(200);
-    expect(await resposta.json()).toEqual(respostaDeSucesso);
+    expect(await resposta.json()).toEqual({ certificado: { id: 'cert-1', versao: 1 } });
     expect(vault.gravacoes).toHaveLength(1);
     expect(vault.gravacoes[0]?.escopo).toMatchObject({ tenantId: TENANT, empresaId: EMPRESA });
     expect(api.ativacoes).toHaveLength(1);
@@ -328,37 +351,132 @@ describe('POST /ingestao — falhas do Vault e da API (compensação)', () => {
     expect(api.recusas).toEqual(['COFRE_INDISPONIVEL']);
   });
 
-  it('API falha depois da gravação: destroy da mesma referência e 503', async () => {
-    api.resultado = { ok: false, status: 500, codigo: null };
-
-    const resposta = await enviarPfx('valido-e-cnpj-a1');
-
-    expect(resposta.status).toBe(503);
-    expect((await resposta.json()).code).toBe('COFRE_INDISPONIVEL');
-    expect(vault.destruicoes).toEqual([vault.gravacoes[0]?.escopo]);
-    expect(vault.inutilizacoes).toEqual([]);
-  });
-
-  it('API recusa com código de domínio: o código e o status dele chegam ao navegador, e o segredo é compensado', async () => {
-    api.resultado = { ok: false, status: 422, codigo: 'CERTIFICADO_RESPONSAVEL_INVALIDO' };
+  it('API recusa de forma DEFINITIVA (4xx com problem+json): destroy da mesma referência', async () => {
+    api.sequencia = [recusaDa('CERTIFICADO_RESPONSAVEL_INVALIDO')];
 
     const resposta = await enviarPfx('valido-e-cnpj-a1');
 
     expect(resposta.status).toBe(422);
     expect((await resposta.json()).code).toBe('CERTIFICADO_RESPONSAVEL_INVALIDO');
-    expect(vault.destruicoes).toHaveLength(1);
+    expect(vault.destruicoes).toEqual([vault.gravacoes[0]?.escopo]);
+    expect(vault.inutilizacoes).toEqual([]);
+    expect(api.ativacoes).toHaveLength(1);
   });
 
-  it('código desconhecido da API vira COFRE_INDISPONIVEL (nada de ecoar texto alheio)', async () => {
-    api.resultado = { ok: false, status: 409, codigo: 'ALGO_QUE_O_COFRE_NAO_CONHECE' };
+  it.each([
+    ['timeout/erro de rede', AMBIGUO_REDE],
+    ['HTTP 500', AMBIGUO_500],
+  ])('desfecho AMBÍGUO (%s): tenta 3 vezes com o mesmo ticket e referência e NÃO destrói o segredo', async (_nome, ambiguo) => {
+    api.sequencia = [ambiguo];
+
+    const resposta = await enviarPfx('valido-e-cnpj-a1');
+    const corpo = await resposta.json();
+
+    expect(resposta.status).toBe(503);
+    expect(corpo.code).toBe('COFRE_INDISPONIVEL');
+    expect(api.ativacoes).toHaveLength(3);
+    expect(new Set(api.ativacoes.map((a) => a.ticket)).size).toBe(1);
+    expect(new Set(api.ativacoes.map((a) => a.referenciaDoSegredo))).toEqual(
+      new Set([vault.gravacoes[0]?.escopo.referencia]),
+    );
+    expect(vault.destruicoes).toEqual([]);
+    expect(vault.inutilizacoes).toEqual([]);
+    const registro = logs.find((l) => l['evento'] === 'ativacao_ambigua');
+    expect(registro).toMatchObject({
+      correlationId: corpo.correlationId,
+      referencia: vault.gravacoes[0]?.escopo.referencia,
+    });
+    expect(JSON.stringify(registro)).not.toContain('senha');
+  });
+
+  it('retry que acaba em 200 devolve sucesso e não destrói nada', async () => {
+    api.sequencia = [AMBIGUO_REDE, AMBIGUO_500, respostaDeSucesso];
 
     const resposta = await enviarPfx('valido-e-cnpj-a1');
 
-    expect((await resposta.json()).code).toBe('COFRE_INDISPONIVEL');
+    expect(resposta.status).toBe(200);
+    expect(await resposta.json()).toEqual({ certificado: { id: 'cert-1', versao: 1 } });
+    expect(api.ativacoes).toHaveLength(3);
+    expect(vault.destruicoes).toEqual([]);
   });
 
-  it('destroy falha: cai no delete reversível e registra compensação parcial', async () => {
-    api.resultado = { ok: false, status: 500, codigo: null };
+  it('ambíguo seguido de recusa definitiva: aí sim compensa', async () => {
+    api.sequencia = [AMBIGUO_REDE, recusaDa('CERTIFICADO_RESPONSAVEL_INVALIDO')];
+
+    const resposta = await enviarPfx('valido-e-cnpj-a1');
+
+    expect(resposta.status).toBe(422);
+    expect(api.ativacoes).toHaveLength(2);
+    expect(vault.destruicoes).toHaveLength(1);
+  });
+
+  it('espera entre as tentativas (backoff curto e crescente)', async () => {
+    const esperas: number[] = [];
+    const { criarServidorDoCofre } = await import('./server.js');
+    const outro = criarServidorDoCofre({
+      vault,
+      api,
+      raizes,
+      ticketSecret: TICKET_SECRET,
+      adminToken: ADMIN_TOKEN,
+      origensPermitidas: [],
+      log: () => {},
+      esperar: async (ms) => void esperas.push(ms),
+    });
+    await new Promise<void>((resolver) => outro.listen(0, '127.0.0.1', resolver));
+    api.sequencia = [AMBIGUO_REDE];
+
+    try {
+      const f = new FormData();
+      f.append('ticket', ticket());
+      f.append('senha', conjunto['valido-e-cnpj-a1']!.senha);
+      f.append('arquivo', new Blob([new Uint8Array(conjunto['valido-e-cnpj-a1']!.pfx)]), 'c.pfx');
+      await fetch(`http://127.0.0.1:${(outro.address() as AddressInfo).port}/ingestao`, { method: 'POST', body: f });
+    } finally {
+      await new Promise((resolver) => outro.close(resolver));
+    }
+
+    expect(esperas).toEqual([250, 750]);
+  });
+
+  it.each([
+    ['CERTIFICADO_JA_VIGENTE', 409],
+    ['CERTIFICADO_VIGENTE_INEXISTENTE', 409],
+    ['EMPRESA_ARQUIVADA', 409],
+    ['EMPRESA_NAO_ATIVA', 409],
+    ['SEM_AUTORIZACAO', 403],
+    ['CONFLITO_DE_VERSAO', 409],
+  ])('código da API %s é repassado com status %i e o título dela (e o segredo é compensado)', async (codigo, status) => {
+    api.sequencia = [recusaDa(codigo, status, `Título da API para ${codigo}`)];
+
+    const resposta = await enviarPfx('valido-e-cnpj-a1');
+    const corpo = await resposta.json();
+
+    expect(resposta.status).toBe(status);
+    expect(resposta.headers.get('content-type')).toContain('application/problem+json');
+    expect(corpo).toMatchObject({
+      code: codigo,
+      status,
+      title: `Título da API para ${codigo}`,
+      type: `https://contaia.local/erros/${codigo}`,
+    });
+    expect(corpo.correlationId).toBeTruthy();
+    expect(vault.destruicoes).toHaveLength(1);
+  });
+
+  it('código definitivo desconhecido da API vira COFRE_INDISPONIVEL (nada de ecoar texto alheio), com compensação', async () => {
+    api.sequencia = [recusaDa('ALGO_QUE_O_COFRE_NAO_CONHECE', 409, 'texto alheio')];
+
+    const resposta = await enviarPfx('valido-e-cnpj-a1');
+    const corpo = await resposta.json();
+
+    expect(corpo.code).toBe('COFRE_INDISPONIVEL');
+    expect(JSON.stringify(corpo)).not.toContain('texto alheio');
+    expect(vault.destruicoes).toHaveLength(1);
+  });
+
+  it('destroy falha numa recusa definitiva: cai no delete reversível e registra compensação parcial', async () => {
+    api.sequencia = [recusaDa('CERTIFICADO_RESPONSAVEL_INVALIDO')];
     vault.falharDestruicao = true;
 
     await enviarPfx('valido-e-cnpj-a1');
@@ -368,15 +486,21 @@ describe('POST /ingestao — falhas do Vault e da API (compensação)', () => {
   });
 
   it('destroy e delete falham: erro registrado com a referência opaca, sem segredo', async () => {
-    api.resultado = { ok: false, status: 500, codigo: null };
+    api.sequencia = [recusaDa('CERTIFICADO_RESPONSAVEL_INVALIDO')];
     vault.falharDestruicao = true;
     vault.falharInutilizacao = true;
 
     const resposta = await enviarPfx('valido-e-cnpj-a1');
 
-    expect(resposta.status).toBe(503);
+    expect(resposta.status).toBe(422);
     const registro = logs.find((l) => l['evento'] === 'compensacao_falhou');
     expect(registro?.['referencia']).toBe(vault.gravacoes[0]?.escopo.referencia);
+  });
+
+  it('envia à API TODOS os CNPJs do certificado', async () => {
+    await enviarPfx('valido-e-cnpj-a1');
+
+    expect(api.ativacoes[0]?.cnpjsDoTitular).toEqual([CNPJ_PADRAO_DE_TESTE]);
   });
 });
 
@@ -394,7 +518,7 @@ describe('POST /ingestao — nenhum vazamento do sentinela', () => {
     await coletar(await novo({ senha: `${SENTINELA_SENHA}-errada` }));
     await coletar(await novo({ arquivo: pfx.subarray(0, 300) }));
     await coletar(await novo({ nome: 'x.txt' }));
-    api.resultado = { ok: false, status: 500, codigo: null };
+    api.sequencia = [AMBIGUO_500];
     await coletar(await novo());
     vault.falharGravacao = true;
     await coletar(await novo());
@@ -467,8 +591,8 @@ describe('rotas internas /segredos', () => {
     });
   const REF = '33333333-3333-4333-8333-333333333333';
 
-  it.each(['inutilizar', 'restaurar'])('%s exige Bearer: sem token, token errado e esquema errado dão 401', async (operacao) => {
-    for (const cabecalho of [undefined, 'Bearer errado', `Basic ${SERVICE_TOKEN}`]) {
+  it.each(['inutilizar', 'restaurar'])('%s exige o Bearer ADMIN: sem token, errado, esquema errado e o token do sentido cofre→API dão 401', async (operacao) => {
+    for (const cabecalho of [undefined, 'Bearer errado', `Basic ${ADMIN_TOKEN}`, `Bearer ${SERVICE_TOKEN}`]) {
       const resposta = await fetch(`${base}/segredos/${REF}/${operacao}`, {
         method: 'POST',
         headers: cabecalho ? { authorization: cabecalho } : {},
@@ -482,7 +606,7 @@ describe('rotas internas /segredos', () => {
   });
 
   it('inutilizar chama o delete da referência do escopo informado e não devolve conteúdo', async () => {
-    const resposta = await chamar(REF, 'inutilizar', { token: SERVICE_TOKEN });
+    const resposta = await chamar(REF, 'inutilizar', { token: ADMIN_TOKEN });
 
     expect(resposta.status).toBe(200);
     expect(await resposta.json()).toEqual({ referencia: REF, estado: 'INUTILIZADO' });
@@ -490,16 +614,16 @@ describe('rotas internas /segredos', () => {
   });
 
   it('restaurar chama o undelete', async () => {
-    const resposta = await chamar(REF, 'restaurar', { token: SERVICE_TOKEN });
+    const resposta = await chamar(REF, 'restaurar', { token: ADMIN_TOKEN });
 
     expect(await resposta.json()).toEqual({ referencia: REF, estado: 'RESTAURADO' });
     expect(vault.restauracoes).toHaveLength(1);
   });
 
   it('referência ou ids fora do formato UUID: 400, sem tocar o Vault', async () => {
-    const traversal = await chamar('..%2F..%2Fsys', 'inutilizar', { token: SERVICE_TOKEN });
-    const idRuim = await chamar(REF, 'inutilizar', { token: SERVICE_TOKEN, corpo: { tenantId: 'x', empresaId: EMPRESA } });
-    const semCorpo = await chamar(REF, 'inutilizar', { token: SERVICE_TOKEN, corpo: {} });
+    const traversal = await chamar('..%2F..%2Fsys', 'inutilizar', { token: ADMIN_TOKEN });
+    const idRuim = await chamar(REF, 'inutilizar', { token: ADMIN_TOKEN, corpo: { tenantId: 'x', empresaId: EMPRESA } });
+    const semCorpo = await chamar(REF, 'inutilizar', { token: ADMIN_TOKEN, corpo: {} });
 
     for (const resposta of [traversal, idRuim, semCorpo]) {
       expect(resposta.status).toBe(400);
@@ -511,7 +635,7 @@ describe('rotas internas /segredos', () => {
   it('Vault fora do ar: 503 COFRE_INDISPONIVEL', async () => {
     vault.falharInutilizacao = true;
 
-    const resposta = await chamar(REF, 'inutilizar', { token: SERVICE_TOKEN });
+    const resposta = await chamar(REF, 'inutilizar', { token: ADMIN_TOKEN });
 
     expect(resposta.status).toBe(503);
     expect((await resposta.json()).code).toBe('COFRE_INDISPONIVEL');
@@ -530,7 +654,7 @@ describe('superfície do serviço', () => {
     ];
 
     for (const [metodo, caminho] of tentativas) {
-      const resposta = await fetch(`${base}${caminho}`, { method: metodo, headers: { authorization: `Bearer ${SERVICE_TOKEN}` } });
+      const resposta = await fetch(`${base}${caminho}`, { method: metodo, headers: { authorization: `Bearer ${ADMIN_TOKEN}` } });
       expect(resposta.status, `${metodo} ${caminho}`).toBe(404);
     }
   });
@@ -543,5 +667,146 @@ describe('superfície do serviço', () => {
 
     expect(indisponivel.status).toBe(503);
     expect(await indisponivel.json()).toEqual({ service: 'cofre', status: 'indisponivel' });
+  });
+});
+
+describe('capacidade e ordem das partes da ingestão', () => {
+  const enviarNaOrdem = (partes: [string, string | Buffer, string?][]): Promise<Response> => {
+    const form = new FormData();
+    for (const [nome, valor, arquivo] of partes) {
+      if (arquivo === undefined) form.append(nome, valor.toString());
+      else form.append(nome, new Blob([new Uint8Array(Buffer.from(valor))]), arquivo);
+    }
+    return fetch(`${base}/ingestao`, { method: 'POST', body: form });
+  };
+  const { pfx, senha } = conjunto['valido-e-cnpj-a1']!;
+  const completo = (t: string = ticket()): [string, string | Buffer, string?][] => [
+    ['ticket', t],
+    ['senha', senha],
+    ['arquivo', pfx, 'c.pfx'],
+  ];
+
+  it('arquivo ANTES do ticket: 401, o arquivo não é aberto nem gravado e a API não é chamada', async () => {
+    const resposta = await enviarNaOrdem([['arquivo', pfx, 'c.pfx'], ['ticket', ticket()], ['senha', senha]]);
+
+    expect(resposta.status).toBe(401);
+    expect((await resposta.json()).code).toBe('CERTIFICADO_TICKET_INVALIDO');
+    expect(vault.gravacoes).toEqual([]);
+    expect(api.ativacoes).toEqual([]);
+    expect(api.recusas).toEqual([]);
+  });
+
+  it('senha ANTES do ticket também é recusada', async () => {
+    const resposta = await enviarNaOrdem([['senha', senha], ['ticket', ticket()], ['arquivo', pfx, 'c.pfx']]);
+
+    expect(resposta.status).toBe(401);
+    expect(vault.gravacoes).toEqual([]);
+  });
+
+  it('ticket inválido com arquivo grande: 401 sem abrir o PKCS#12 (corpo só é descartado)', async () => {
+    const resposta = await enviarNaOrdem([
+      ['ticket', 'lixo.lixo'],
+      ['senha', senha],
+      ['arquivo', Buffer.alloc(5 * 1024 * 1024, 1), 'c.pfx'],
+    ]);
+
+    expect(resposta.status).toBe(401);
+    expect(vault.gravacoes).toEqual([]);
+    expect(api.recusas).toEqual([]);
+  });
+
+  it('ticket válido mas já usado (replay) é barrado antes de o arquivo chegar: 401', async () => {
+    const t = ticket();
+    expect((await enviarNaOrdem(completo(t))).status).toBe(200);
+
+    const segunda = await enviarNaOrdem(completo(t));
+
+    expect(segunda.status).toBe(401);
+    expect(vault.gravacoes).toHaveLength(1);
+  });
+
+  it('acima do limite de ingestões simultâneas: 503 com Retry-After, sem consumir o ticket; as demais concluem', async () => {
+    let liberar: () => void = () => {};
+    api.portao = new Promise<void>((resolver) => {
+      liberar = resolver;
+    });
+    const emAndamento = [enviarNaOrdem(completo()), enviarNaOrdem(completo())];
+    // Espera as duas estarem seguras na ativação (vagas ocupadas).
+    for (let i = 0; i < 300 && api.ativacoes.length < 2; i++) await new Promise((r) => setTimeout(r, 10));
+    expect(api.ativacoes).toHaveLength(2);
+
+    const t3 = ticket();
+    const excedente = await enviarNaOrdem(completo(t3));
+
+    expect(excedente.status).toBe(503);
+    expect(excedente.headers.get('retry-after')).toBe('5');
+    expect((await excedente.json()).code).toBe('COFRE_INDISPONIVEL');
+    expect(api.ativacoes).toHaveLength(2);
+
+    liberar();
+    expect((await Promise.all(emAndamento)).map((r) => r.status)).toEqual([200, 200]);
+
+    // O ticket do excedente não foi consumido: com vaga livre, ele serve.
+    expect((await enviarNaOrdem(completo(t3))).status).toBe(200);
+  });
+
+  it('a vaga é devolvida mesmo quando a ingestão falha', async () => {
+    for (let i = 0; i < 5; i++) {
+      const r = await enviarNaOrdem([['ticket', ticket()], ['senha', 'errada'], ['arquivo', pfx, 'c.pfx']]);
+      expect(r.status).toBe(400);
+    }
+    expect((await enviarNaOrdem(completo())).status).toBe(200);
+  });
+});
+
+describe('endurecimento das rotas internas e do bind', () => {
+  const REF = '33333333-3333-4333-8333-333333333333';
+  const chamarBruto = (corpo: string, cabecalhos: Record<string, string> = {}): Promise<Response> =>
+    fetch(`${base}/segredos/${REF}/inutilizar`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${ADMIN_TOKEN}`, ...cabecalhos },
+      body: corpo,
+    });
+
+  it.each(['null', '[]', '"texto"', '42', '{"tenantId":1,"empresaId":2}'])('corpo JSON %s é 400, não erro 500', async (corpo) => {
+    const resposta = await chamarBruto(corpo);
+
+    expect(resposta.status).toBe(400);
+    expect((await resposta.json()).code).toBe('REQUISICAO_INVALIDA');
+    expect(vault.inutilizacoes).toEqual([]);
+  });
+
+  it('x-correlation-id válido é mantido; malformado ou enorme é trocado por um UUID novo', async () => {
+    const corpo = JSON.stringify({ tenantId: TENANT, empresaId: EMPRESA });
+
+    const valido = await chamarBruto(corpo, { 'x-correlation-id': 'corr-123_abc.DEF' });
+    const sujo = await chamarBruto(corpo, { 'x-correlation-id': 'a b;<script>' });
+    const enorme = await chamarBruto(corpo, { 'x-correlation-id': 'x'.repeat(65) });
+
+    expect(valido.headers.get('x-correlation-id')).toBe('corr-123_abc.DEF');
+    for (const resposta of [sujo, enorme]) {
+      expect(resposta.headers.get('x-correlation-id')).toMatch(/^[0-9a-f-]{36}$/);
+    }
+  });
+
+  it('o servidor escuta em 127.0.0.1 por padrão (COFRE_HOST só afrouxa por decisão explícita)', async () => {
+    const { criarServidorDoCofre: criar, escutar, HOST_PADRAO } = await import('./server.js');
+    const outro = criar({
+      vault,
+      api,
+      raizes,
+      ticketSecret: TICKET_SECRET,
+      adminToken: ADMIN_TOKEN,
+      origensPermitidas: [],
+      log: () => {},
+    });
+    await escutar(outro, 0);
+
+    try {
+      expect(HOST_PADRAO).toBe('127.0.0.1');
+      expect((outro.address() as AddressInfo).address).toBe('127.0.0.1');
+    } finally {
+      await new Promise((resolver) => outro.close(resolver));
+    }
   });
 });

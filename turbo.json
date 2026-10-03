@@ -15,6 +15,9 @@
       "dependsOn": [
         "^build"
       ],
+      "env": [
+        "NEXT_PUBLIC_COFRE_URL"
+      ],
       "outputs": [
         "dist/**",
         ".next/**",
@@ -91,6 +94,9 @@
         "COFRE_URL",
         "COFRE_TICKET_SECRET",
         "COFRE_SERVICE_TOKEN",
+        "COFRE_ADMIN_TOKEN",
+        "COFRE_HOST",
+        "NEXT_PUBLIC_COFRE_URL",
         "COFRE_VAULT_TOKEN_FILE",
         "COFRE_RAIZES_ICP_DIR",
         "COFRE_ORIGENS_PERMITIDAS",

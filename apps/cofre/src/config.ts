@@ -11,12 +11,17 @@ export const TAMANHO_MINIMO_DO_SEGREDO = 32;
 
 export type ConfigDoCofre = Readonly<{
   porta: number;
+  /** Interface de escuta; padrão loopback. */
+  host: string;
   vaultAddr: string;
   arquivoDoTokenDoVault: string;
   diretorioDasRaizes: string;
   apiUrl: string;
   ticketSecret: string;
+  /** Bearer do sentido cofre → API (`/interno/cofre/*`). */
   serviceToken: string;
+  /** Bearer do sentido API → cofre (`/segredos/*`); credencial distinta da anterior. */
+  adminToken: string;
   origensPermitidas: readonly string[];
 }>;
 
@@ -51,19 +56,31 @@ export const resolverCaminho = (caminho: string, inicio = process.cwd()): string
 
 const semBarraFinal = (url: string): string => url.replace(/\/+$/, '');
 
-export const lerConfig = (env: NodeJS.ProcessEnv): ConfigDoCofre => ({
-  porta: Number(env['COFRE_PORT'] ?? 15104),
-  vaultAddr: semBarraFinal(obrigatoria(env, 'VAULT_ADDR')),
-  arquivoDoTokenDoVault: resolverCaminho(obrigatoria(env, 'COFRE_VAULT_TOKEN_FILE')),
-  diretorioDasRaizes: resolverCaminho(obrigatoria(env, 'COFRE_RAIZES_ICP_DIR')),
-  apiUrl: semBarraFinal(obrigatoria(env, 'COFRE_API_URL')),
-  ticketSecret: segredo(env, 'COFRE_TICKET_SECRET'),
-  serviceToken: segredo(env, 'COFRE_SERVICE_TOKEN'),
-  origensPermitidas: obrigatoria(env, 'COFRE_ORIGENS_PERMITIDAS')
-    .split(',')
-    .map((origem) => semBarraFinal(origem.trim()))
-    .filter((origem) => origem !== ''),
-});
+export const lerConfig = (env: NodeJS.ProcessEnv): ConfigDoCofre => {
+  const serviceToken = segredo(env, 'COFRE_SERVICE_TOKEN');
+  const adminToken = segredo(env, 'COFRE_ADMIN_TOKEN');
+
+  // Se fossem iguais, vazar uma credencial daria os dois sentidos: a separação não valeria nada.
+  if (serviceToken === adminToken) {
+    throw new Error('COFRE_ADMIN_TOKEN e COFRE_SERVICE_TOKEN precisam ser diferentes');
+  }
+
+  return {
+    porta: Number(env['COFRE_PORT'] ?? 15104),
+    host: env['COFRE_HOST']?.trim() || '127.0.0.1',
+    vaultAddr: semBarraFinal(obrigatoria(env, 'VAULT_ADDR')),
+    arquivoDoTokenDoVault: resolverCaminho(obrigatoria(env, 'COFRE_VAULT_TOKEN_FILE')),
+    diretorioDasRaizes: resolverCaminho(obrigatoria(env, 'COFRE_RAIZES_ICP_DIR')),
+    apiUrl: semBarraFinal(obrigatoria(env, 'COFRE_API_URL')),
+    ticketSecret: segredo(env, 'COFRE_TICKET_SECRET'),
+    serviceToken,
+    adminToken,
+    origensPermitidas: obrigatoria(env, 'COFRE_ORIGENS_PERMITIDAS')
+      .split(',')
+      .map((origem) => semBarraFinal(origem.trim()))
+      .filter((origem) => origem !== ''),
+  };
+};
 
 /**
  * Carrega as âncoras de confiança (todo `.pem` do diretório). Sem nenhuma, nada
