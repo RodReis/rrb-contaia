@@ -514,7 +514,7 @@ test('papel personalizado atribuído a um usuário novo vale: acesso conforme a 
   await usuario.waitForURL(/\/empresas/);
 
   // A matriz do papel: Empresas e o Histórico; nunca Usuários e permissões.
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Histórico de Informações']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Histórico de Informações', 'Minha carteira']);
 
   await usuario.goto('/configuracoes/usuarios');
   await expect(usuario.getByText('Você não tem permissão para ver esta área')).toBeVisible();
@@ -568,7 +568,7 @@ test('reduzir o papel nega na próxima requisição da mesma sessão, depois de 
 
   // A mesma sessão, o mesmo token: a revisão vigente já vale.
   await usuario.goto('/empresas');
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Minha carteira']);
   expect((await usuario.request.get('/api/proxy/historico')).status()).toBe(403);
 
   // Revisão concorrente: quem escreve com a revisão antiga é recusado e nada muda.

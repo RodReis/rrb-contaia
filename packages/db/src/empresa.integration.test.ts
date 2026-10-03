@@ -23,6 +23,7 @@ import {
   salvarEnderecoDaEmpresa,
   salvarIdentificacaoDaEmpresa,
 } from './repositorios/empresa.js';
+import { criarUsuario } from './repositorios/usuarios.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -83,6 +84,9 @@ const limpar = async (): Promise<void> => {
     return;
   }
 
+  // Vínculo de carteira e usuário de fixture precisam sair antes da empresa (FK composta).
+  await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
+  await poolAdmin.query('delete from app.usuario where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa_endereco where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa_cnae_secundario where tenant_id = any($1)', [
     ids,
@@ -180,6 +184,9 @@ describe('isolamento entre escritórios (invariantes I-2 e §4.5)', () => {
 
     const lista = await comTenant(tenantB, async (cliente) =>
       listarEmpresas(cliente, tenantB, {
+        // O que se prova aqui é o isolamento de tenant, não a carteira: qualquer id serve.
+        carteiraDoUsuarioId: '00000000-0000-7000-8000-000000000000',
+        veArquivadasDoTenant: false,
         busca: null,
         status: null,
         limite: 50,
@@ -409,9 +416,34 @@ describe('ativação', () => {
 });
 
 describe('listagem, busca e filtros', () => {
+  // A listagem só devolve o que a carteira de quem pergunta alcança (SPEC-009): o listador
+  // recebe vínculo com toda empresa ativa do escritório A que as provas anteriores criaram.
+  let listadorA = '';
+
+  beforeAll(async () => {
+    listadorA = await comTenant(tenantA, async (cliente) =>
+      criarUsuario(cliente, tenantA, {
+        subOidc: 'sub-listador-empresa-a',
+        email: 'listador.empresa.a@empresa.local',
+        nome: 'Listador A',
+        telefone: null,
+        crc: null,
+      }),
+    );
+
+    await poolAdmin.query(
+      `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id)
+       select tenant_id, $1, id from app.empresa
+        where tenant_id = $2 and situacao = 'ativo'`,
+      [listadorA, tenantA],
+    );
+  });
+
   it('filtra por status e conta o total do universo', async () => {
     const lista = await comTenant(tenantA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
+        carteiraDoUsuarioId: listadorA,
+        veArquivadasDoTenant: false,
         busca: null,
         status: 'ATIVA',
         limite: 50,
@@ -427,6 +459,8 @@ describe('listagem, busca e filtros', () => {
     for (const busca of ['Aurora', 'Padaria Aurora Comércio', CNPJ_EMPRESA]) {
       const lista = await comTenant(tenantA, async (cliente) =>
         listarEmpresas(cliente, tenantA, {
+          carteiraDoUsuarioId: listadorA,
+          veArquivadasDoTenant: false,
           busca,
           status: null,
           limite: 50,
@@ -441,6 +475,8 @@ describe('listagem, busca e filtros', () => {
   it('trata curinga digitado pelo usuário como texto literal', async () => {
     const lista = await comTenant(tenantA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
+        carteiraDoUsuarioId: listadorA,
+        veArquivadasDoTenant: false,
         busca: '%',
         status: null,
         limite: 50,
@@ -455,6 +491,8 @@ describe('listagem, busca e filtros', () => {
   it('pagina no servidor, preservando o total', async () => {
     const primeira = await comTenant(tenantA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
+        carteiraDoUsuarioId: listadorA,
+        veArquivadasDoTenant: false,
         busca: null,
         status: null,
         limite: 2,
@@ -464,6 +502,8 @@ describe('listagem, busca e filtros', () => {
 
     const segunda = await comTenant(tenantA, async (cliente) =>
       listarEmpresas(cliente, tenantA, {
+        carteiraDoUsuarioId: listadorA,
+        veArquivadasDoTenant: false,
         busca: null,
         status: null,
         limite: 2,

@@ -32,7 +32,16 @@ import {
   vinculoAtivo,
 } from './repositorios/carteira.js';
 import type { AfetadoDoEvento } from './repositorios/carteira.js';
-import { criarEmpresa, marcarEmpresaComoAtiva } from './repositorios/empresa.js';
+import { criarEmpresa, listarEmpresas, marcarEmpresaComoAtiva } from './repositorios/empresa.js';
+import { listarHistorico, registrarEventos } from './repositorios/manutencao-empresa.js';
+import {
+  contarNaoLidas,
+  criarNotificacoes,
+  listarPainel,
+  marcarComoLida,
+  marcarVariasComoLidas,
+} from './repositorios/notificacoes.js';
+import { listarCentral, reconciliar } from './repositorios/pendencias.js';
 import { atualizarEstado, criarUsuario, substituirPapeis } from './repositorios/usuarios.js';
 
 const urlDaAplicacao = (): string => {
@@ -156,8 +165,27 @@ const limpar = async (): Promise<void> => {
   // fixture é a única exceção legítima e desliga a trigger de forma explícita.
   await poolAdmin.query('alter table app.carteira_evento disable trigger carteira_evento_append_only');
   await poolAdmin.query('alter table app.usuario_evento disable trigger usuario_evento_append_only');
+  await poolAdmin.query(
+    'alter table app.empresa_evento_de_historico disable trigger empresa_evento_de_historico_append_only',
+  );
+  await poolAdmin.query(
+    'alter table app.empresa_evento_de_pendencia disable trigger empresa_evento_de_pendencia_append_only',
+  );
+  await poolAdmin.query(
+    'alter table app.empresa_evento_de_notificacao disable trigger empresa_evento_de_notificacao_append_only',
+  );
 
   try {
+    for (const tabela of [
+      'empresa_evento_de_notificacao',
+      'empresa_notificacao',
+      'empresa_evento_de_pendencia',
+      'empresa_pendencia',
+      'empresa_evento_de_historico',
+    ]) {
+      await poolAdmin.query(`delete from app.${tabela} where tenant_id = any($1)`, [ids]);
+    }
+
     await poolAdmin.query('delete from app.carteira_notificacao where tenant_id = any($1)', [ids]);
     await poolAdmin.query('delete from app.carteira_evento where tenant_id = any($1)', [ids]);
     await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
@@ -165,6 +193,15 @@ const limpar = async (): Promise<void> => {
   } finally {
     await poolAdmin.query('alter table app.carteira_evento enable trigger carteira_evento_append_only');
     await poolAdmin.query('alter table app.usuario_evento enable trigger usuario_evento_append_only');
+    await poolAdmin.query(
+      'alter table app.empresa_evento_de_historico enable trigger empresa_evento_de_historico_append_only',
+    );
+    await poolAdmin.query(
+      'alter table app.empresa_evento_de_pendencia enable trigger empresa_evento_de_pendencia_append_only',
+    );
+    await poolAdmin.query(
+      'alter table app.empresa_evento_de_notificacao enable trigger empresa_evento_de_notificacao_append_only',
+    );
   }
 
   await poolAdmin.query('delete from app.usuario_papel where tenant_id = any($1)', [ids]);
@@ -589,6 +626,234 @@ const adicionar2 = async (cliente: PoolClient, usuarioId: string, empresaId: str
 
 // `comContextoDeTenant` é o caminho real dos casos de uso; um fumo garante que o
 // repositório funciona também quando a transação vem dele.
+
+describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () => {
+  let usuarioX = '';
+  let usuarioY = '';
+  let empresaX1 = '';
+  let empresaX2 = '';
+  let empresaArquivada = '';
+
+  const filtroDeEmpresas = (
+    usuarioId: string,
+    veArquivadas = false,
+    status: 'ARQUIVADA' | null = null,
+  ) => ({
+    carteiraDoUsuarioId: usuarioId,
+    veArquivadasDoTenant: veArquivadas,
+    busca: null,
+    status,
+    limite: 50,
+    deslocamento: 0,
+  });
+
+  beforeAll(async () => {
+    usuarioX = await novoUsuario(tenantA, 'leitorX');
+    usuarioY = await novoUsuario(tenantA, 'leitorY');
+    empresaX1 = await novaEmpresa(tenantA, `66${SUFIXO}000166`);
+    empresaX2 = await novaEmpresa(tenantA, `67${SUFIXO}000167`);
+    empresaArquivada = await novaEmpresa(tenantA, `68${SUFIXO}000168`);
+    await poolAdmin.query(`update app.empresa set situacao = 'arquivado' where id = $1`, [
+      empresaArquivada,
+    ]);
+
+    await adicionar(tenantA, usuarioX, [empresaX1]);
+    await adicionar(tenantA, usuarioY, [empresaX2]);
+
+    for (const empresaId of [empresaX1, empresaX2]) {
+      const chave = `campo:${empresaId.slice(-4)}`;
+
+      await comTenant(tenantA, async (cliente) => {
+        await reconciliar(
+          cliente,
+          tenantA,
+          empresaId,
+          [{ origem: 'CADASTRAL', tipo: 'CAMPO_OBRIGATORIO', chave, dataLimite: null }],
+          [],
+          adminA,
+        );
+        await criarNotificacoes(cliente, tenantA, empresaId, [{ chave, tipo: 'NOVA_PENDENCIA' }]);
+      });
+    }
+
+    await comTenant(tenantA, (cliente) =>
+      registrarEventos(
+        cliente,
+        tenantA,
+        [empresaX1, empresaX2, empresaArquivada].map((empresaId) => ({
+          empresaId,
+          aba: 'DADOS_CADASTRAIS' as const,
+          acao: 'ALTERACAO' as const,
+          campo: 'razaoSocial',
+          valorAnterior: 'a',
+          valorNovo: 'b',
+          vigencia: null,
+          justificativa: null,
+          usuarioId: adminA,
+        })),
+      ),
+    );
+  });
+
+  it('a lista de empresas devolve só as da carteira de quem pergunta', async () => {
+    const doX = await comTenant(tenantA, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX)),
+    );
+    const doY = await comTenant(tenantA, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioY)),
+    );
+
+    expect(doX.empresas.map((e) => e.id)).toEqual([empresaX1]);
+    expect(doY.empresas.map((e) => e.id)).toEqual([empresaX2]);
+    expect(doX.total).toBe(1);
+  });
+
+  it('colaborador sem carteira vê lista vazia, nunca a base inteira', async () => {
+    const sem = await novoUsuario(tenantA, 'semCarteira');
+    const lista = await comTenant(tenantA, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(sem)),
+    );
+
+    expect(lista).toMatchObject({ empresas: [], total: 0 });
+  });
+
+  it('só o admin alcança as arquivadas sem vínculo; a ativa continua exigindo vínculo', async () => {
+    const comoAdmin = await comTenant(tenantA, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX, true, 'ARQUIVADA')),
+    );
+    const comoComum = await comTenant(tenantA, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX, false, 'ARQUIVADA')),
+    );
+    const ativasDoAdmin = await comTenant(tenantA, (c) =>
+      listarEmpresas(c, tenantA, filtroDeEmpresas(usuarioX, true)),
+    );
+
+    expect(comoAdmin.empresas.map((e) => e.id)).toContain(empresaArquivada);
+    expect(comoComum.empresas).toEqual([]);
+    expect(ativasDoAdmin.empresas.map((e) => e.id)).toEqual([empresaX1]);
+  });
+
+  it('a Central de Pendências só mostra pendência de empresa da carteira', async () => {
+    const pagina = (usuarioId: string) =>
+      comTenant(tenantA, (c) =>
+        listarCentral(
+          c,
+          {
+            carteiraDoUsuarioId: usuarioId,
+            empresaId: null,
+            origem: null,
+            tipo: null,
+            estado: 'ABERTA',
+            vencimento: null,
+            limite: 50,
+            deslocamento: 0,
+          },
+          '2026-10-03',
+        ),
+      );
+
+    expect((await pagina(usuarioX)).pendencias.map((p) => p.empresaId)).toEqual([empresaX1]);
+    expect((await pagina(usuarioY)).pendencias.map((p) => p.empresaId)).toEqual([empresaX2]);
+  });
+
+  it('o histórico das empresas respeita a carteira; o admin também lê o das arquivadas', async () => {
+    const leitura = async (usuarioId: string, veArquivadas: boolean) =>
+      (
+        await comTenant(tenantA, (c) =>
+          listarHistorico(c, tenantA, {
+            carteiraDoUsuarioId: usuarioId,
+            veArquivadasDoTenant: veArquivadas,
+            aba: null,
+            empresaId: null,
+            inicio: null,
+            fim: null,
+            usuarioId: null,
+            campo: null,
+            limite: 50,
+            deslocamento: 0,
+          }),
+        )
+      ).eventos.map((e) => e.empresaId);
+
+    expect(await leitura(usuarioX, false)).toEqual([empresaX1]);
+    expect((await leitura(usuarioX, true)).sort()).toEqual([empresaX1, empresaArquivada].sort());
+  });
+
+  it('o sino mostra pendência só da carteira e o aviso consolidado só ao destinatário', async () => {
+    const afetados = [afetado(usuarioX, [empresaX1], [], 0)];
+    const eventoId = await comTenant(tenantA, async (cliente) => {
+      const id = await registrarEventoDeCarteira(cliente, tenantA, {
+        origem: 'INDIVIDUAL',
+        autorId: adminA,
+        afetados,
+      });
+      await criarNotificacoesDeCarteira(cliente, tenantA, id, afetados);
+      return id;
+    });
+
+    const sinoX = await comTenant(tenantA, (c) => listarPainel(c, tenantA, usuarioX));
+    const sinoY = await comTenant(tenantA, (c) => listarPainel(c, tenantA, usuarioY));
+
+    // X vê a pendência da empresa dele e o aviso; Y vê só a pendência da dele.
+    expect(sinoX.map((n) => n.empresaId).filter((id) => id !== null)).toEqual([empresaX1]);
+    expect(sinoX.some((n) => n.tipo === 'CARTEIRA_ALTERADA' && n.chave === eventoId)).toBe(true);
+    expect(sinoY.map((n) => n.empresaId).filter((id) => id !== null)).toEqual([empresaX2]);
+    expect(sinoY.some((n) => n.tipo === 'CARTEIRA_ALTERADA')).toBe(false);
+
+    const aviso = sinoX.find((n) => n.tipo === 'CARTEIRA_ALTERADA');
+    expect(aviso?.empresaId).toBeNull();
+    expect(aviso?.adicionadas).toHaveLength(1);
+  });
+
+  it('quem perdeu a última empresa ainda vê o aviso consolidado', async () => {
+    const solitario = await novoUsuario(tenantA, 'perdeuTudo');
+    const afetados = [afetado(solitario, [], [empresaX1], 1)];
+
+    await comTenant(tenantA, async (cliente) => {
+      const id = await registrarEventoDeCarteira(cliente, tenantA, {
+        origem: 'INDIVIDUAL',
+        autorId: adminA,
+        afetados,
+      });
+      await criarNotificacoesDeCarteira(cliente, tenantA, id, afetados);
+    });
+
+    const sino = await comTenant(tenantA, (c) => listarPainel(c, tenantA, solitario));
+
+    expect(sino).toHaveLength(1);
+    expect(sino[0]?.tipo).toBe('CARTEIRA_ALTERADA');
+    expect(await comTenant(tenantA, (c) => contarNaoLidas(c, tenantA, solitario))).toBe(1);
+  });
+
+  it('ninguém marca como lida a notificação de outro: nem pendência fora da carteira, nem aviso alheio', async () => {
+    const sinoX = await comTenant(tenantA, (c) => listarPainel(c, tenantA, usuarioX));
+    const avisoDeX = sinoX.find((n) => n.tipo === 'CARTEIRA_ALTERADA');
+    const pendenciaDeX = sinoX.find((n) => n.empresaId === empresaX1);
+
+    expect(avisoDeX).toBeDefined();
+    expect(pendenciaDeX).toBeDefined();
+
+    // Y tenta ler os dois ids de X: responde como inexistente e nada muda.
+    expect(
+      await comTenant(tenantA, (c) => marcarComoLida(c, tenantA, avisoDeX?.id ?? '', usuarioY)),
+    ).toBeNull();
+    expect(
+      await comTenant(tenantA, (c) => marcarComoLida(c, tenantA, pendenciaDeX?.id ?? '', usuarioY)),
+    ).toBeNull();
+    expect(
+      await comTenant(tenantA, (c) =>
+        marcarVariasComoLidas(c, tenantA, [avisoDeX?.id ?? '', pendenciaDeX?.id ?? ''], usuarioY),
+      ),
+    ).toBe(0);
+
+    // O destinatário marca o próprio aviso, e só ele.
+    const lida = await comTenant(tenantA, (c) =>
+      marcarComoLida(c, tenantA, avisoDeX?.id ?? '', usuarioX),
+    );
+    expect(lida?.lida).toBe(true);
+  });
+});
+
 describe('com comContextoDeTenant', () => {
   it('lê a carteira pelo mesmo caminho dos casos de uso', async () => {
     const empresas = await comContextoDeTenant(poolApp, tenantA, (cliente) =>

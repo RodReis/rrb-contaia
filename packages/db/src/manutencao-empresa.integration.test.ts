@@ -136,6 +136,8 @@ const limpar = async (): Promise<void> => {
       'alter table app.empresa_evento_de_historico enable trigger empresa_evento_de_historico_append_only',
     );
   }
+  // O vínculo de carteira sai antes da empresa e do usuário (FK composta).
+  await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa_endereco where tenant_id = any($1)', [ids]);
   await poolAdmin.query(
     'delete from app.empresa_cnae_secundario where tenant_id = any($1)',
@@ -193,6 +195,17 @@ const criarEmpresaAtiva = async (
     );
 
     return empresaId;
+  }).then(async (empresaId) => {
+    // O histórico só mostra o que a carteira de quem consulta alcança (SPEC-009 §3.5): o
+    // administrador do escritório da fixture entra na carteira de toda empresa que ela cria.
+    const administrador = tenantId === tenantA ? usuarioA : usuarioB;
+
+    await poolAdmin.query(
+      `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id) values ($1, $2, $3)`,
+      [tenantId, administrador, empresaId],
+    );
+
+    return empresaId;
   });
 
 const evento = (empresaId: string, usuarioId: string, campo = 'razaoSocial') =>
@@ -209,6 +222,11 @@ const evento = (empresaId: string, usuarioId: string, campo = 'razaoSocial') =>
   }) as const;
 
 const filtroVazio = {
+  // `usuarioA` só existe depois do `beforeAll`: o getter lê no momento do uso, não da definição.
+  get carteiraDoUsuarioId(): string {
+    return usuarioA;
+  },
+  veArquivadasDoTenant: false,
   aba: null,
   empresaId: null,
   inicio: null,

@@ -35,6 +35,7 @@ let poolApp: Pool;
 let tenantA = '';
 let tenantB = '';
 let usuarioA = '';
+let usuarioB = '';
 
 const comTenant = async <T>(
   tenantId: string | null,
@@ -103,6 +104,7 @@ const limpar = async (): Promise<void> => {
     );
   }
 
+  await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.usuario where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.tenant where id = any($1)', [ids]);
@@ -130,6 +132,7 @@ beforeAll(async () => {
   );
 
   usuarioA = usuarios.rows[0]?.id ?? '';
+  usuarioB = usuarios.rows[1]?.id ?? '';
 
   poolApp = new Pool({ connectionString: urlDaAplicacao(), max: 5 });
 });
@@ -151,6 +154,15 @@ const criarEmpresaAtiva = async (
       `update app.empresa set status = 'ATIVA', razao_social = 'Empresa Pendências'
         where tenant_id = $1 and id = $2`,
       [tenantId, empresaId],
+    );
+
+    return empresaId;
+  }).then(async (empresaId) => {
+    // A Central só mostra pendência de empresa da carteira de quem consulta (SPEC-009 §3.5): o
+    // administrador do escritório da fixture entra na carteira de toda empresa que ela cria.
+    await poolAdmin.query(
+      `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id) values ($1, $2, $3)`,
+      [tenantId, tenantId === tenantA ? usuarioA : usuarioB, empresaId],
     );
 
     return empresaId;
@@ -375,6 +387,7 @@ describe('dispensa (secao 4)', () => {
       listarCentral(
         cliente,
         {
+          carteiraDoUsuarioId: usuarioA,
           empresaId,
           origem: null,
           tipo: null,
@@ -429,6 +442,7 @@ describe('Central (secao 3)', () => {
       listarCentral(
         cliente,
         {
+          carteiraDoUsuarioId: usuarioA,
           empresaId,
           origem: null,
           tipo: null,
