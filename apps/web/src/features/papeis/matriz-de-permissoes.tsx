@@ -123,7 +123,7 @@ const SecaoDoModulo = ({
 
         <div className="flex flex-wrap items-center gap-sm">
           <span className="text-body-sm tabular-nums text-muted-foreground">
-            {marcadas} de {total} permissões
+            {marcadas} de {total} {total === 1 ? 'permissão' : 'permissões'}
           </span>
           {/* Visível/oculto é dito por texto e ícone, nunca só por cor. */}
           <StatusBadge

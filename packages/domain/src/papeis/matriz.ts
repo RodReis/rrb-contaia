@@ -8,6 +8,7 @@
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '../erros.js';
 import {
   CHAVES_DO_CATALOGO,
+  ENVIO_IMPLICADO,
   chavesDoModulo,
   consultaImplicada,
   dependentesDeConsulta,
@@ -30,8 +31,13 @@ const comConsultasImplicadas = (chaves: readonly ChaveDoCatalogo[]): readonly Ch
   emOrdemDoCatalogo(
     chaves.flatMap((chave) => {
       const consulta = consultaImplicada(chave);
+      const envio = ENVIO_IMPLICADO[chave];
 
-      return consulta === null ? [chave] : [chave, consulta as ChaveDoCatalogo];
+      return [
+        chave,
+        ...(consulta === null ? [] : [consulta as ChaveDoCatalogo]),
+        ...(envio === undefined ? [] : [envio as ChaveDoCatalogo]),
+      ];
     }),
   );
 
@@ -99,7 +105,15 @@ export const revogarPermissao = (
   matriz: readonly ChaveDoCatalogo[],
   chave: ChaveDoCatalogo,
 ): readonly ChaveDoCatalogo[] => {
-  const retiradas = new Set<ChaveDePermissao>([chave, ...dependentesDeConsulta(chave)]);
+  // Retirar `Enviar` leva `Substituir`, que dele depende.
+  const quemDependeDoEnvio = Object.entries(ENVIO_IMPLICADO)
+    .filter(([, implicada]) => implicada === chave)
+    .map(([dependente]) => dependente as ChaveDePermissao);
+  const retiradas = new Set<ChaveDePermissao>([
+    chave,
+    ...dependentesDeConsulta(chave),
+    ...quemDependeDoEnvio,
+  ]);
 
   return matriz.filter((existente) => !retiradas.has(existente));
 };

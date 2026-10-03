@@ -86,7 +86,7 @@ describe('estrutura', () => {
       expect(modulo(rotulo)).toBeInTheDocument();
     }
 
-    expect(within(modulo('Histórico de Informações')).getByText('1 de 1 permissões')).toBeInTheDocument();
+    expect(within(modulo('Histórico de Informações')).getByText('1 de 1 permissão')).toBeInTheDocument();
     expect(within(modulo('Histórico de Informações')).getByText('Módulo visível')).toBeInTheDocument();
     expect(within(modulo('Empresas')).getByText('Módulo oculto')).toBeInTheDocument();
     expect(within(modulo('Empresas')).getByText('0 de 6 permissões')).toBeInTheDocument();

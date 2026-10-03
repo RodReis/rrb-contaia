@@ -68,7 +68,8 @@ const ehTipo = (valor: string | null): valor is TipoDeEvento =>
 
 /** Papéis e situações aparecem com o rótulo do produto, nunca com o identificador técnico. */
 const mostrar = (campo: string, valor: unknown): string => {
-  if (valor === null || valor === undefined || valor === '') {
+  // Lista vazia (ex.: usuário só com papel personalizado) é ausência de valor, não texto em branco.
+  if (valor === null || valor === undefined || valor === '' || (Array.isArray(valor) && valor.length === 0)) {
     return '—';
   }
 

@@ -228,7 +228,10 @@ const CartaoDoPapel = ({
         <dd className="tabular-nums text-foreground">{papel.usuariosVinculados}</dd>
       </div>
     </dl>
-    <Estado estado={papel.estado} />
+    {/* O selo ocupa só o próprio texto: filho direto de coluna flex ele esticaria a largura do cartão. */}
+    <div>
+      <Estado estado={papel.estado} />
+    </div>
     <AcoesDoPapel papel={papel} podeAdministrar={podeAdministrar} />
   </li>
 );

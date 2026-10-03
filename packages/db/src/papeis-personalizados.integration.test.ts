@@ -12,7 +12,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
-import { comContextoDeTenant, semContexto } from './contexto.js';
+import { semContexto } from './contexto.js';
 import {
   carregarPapel,
   carregarPapeisParaAtribuir,
@@ -566,6 +566,64 @@ describe('vínculos com usuários', () => {
       arquivando.release();
       atribuindo.release();
     }
+  });
+});
+
+describe('edição concorrente do mesmo papel', () => {
+  it('quem espera a trava enxerga a revisão nova, não um papel que "sumiu"', async () => {
+    const papel = await novoPapel(tenantA, `Duas edicoes ${SUFIXO}`);
+
+    const primeira = await poolApp.connect();
+    const segunda = await poolApp.connect();
+
+    try {
+      await primeira.query('begin');
+      await primeira.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await carregarPapel(primeira, tenantA, papel, { travar: true });
+
+      await segunda.query('begin');
+      await segunda.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+
+      const esperando = carregarPapel(segunda, tenantA, papel, { travar: true });
+      const antesDoCommit = await Promise.race([
+        esperando.then(() => 'concluiu'),
+        new Promise<string>((resolve) => setTimeout(() => resolve('esperando'), 400)),
+      ]);
+
+      expect(antesDoCommit).toBe('esperando');
+
+      await gravarNovaRevisao(primeira, tenantA, papel, {
+        nome: `Duas edicoes ${SUFIXO}`,
+        descricao: 'primeira edição',
+        estado: 'ATIVO',
+        permissoes: ['historico.global.consultar'],
+        autorId: adminA,
+      });
+      await primeira.query('commit');
+
+      const vista = await esperando;
+
+      // A segunda decide sobre a revisão 2 (e responde 409 se esperava a 1), nunca sobre "papel inexistente".
+      expect(vista).toMatchObject({ revisao: 2, descricao: 'primeira edição' });
+
+      await segunda.query('commit');
+    } finally {
+      primeira.release();
+      segunda.release();
+    }
+  });
+
+  it('papel inexistente ou de outro tenant continua devolvendo null ao travar', async () => {
+    const alheio = await novoPapel(tenantB, `Alheio travado ${SUFIXO}`);
+
+    expect(
+      await comTenant(tenantA, (cliente) => carregarPapel(cliente, tenantA, alheio, { travar: true })),
+    ).toBeNull();
+    expect(
+      await comTenant(tenantA, (cliente) =>
+        carregarPapel(cliente, tenantA, '00000000-0000-7000-8000-000000000000', { travar: true }),
+      ),
+    ).toBeNull();
   });
 });
 

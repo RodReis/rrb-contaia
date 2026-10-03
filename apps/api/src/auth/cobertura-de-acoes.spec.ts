@@ -232,6 +232,16 @@ describe('papel personalizado nas rotas reais (SPEC-008 §3.4)', () => {
     [NotificacoesController, 'marcarComoLida', ['notificacoes.sino.consultar'], 'negado'],
     [NotificacoesController, 'marcarComoLida', ['notificacoes.sino.marcar_lida'], 'permitido'],
     [PendenciasController, 'consultarCentral', ['pendencias.pendencias.consultar'], 'permitido'],
+    // Dispensar pendência exige poder dispensar a exigência E enxergar a Central: uma chave só de
+    // documentos não apagaria alerta de origem cadastral.
+    [PendenciasDaEmpresaController, 'dispensar', ['documentos.exigencias.dispensar'], 'negado'],
+    [PendenciasDaEmpresaController, 'dispensar', ['pendencias.pendencias.consultar'], 'negado'],
+    [
+      PendenciasDaEmpresaController,
+      'dispensar',
+      ['documentos.exigencias.dispensar', 'pendencias.pendencias.consultar'],
+      'permitido',
+    ],
     // Área exclusiva: nenhuma matriz de catálogo alcança usuários, papéis nem a aba de acessos.
     [UsuariosController, 'listar', ['historico.global.consultar', 'empresas.cadastro.consultar'], 'negado'],
     [PapeisController, 'criar', ['empresas.cadastro.criar', 'documentos.analise.aprovar'], 'negado'],

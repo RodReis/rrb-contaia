@@ -377,6 +377,31 @@ describe('redução em papel atribuído (§3.5)', () => {
   });
 });
 
+describe('redução não confirmada fora do diálogo', () => {
+  it('a tela leu o papel sem vínculos mas o servidor exige confirmação: recarrega e avisa, sem calar', async () => {
+    aoSalvar = () => problema(409, 'REDUCAO_NAO_CONFIRMADA');
+
+    renderizar();
+    await abrirPermissoes();
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar módulo Histórico de Informações' }));
+    await userEvent.click(await screen.findByRole('button', { name: /Ocultar e remover/u }));
+
+    const antes = chamadas.filter((c) => c.metodo === 'GET' && c.url.endsWith('/papeis/papel-1')).length;
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    await waitFor(() =>
+      expect(avisar).toHaveBeenCalledWith(expect.stringContaining('Confirme a redução de permissões')),
+    );
+    expect(avisar).toHaveBeenCalledWith(expect.stringContaining('revise e salve de novo'));
+    await waitFor(() =>
+      expect(chamadas.filter((c) => c.metodo === 'GET' && c.url.endsWith('/papeis/papel-1')).length).toBeGreaterThan(
+        antes,
+      ),
+    );
+  });
+});
+
 describe('revisão concorrente e nome duplicado', () => {
   it('409 de versão avisa que nada foi aplicado e oferece recarregar', async () => {
     aoSalvar = () => problema(409, 'CONFLITO_DE_VERSAO');

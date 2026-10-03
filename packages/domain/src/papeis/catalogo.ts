@@ -159,6 +159,15 @@ export const consultaImplicada = (chave: ChaveDePermissao): ChaveDePermissao | n
   return acao === 'consultar' ? null : (`${modulo}.${funcionalidade}.consultar` as ChaveDePermissao);
 };
 
+/**
+ * Dependência além de `Consultar`: substituir um arquivo é enviar uma versão nova pela mesma
+ * rota, então `Substituir` sem `Enviar` seria permissão que não concede nada (403). O editor
+ * e o servidor tratam as duas como par: conceder `Substituir` concede `Enviar`.
+ */
+export const ENVIO_IMPLICADO: Readonly<Partial<Record<ChaveDePermissao, ChaveDePermissao>>> = {
+  'documentos.arquivos.substituir': 'documentos.arquivos.enviar',
+};
+
 /** Chaves que dependem de `Consultar` na mesma funcionalidade. */
 export const dependentesDeConsulta = (chave: ChaveDePermissao): readonly ChaveDePermissao[] => {
   const [modulo, funcionalidade, acao] = chave.split('.');

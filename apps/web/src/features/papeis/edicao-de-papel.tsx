@@ -188,14 +188,19 @@ const Formulario = ({
   // Só redução num papel atribuído exige confirmação; ampliar ou editar papel livre grava direto.
   const exigeConfirmacao = !arquivado && reduz && papel.usuariosVinculados > 0;
 
-  const tratarErro = (erro: unknown): void => {
+  const tratarErro = (erro: unknown, foraDoDialogo = false): void => {
     if (!(erro instanceof ErroDaApi)) {
       return;
     }
 
     const { code } = erro.problema;
 
-    if (code === 'CONFLITO_DE_VERSAO') {
+    if (foraDoDialogo && (code === 'REDUCAO_NAO_CONFIRMADA' || code === 'REVISAO_NAO_CONFIRMADA')) {
+      // A tela decidiu sobre dados velhos (usuário vinculado depois da leitura): sem diálogo para
+      // explicar, recarrega a revisão atual e pede nova revisão em vez de falhar calado.
+      aoRecarregar();
+      toast.info(`${mensagemDoCodigo(code)} Os dados foram recarregados: revise e salve de novo.`);
+    } else if (code === 'CONFLITO_DE_VERSAO') {
       definirDesatualizado(true);
     } else if (code === 'PAPEL_NOME_DUPLICADO') {
       aoMudarAba('resumo');
@@ -226,7 +231,7 @@ const Formulario = ({
         confirmaReducao,
       });
     } catch (falha) {
-      tratarErro(falha);
+      tratarErro(falha, !confirmaReducao);
       // Dentro do diálogo de confirmação o erro precisa voltar a ele.
       throw falha;
     }

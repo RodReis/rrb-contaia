@@ -142,11 +142,24 @@ export const carregarPapel = async (
   papelId: string,
   opcoes: Readonly<{ travar?: boolean }> = {},
 ): Promise<PapelPersistido | null> => {
-  // `for update of p` trava só o papel; a revisão é imutável.
+  // A trava vem numa leitura só do papel, antes da junção com a revisão. Com `for update of p`
+  // na query com junção, quem esperava a trava acordava com a linha de `p` já na revisão nova e
+  // a linha de `r` ainda na antiga: a junção falhava e o papel "sumia" (404 em vez de 409).
+  if (opcoes.travar === true) {
+    const trava = await cliente.query(
+      'select 1 from app.papel_personalizado where tenant_id = $1 and id = $2 for update',
+      [tenantId, papelId],
+    );
+
+    if (trava.rowCount === 0) {
+      return null;
+    }
+  }
+
   const { rows } = await cliente.query<LinhaDePapel>(
     `select ${COLUNAS_DO_PAPEL}
        from app.papel_personalizado p ${JUNTA_REVISAO_VIGENTE}
-      where p.tenant_id = $1 and p.id = $2${opcoes.travar === true ? ' for update of p' : ''}`,
+      where p.tenant_id = $1 and p.id = $2`,
     [tenantId, papelId],
   );
 

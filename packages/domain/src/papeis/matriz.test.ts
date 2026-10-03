@@ -98,6 +98,30 @@ describe('edição da matriz', () => {
     ]);
   });
 
+  it('Substituir implica Enviar: conceder um concede o par, e a entrada do servidor também', () => {
+    const par = [
+      'documentos.arquivos.consultar',
+      'documentos.arquivos.enviar',
+      'documentos.arquivos.substituir',
+    ];
+
+    expect(concederPermissao([], 'documentos.arquivos.substituir')).toEqual(par);
+    expect(normalizarMatriz(['documentos.arquivos.substituir'])).toEqual(par);
+  });
+
+  it('retirar Enviar leva Substituir, que dele depende', () => {
+    expect(
+      revogarPermissao(
+        [
+          'documentos.arquivos.consultar',
+          'documentos.arquivos.enviar',
+          'documentos.arquivos.substituir',
+        ],
+        'documentos.arquivos.enviar',
+      ),
+    ).toEqual(['documentos.arquivos.consultar']);
+  });
+
   it('módulo é visível quando alguma funcionalidade tem Consultar', () => {
     expect(moduloVisivel(BASE, 'documentos')).toBe(true);
     expect(moduloVisivel(BASE, 'empresas')).toBe(false);

@@ -406,6 +406,28 @@ describe('eventos de papel e de papéis do usuário (SPEC-008 §3.6)', () => {
     expect(await within(reativacao).findByText('empresas.cadastro.excluir')).toBeInTheDocument();
   });
 
+  it('lista de papéis vazia aparece como travessão, não como espaço em branco', async () => {
+    historicoAtual = () =>
+      json({
+        eventos: [
+          evento({
+            id: 'v1',
+            tipo: 'DADOS_E_PAPEIS_ALTERADOS',
+            antes: { papeis: [], papeisPersonalizados: [{ id: 'a', nome: 'Revisor' }] },
+            depois: { papeis: ['auxiliar'], papeisPersonalizados: [] },
+          }),
+        ],
+        total: 1,
+      });
+
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+    const [item] = eventosDe(lista);
+
+    expect(within(item!).getAllByText('—')).toHaveLength(2);
+  });
+
   it('papéis personalizados de um usuário aparecem pelo nome, antes e depois', async () => {
     renderizar();
 

@@ -58,7 +58,7 @@ export class PendenciasController {
 // Dispensar a pendência é dispensar a exigência que a origina (SPEC-005: "dispensa
 // documental também resolve a pendência"). O catálogo da SPEC-008 não traz ação
 // própria para isso; a decisão fica registrada na PR para confirmação do PI.
-@ExigePermissao('documentos.exigencias.dispensar')
+@ExigePermissao('documentos.exigencias.dispensar', 'pendencias.pendencias.consultar')
 export class PendenciasDaEmpresaController {
   constructor(private readonly pendencias: PendenciasService) {}
 
