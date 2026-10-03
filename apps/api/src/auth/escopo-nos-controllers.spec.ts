@@ -71,7 +71,7 @@ describe('EmpresaController', () => {
     );
   });
 
-  it('carteira vazia devolve o marcador de ausência de alçada, para qualquer papel', async () => {
+  it('carteira vazia devolve o marcador de ausência de alçada aos papéis que não são admin', async () => {
     servico.listar.mockResolvedValue({ empresas: [], total: 0 });
     const controller = new EmpresaController(
       servico as never,
@@ -79,13 +79,22 @@ describe('EmpresaController', () => {
       comCarteira(false) as never,
     );
 
-    for (const sessao of [ADMIN, CONTADOR]) {
-      expect(await controller.listar(sessao, {})).toEqual({
-        empresas: [],
-        total: 0,
-        escopoDeEmpresas: 'NENHUMA',
-      });
-    }
+    expect(await controller.listar(CONTADOR, {})).toEqual({
+      empresas: [],
+      total: 0,
+      escopoDeEmpresas: 'NENHUMA',
+    });
+  });
+
+  it('admin com carteira vazia não recebe o marcador: precisa do convite para cadastrar a primeira empresa', async () => {
+    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
+    const controller = new EmpresaController(
+      servico as never,
+      pendencias as never,
+      comCarteira(false) as never,
+    );
+
+    expect(await controller.listar(ADMIN, {})).not.toHaveProperty('escopoDeEmpresas');
   });
 
   it('carteira com empresas e lista vazia por filtro não recebe o marcador', async () => {

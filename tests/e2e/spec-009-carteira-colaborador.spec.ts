@@ -286,7 +286,7 @@ const arquivar = async (empresaId: string): Promise<void> => {
     data: { justificativa: 'Encerrou as atividades.' },
   });
 
-  expect(resposta.status()).toBe(200);
+  expect(resposta.status()).toBe(201);
 };
 
 test.beforeAll(async ({ browser }) => {
@@ -454,7 +454,8 @@ test('empresa do mesmo escritório fora da carteira responde 403 com nome e CNPJ
 
 test('a lista de empresas da colaboradora traz só as da carteira, nunca a base inteira', async () => {
   await colab.goto('/empresas');
-  await expect(colab.getByText(NOME_ALFA).first()).toBeVisible();
+  // Tabela e cartões coexistem no DOM (o CSS esconde um deles): a prova é na tabela, visível no desktop.
+  await expect(colab.getByRole('table').getByText(NOME_ALFA)).toBeVisible();
   await expect(colab.getByText(NOME_DELTA)).toHaveCount(0);
 
   const lista = (await (await colab.request.get('/api/proxy/empresas?limite=100')).json()) as {
@@ -614,7 +615,7 @@ test('arquivar a empresa encerra os vínculos; reativar não restaura e exige no
   const reativacao = await admin.request.post(`/api/proxy/empresas/${alfaId}/manutencao/reativar`, {
     data: { justificativa: 'Retomou as atividades.' },
   });
-  expect(reativacao.status()).toBe(200);
+  expect(reativacao.status()).toBe(201);
   expect(await vinculosAtivos(colabId)).toEqual([]);
   expect(await vinculosAtivos(adminId)).toEqual([]);
   expect((await colab.request.get(`/api/proxy/empresas/${alfaId}`)).status()).toBe(403);
@@ -667,12 +668,12 @@ test('arquivar o usuário encerra os vínculos sem notificá-lo; o retorno exige
   );
 
   // Suspender preserva os vínculos (o usuário só não acessa nada enquanto suspenso).
-  expect((await admin.request.post(`/api/proxy/usuarios/${colabId}/suspender`)).status()).toBe(200);
+  expect((await admin.request.post(`/api/proxy/usuarios/${colabId}/suspender`)).status()).toBe(201);
   expect(await vinculosAtivos(colabId)).toEqual([alfaId]);
-  expect((await admin.request.post(`/api/proxy/usuarios/${colabId}/reativar`)).status()).toBe(200);
+  expect((await admin.request.post(`/api/proxy/usuarios/${colabId}/reativar`)).status()).toBe(201);
   expect(await vinculosAtivos(colabId)).toEqual([alfaId]);
 
-  expect((await admin.request.post(`/api/proxy/usuarios/${colabId}/arquivar`)).status()).toBe(200);
+  expect((await admin.request.post(`/api/proxy/usuarios/${colabId}/arquivar`)).status()).toBe(201);
   expect(await vinculosAtivos(colabId)).toEqual([]);
 
   const encerrado = await pool.query<{ encerrado_motivo: string }>(

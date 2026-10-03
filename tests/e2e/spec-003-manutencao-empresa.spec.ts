@@ -242,6 +242,14 @@ test('arquiva com justificativa, consulta e reativa preservando os dados', async
   await expect(page.getByText('Empresa reativada.')).toBeVisible();
   await expect(page.getByRole('textbox', { name: /razão social/iu })).toBeEnabled();
 
+  // Reativar não restaura a carteira (SPEC-009 §3.4): a empresa só volta ao histórico do admin
+  // depois de uma nova atribuição, que aqui é feita direto no banco.
+  await pool.query(
+    `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id)
+     select tenant_id, id, $1 from app.usuario where email = 'admin@escritorio.cnt.br'`,
+    [empresaId],
+  );
+
   // Arquivamento e reativação aparecem na aba Status da empresa, com as
   // justificativas preservadas (§3.6).
   await page.goto('/historico?aba=STATUS_DA_EMPRESA');

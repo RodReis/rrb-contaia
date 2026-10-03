@@ -67,7 +67,16 @@ export class EmpresaController {
       veArquivadasDoTenant: (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
     });
 
-    if (resultado.total === 0 && !(await this.carteira.possuiCarteira(tenantId, usuarioId))) {
+    // O administrador com a carteira vazia ainda precisa do convite para cadastrar a primeira empresa
+    // (e ela entra na carteira dele na criação), então o marcador de ausência de alçada, que esconde
+    // esse convite, vale só para os demais papéis — que, se criassem, deixariam empresa sem dono.
+    const administrador = (requisicao.sessao?.papeis ?? []).includes('admin_escritorio');
+
+    if (
+      resultado.total === 0 &&
+      !administrador &&
+      !(await this.carteira.possuiCarteira(tenantId, usuarioId))
+    ) {
       return { empresas: [], total: 0, escopoDeEmpresas: 'NENHUMA' };
     }
 
