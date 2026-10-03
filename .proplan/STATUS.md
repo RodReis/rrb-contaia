@@ -98,10 +98,6 @@ _(vazio)_
 
 ## Feito
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9)
-
 ### Sem épico
 
 - [MVP1][SPEC-002][FIX] E2E da F2 compara o total global de empresas e falha sob paralelismo (#96)
@@ -110,6 +106,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9, finalizado em: 2026-10-03)
 - [MVP1][SPEC-008][F8] Papéis personalizados e permissões (#10, finalizado em: 2026-10-03)
 - [MVP1][SPEC-009][F9] Carteira do colaborador e isolamento por empresa (#11, finalizado em: 2026-10-03)
 - [MVP1][SPEC-006][F6] Notificações de pendências (#7, finalizado em: 2026-09-22)
