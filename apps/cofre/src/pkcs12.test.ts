@@ -165,6 +165,11 @@ describe('abertura isolada e limites defensivos (worker com prazo)', () => {
     return copia;
   };
 
+  // Os três testes abaixo FABRICAM, no próprio processo e em JS, um PFX com centenas de milhares de
+  // iterações de KDF. Esse custo é do preparo, não do que se mede (a recusa em `abrirPkcs12`, que
+  // segue limitada a 5 s). O timeout padrão de 5 s do Vitest estourava no runner da CI.
+  const PRAZO_DO_PREPARO_MS = 60_000;
+
   it('PFX normal (count dentro do teto) abre', async () => {
     const aberto = await abrirPkcs12(comoBytes(pfxComIteracoes(2048)), 'pw', [], AGORA);
 
@@ -179,7 +184,7 @@ describe('abertura isolada e limites defensivos (worker com prazo)', () => {
 
     expect(resultado).toEqual({ ok: false, codigo: 'CERTIFICADO_CONTEINER_INVALIDO' });
     expect(Date.now() - inicio).toBeLessThan(5000);
-  });
+  }, PRAZO_DO_PREPARO_MS);
 
   it('PoC da revisão: authSafe em pedaços (BER) com 1.000.000 de iterações NÃO contorna o teto', async () => {
     const pfx = comoBytes(emPedacos(pfxComIteracoes(1_000_000)));
@@ -189,7 +194,7 @@ describe('abertura isolada e limites defensivos (worker com prazo)', () => {
 
     expect(resultado).toEqual({ ok: false, codigo: 'CERTIFICADO_CONTEINER_INVALIDO' });
     expect(Date.now() - inicio).toBeLessThan(5000);
-  });
+  }, PRAZO_DO_PREPARO_MS);
 
   it('o mesmo PFX em pedaços, com count normal, continua abrindo (o forge aceita BER)', async () => {
     const resultado = await abrirPkcs12(comoBytes(emPedacos(pfxComIteracoes(2048))), 'pw', [], AGORA);
@@ -205,7 +210,7 @@ describe('abertura isolada e limites defensivos (worker com prazo)', () => {
     const resultado = await abrirPkcs12(pfx, 'pw', [], AGORA);
 
     expect(resultado).toEqual({ ok: false, codigo: 'CERTIFICADO_CONTEINER_INVALIDO' });
-  });
+  }, PRAZO_DO_PREPARO_MS);
 
   it('prazo estourado mata o worker e devolve contêiner inválido', async () => {
     const item = conjunto['valido-e-cnpj-a1']!;
