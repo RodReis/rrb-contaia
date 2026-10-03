@@ -333,7 +333,10 @@ test('convite completo: convidar, capturar o e-mail, definir a senha e entrar se
 test('alterar papéis vale na próxima requisição, com a mesma sessão', async () => {
   await abrirLista(admin, EMAIL_A);
   await admin.getByRole('link', { name: `Editar — ${NOME_A}` }).first().click();
-  await admin.getByRole('tab', { name: 'Papéis' }).click();
+  // Espera a edição carregar: sem isso, a lista ainda na tela tem a aba "Papéis e permissões",
+  // que o nome parcial "Papéis" também encontra.
+  await admin.getByRole('heading', { level: 1, name: NOME_A }).waitFor();
+  await admin.getByRole('tab', { name: 'Papéis', exact: true }).click();
   await admin.getByRole('checkbox', { name: 'Auditor (somente leitura)' }).check();
   await admin.getByRole('button', { name: 'Salvar alterações' }).click();
   await expect(admin.getByText('Usuário atualizado.')).toBeVisible();
