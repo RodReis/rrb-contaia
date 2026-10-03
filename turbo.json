@@ -110,7 +110,13 @@
         "^build"
       ],
       "env": [
-        "DATABASE_URL"
+        "DATABASE_URL",
+        "KEYCLOAK_URL",
+        "KEYCLOAK_REALM",
+        "KEYCLOAK_ADMIN",
+        "KEYCLOAK_ADMIN_PASSWORD",
+        "SEED_USERNAME",
+        "SEED_EMAIL"
       ]
     }
   }
