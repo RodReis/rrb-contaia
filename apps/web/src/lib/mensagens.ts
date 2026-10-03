@@ -75,6 +75,7 @@ const MENSAGENS: Readonly<Record<string, string>> = {
   FALHA_DE_REDE: 'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',
   HTTP_401: 'Sua sessão expirou. Entre novamente para continuar.',
   HTTP_403: 'Você não tem alçada para esta ação.',
+  HTTP_429: 'Muitas tentativas. Aguarde um instante e tente de novo.',
 };
 
 export const mensagemDoCodigo = (codigo: string): string =>

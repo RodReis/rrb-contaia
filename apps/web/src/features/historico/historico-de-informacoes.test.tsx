@@ -78,21 +78,62 @@ const Envolvido = ({ children }: { children: ReactNode }) => (
 
 const renderizar = () => render(<HistoricoDeInformacoes />, { wrapper: Envolvido });
 
-/** A tela faz duas chamadas ao montar: os eventos e os campos do filtro. */
+const SEM_PERMISSAO = {
+  CADASTRO_ESCRITORIO: [],
+  EMPRESAS: [],
+  DOCUMENTOS: [],
+  PENDENCIAS: [],
+  NOTIFICACOES: [],
+  HISTORICO: [],
+  USUARIOS: [],
+} as const;
+
+/** Quem lê o Histórico, mas não os usuários (ex.: contador): são as quatro abas de empresa. */
+const SESSAO_DO_CONTADOR = {
+  papeis: ['contador'],
+  permissoes: { ...SEM_PERMISSAO, HISTORICO: ['consultar'] },
+  escopoDeEmpresas: 'NENHUMA',
+};
+
+/** Quem lê o Histórico e os usuários (ex.: administrador): ganha a aba "Usuários e acessos". */
+const SESSAO_DO_ADMINISTRADOR = {
+  papeis: ['admin_escritorio'],
+  permissoes: { ...SEM_PERMISSAO, HISTORICO: ['consultar'], USUARIOS: ['consultar', 'administrar'] },
+  escopoDeEmpresas: 'TODAS',
+};
+
+let sessaoAtual: typeof SESSAO_DO_CONTADOR | typeof SESSAO_DO_ADMINISTRADOR = SESSAO_DO_CONTADOR;
+
+/**
+ * A tela faz três chamadas ao montar: os eventos, os campos do filtro e a sessão
+ * (que decide se a aba de usuários aparece). A sessão é a do contador, salvo
+ * quando o teste diz o contrário.
+ */
 const responderCom = (pagina: PaginaDoHistorico, campos: readonly string[] = []): void => {
   const mock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
 
-  mock.mockImplementation((url: string) =>
-    Promise.resolve(
-      url.includes('/historico/campos')
-        ? respostaJson(campos)
-        : respostaJson(pagina),
-    ),
-  );
+  mock.mockImplementation((url: string) => {
+    if (url.endsWith('/usuarios/eu')) {
+      return Promise.resolve(respostaJson(sessaoAtual));
+    }
+
+    if (url.includes('/historico/usuarios')) {
+      return Promise.resolve(respostaJson({ eventos: [], total: 0 }));
+    }
+
+    if (url.includes('/usuarios?')) {
+      return Promise.resolve(respostaJson({ usuarios: [], total: 0 }));
+    }
+
+    return Promise.resolve(
+      url.includes('/historico/campos') ? respostaJson(campos) : respostaJson(pagina),
+    );
+  });
 };
 
 beforeEach(() => {
   parametrosAtuais = new URLSearchParams();
+  sessaoAtual = SESSAO_DO_CONTADOR;
   substituir.mockClear();
   vi.stubGlobal('fetch', vi.fn());
 });
@@ -207,6 +248,67 @@ describe('filtros na URL (§5)', () => {
         { scroll: false },
       );
     });
+  });
+});
+
+describe('aba "Usuários e acessos" (SPEC-007 §3.5)', () => {
+  const nomesDasAbas = async (): Promise<string[]> =>
+    within(await screen.findByRole('tablist', { name: /abas do histórico/iu }))
+      .getAllByRole('tab')
+      .map((aba) => aba.textContent ?? '');
+
+  it('aparece para quem lê o Histórico e os usuários, depois das quatro abas de empresa', async () => {
+    sessaoAtual = SESSAO_DO_ADMINISTRADOR;
+    responderCom(comEventos);
+
+    renderizar();
+
+    await waitFor(async () => expect(await nomesDasAbas()).toHaveLength(5));
+    expect((await nomesDasAbas()).at(-1)).toBe('Usuários e acessos');
+  });
+
+  it('não aparece para quem lê o Histórico mas não os usuários, e o link direto cai na primeira aba', async () => {
+    parametrosAtuais = new URLSearchParams({ aba: 'USUARIOS_E_ACESSOS' });
+    responderCom(comEventos);
+
+    renderizar();
+
+    await screen.findAllByRole('listitem');
+
+    expect(await nomesDasAbas()).toHaveLength(4);
+    expect(screen.getByRole('tab', { name: 'Dados cadastrais' })).toHaveAttribute('data-state', 'active');
+    expect(
+      (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some(([url]) =>
+        String(url).includes('/historico/usuarios'),
+      ),
+    ).toBe(false);
+  });
+
+  it('trocar para a aba publica na URL e mostra o histórico de usuários, não o de empresas', async () => {
+    sessaoAtual = SESSAO_DO_ADMINISTRADOR;
+    parametrosAtuais = new URLSearchParams({ aba: 'USUARIOS_E_ACESSOS' });
+    responderCom(comEventos);
+
+    renderizar();
+
+    expect(await screen.findByText('Nenhum evento registrado')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Usuários e acessos' })).toHaveAttribute('data-state', 'active');
+  });
+
+  it('o clique na aba leva à URL da aba', async () => {
+    sessaoAtual = SESSAO_DO_ADMINISTRADOR;
+    responderCom(comEventos);
+
+    renderizar();
+
+    const aba = await screen.findByRole('tab', { name: 'Usuários e acessos' });
+
+    // Radix ativa a aba no `mousedown` (não no `click`): é o gesto real do usuário.
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.mouseDown(aba);
+    fireEvent.click(aba);
+
+    expect(substituir).toHaveBeenCalledWith('/historico?aba=USUARIOS_E_ACESSOS', { scroll: false });
   });
 });
 

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { ErroDaApi } from '@/lib/http';
 import { avisarFalha } from '../escritorio/queries';
 import {
+  aceitarConvite,
   arquivarUsuario,
   consultarConvite,
   consultarHistoricoDeUsuarios,
@@ -88,6 +89,14 @@ export const useConvite = (token: string) =>
     retry: false,
     staleTime: Infinity,
   });
+
+/**
+ * Sem toast aqui: quem aceita o convite não tem o shell autenticado, e cada
+ * erro tem destino próprio na tela (senha fraca no campo, convite inválido
+ * numa tela de orientação).
+ */
+export const useAceitarConvite = (token: string) =>
+  useMutation({ mutationFn: (senha: string) => aceitarConvite(token, senha) });
 
 /**
  * O bloqueio do último administrador é explicado pelo próprio `AlertDialog`
