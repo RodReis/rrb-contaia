@@ -7,6 +7,15 @@ export type EmpresaId = Brand<string, 'EmpresaId'>;
 export { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, ErroDeValidacao } from './erros.js';
 export type { CampoInvalido, CodigoDeErro } from './erros.js';
 
+export {
+  MATRIZ,
+  PAPEIS_PADRAO,
+  ehPapelPadrao,
+  escopoDeEmpresas,
+  podeExecutar,
+} from './usuarios/papeis.js';
+export type { Acao, Capacidade, PapelPadrao } from './usuarios/papeis.js';
+
 export { ehCnpjValido, formatarCnpj, normalizarCnpj } from './validadores/cnpj.js';
 export { ehCpfValido, formatarCpf, normalizarCpf } from './validadores/cpf.js';
 export {
