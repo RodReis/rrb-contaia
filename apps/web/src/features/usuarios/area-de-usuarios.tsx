@@ -39,7 +39,8 @@ const Cabecalho = ({ podeConvidar = false }: { podeConvidar?: boolean }) => (
         <h1 className="font-display text-headline-lg text-foreground">Usuários e permissões</h1>
         <p className="max-w-prose text-body-md text-muted-foreground">
           Quem acessa o escritório e o que cada pessoa pode fazer. Cada usuário recebe um convite
-          por e-mail para definir a senha, e as mudanças de papel valem na próxima requisição.
+          por e-mail para definir a senha, e as mudanças de papel valem na hora, sem a pessoa
+          precisar entrar de novo.
         </p>
       </div>
 

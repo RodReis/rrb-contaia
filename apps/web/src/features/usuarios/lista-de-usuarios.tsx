@@ -4,8 +4,9 @@
  * (FRONTEND.md §7): a lista é conferida e auditada, então o estado precisa ser
  * compartilhável e sobreviver ao recarregamento.
  *
- * Abaixo de 768px a tabela vira cartões; ambos existem no DOM e o CSS esconde um
- * deles, como na lista de empresas.
+ * Abaixo de 1024px a tabela vira cartões (e não de 768px, como na lista de empresas): com
+ * cinco colunas e ações por linha, a tabela não cabe em 768px sem cortar as ações. Ambos
+ * existem no DOM e o CSS esconde um deles.
  */
 'use client';
 
@@ -86,8 +87,10 @@ const LinhaDoUsuario = ({
     <td className="px-md py-sm text-title-sm text-foreground">
       <span className="break-words">{usuario.nome}</span>
     </td>
-    <td className="px-md py-sm text-body-md text-muted-foreground">
-      <span className="break-words">{usuario.email}</span>
+    <td className="min-w-[12rem] px-md py-sm text-body-md text-muted-foreground">
+      {/* A largura mínima cabe o domínio inteiro (quebra no hífen do usuário, nunca no meio da
+          palavra); `anywhere` só vale como último recurso para um endereço enorme. */}
+      <span className="[overflow-wrap:anywhere]">{usuario.email}</span>
     </td>
     <td className="px-md py-sm">
       <Papeis papeis={usuario.papeis} />
@@ -95,7 +98,7 @@ const LinhaDoUsuario = ({
     <td className="px-md py-sm">
       <Situacao usuario={usuario} />
     </td>
-    <td className="px-md py-sm text-right">
+    <td className="px-md py-sm text-right [&>div]:flex-nowrap">
       <AcoesDoUsuario usuario={usuario} podeAdministrar={podeAdministrar} />
     </td>
   </tr>
@@ -336,13 +339,13 @@ export const ListaDeUsuarios = ({ podeAdministrar }: { podeAdministrar: boolean 
             isPlaceholderData ? 'opacity-60 transition-opacity duration-fast' : undefined
           }
         >
-          <ul className="flex flex-col gap-sm tablet:hidden" aria-label="Usuários">
+          <ul className="grid gap-sm tablet:grid-cols-2 desktop:hidden" aria-label="Usuários">
             {data.usuarios.map((usuario) => (
               <CartaoDoUsuario key={usuario.id} usuario={usuario} podeAdministrar={podeAdministrar} />
             ))}
           </ul>
 
-          <div className="hidden overflow-hidden rounded-lg border border-border bg-card tablet:block">
+          <div className="hidden overflow-hidden rounded-lg border border-border bg-card desktop:block">
             <table className="w-full border-collapse text-left">
               <caption className="sr-only">
                 Usuários deste escritório, com e-mail, papéis padrão e situação

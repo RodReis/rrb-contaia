@@ -203,7 +203,11 @@ const FormularioDeEdicao = ({
         </p>
       )}
 
-      <Abas value={aba} onValueChange={(valor) => aoMudarAba(valor as NomeDaAba)}>
+      <Abas
+        value={aba}
+        onValueChange={(valor) => aoMudarAba(valor as NomeDaAba)}
+        className="flex flex-col gap-lg"
+      >
         <ListaDeAbas aria-label="Seções do usuário">
           <GatilhoDeAba value="dados">Dados</GatilhoDeAba>
           <GatilhoDeAba value="papeis">Papéis</GatilhoDeAba>

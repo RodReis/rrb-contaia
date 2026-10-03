@@ -310,7 +310,7 @@ describe('lista de usuários (administrador)', () => {
     const emails = await screen.findAllByText(/maria\.da\.conceicao/u);
 
     for (const email of emails) {
-      expect(email.className).toMatch(/break-words|break-all/u);
+      expect(email.className).toMatch(/break-words|break-all|overflow-wrap:anywhere/u);
     }
   });
 });

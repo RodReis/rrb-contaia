@@ -506,7 +506,7 @@ test('a aba Usuários e acessos do Histórico registra o que aconteceu, com o au
 
 // -- Provas visuais (FRONTEND.md §20.1): dois temas, 768 / 1024 / 1440 --------------------------
 
-const LARGURAS = [768, 1024, 1440] as const;
+const LARGURAS = [390, 768, 1024, 1440] as const;
 const TEMAS = ['light', 'dark'] as const;
 
 const definirTema = async (page: Page, tema: (typeof TEMAS)[number]): Promise<void> => {
@@ -519,7 +519,7 @@ const semRolagemHorizontal = async (page: Page): Promise<boolean> =>
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
   );
 
-test('provas visuais nos dois temas e nas três larguras', async () => {
+test('provas visuais nos dois temas e nas quatro larguras', async () => {
   test.setTimeout(480_000);
   mkdirSync(`test-results/${ESCOPO}/capturas`, { recursive: true });
 
@@ -572,9 +572,10 @@ test('provas visuais nos dois temas e nas três larguras', async () => {
 
       // Lista e papéis
       await admin.goto('/configuracoes/usuarios');
-      await admin.getByRole('table').waitFor().catch(() => undefined);
       await definirTema(admin, tema);
       await admin.getByRole('heading', { level: 1, name: 'Usuários e permissões' }).waitFor();
+      // Tabela (≥1024px) ou cartões: a contagem aparece nos dois e prova que a lista carregou.
+      await admin.getByText(/usuários? neste escritório/).waitFor();
       await capturar(admin, 'lista');
 
       await admin.goto('/configuracoes/usuarios?aba=papeis');
@@ -595,6 +596,9 @@ test('provas visuais nos dois temas e nas três larguras', async () => {
       await admin.getByRole('heading', { level: 1, name: NOME_A }).waitFor();
       await capturar(admin, 'edicao-dados');
       await admin.getByRole('tab', { name: 'Papéis' }).click();
+      // O indicador da aba anima a cor (duração rápida): espero assentar para a captura
+      // não pegar a transição.
+      await admin.waitForTimeout(300);
       await capturar(admin, 'edicao-papeis');
 
       // Histórico
