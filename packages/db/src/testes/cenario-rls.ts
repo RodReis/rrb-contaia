@@ -105,6 +105,12 @@ export const montarCenario = async (admin: Pool): Promise<Cenario> => {
   const naCarteiraA1 = await vinculo(tenantA, naCarteira, empresaA1);
   const suspensoA1 = await vinculo(tenantA, suspenso, empresaA1);
   await vinculo(tenantA, fora, empresaA2);
+  // Carteira removida: vínculo com A1 já encerrado. Não pode valer para nada.
+  await admin.query(
+    `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id, encerrado_em, encerrado_motivo)
+     values ($1, $2, $3, now(), 'REMOCAO')`,
+    [tenantA, fora, empresaA1],
+  );
   await vinculo(tenantA, duasEmpresas, empresaA1);
   await vinculo(tenantA, duasEmpresas, empresaA2);
   await vinculo(tenantB, deB, empresaB1);

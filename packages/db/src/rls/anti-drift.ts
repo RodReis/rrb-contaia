@@ -76,6 +76,14 @@ const EXIGE_NA_POLITICA: Readonly<Record<string, readonly string[]>> = {
   tenant: ['tenant_atual', 'contexto_humano'],
 };
 
+/** `gestao_de_acesso()` e `finalidade_administrativa()` já embutem `contexto_humano()`. */
+const EQUIVALENTES: Readonly<Record<string, readonly string[]>> = {
+  contexto_humano: ['contexto_humano', 'gestao_de_acesso', 'finalidade_administrativa'],
+};
+
+const usaFuncao = (expressao: string, funcao: string): boolean =>
+  (EQUIVALENTES[funcao] ?? [funcao]).some((nome) => expressao.includes(nome));
+
 const violacao = (tabela: string, requisito: string, detalhe: string): Violacao => ({
   tabela,
   requisito,
@@ -84,9 +92,6 @@ const violacao = (tabela: string, requisito: string, detalhe: string): Violacao 
 
 const cobreOperacao = (politica: PoliticaDoCatalogo, operacao: Operacao): boolean =>
   politica.comando === 'ALL' || politica.comando === operacao;
-
-const expressaoDaOperacao = (politica: PoliticaDoCatalogo, operacao: Operacao): string | null =>
-  operacao === 'INSERT' ? (politica.comCheck ?? politica.usando) : politica.usando;
 
 const auditarChaves = (
   tabela: TabelaDoCatalogo,
@@ -159,12 +164,58 @@ const auditarChaves = (
   return achados;
 };
 
+/** Expressão que libera tudo, ainda que misturada a uma função de contexto (`... OR true`). */
+const TAUTOLOGIA = /(^|[\s(])true\s*(\)|$)|\bor\s+\(?true\b|\btrue\s+or\b/iu;
+
+/** Funções de contexto que a política de cada operação precisa invocar, além das da classe. */
+const exigenciasDaOperacao = (
+  entrada: EntradaDeClassificacao,
+  operacao: Operacao,
+): readonly string[] => {
+  const extras: string[] = [];
+
+  if (operacao === 'SELECT') {
+    if (entrada.leitura === 'admin' || entrada.leitura === 'proprio_usuario') {
+      extras.push('gestao_de_acesso');
+    }
+    if (entrada.leitura === 'proprio_usuario') {
+      extras.push('usuario_atual');
+    }
+  } else if (operacao === 'INSERT') {
+    if (entrada.escrita === 'admin' || entrada.escrita === 'dono_ou_admin') {
+      extras.push('gestao_de_acesso');
+    }
+  } else if (operacao === 'UPDATE') {
+    if (entrada.escrita === 'admin' || entrada.escrita === 'dono_ou_admin') {
+      extras.push('gestao_de_acesso');
+    }
+    if (entrada.escrita === 'dono_ou_admin') {
+      extras.push('usuario_atual');
+    }
+  }
+
+  return extras;
+};
+
+const expressoesDaOperacao = (
+  politica: PoliticaDoCatalogo,
+  operacao: Operacao,
+): readonly string[] => {
+  if (operacao === 'INSERT') {
+    return [politica.comCheck ?? ''];
+  }
+
+  // UPDATE: a linha velha (USING) e a nova (WITH CHECK) precisam do contexto; sem WITH CHECK o
+  // PostgreSQL reaproveita o USING.
+  return operacao === 'UPDATE' ? [politica.usando ?? '', politica.comCheck ?? politica.usando ?? ''] : [politica.usando ?? ''];
+};
+
 const auditarPoliticas = (
   tabela: TabelaDoCatalogo,
   entrada: EntradaDeClassificacao,
 ): Violacao[] => {
   const achados: Violacao[] = [];
-  const exigidas = EXIGE_NA_POLITICA[entrada.classe] ?? [];
+  const daClasse = EXIGE_NA_POLITICA[entrada.classe] ?? [];
 
   for (const operacao of OPERACOES) {
     if (!tabela.privilegiosDaAplicacao.includes(operacao)) {
@@ -186,18 +237,29 @@ const auditarPoliticas = (
       continue;
     }
 
-    for (const politica of cobrem) {
-      const expressao = expressaoDaOperacao(politica, operacao) ?? '';
-      const ausentes = exigidas.filter((funcao) => !expressao.includes(funcao));
+    const exigidas = [...daClasse, ...exigenciasDaOperacao(entrada, operacao)];
 
-      if (ausentes.length > 0) {
-        achados.push(
-          violacao(
-            tabela.nome,
-            `política de ${operacao} com contexto`,
-            `a política "${politica.nome}" não usa ${ausentes.join(', ')}`,
-          ),
-        );
+    for (const politica of cobrem) {
+      for (const expressao of expressoesDaOperacao(politica, operacao)) {
+        const ausentes = exigidas.filter((funcao) => !usaFuncao(expressao, funcao));
+
+        if (ausentes.length > 0) {
+          achados.push(
+            violacao(
+              tabela.nome,
+              `política de ${operacao} com contexto`,
+              `a política "${politica.nome}" não usa ${ausentes.join(', ')}`,
+            ),
+          );
+        } else if (TAUTOLOGIA.test(expressao)) {
+          achados.push(
+            violacao(
+              tabela.nome,
+              `política de ${operacao} sem tautologia`,
+              `a política "${politica.nome}" contém uma condição sempre verdadeira`,
+            ),
+          );
+        }
       }
     }
   }
@@ -321,6 +383,19 @@ export const auditarCobertura = (
 };
 
 type Consultavel = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
+
+/**
+ * Todo schema que não é do próprio PostgreSQL. Localização em schema não concede exceção
+ * (SPEC-010 §3.5): tabela criada em schema novo é varrida igual.
+ */
+export const schemasDoProduto = async (banco: Consultavel): Promise<string[]> => {
+  const { rows } = await banco.query<{ nome: string }>(
+    `select nspname as nome from pg_namespace
+      where nspname <> 'information_schema' and nspname !~ '^pg_' order by 1`,
+  );
+
+  return rows.map((linha) => linha.nome);
+};
 
 type LinhaDeTabela = {
   nome: string;

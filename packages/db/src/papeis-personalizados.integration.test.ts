@@ -33,7 +33,7 @@ import {
   registrarEventoDeUsuario,
   substituirPapeis,
 } from './repositorios/usuarios.js';
-import { USUARIO_AVULSO, aplicarContextoDeTeste, comoUsuario } from './testes/suporte.js';
+import { aplicarContextoDeTeste, comoUsuario } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -47,6 +47,9 @@ const poolAdmin = criarPool();
 let poolApp: Pool;
 let tenantA = '';
 let tenantB = '';
+// Operadores de bootstrap: o primeiro usuário de cada escritório não tem quem o crie pela API.
+let operadorA = '';
+let operadorB = '';
 let adminA = '';
 let adminB = '';
 
@@ -58,7 +61,7 @@ const subDe = (nome: string): string => `sub-papeis-${nome}-${SUFIXO}`;
 const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => comoUsuario(poolApp, tenantId, (tenantId === tenantA ? adminA : adminB) || USUARIO_AVULSO, executar, 'ADMIN_ACESSO');
+): Promise<T> => comoUsuario(poolApp, tenantId, (tenantId === tenantA ? adminA : adminB) || (tenantId === tenantA ? operadorA : operadorB), executar, 'ADMIN_ACESSO');
 
 const novoUsuario = async (
   tenantId: string,
@@ -159,6 +162,23 @@ beforeAll(async () => {
   tenantB = rows[1]?.id ?? '';
 
   poolApp = new Pool({ connectionString: urlDaAplicacao(), max: 10 });
+
+  const operadores = await poolAdmin.query<{ id: string }>(
+    `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+     values ($1, $3, $5, 'Operador A', 'ATIVO'), ($2, $4, $6, 'Operador B', 'ATIVO')
+     returning id`,
+    [
+      tenantA,
+      tenantB,
+      `sub-operador-pp-a-${SUFIXO}`,
+      `sub-operador-pp-b-${SUFIXO}`,
+      `operador-pp-a-${SUFIXO}@local`,
+      `operador-pp-b-${SUFIXO}@local`,
+    ],
+  );
+
+  operadorA = operadores.rows[0]?.id ?? '';
+  operadorB = operadores.rows[1]?.id ?? '';
 
   adminA = await novoUsuario(tenantA, 'admin-a');
   adminB = await novoUsuario(tenantB, 'admin-b');

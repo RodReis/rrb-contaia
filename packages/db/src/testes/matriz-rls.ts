@@ -33,6 +33,7 @@ export type Resultado =
   | 'nenhuma_linha_alterada'
   | 'rejeitado_por_rls'
   | 'rejeitado_por_escopo_imutavel'
+  | 'rejeitado_por_integridade'
   | 'negado_por_privilegio'
   | `outro:${string}`;
 
@@ -116,6 +117,9 @@ const classificarErro = (erro: unknown): Resultado => {
   }
   if (code === '23001') {
     return 'rejeitado_por_escopo_imutavel';
+  }
+  if (code === '23503') {
+    return 'rejeitado_por_integridade';
   }
 
   return `outro:${code ?? 'sem-codigo'}`;
@@ -346,6 +350,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await leitura('na carteira de duas empresas', humano(u.duasEmpresas), 'visivel');
       await leitura('empresa do mesmo tenant fora da carteira', humano(u.fora), 'invisivel');
       await leitura('usuário suspenso com vínculo preservado', humano(u.suspenso), 'invisivel');
+      await leitura('carteira removida: vínculo encerrado não vale', humano(u.fora), 'invisivel');
       await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');
       await leitura('tenant do contexto trocado pelo de B com usuário de A', humano(u.naCarteira, 'COMUM', c.tenantB), 'invisivel');
       await leitura('administrador sem vínculo, empresa ativa', humano(u.admin), 'invisivel');
@@ -380,6 +385,20 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
       await insercao('job técnico na empresa do trabalho', tecnico(c.empresaA1), 'inserido');
       await insercao('job técnico gravando em outra empresa', tecnico(c.empresaA2), 'rejeitado_por_rls');
+      // A política aceita (tenant do contexto, empresa do trabalho); a chave composta
+      // (empresa_id, tenant_id) é quem impede a linha do tenant B ligada à empresa do A.
+      await insercao(
+        'job técnico com tenant incompatível da empresa',
+        tecnico(c.empresaA1, c.tenantB),
+        'rejeitado_por_integridade',
+        { ...escopoA1, tenantId: c.tenantB },
+      );
+      await insercao(
+        'humano de outro tenant gravando na empresa alheia',
+        humanoCriando(u.deB, c.empresaA1, { 'app.tenant_id': c.tenantB }),
+        'rejeitado_por_integridade',
+        { ...escopoA1, tenantId: c.tenantB },
+      );
       for (const [nome, ator] of adulterados) {
         await insercao(`contexto adulterado: ${nome}`, ator, 'rejeitado_por_rls');
       }
@@ -416,6 +435,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await leitura('vínculo do usuário suspenso', humano(u.suspenso), 'invisivel', donoSuspenso);
       await leitura('gestão de acesso lê todos do tenant', humano(u.admin, 'ADMIN_ACESSO'), 'visivel');
       await leitura('gestão de acesso de outro tenant', humano(u.deB, 'ADMIN_ACESSO', c.tenantB), 'invisivel');
+      await leitura('gestão de acesso de usuário suspenso', humano(u.suspenso, 'ADMIN_ACESSO'), 'invisivel');
       await leitura('outro tenant na finalidade comum', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');
       await leitura('sem contexto', nenhum, 'invisivel');
       await leitura('job técnico não lê carteira', tecnico(c.empresaA1), 'invisivel');
@@ -425,6 +445,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
 
       await insercao('gestão de acesso (controle positivo)', humano(u.admin, 'ADMIN_ACESSO'), 'inserido');
       await insercao('finalidade comum não atribui carteira', humano(u.naCarteira), 'rejeitado_por_rls');
+      await insercao('gestão de acesso de usuário suspenso', humano(u.suspenso, 'ADMIN_ACESSO'), 'rejeitado_por_rls');
       await insercao('outro tenant na gestão de acesso', humano(u.deB, 'ADMIN_ACESSO', c.tenantB), 'rejeitado_por_rls');
       await insercao('localização básica não atribui carteira', humano(u.admin, 'LOCALIZACAO_BASICA_EMPRESA'), 'rejeitado_por_rls');
       await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
@@ -447,30 +468,72 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
     }
 
     if (classe === 'tenant') {
-      await leitura('mesmo tenant (controle positivo)', humano(u.naCarteira), 'visivel');
-      await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');
-      await leitura('sem contexto', nenhum, 'invisivel');
-      await leitura('job técnico não lê gestão do escritório', tecnico(c.empresaA1), 'invisivel');
+      const leit = entrada.leitura ?? 'comum';
+      const escr = entrada.escrita ?? 'comum';
+      const gestao = humano(u.admin, 'ADMIN_ACESSO');
+      const naoVeNada = 'invisivel';
+      const negadoSemUpdate: Resultado = 'negado_por_privilegio';
+      const semEfeito = (r: Resultado): Resultado => (temUpdate ? r : negadoSemUpdate);
+
+      // -- SELECT
+      if (leit === 'comum') {
+        await leitura('mesmo tenant (controle positivo)', humano(u.naCarteira), 'visivel');
+      } else if (leit === 'admin') {
+        await leitura('gestão de acesso (controle positivo)', gestao, 'visivel');
+        await leitura('finalidade comum não lê', humano(u.naCarteira), naoVeNada);
+        await leitura('localização básica não lê', humano(u.naCarteira, 'LOCALIZACAO_BASICA_EMPRESA'), naoVeNada);
+      } else {
+        // `proprio_usuario`: a linha-alvo é do `autorId` do escopo (naCarteira).
+        await leitura('o próprio destinatário (controle positivo)', humano(u.naCarteira), 'visivel');
+        await leitura('outro colaborador não lê a alheia', humano(u.fora), naoVeNada);
+        await leitura('gestão de acesso lê todas', gestao, 'visivel');
+        await leitura('destinatário suspenso', humano(u.suspenso), naoVeNada);
+      }
+      await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), naoVeNada);
+      await leitura('gestão de acesso de outro tenant', humano(u.deB, 'ADMIN_ACESSO', c.tenantB), naoVeNada);
+      await leitura('gestão de acesso de usuário suspenso', humano(u.suspenso, 'ADMIN_ACESSO'), leit === 'comum' ? 'visivel' : naoVeNada);
+      await leitura('sem contexto', nenhum, naoVeNada);
+      await leitura('job técnico não lê gestão do escritório', tecnico(c.empresaA1), naoVeNada);
       for (const [nome, ator] of adulterados) {
-        await leitura(`contexto adulterado: ${nome}`, ator, 'invisivel');
+        await leitura(`contexto adulterado: ${nome}`, ator, naoVeNada);
       }
 
-      await insercao('mesmo tenant (controle positivo)', humano(u.naCarteira), 'inserido');
+      // -- INSERT
+      if (escr === 'comum') {
+        await insercao('mesmo tenant (controle positivo)', humano(u.naCarteira), 'inserido');
+      } else {
+        await insercao('gestão de acesso (controle positivo)', gestao, 'inserido');
+        await insercao('finalidade comum não grava', humano(u.naCarteira), 'rejeitado_por_rls');
+        await insercao('localização básica não grava', humano(u.admin, 'LOCALIZACAO_BASICA_EMPRESA'), 'rejeitado_por_rls');
+        await insercao('gestão de acesso de usuário suspenso', humano(u.suspenso, 'ADMIN_ACESSO'), 'rejeitado_por_rls');
+      }
       await insercao('outro tenant gravando no tenant A', humano(u.deB, 'COMUM', c.tenantB), 'rejeitado_por_rls');
+      await insercao('gestão de acesso de outro tenant gravando no tenant A', humano(u.deB, 'ADMIN_ACESSO', c.tenantB), 'rejeitado_por_rls');
       await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
       await insercao('job técnico', tecnico(c.empresaA1), 'rejeitado_por_rls');
       for (const [nome, ator] of adulterados) {
         await insercao(`contexto adulterado: ${nome}`, ator, 'rejeitado_por_rls');
       }
 
-      const negadoSemUpdate: Resultado = 'negado_por_privilegio';
-      await alteracao('mesmo tenant (controle positivo)', humano(u.naCarteira), temUpdate ? 'atualizado' : negadoSemUpdate);
-      await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), temUpdate ? 'nenhuma_linha_alterada' : negadoSemUpdate);
-      await alteracao('sem contexto', nenhum, temUpdate ? 'nenhuma_linha_alterada' : negadoSemUpdate);
-      await alteracao('job técnico', tecnico(c.empresaA1), temUpdate ? 'nenhuma_linha_alterada' : negadoSemUpdate);
+      // -- UPDATE
+      if (escr === 'comum') {
+        await alteracao('mesmo tenant (controle positivo)', humano(u.naCarteira), semEfeito('atualizado'));
+      } else if (escr === 'admin') {
+        await alteracao('gestão de acesso (controle positivo)', gestao, semEfeito('atualizado'));
+        await alteracao('finalidade comum não altera', humano(u.naCarteira), semEfeito('nenhuma_linha_alterada'));
+        await alteracao('localização básica não altera', humano(u.admin, 'LOCALIZACAO_BASICA_EMPRESA'), semEfeito('nenhuma_linha_alterada'));
+      } else {
+        await alteracao('o destinatário marca a própria (controle positivo)', humano(u.naCarteira), semEfeito('atualizado'));
+        await alteracao('outro colaborador não altera a alheia', humano(u.fora), semEfeito('nenhuma_linha_alterada'));
+        await alteracao('gestão de acesso', gestao, semEfeito('atualizado'));
+      }
+      await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), semEfeito('nenhuma_linha_alterada'));
+      await alteracao('gestão de acesso de outro tenant', humano(u.deB, 'ADMIN_ACESSO', c.tenantB), semEfeito('nenhuma_linha_alterada'));
+      await alteracao('sem contexto', nenhum, semEfeito('nenhuma_linha_alterada'));
+      await alteracao('job técnico', tecnico(c.empresaA1), semEfeito('nenhuma_linha_alterada'));
       await alteracao(
         'mover a linha para outro tenant',
-        humano(u.naCarteira),
+        escr === 'comum' ? humano(u.naCarteira) : gestao,
         temUpdate ? moverTenant : negadoSemUpdate,
         linhaA1,
         `tenant_id = '${c.tenantB}'`,
@@ -480,15 +543,18 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
     if (classe === 'raiz_tenant') {
       await leitura('o próprio escritório (controle positivo)', humano(u.naCarteira), 'visivel');
       await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');
+      await leitura('job técnico lê o próprio escritório', tecnico(c.empresaA1), 'visivel');
       await leitura('sem contexto', nenhum, 'invisivel');
       for (const [nome, ator] of adulterados) {
         await leitura(`contexto adulterado: ${nome}`, ator, 'invisivel');
       }
 
       await insercao('escritório novo pela aplicação', humano(u.naCarteira), 'rejeitado_por_rls');
+      await insercao('job técnico não cria escritório', tecnico(c.empresaA1), 'rejeitado_por_rls');
       await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
 
       await alteracao('o próprio escritório (controle positivo)', humano(u.naCarteira), 'atualizado');
+      await alteracao('job técnico não altera o escritório', tecnico(c.empresaA1), 'nenhuma_linha_alterada');
       await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'nenhuma_linha_alterada');
       await alteracao('sem contexto', nenhum, 'nenhuma_linha_alterada');
     }
@@ -503,6 +569,8 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await leitura('administrador alcança empresa arquivada', humano(u.admin), 'visivel', arquivada);
       await leitura('colaborador comum não alcança empresa arquivada', humano(u.fora), 'invisivel', arquivada);
       await leitura('gestão de acesso lê o cadastro básico', humano(u.admin, 'ADMIN_ACESSO'), 'visivel');
+      await leitura('gestão de acesso de usuário suspenso', humano(u.suspenso, 'ADMIN_ACESSO'), 'invisivel');
+      await leitura('localização básica de usuário suspenso', humano(u.suspenso, 'LOCALIZACAO_BASICA_EMPRESA'), 'invisivel');
       await leitura('localização básica lê o cadastro básico', humano(u.fora, 'LOCALIZACAO_BASICA_EMPRESA'), 'visivel');
       await leitura('gestão de acesso de outro tenant', humano(u.deB, 'ADMIN_ACESSO', c.tenantB), 'invisivel');
       await leitura('sem contexto', nenhum, 'invisivel');

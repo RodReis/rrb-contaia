@@ -174,11 +174,22 @@ LANGUAGE sql STABLE AS $$
   SELECT app.contexto_humano() OR app.contexto_tecnico();
 $$;
 
--- Finalidade administrativa humana (gestao de acesso e localizacao basica).
+-- Finalidade administrativa humana (gestao de acesso e localizacao basica) de um
+-- usuario ATIVO: suspenso ou arquivado nao ganha dado nenhum so por declarar finalidade.
 CREATE OR REPLACE FUNCTION app.finalidade_administrativa() RETURNS boolean
 LANGUAGE sql STABLE AS $$
   SELECT app.contexto_humano()
-     AND app.finalidade_atual() IN ('ADMIN_ACESSO', 'LOCALIZACAO_BASICA_EMPRESA');
+     AND app.finalidade_atual() IN ('ADMIN_ACESSO', 'LOCALIZACAO_BASICA_EMPRESA')
+     AND app.usuario_ativo_atual();
+$$;
+
+-- Gestao de acesso (usuarios, papeis e carteiras, F7-F9): a unica finalidade que escreve
+-- vinculo, papel e historico de carteira. Usuario ATIVO.
+CREATE OR REPLACE FUNCTION app.gestao_de_acesso() RETURNS boolean
+LANGUAGE sql STABLE AS $$
+  SELECT app.contexto_humano()
+     AND app.finalidade_atual() = 'ADMIN_ACESSO'
+     AND app.usuario_ativo_atual();
 $$;
 
 GRANT EXECUTE ON FUNCTION
@@ -187,7 +198,7 @@ GRANT EXECUTE ON FUNCTION
   app.contexto_humano(), app.contexto_tecnico(), app.usuario_ativo_atual(),
   app.usuario_admin_atual(), app.empresa_na_carteira(uuid),
   app.administrador_comum(), app.empresa_autorizada(uuid),
-  app.finalidade_administrativa(), app.contexto_valido()
+  app.finalidade_administrativa(), app.gestao_de_acesso(), app.contexto_valido()
 TO contaia_app;
 
 -- 2. Indices por empresa (I-1) --------------------------------------------------
@@ -207,9 +218,18 @@ CREATE INDEX IF NOT EXISTS carteira_vinculo_empresa_id_idx
 
 -- 3.1 raiz do tenant: a propria linha e o escritorio.
 DROP POLICY IF EXISTS tenant_isolamento ON app.tenant;
-CREATE POLICY tenant_isolamento ON app.tenant
-  USING (id = app.tenant_atual() AND app.contexto_valido())
-  WITH CHECK (id = app.tenant_atual() AND app.contexto_valido());
+DROP POLICY IF EXISTS tenant_leitura ON app.tenant;
+DROP POLICY IF EXISTS tenant_insercao ON app.tenant;
+DROP POLICY IF EXISTS tenant_alteracao ON app.tenant;
+
+-- Job tecnico le o proprio escritorio; so requisicao humana o escreve.
+CREATE POLICY tenant_leitura ON app.tenant FOR SELECT
+  USING (id = app.tenant_atual() AND app.contexto_valido());
+CREATE POLICY tenant_insercao ON app.tenant FOR INSERT
+  WITH CHECK (id = app.tenant_atual() AND app.contexto_humano());
+CREATE POLICY tenant_alteracao ON app.tenant FOR UPDATE
+  USING (id = app.tenant_atual() AND app.contexto_humano())
+  WITH CHECK (id = app.tenant_atual() AND app.contexto_humano());
 
 -- 3.2 raiz da empresa: o cadastro basico e legivel pelas finalidades
 -- administrativas (atribuicao de carteira, 403 da F9, duplicidade de CNPJ); o
@@ -233,8 +253,7 @@ CREATE POLICY empresa_leitura ON app.empresa FOR SELECT
 CREATE POLICY empresa_insercao ON app.empresa FOR INSERT
   WITH CHECK (
     tenant_id = app.tenant_atual()
-    AND app.contexto_humano()
-    AND app.finalidade_atual() = 'ADMIN_ACESSO'
+    AND app.gestao_de_acesso()
   );
 
 -- USING escolhe a linha alvo (carteira, arquivada para o admin, ou o tenant na
@@ -248,7 +267,7 @@ CREATE POLICY empresa_alteracao ON app.empresa FOR UPDATE
     AND (
       app.empresa_na_carteira(id)
       OR (app.administrador_comum() AND situacao = 'arquivado')
-      OR app.finalidade_atual() = 'ADMIN_ACESSO'
+      OR app.gestao_de_acesso()
     )
   )
   WITH CHECK (
@@ -266,29 +285,17 @@ CREATE POLICY carteira_vinculo_leitura ON app.carteira_vinculo FOR SELECT
     tenant_id = app.tenant_atual()
     AND app.contexto_humano()
     AND (
-      app.finalidade_atual() = 'ADMIN_ACESSO'
+      app.gestao_de_acesso()
       OR (usuario_id = app.usuario_atual() AND app.usuario_ativo_atual())
     )
   );
 
 CREATE POLICY carteira_vinculo_insercao ON app.carteira_vinculo FOR INSERT
-  WITH CHECK (
-    tenant_id = app.tenant_atual()
-    AND app.contexto_humano()
-    AND app.finalidade_atual() = 'ADMIN_ACESSO'
-  );
+  WITH CHECK (tenant_id = app.tenant_atual() AND app.gestao_de_acesso());
 
 CREATE POLICY carteira_vinculo_alteracao ON app.carteira_vinculo FOR UPDATE
-  USING (
-    tenant_id = app.tenant_atual()
-    AND app.contexto_humano()
-    AND app.finalidade_atual() = 'ADMIN_ACESSO'
-  )
-  WITH CHECK (
-    tenant_id = app.tenant_atual()
-    AND app.contexto_humano()
-    AND app.finalidade_atual() = 'ADMIN_ACESSO'
-  );
+  USING (tenant_id = app.tenant_atual() AND app.gestao_de_acesso())
+  WITH CHECK (tenant_id = app.tenant_atual() AND app.gestao_de_acesso());
 
 -- 3.4 tabelas por empresa. Um comando por politica: as append-only (I-6) ficam
 -- so com SELECT e INSERT — sem politica de UPDATE/DELETE, a RLS forcada nega.
@@ -335,25 +342,69 @@ BEGIN
 END
 $$;
 
--- 3.5 tabelas de gestao do escritorio (sem empresa_id): tenant + contexto
--- humano. Job tecnico nao le usuario, papel, convite nem carteira.
+-- 3.5 tabelas de gestao do escritorio (sem empresa_id): tenant + contexto humano. Job
+-- tecnico nao le usuario, papel, convite nem carteira. Quatro formas:
+--   comum          leitura e escrita por qualquer contexto humano do tenant (cadastro, convite,
+--                  historico de usuarios, onboarding do escritorio);
+--   escrita_admin  leitura humana; INSERT/UPDATE so na gestao de acesso (papeis, e o papel que
+--                  concede a excecao do administrador: nenhum bug de escrita comum o promove);
+--   admin          leitura e escrita so na gestao de acesso (historico global da carteira, que
+--                  cita empresas fora da carteira de quem le);
+--   proprio_usuario  o destinatario le e marca como lida a sua; a gestao de acesso le e grava todas.
 DO $$
 DECLARE
   tabela text;
+  humano text := 'tenant_id = app.tenant_atual() AND app.contexto_humano()';
+  gestao text := 'tenant_id = app.tenant_atual() AND app.gestao_de_acesso()';
+  dono text := 'tenant_id = app.tenant_atual() AND app.contexto_humano() AND (app.gestao_de_acesso() OR (usuario_id = app.usuario_atual() AND app.usuario_ativo_atual()))';
 BEGIN
   FOREACH tabela IN ARRAY ARRAY[
-    'usuario', 'usuario_papel', 'usuario_convite', 'usuario_evento',
-    'papel_personalizado', 'papel_personalizado_revisao', 'usuario_papel_personalizado',
-    'escritorio_endereco', 'escritorio_arquivo',
-    'carteira_evento', 'carteira_notificacao'
+    'usuario', 'usuario_convite', 'usuario_evento', 'escritorio_endereco', 'escritorio_arquivo'
   ] LOOP
     EXECUTE format('DROP POLICY IF EXISTS %I ON app.%I', tabela || '_isolamento', tabela);
-    EXECUTE format(
-      'CREATE POLICY %I ON app.%I USING (tenant_id = app.tenant_atual() AND app.contexto_humano()) WITH CHECK (tenant_id = app.tenant_atual() AND app.contexto_humano())',
-      tabela || '_isolamento', tabela);
+    EXECUTE format('CREATE POLICY %I ON app.%I USING (%s) WITH CHECK (%s)',
+      tabela || '_isolamento', tabela, humano, humano);
   END LOOP;
+
+  FOREACH tabela IN ARRAY ARRAY[
+    'usuario_papel', 'papel_personalizado', 'papel_personalizado_revisao',
+    'usuario_papel_personalizado'
+  ] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON app.%I', tabela || '_isolamento', tabela);
+    EXECUTE format('CREATE POLICY %I ON app.%I FOR SELECT USING (%s)',
+      tabela || '_leitura', tabela, humano);
+    EXECUTE format('CREATE POLICY %I ON app.%I FOR INSERT WITH CHECK (%s)',
+      tabela || '_insercao', tabela, gestao);
+    -- A revisao do papel e append-only: sem politica de UPDATE.
+    IF tabela <> 'papel_personalizado_revisao' THEN
+      EXECUTE format('CREATE POLICY %I ON app.%I FOR UPDATE USING (%s) WITH CHECK (%s)',
+        tabela || '_alteracao', tabela, gestao, gestao);
+    END IF;
+  END LOOP;
+
+  DROP POLICY IF EXISTS carteira_evento_isolamento ON app.carteira_evento;
+  EXECUTE format('CREATE POLICY carteira_evento_leitura ON app.carteira_evento FOR SELECT USING (%s)', gestao);
+  EXECUTE format('CREATE POLICY carteira_evento_insercao ON app.carteira_evento FOR INSERT WITH CHECK (%s)', gestao);
+
+  DROP POLICY IF EXISTS carteira_notificacao_isolamento ON app.carteira_notificacao;
+  EXECUTE format('CREATE POLICY carteira_notificacao_leitura ON app.carteira_notificacao FOR SELECT USING (%s)', dono);
+  EXECUTE format('CREATE POLICY carteira_notificacao_insercao ON app.carteira_notificacao FOR INSERT WITH CHECK (%s)', gestao);
+  EXECUTE format('CREATE POLICY carteira_notificacao_alteracao ON app.carteira_notificacao FOR UPDATE USING (%s) WITH CHECK (%s)', dono, dono);
 END
 $$;
+
+-- 3.5b filhas sem chave composta: o job tecnico passa pela politica com o `tenant_id` do contexto
+-- e o `empresa_id` do trabalho; sem FK (empresa_id, tenant_id) ele gravaria linha do tenant B
+-- ligada a empresa do tenant A. As demais tabelas por empresa ja tinham a chave composta.
+ALTER TABLE app.empresa_cnae_secundario
+  ADD CONSTRAINT empresa_cnae_secundario_empresa_do_tenant
+  FOREIGN KEY (empresa_id, tenant_id) REFERENCES app.empresa (id, tenant_id);
+ALTER TABLE app.empresa_endereco
+  ADD CONSTRAINT empresa_endereco_empresa_do_tenant
+  FOREIGN KEY (empresa_id, tenant_id) REFERENCES app.empresa (id, tenant_id);
+ALTER TABLE app.empresa_evento_de_historico
+  ADD CONSTRAINT empresa_evento_de_historico_empresa_do_tenant
+  FOREIGN KEY (empresa_id, tenant_id) REFERENCES app.empresa (id, tenant_id);
 
 -- 3.6 escopo imutavel: UPDATE nao move linha entre tenant nem entre empresa
 -- (SPEC-010 §3.4). O WITH CHECK so ve a linha nova; a trigger compara com a velha.

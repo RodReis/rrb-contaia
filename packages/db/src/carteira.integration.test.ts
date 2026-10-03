@@ -43,7 +43,7 @@ import {
 } from './repositorios/notificacoes.js';
 import { dispensar, listarCentral, reconciliar } from './repositorios/pendencias.js';
 import { atualizarEstado, criarUsuario, substituirPapeis } from './repositorios/usuarios.js';
-import { USUARIO_AVULSO, aplicarContextoDeTeste, comoUsuario } from './testes/suporte.js';
+import { aplicarContextoDeTeste, comoUsuario } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -57,6 +57,9 @@ const poolAdmin = criarPool();
 let poolApp: Pool;
 let tenantA = '';
 let tenantB = '';
+// Operadores de bootstrap: o primeiro usuário de cada escritório não tem quem o crie pela API.
+let operadorA = '';
+let operadorB = '';
 let adminA = '';
 let colabA1 = '';
 let colabA2 = '';
@@ -73,7 +76,7 @@ const email = (nome: string): string => `${nome}.${SUFIXO}@carteira.local`;
 const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => comoUsuario(poolApp, tenantId, (tenantId === tenantA ? adminA : colabB) || USUARIO_AVULSO, executar, 'ADMIN_ACESSO');
+): Promise<T> => comoUsuario(poolApp, tenantId, (tenantId === tenantA ? adminA : colabB) || (tenantId === tenantA ? operadorA : operadorB), executar, 'ADMIN_ACESSO');
 
 const novoUsuario = (
   tenantId: string,
@@ -206,6 +209,23 @@ beforeAll(async () => {
   tenantB = rows[1]?.id ?? '';
 
   poolApp = new Pool({ connectionString: urlDaAplicacao() });
+
+  const operadores = await poolAdmin.query<{ id: string }>(
+    `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+     values ($1, $3, $5, 'Operador A', 'ATIVO'), ($2, $4, $6, 'Operador B', 'ATIVO')
+     returning id`,
+    [
+      tenantA,
+      tenantB,
+      `sub-operador-ct-a-${SUFIXO}`,
+      `sub-operador-ct-b-${SUFIXO}`,
+      `operador-ct-a-${SUFIXO}@local`,
+      `operador-ct-b-${SUFIXO}@local`,
+    ],
+  );
+
+  operadorA = operadores.rows[0]?.id ?? '';
+  operadorB = operadores.rows[1]?.id ?? '';
 
   adminA = await novoUsuario(tenantA, 'adminA');
   colabA1 = await novoUsuario(tenantA, 'colabA1');

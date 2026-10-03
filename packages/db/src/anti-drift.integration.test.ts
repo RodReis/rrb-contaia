@@ -16,6 +16,7 @@ import { criarPool } from './client.js';
 import {
   auditarCatalogo,
   lerCatalogo,
+  schemasDoProduto,
   type FotografiaDoCatalogo,
   type TabelaDoCatalogo,
 } from './rls/anti-drift.js';
@@ -23,7 +24,6 @@ import { CLASSIFICACAO, type EntradaDeClassificacao } from './rls/classificacao.
 
 const pool = criarPool();
 
-const SCHEMAS = ['app', 'public'] as const;
 const PAPEL = 'contaia_app';
 
 const requisitos = (violacoes: ReturnType<typeof auditarCatalogo>): string[] =>
@@ -31,19 +31,20 @@ const requisitos = (violacoes: ReturnType<typeof auditarCatalogo>): string[] =>
 
 describe('anti-drift sobre o catálogo real', () => {
   it('há tabelas para varrer', async () => {
-    const fotografia = await lerCatalogo(pool, { schemas: SCHEMAS, papel: PAPEL });
+    const fotografia = await lerCatalogo(pool, { schemas: await schemasDoProduto(pool), papel: PAPEL });
 
     expect(fotografia.tabelas.length).toBeGreaterThan(0);
   });
 
   it('nenhuma tabela escapa da classificação nem dos requisitos de RLS', async () => {
-    const fotografia = await lerCatalogo(pool, { schemas: SCHEMAS, papel: PAPEL });
+    // Todo schema do produto, não só `app`: localização em schema não concede exceção.
+    const fotografia = await lerCatalogo(pool, { schemas: await schemasDoProduto(pool), papel: PAPEL });
 
     expect(requisitos(auditarCatalogo(fotografia, CLASSIFICACAO))).toEqual([]);
   });
 
   it('o papel da aplicação não tem BYPASSRLS nem SUPERUSER', async () => {
-    const { papel } = await lerCatalogo(pool, { schemas: SCHEMAS, papel: PAPEL });
+    const { papel } = await lerCatalogo(pool, { schemas: ['app'], papel: PAPEL });
 
     expect(papel).toEqual({ existe: true, bypassRls: false, superusuario: false });
   });
@@ -185,6 +186,75 @@ describe('auditoria pura do catálogo', () => {
     );
 
     expect(achados.join('\n')).toContain(requisito);
+  });
+
+  it('reprova política com condição sempre verdadeira misturada ao contexto', () => {
+    const achados = requisitos(
+      auditarCatalogo(
+        fotografiaCom(
+          tabelaSegura({
+            politicas: [
+              {
+                nome: 'quase_segura',
+                comando: 'SELECT',
+                permissiva: true,
+                usando:
+                  '(((tenant_id = app.tenant_atual()) AND app.empresa_autorizada(empresa_id)) OR true)',
+                comCheck: null,
+              },
+              {
+                nome: 'insercao',
+                comando: 'INSERT',
+                permissiva: true,
+                usando: null,
+                comCheck: '((tenant_id = app.tenant_atual()) AND app.empresa_autorizada(empresa_id))',
+              },
+            ],
+          }),
+        ),
+        [classeEmpresa],
+      ),
+    );
+
+    expect(achados).toContain('app.exemplo: política de SELECT sem tautologia');
+  });
+
+  it('UPDATE precisa do contexto também no WITH CHECK, não só no USING', () => {
+    const contexto = '((tenant_id = app.tenant_atual()) AND app.empresa_autorizada(empresa_id))';
+    const achados = requisitos(
+      auditarCatalogo(
+        fotografiaCom(
+          tabelaSegura({
+            privilegiosDaAplicacao: ['SELECT', 'INSERT', 'UPDATE'],
+            politicas: [
+              { nome: 's', comando: 'SELECT', permissiva: true, usando: contexto, comCheck: null },
+              { nome: 'i', comando: 'INSERT', permissiva: true, usando: null, comCheck: contexto },
+              { nome: 'u', comando: 'UPDATE', permissiva: true, usando: contexto, comCheck: 'true' },
+            ],
+          }),
+        ),
+        [classeEmpresa],
+      ),
+    );
+
+    expect(achados.join(' | ')).toContain('política de UPDATE');
+  });
+
+  it('tabela restrita à gestão de acesso precisa da função de gestão na política de escrita', () => {
+    const humano = '((tenant_id = app.tenant_atual()) AND app.contexto_humano())';
+    const tabela = tabelaSegura({
+      politicas: [
+        { nome: 's', comando: 'SELECT', permissiva: true, usando: humano, comCheck: null },
+        { nome: 'i', comando: 'INSERT', permissiva: true, usando: null, comCheck: humano },
+      ],
+    });
+    const achados = requisitos(
+      auditarCatalogo(fotografiaCom(tabela), [
+        { tabela: 'app.exemplo', classe: 'tenant', origem: 't', justificativa: 'j', escrita: 'admin' },
+      ]),
+    );
+
+    expect(achados).toContain('app.exemplo: política de INSERT com contexto');
   });
 
   it('reprova tabela append-only com UPDATE', () => {

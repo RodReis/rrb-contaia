@@ -29,6 +29,12 @@ export const obterUrlDaAplicacao = (): string => {
     return explicita;
   }
 
+  // A senha de desenvolvimento do papel é pública no repositório: fora do ambiente local a
+  // aplicação exige a URL própria, em vez de conectar com credencial conhecida.
+  if (process.env['NODE_ENV'] === 'production') {
+    throw new Error('DATABASE_APP_URL não definida: produção não usa a credencial local do papel da aplicação.');
+  }
+
   const url = new URL(obterUrlDoBanco());
   url.username = 'contaia_app';
   url.password = 'contaia_app_local';

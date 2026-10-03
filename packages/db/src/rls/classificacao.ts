@@ -30,6 +30,16 @@ export type EntradaDeClassificacao = Readonly<{
   justificativa?: string;
   /** I-6: o papel da aplicação nunca tem UPDATE nem DELETE. */
   appendOnly?: boolean;
+  /**
+   * Só na classe `tenant`. Quem LÊ além do tenant: `comum` (qualquer contexto humano, padrão),
+   * `admin` (só a gestão de acesso) ou `proprio_usuario` (o dono da linha, ou a gestão de acesso).
+   */
+  leitura?: 'comum' | 'admin' | 'proprio_usuario';
+  /**
+   * Só na classe `tenant`. Quem ESCREVE: `comum` (padrão), `admin` (só a gestão de acesso) ou
+   * `dono_ou_admin` (INSERT na gestão de acesso; o dono altera a própria linha).
+   */
+  escrita?: 'comum' | 'admin' | 'dono_ou_admin';
 }>;
 
 export const CLASSES_COM_EMPRESA: readonly ClasseDeTabela[] = ['empresa', 'vinculo'];
@@ -102,6 +112,7 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     classe: 'tenant',
     origem: 'F7 / SPEC-007',
     justificativa: `Papel padrão do colaborador: ${GESTAO}.`,
+    escrita: 'admin',
   },
   {
     tabela: 'app.usuario_convite',
@@ -121,6 +132,7 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     classe: 'tenant',
     origem: 'F8 / SPEC-008',
     justificativa: `Papel personalizado do escritório: ${GESTAO}.`,
+    escrita: 'admin',
   },
   {
     tabela: 'app.papel_personalizado_revisao',
@@ -128,12 +140,14 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     origem: 'F8 / SPEC-008',
     justificativa: `Revisão imutável de papel personalizado: ${GESTAO}.`,
     appendOnly: true,
+    escrita: 'admin',
   },
   {
     tabela: 'app.usuario_papel_personalizado',
     classe: 'tenant',
     origem: 'F8 / SPEC-008',
     justificativa: `Vínculo colaborador–papel personalizado: ${GESTAO}.`,
+    escrita: 'admin',
   },
   {
     tabela: 'app.escritorio_endereco',
@@ -154,6 +168,8 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     justificativa:
       'Histórico global da carteira (SPEC-009 §3): um evento cobre vários colaboradores e empresas, lido na Central de Carteiras.',
     appendOnly: true,
+    leitura: 'admin',
+    escrita: 'admin',
   },
   {
     tabela: 'app.carteira_notificacao',
@@ -161,6 +177,8 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     origem: 'F9 / SPEC-009',
     justificativa:
       'Notificação do colaborador sobre a própria carteira: o destinatário é um usuário, não uma empresa.',
+    leitura: 'proprio_usuario',
+    escrita: 'dono_ou_admin',
   },
   {
     tabela: 'public.__migrations',

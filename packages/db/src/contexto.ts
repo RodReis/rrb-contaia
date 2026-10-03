@@ -77,6 +77,19 @@ export const comContextoHumano = async <T>(
   executar: ExecutarNaTransacao<T>,
 ): Promise<T> => executarEmTransacao(pool, contextoHumano(entrada), executar);
 
+/**
+ * Devolve a variável ao valor anterior mesmo quando o trecho falhou e o chamador segue na
+ * mesma transação (savepoint). Transação já abortada não aceita comando: nesse caso o
+ * ROLLBACK elimina o contexto inteiro e a falha original é a que importa.
+ */
+const restaurar = async (cliente: PoolClient, nome: string, valor: string): Promise<void> => {
+  try {
+    await cliente.query('select set_config($1, $2, true)', [nome, valor]);
+  } catch {
+    // transação abortada: o ROLLBACK do helper externo zera o contexto.
+  }
+};
+
 const ehFinalidadeHumana = (valor: string): valor is FinalidadeHumana =>
   (FINALIDADES_HUMANAS as readonly string[]).includes(valor);
 
@@ -110,10 +123,12 @@ export const comFinalidade = async <T>(
   }
 
   await cliente.query(`select set_config('app.finalidade', $1, true)`, [finalidade]);
-  const resultado = await executar(cliente);
-  await cliente.query(`select set_config('app.finalidade', $1, true)`, [atual.finalidade]);
 
-  return resultado;
+  try {
+    return await executar(cliente);
+  } finally {
+    await restaurar(cliente, 'app.finalidade', atual.finalidade);
+  }
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -140,10 +155,12 @@ export const comEmpresaEmCriacao = async <T>(
   }
 
   await cliente.query(`select set_config('app.empresa_em_criacao', $1, true)`, [empresaId]);
-  const resultado = await executar(cliente);
-  await cliente.query(`select set_config('app.empresa_em_criacao', '', true)`);
 
-  return resultado;
+  try {
+    return await executar(cliente);
+  } finally {
+    await restaurar(cliente, 'app.empresa_em_criacao', '');
+  }
 };
 
 /**
