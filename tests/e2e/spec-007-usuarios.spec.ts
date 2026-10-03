@@ -8,11 +8,12 @@
  * que o usuário vive. E-mail externo real é `not_run` (SPEC-007 §9).
  *
  * Isolamento: cada execução usa e-mails exclusivos e limpa os da execução
- * anterior (banco e Keycloak). O administrador do seed NUNCA é suspenso de
- * verdade: o teste do último administrador só confere que o servidor recusa, e
- * o `afterAll` restaura o administrador mesmo se a proteção estivesse quebrada.
+ * anterior (banco e Keycloak) e roda num escritório e administrador próprios,
+ * sem tocar o tenant do seed (as outras suítes dependem dele). O teste do último
+ * administrador só confere que o servidor recusa, e o `afterAll` restaura o
+ * administrador mesmo se a proteção estivesse quebrada.
  *
- * Depende do ambiente local: `pnpm docker:up && pnpm db:migrate && pnpm db:seed`.
+ * Depende do ambiente local: `pnpm docker:up && pnpm db:migrate`.
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -26,9 +27,12 @@ const KEYCLOAK = (process.env['KEYCLOAK_ISSUER_URL'] ?? 'http://127.0.0.1:18080/
 const REALM = process.env['KEYCLOAK_REALM'] ?? 'contaia';
 const ESCOPO = process.env['PROVA_ESCOPO'] ?? 'local';
 
-const ADMIN_USUARIO = 'admin.escritorio';
-const ADMIN_SENHA = 'admin_local_123';
-const ADMIN_EMAIL = 'admin@escritorio.cnt.br';
+// Escritório e administrador próprios desta spec: as demais suítes dependem do tenant do
+// seed (a SPEC-001 exige que ele comece incompleto), então ativá-lo aqui as quebraria.
+const ADMIN_USUARIO = 'e2e-f7-admin';
+const ADMIN_SENHA = 'senha-do-admin-e2e-123456';
+const ADMIN_EMAIL = 'e2e-f7-admin@escritorio.local';
+const CNPJ_DO_ESCRITORIO = '11444777000161';
 
 const SUFIXO = Date.now().toString(36);
 const EMAIL_A = `e2e-f7-${SUFIXO}-a@escritorio.local`;
@@ -75,6 +79,54 @@ const removerIdentidadesDeExecucoesAnteriores = async (): Promise<void> => {
       headers: cabecalhos,
     });
   }
+};
+
+/** Cria no Keycloak o administrador desta spec e devolve o `sub` que o token dele terá. */
+const criarIdentidadeDoAdministrador = async (): Promise<string> => {
+  const token = await tokenDeAdministracao();
+  const cabecalhos = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  const criacao = await fetch(`${KEYCLOAK}/admin/realms/${REALM}/users`, {
+    method: 'POST',
+    headers: cabecalhos,
+    body: JSON.stringify({
+      username: ADMIN_USUARIO,
+      email: ADMIN_EMAIL,
+      firstName: 'Administrador',
+      lastName: 'E2E',
+      enabled: true,
+      emailVerified: true,
+      credentials: [{ type: 'password', value: ADMIN_SENHA, temporary: false }],
+    }),
+  });
+
+  if (criacao.status !== 201) {
+    throw new Error(`Keycloak recusou criar o administrador da spec (${criacao.status})`);
+  }
+
+  return (criacao.headers.get('location') ?? '').split('/').pop() ?? '';
+};
+
+const prepararEscritorioDaSpec = async (sub: string): Promise<void> => {
+  const tenant = await pool.query<{ id: string }>(
+    `insert into app.tenant (cnpj, razao_social, status)
+     values ($1, 'Escritório E2E da F7', 'ATIVO')
+     on conflict (cnpj) do update set status = 'ATIVO'
+     returning id`,
+    [CNPJ_DO_ESCRITORIO],
+  );
+  const tenantId = tenant.rows[0]?.id ?? '';
+  const usuarioCriado = await pool.query<{ id: string }>(
+    `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+     values ($1, $2, $3, 'Administrador E2E', 'ATIVO')
+     returning id`,
+    [tenantId, sub, ADMIN_EMAIL],
+  );
+
+  await pool.query(
+    `insert into app.usuario_papel (tenant_id, usuario_id, papel)
+     values ($1, $2, 'admin_escritorio')`,
+    [tenantId, usuarioCriado.rows[0]?.id ?? ''],
+  );
 };
 
 const restaurarAdministrador = async (): Promise<void> => {
@@ -228,13 +280,9 @@ const novoContexto = async (): Promise<BrowserContext> => navegador.newContext()
 test.beforeAll(async ({ browser }) => {
   navegador = browser;
 
-  await pool.query(
-    `update app.tenant set status = 'ATIVO'
-      where id = (select tenant_id from app.usuario where email = $1 limit 1)`,
-    [ADMIN_EMAIL],
-  );
   await limparUsuariosDeExecucoesAnteriores();
   await removerIdentidadesDeExecucoesAnteriores();
+  await prepararEscritorioDaSpec(await criarIdentidadeDoAdministrador());
 
   contextoDoAdmin = await browser.newContext();
   admin = await contextoDoAdmin.newPage();
@@ -421,9 +469,9 @@ test('o último administrador não se suspende: o servidor recusa e explica', as
     [ADMIN_EMAIL],
   );
 
-  // Se o ambiente local tiver outro administrador ativo, suspender o do seed
-  // funcionaria de verdade e quebraria as demais suítes: não se tenta.
-  test.skip(Number(rows[0]?.total) !== 1, 'o escritório do seed tem mais de um administrador ativo');
+  // Se o escritório da spec tiver outro administrador ativo, suspender este funcionaria
+  // de verdade e o teste deixaria de provar a proteção: não se tenta.
+  test.skip(Number(rows[0]?.total) !== 1, 'o escritório da spec tem mais de um administrador ativo');
 
   await abrirLista(admin, ADMIN_EMAIL);
   await admin.getByRole('button', { name: /^Suspender — / }).first().click();
