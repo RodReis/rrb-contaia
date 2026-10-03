@@ -245,7 +245,7 @@ export const aplicarEfeitos = async (
     if (efeito.adicionadas.length > 0) {
       await cliente.query(
         `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id, criado_por)
-         select $1, $2, empresa, $4 from unnest($3::uuid[]) as empresa`,
+         select $1::uuid, $2::uuid, empresa, $4::uuid from unnest($3::uuid[]) as empresa`,
         [tenantId, efeito.usuarioId, efeito.adicionadas, autorId],
       );
     }
@@ -626,8 +626,10 @@ export const listarEmpresasParaAtribuicao = async (
 
   const onde = condicoes.join(' and ');
 
+  // `$2` (o colaborador de referência) só aparece na condição quando há filtro de situação;
+  // o Postgres recusa parâmetro enviado e não referenciado, então a contagem o cita sempre.
   const contagem = await cliente.query<{ total: string }>(
-    `select count(*)::text as total from app.empresa e where ${onde}`,
+    `select count(*)::text as total from app.empresa e where ${onde} and $2::uuid is not null`,
     parametros,
   );
 
