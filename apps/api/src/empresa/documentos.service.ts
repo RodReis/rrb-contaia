@@ -39,7 +39,7 @@ import {
   carregarExigencia,
   carregarVersao,
   carregarVersaoVigente,
-  comContextoDeTenant,
+  comContextoHumano,
   criarNotificacoes,
   definirEstadoDaExigencia,
   inserirExigencia,
@@ -294,7 +294,7 @@ export class DocumentosDaEmpresaService {
     autor: Autor,
     agora: Date = new Date(),
   ): Promise<VisaoDosDocumentos> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       await this.semearChecklist(cliente, tenantId, empresaId, autor, agora);
 
       return this.montarVisao(cliente, tenantId, empresaId, agora);
@@ -315,7 +315,7 @@ export class DocumentosDaEmpresaService {
       throw new ErroDeValidacao(campos);
     }
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
 
       const exigenciaId = await inserirExigencia(cliente, tenantId, empresaId, {
@@ -401,9 +401,9 @@ export class DocumentosDaEmpresaService {
     }
 
     // Estado e aplicabilidade são conferidos antes de gastar o upload.
-    const anterior = await comContextoDeTenant(
+    const anterior = await comContextoHumano(
       this.pool.instancia,
-      tenantId,
+      { tenantId, usuarioId: autor.usuarioId },
       async (cliente) => {
         await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
         const exigencia = await this.exigirExigencia(cliente, tenantId, empresaId, exigenciaId);
@@ -440,7 +440,7 @@ export class DocumentosDaEmpresaService {
 
     const chave = await this.storage.enviar(tenantId, TIPO_DO_ARQUIVO, arquivo);
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       // Revalidada aqui, e não só antes do upload: a empresa pode ter sido
       // arquivada enquanto os 20 MB subiam, e gravar assim mesmo violaria
       // silenciosamente o "arquivada fica somente para consulta" (SPEC-003
@@ -520,7 +520,7 @@ export class DocumentosDaEmpresaService {
     versaoEsperada: number,
     agora: Date,
   ): Promise<VisaoDosDocumentos> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
       const exigencia = await this.exigirExigencia(cliente, tenantId, empresaId, exigenciaId);
 
@@ -652,9 +652,9 @@ export class DocumentosDaEmpresaService {
     autor: Autor,
     acao: Extract<AcaoDocumental, 'VISUALIZACAO' | 'DOWNLOAD'>,
   ): Promise<ArquivoParaEntrega> {
-    const versao = await comContextoDeTenant(
+    const versao = await comContextoHumano(
       this.pool.instancia,
-      tenantId,
+      { tenantId, usuarioId: autor.usuarioId },
       async (cliente) => {
         await this.exigirExigencia(cliente, tenantId, empresaId, exigenciaId);
         const versao = await carregarVersao(cliente, tenantId, empresaId, versaoId);
@@ -672,7 +672,7 @@ export class DocumentosDaEmpresaService {
 
     const arquivo = await this.storage.obter(versao.chaveStorage);
 
-    await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    await comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, (cliente) =>
       registrarEventosDocumentais(cliente, tenantId, [
         {
           empresaId,
@@ -698,10 +698,11 @@ export class DocumentosDaEmpresaService {
 
   async consultarHistorico(
     tenantId: string,
+    usuarioId: string,
     empresaId: string,
     paginacao: Readonly<{ limite: number; deslocamento: number }>,
   ): Promise<Readonly<{ eventos: readonly EventoDocumentalNaLista[]; total: number }>> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, (cliente) =>
       listarHistoricoDocumental(cliente, tenantId, empresaId, paginacao),
     );
   }

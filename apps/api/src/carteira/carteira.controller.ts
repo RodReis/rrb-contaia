@@ -61,6 +61,7 @@ export class CarteirasController {
   ): Promise<PaginaDeColaboradores> {
     return this.carteira.listarColaboradores(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       analisar(filtroDeColaboradoresSchema, consulta),
     );
   }
@@ -70,7 +71,11 @@ export class CarteirasController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('usuarioId') usuarioId: string,
   ): Promise<ColaboradorNaCentral> {
-    return this.carteira.obterColaborador(tenantDa(requisicao), idDe(usuarioId));
+    return this.carteira.obterColaborador(
+      tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
+      idDe(usuarioId),
+    );
   }
 
   /** Gestão individual: todas as empresas ativas do tenant, com a marca de atribuída. */
@@ -82,6 +87,7 @@ export class CarteirasController {
   ): Promise<PaginaDeEmpresasParaAtribuicao> {
     return this.carteira.empresasParaAtribuicao(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       idDe(usuarioId),
       analisar(filtroDeEmpresasSchema, consulta),
     );
@@ -95,6 +101,7 @@ export class CarteirasController {
   ): Promise<Readonly<{ colaboradores: readonly ColaboradorDaEmpresa[] }>> {
     const colaboradores = await this.carteira.colaboradoresDaEmpresa(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       idDe(empresaId),
     );
 
@@ -128,6 +135,7 @@ export class HistoricoDeCarteirasController {
   ): Promise<PaginaDeEventosDeCarteira> {
     return this.carteira.eventos(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       analisar(filtroDeEventosDeCarteiraSchema, consulta),
     );
   }

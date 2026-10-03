@@ -674,7 +674,7 @@ describe('UsuariosService', () => {
 
       vi.setSystemTime(new Date(AGORA.getTime() + 48 * 3_600_000));
 
-      const pagina = await service.listar(T1, { limite: 25, deslocamento: 0 });
+      const pagina = await service.listar(T1, AUTOR, { limite: 25, deslocamento: 0 });
       const ana = pagina.usuarios.find((u) => u.id === convidado.id);
 
       expect(ana?.situacao).toBe('CONVITE_EXPIRADO');
@@ -687,14 +687,14 @@ describe('UsuariosService', () => {
 
       vi.setSystemTime(new Date(AGORA.getTime() + 49 * 3_600_000));
 
-      await service.listar(T1, { limite: 25, deslocamento: 0 });
-      await service.listar(T1, { limite: 25, deslocamento: 0 });
+      await service.listar(T1, AUTOR, { limite: 25, deslocamento: 0 });
+      await service.listar(T1, AUTOR, { limite: 25, deslocamento: 0 });
 
       expect(estado.eventos.filter((e) => e.tipo === 'CONVITE_EXPIRADO')).toHaveLength(1);
     });
 
     it('obter usuário de outro escritório responde como inexistente', async () => {
-      expect(await codigoDe(() => service.obter(T1, 'outro-1'))).toBe(
+      expect(await codigoDe(() => service.obter(T1, AUTOR, 'outro-1'))).toBe(
         CODIGOS_DE_ERRO.USUARIO_NAO_ENCONTRADO,
       );
     });
@@ -702,7 +702,7 @@ describe('UsuariosService', () => {
     it('a resposta nunca carrega token, link, hash ou sub da identidade', async () => {
       await service.convidar(T1, AUTOR, DADOS);
 
-      const pagina = await service.listar(T1, { limite: 25, deslocamento: 0 });
+      const pagina = await service.listar(T1, AUTOR, { limite: 25, deslocamento: 0 });
 
       expect(semAnotacoes(pagina)).not.toMatch(/token|link|hash|subOidc|sub-/i);
     });
@@ -717,7 +717,7 @@ describe('UsuariosService', () => {
       await service.suspender(T1, AUTOR, 'ativo-1');
       await service.reativar(T1, AUTOR, 'ativo-1');
 
-      const pagina = await service.consultarHistorico(T1, FILTRO);
+      const pagina = await service.consultarHistorico(T1, AUTOR, FILTRO);
 
       expect(pagina.total).toBe(2);
       expect(pagina.eventos.map((e) => e.tipo)).toEqual(['REATIVADO', 'SUSPENSO']);
@@ -737,7 +737,7 @@ describe('UsuariosService', () => {
 
       await service.reenviarConvite(T1, AUTOR, convidado.id);
 
-      const pagina = await service.consultarHistorico(T1, FILTRO);
+      const pagina = await service.consultarHistorico(T1, AUTOR, FILTRO);
       const criado = pagina.eventos.find((e) => e.tipo === 'CONVITE_CRIADO');
       const reenviado = pagina.eventos.find((e) => e.tipo === 'CONVITE_REENVIADO');
 
@@ -753,8 +753,8 @@ describe('UsuariosService', () => {
 
       vi.setSystemTime(new Date(AGORA.getTime() + 49 * 3_600_000));
 
-      await service.consultarHistorico(T1, FILTRO);
-      const pagina = await service.consultarHistorico(T1, FILTRO);
+      await service.consultarHistorico(T1, AUTOR, FILTRO);
+      const pagina = await service.consultarHistorico(T1, AUTOR, FILTRO);
       const expirados = pagina.eventos.filter((e) => e.tipo === 'CONVITE_EXPIRADO');
 
       expect(expirados).toHaveLength(1);
@@ -773,11 +773,11 @@ describe('UsuariosService', () => {
         depois: null,
       });
 
-      const doAfetado = await service.consultarHistorico(T1, {
+      const doAfetado = await service.consultarHistorico(T1, AUTOR, {
         ...FILTRO,
         usuarioAfetadoId: 'ativo-1',
       });
-      const outroTenant = await service.consultarHistorico(T1, {
+      const outroTenant = await service.consultarHistorico(T1, AUTOR, {
         ...FILTRO,
         usuarioAfetadoId: 'outro-1',
       });

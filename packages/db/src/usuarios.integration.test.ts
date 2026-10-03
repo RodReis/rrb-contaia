@@ -12,7 +12,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
-import { comContextoDeTenant } from './contexto.js';
+import { comContextoHumano } from './contexto.js';
 import {
   atualizarDados,
   atualizarEstado,
@@ -32,6 +32,7 @@ import {
   travarAdminsAtivos,
   usuarioComEmailNoTenant,
 } from './repositorios/usuarios.js';
+import { aplicarContextoDeTeste, comoUsuario } from './testes/suporte.js';
 
 const urlDaAplicacao = (): string => {
   const url = new URL(process.env['DATABASE_URL'] ?? '');
@@ -45,6 +46,9 @@ const poolAdmin = criarPool();
 let poolApp: Pool;
 let tenantA = '';
 let tenantB = '';
+// Operadores de bootstrap: o primeiro usuário de cada escritório não tem quem o crie pela API.
+let operadorA = '';
+let operadorB = '';
 let adminA = '';
 let adminA2 = '';
 let adminB = '';
@@ -53,30 +57,10 @@ const SUFIXO = String(process.pid).padStart(6, '0').slice(-6);
 const RAZOES = [`Escritório Usuários A ${SUFIXO}`, `Escritório Usuários B ${SUFIXO}`];
 const email = (nome: string): string => `${nome}.${SUFIXO}@usuarios.local`;
 
-const comTenant = async <T>(
+const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => {
-  const cliente = await poolApp.connect();
-
-  try {
-    await cliente.query('begin');
-
-    if (tenantId !== null) {
-      await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId]);
-    }
-
-    const resultado = await executar(cliente);
-    await cliente.query('commit');
-
-    return resultado;
-  } catch (erro) {
-    await cliente.query('rollback');
-    throw erro;
-  } finally {
-    cliente.release();
-  }
-};
+): Promise<T> => comoUsuario(poolApp, tenantId, (tenantId === tenantA ? adminA : adminB) || (tenantId === tenantA ? operadorA : operadorB), executar, 'ADMIN_ACESSO');
 
 const novoUsuario = async (
   tenantId: string,
@@ -143,6 +127,23 @@ beforeAll(async () => {
   tenantB = rows[1]?.id ?? '';
 
   poolApp = new Pool({ connectionString: urlDaAplicacao(), max: 10 });
+
+  const operadores = await poolAdmin.query<{ id: string }>(
+    `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+     values ($1, $3, $5, 'Operador A', 'ATIVO'), ($2, $4, $6, 'Operador B', 'ATIVO')
+     returning id`,
+    [
+      tenantA,
+      tenantB,
+      `sub-operador-us-a-${SUFIXO}`,
+      `sub-operador-us-b-${SUFIXO}`,
+      `operador-us-a-${SUFIXO}@local`,
+      `operador-us-b-${SUFIXO}@local`,
+    ],
+  );
+
+  operadorA = operadores.rows[0]?.id ?? '';
+  operadorB = operadores.rows[1]?.id ?? '';
 
   adminA = await novoUsuario(tenantA, 'admin-a', ['admin_escritorio']);
   adminA2 = await novoUsuario(tenantA, 'admin-a2', ['admin_escritorio']);
@@ -522,13 +523,13 @@ describe('proteção do último administrador sob concorrência', () => {
 
     try {
       await clienteUm.query('begin');
-      await clienteUm.query('select set_config($1, $2, true)', ['app.tenant_id', tenantB]);
+      await aplicarContextoDeTeste(clienteUm, tenantB, adminB, 'ADMIN_ACESSO');
       const vistosPelaPrimeira = await travarAdminsAtivos(clienteUm, tenantB);
 
       expect(vistosPelaPrimeira.sort()).toEqual([adminB, x].sort());
 
       await clienteDois.query('begin');
-      await clienteDois.query('select set_config($1, $2, true)', ['app.tenant_id', tenantB]);
+      await aplicarContextoDeTeste(clienteDois, tenantB, adminB, 'ADMIN_ACESSO');
 
       let resolvida = false;
       const segunda = travarAdminsAtivos(clienteDois, tenantB).then((ids) => {
@@ -564,13 +565,13 @@ describe('proteção do último administrador contra suspensão simultânea', ()
 
     try {
       await clienteUm.query('begin');
-      await clienteUm.query('select set_config($1, $2, true)', ['app.tenant_id', tenantB]);
+      await aplicarContextoDeTeste(clienteUm, tenantB, adminB, 'ADMIN_ACESSO');
       const vistosPelaPrimeira = await travarAdminsAtivos(clienteUm, tenantB);
 
       expect(vistosPelaPrimeira).toContain(y);
 
       await clienteDois.query('begin');
-      await clienteDois.query('select set_config($1, $2, true)', ['app.tenant_id', tenantB]);
+      await aplicarContextoDeTeste(clienteDois, tenantB, adminB, 'ADMIN_ACESSO');
 
       let resolvida = false;
       const segunda = travarAdminsAtivos(clienteDois, tenantB).then((ids) => {
@@ -600,7 +601,7 @@ describe('atomicidade de mutação + auditoria no PostgreSQL real', () => {
     const antes = await comTenant(tenantA, (cliente) => carregarUsuario(cliente, tenantA, id));
 
     await expect(
-      comContextoDeTenant(poolApp, tenantA, async (cliente) => {
+      comContextoHumano(poolApp, { tenantId: tenantA, usuarioId: adminA, finalidade: 'ADMIN_ACESSO' }, async (cliente) => {
         await atualizarEstado(cliente, tenantA, id, 'SUSPENSO');
         await substituirPapeis(cliente, tenantA, id, ['auditor_readonly']);
         await registrarEventoDeUsuario(cliente, tenantA, {
@@ -631,11 +632,11 @@ describe('carregar para alterar', () => {
 
     try {
       await clienteUm.query('begin');
-      await clienteUm.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(clienteUm, tenantA, adminA, 'ADMIN_ACESSO');
       await carregarUsuario(clienteUm, tenantA, id, { travar: true });
 
       await clienteDois.query('begin');
-      await clienteDois.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await aplicarContextoDeTeste(clienteDois, tenantA, adminA, 'ADMIN_ACESSO');
 
       let estadoVisto: string | undefined;
       const segunda = carregarUsuario(clienteDois, tenantA, id, { travar: true }).then((usuario) => {

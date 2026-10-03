@@ -8,7 +8,7 @@
  */
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import {
-  comContextoDeTenant,
+  comContextoHumano,
   contarNaoLidas,
   listarHistoricoDeNotificacoes,
   listarPainel,
@@ -33,7 +33,7 @@ export class NotificacoesService {
   constructor(private readonly pool: PoolDoBanco) {}
 
   async consultarPainel(tenantId: string, usuarioId: string): Promise<PainelDeNotificacoes> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) => {
       const [notificacoes, naoLidas] = await Promise.all([
         listarPainel(cliente, tenantId, usuarioId),
         contarNaoLidas(cliente, tenantId, usuarioId),
@@ -49,7 +49,7 @@ export class NotificacoesService {
     limite: number,
     deslocamento: number,
   ): Promise<PaginaDeNotificacoes> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, (cliente) =>
       listarHistoricoDeNotificacoes(cliente, tenantId, usuarioId, limite, deslocamento),
     );
   }
@@ -59,7 +59,10 @@ export class NotificacoesService {
     notificacaoId: string,
     autor: Autor,
   ): Promise<NotificacaoPersistida> {
-    const marcada = await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    const marcada = await comContextoHumano(
+      this.pool.instancia,
+      { tenantId, usuarioId: autor.usuarioId },
+      (cliente) =>
       marcarComoLida(cliente, tenantId, notificacaoId, autor.usuarioId),
     );
 
@@ -78,7 +81,10 @@ export class NotificacoesService {
     ids: readonly string[],
     autor: Autor,
   ): Promise<Readonly<{ marcadas: number }>> {
-    const marcadas = await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    const marcadas = await comContextoHumano(
+      this.pool.instancia,
+      { tenantId, usuarioId: autor.usuarioId },
+      (cliente) =>
       marcarVariasComoLidas(cliente, tenantId, ids, autor.usuarioId),
     );
 

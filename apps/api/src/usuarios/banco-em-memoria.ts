@@ -182,8 +182,8 @@ const vigente = (usuarioId: string): ConviteEmMemoria | undefined =>
 
 export const funcoesDoBanco = {
   // A transação do dublê desfaz tudo se o caso de uso lançar: é o que prova "nada parcial".
-  comContextoDeTenant: vi.fn(
-    async (_pool: unknown, _tenantId: string, executar: (cliente: never) => Promise<unknown>) => {
+  comContextoHumano: vi.fn(
+    async (_pool: unknown, _entrada: unknown, executar: (cliente: never) => Promise<unknown>) => {
       const antes = structuredClone({
         carteira: estado.carteira,
         eventosDeCarteira: estado.eventosDeCarteira,

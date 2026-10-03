@@ -61,7 +61,7 @@ export class EmpresaController {
     const tenantId = tenantDa(requisicao);
     const { usuarioId } = autorDa(requisicao);
     // Só as empresas da carteira de quem consulta: nunca a base inteira (SPEC-009 §3.5).
-    const resultado = await this.empresaService.listar(tenantId, {
+    const resultado = await this.empresaService.listar(tenantId, usuarioId, {
       ...analisar(filtroDaListaSchema, consulta),
       carteiraDoUsuarioId: usuarioId,
       veArquivadasDoTenant: (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
@@ -82,6 +82,7 @@ export class EmpresaController {
 
     const contagem = await this.pendencias.contarPorEmpresas(
       tenantId,
+      usuarioId,
       resultado.empresas.map((empresa) => empresa.id),
     );
 
@@ -104,7 +105,7 @@ export class EmpresaController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('cnpj') cnpj: string,
   ): Promise<ResultadoDaConsultaDeCnpj> {
-    return this.empresaService.consultarCnpj(tenantDa(requisicao), cnpj);
+    return this.empresaService.consultarCnpj(tenantDa(requisicao), autorDa(requisicao).usuarioId, cnpj);
   }
 
   @Post()
@@ -128,7 +129,7 @@ export class EmpresaController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
   ): Promise<VisaoDaEmpresa> {
-    return this.empresaService.obter(tenantDa(requisicao), empresaId);
+    return this.empresaService.obter(tenantDa(requisicao), autorDa(requisicao).usuarioId, empresaId);
   }
 
   @Put(':empresaId/identificacao')
@@ -139,6 +140,7 @@ export class EmpresaController {
   ): Promise<VisaoDaEmpresa> {
     return this.empresaService.salvarIdentificacao(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       empresaId,
       analisar(identificacaoDaEmpresaSchema, corpo),
     );
@@ -152,6 +154,7 @@ export class EmpresaController {
   ): Promise<VisaoDaEmpresa> {
     return this.empresaService.salvarFiscal(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       empresaId,
       analisar(dadosFiscaisSchema, corpo),
     );
@@ -165,6 +168,7 @@ export class EmpresaController {
   ): Promise<VisaoDaEmpresa> {
     return this.empresaService.salvarEndereco(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       empresaId,
       analisar(enderecoDaEmpresaSchema, corpo),
     );
@@ -181,6 +185,7 @@ export class EmpresaController {
 
     return this.empresaService.ativar(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       empresaId,
       situacaoExternaConfirmada,
     );

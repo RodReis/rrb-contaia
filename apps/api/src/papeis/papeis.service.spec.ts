@@ -517,7 +517,7 @@ describe('PapeisService', () => {
 
       preservado?.permissoes.push('empresas.cadastro.excluir');
 
-      const detalhe = await service.obter(T1, papel.id);
+      const detalhe = await service.obter(T1, AUTOR, papel.id);
 
       expect(detalhe.incompatibilidades).toEqual(['empresas.cadastro.excluir']);
       expect(detalhe.permissoes).not.toContain('empresas.cadastro.excluir');
@@ -598,17 +598,21 @@ describe('PapeisService', () => {
       semearUsuario(T1, 'u1');
       vincular('u1', a.id);
 
-      const todos = await service.listar(T1, { limite: 25, deslocamento: 0 });
+      const todos = await service.listar(T1, AUTOR, { limite: 25, deslocamento: 0 });
 
       expect(todos.total).toBe(2);
       expect(todos.papeis.map((p) => p.nome)).toEqual(['Alfa', 'Beta']);
       expect(todos.papeis[0]?.usuariosVinculados).toBe(1);
 
-      const ativos = await service.listar(T1, { estado: 'ATIVO', limite: 25, deslocamento: 0 });
+      const ativos = await service.listar(T1, AUTOR, {
+        estado: 'ATIVO',
+        limite: 25,
+        deslocamento: 0,
+      });
 
       expect(ativos.papeis.map((p) => p.nome)).toEqual(['Alfa']);
 
-      const busca = await service.listar(T1, { busca: 'bet', limite: 25, deslocamento: 0 });
+      const busca = await service.listar(T1, AUTOR, { busca: 'bet', limite: 25, deslocamento: 0 });
 
       expect(busca.papeis.map((p) => p.nome)).toEqual(['Beta']);
     });
@@ -619,10 +623,12 @@ describe('PapeisService', () => {
       semearUsuario(T1, 'u1');
       vincular('u1', papel.id);
 
-      const detalhe = await service.obter(T1, papel.id);
+      const detalhe = await service.obter(T1, AUTOR, papel.id);
 
       expect(detalhe.usuarios).toEqual([{ id: 'u1', nome: 'Nome u1' }]);
-      expect(await codigoDe(() => service.obter(T2, papel.id))).toBe(CODIGOS_DE_ERRO.PAPEL_NAO_ENCONTRADO);
+      expect(await codigoDe(() => service.obter(T2, AUTOR, papel.id))).toBe(
+        CODIGOS_DE_ERRO.PAPEL_NAO_ENCONTRADO,
+      );
     });
   });
 });

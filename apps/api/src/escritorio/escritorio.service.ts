@@ -32,7 +32,7 @@ import {
   arquivarArquivo,
   carregarCadastro,
   cnpjEmUsoPorOutroTenant,
-  comContextoDeTenant,
+  comContextoHumano,
   definirLogo,
   listarArquivos,
   listarEnderecos,
@@ -65,6 +65,10 @@ const semTenant = (): never => {
   );
 };
 
+/** Cadastro do escritório é tabela de tenant: basta contexto humano válido (finalidade comum). */
+const comum = (tenantId: string, usuarioId: string) =>
+  ({ tenantId, usuarioId, finalidade: 'COMUM' }) as const;
+
 @Injectable()
 export class EscritorioService {
   constructor(
@@ -72,8 +76,8 @@ export class EscritorioService {
     private readonly storage: StorageService,
   ) {}
 
-  async obterVisao(tenantId: string): Promise<VisaoDoCadastro> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+  async obterVisao(tenantId: string, usuarioId: string): Promise<VisaoDoCadastro> {
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), async (cliente) => {
       const cadastro = await carregarCadastro(cliente, tenantId);
 
       if (cadastro === null) {
@@ -93,11 +97,12 @@ export class EscritorioService {
 
   async salvarEtapaIdentificacao(
     tenantId: string,
+    usuarioId: string,
     entrada: Readonly<{ cnpj: string; razaoSocial: string }>,
   ): Promise<VisaoDoCadastro> {
     const cnpj = normalizarCnpj(entrada.cnpj);
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), async (cliente) => {
       const atual = await carregarCadastro(cliente, tenantId);
 
       if (atual === null) {
@@ -136,6 +141,7 @@ export class EscritorioService {
 
   async salvarEtapaResponsavel(
     tenantId: string,
+    usuarioId: string,
     entrada: ResponsavelTecnico,
   ): Promise<VisaoDoCadastro> {
     const responsavel: ResponsavelTecnico = {
@@ -146,7 +152,7 @@ export class EscritorioService {
       telefone: normalizarTelefone(entrada.telefone),
     };
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), async (cliente) => {
       const atual = await carregarCadastro(cliente, tenantId);
 
       if (atual === null) {
@@ -167,6 +173,7 @@ export class EscritorioService {
 
   async salvarEtapaEndereco(
     tenantId: string,
+    usuarioId: string,
     entrada: EnderecoDoEscritorio,
   ): Promise<VisaoDoCadastro> {
     const endereco: EnderecoDoEscritorio = {
@@ -179,7 +186,7 @@ export class EscritorioService {
       uf: entrada.uf.trim().toUpperCase(),
     };
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), async (cliente) => {
       const atual = await carregarCadastro(cliente, tenantId);
 
       if (atual === null) {
@@ -204,6 +211,7 @@ export class EscritorioService {
   /** Persiste o arquivo primeiro; só conta como enviado depois disso. */
   async enviarArquivo(
     tenantId: string,
+    usuarioId: string,
     tipo: TipoDeArquivoDoEscritorio,
     arquivo: ArquivoRecebido,
   ): Promise<VisaoDoCadastro> {
@@ -222,7 +230,7 @@ export class EscritorioService {
     // linha órfã no banco, e objeto sem linha é lixo inerte, não estado errado.
     const chave = await this.storage.enviar(tenantId, tipo, arquivo);
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), async (cliente) => {
       const atual = await carregarCadastro(cliente, tenantId);
 
       if (atual === null) {
@@ -253,8 +261,12 @@ export class EscritorioService {
     });
   }
 
-  async arquivarDocumento(tenantId: string, arquivoId: string): Promise<VisaoDoCadastro> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+  async arquivarDocumento(
+    tenantId: string,
+    usuarioId: string,
+    arquivoId: string,
+  ): Promise<VisaoDoCadastro> {
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), async (cliente) => {
       const atual = await carregarCadastro(cliente, tenantId);
 
       if (atual === null) {
@@ -300,8 +312,8 @@ export class EscritorioService {
    * Conclui o cadastro. Transacional e idempotente: concluir de novo devolve o
    * mesmo estado, sem duplicar dado nem arquivo (SPEC-001 §6).
    */
-  async concluir(tenantId: string): Promise<VisaoDoCadastro> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+  async concluir(tenantId: string, usuarioId: string): Promise<VisaoDoCadastro> {
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), async (cliente) => {
       const atual = await carregarCadastro(cliente, tenantId);
 
       if (atual === null) {

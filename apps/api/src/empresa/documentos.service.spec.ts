@@ -85,11 +85,21 @@ const { estado } = vi.hoisted(() => ({
 }));
 
 vi.mock('@contaia/db', () => ({
-  comContextoDeTenant: async (
+  comContextoHumano: async (
     _pool: unknown,
-    _tenantId: string,
+    _entrada: unknown,
     executar: (cliente: unknown) => Promise<unknown>,
   ) => executar({}),
+  comFinalidade: async (
+    cliente: unknown,
+    _finalidade: string,
+    executar: (cliente: unknown) => Promise<unknown>,
+  ) => executar(cliente),
+  comEmpresaEmCriacao: async (
+    cliente: unknown,
+    _empresaId: string,
+    executar: (cliente: unknown) => Promise<unknown>,
+  ) => executar(cliente),
   carregarEmpresa: async () => estado.empresa,
   listarExigencias: async () => estado.exigencias,
   carregarExigencia: async (_c: unknown, _t: string, _e: string, id: string) =>

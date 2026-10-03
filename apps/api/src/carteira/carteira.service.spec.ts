@@ -8,8 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, ErroDeValidacao } from '@contaia/domain';
 
 const db = vi.hoisted(() => ({
-  comContextoDeTenant: vi.fn(
-    async (_pool: unknown, _tenant: string, executar: (cliente: unknown) => Promise<unknown>) =>
+  comContextoHumano: vi.fn(
+    async (_pool: unknown, _entrada: unknown, executar: (cliente: unknown) => Promise<unknown>) =>
       executar({}),
   ),
   carregarUsuariosDaOperacao: vi.fn(),
@@ -212,8 +212,8 @@ describe('alterar', () => {
         remover: [],
       }),
     ).rejects.toThrow('notificação falhou');
-    // Tudo acontece dentro do mesmo `comContextoDeTenant`: uma única transação.
-    expect(db.comContextoDeTenant).toHaveBeenCalledTimes(1);
+    // Tudo acontece dentro do mesmo `comContextoHumano`: uma única transação.
+    expect(db.comContextoHumano).toHaveBeenCalledTimes(1);
   });
 
   it('adição e remoção juntas geram um único evento por operação', async () => {

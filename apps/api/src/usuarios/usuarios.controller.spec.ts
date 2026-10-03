@@ -127,7 +127,7 @@ describe('UsuariosController', () => {
 
       expect(pagina.total).toBe(1);
       expect(pagina.usuarios[0]?.conviteExpiraEm).toBeNull();
-      expect(servico.listar).toHaveBeenCalledWith('tenant-1', {
+      expect(servico.listar).toHaveBeenCalledWith('tenant-1', { usuarioId: 'autor-1' }, {
         busca: 'ana',
         estado: 'ATIVO',
         limite: 25,

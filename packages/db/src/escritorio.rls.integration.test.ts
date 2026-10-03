@@ -8,6 +8,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
+import { comoUsuario, USUARIO_AVULSO } from './testes/suporte.js';
 
 const TABELAS_DA_FATIA = [
   'tenant',
@@ -29,31 +30,10 @@ let poolApp: Pool;
 let tenantA = '';
 let tenantB = '';
 
-/** Executa no contexto de um tenant, como a API faz a cada requisição. */
-const comTenant = async <T>(
+const comTenant = <T>(
   tenantId: string | null,
   executar: (cliente: PoolClient) => Promise<T>,
-): Promise<T> => {
-  const cliente = await poolApp.connect();
-
-  try {
-    await cliente.query('begin');
-
-    if (tenantId !== null) {
-      await cliente.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId]);
-    }
-
-    const resultado = await executar(cliente);
-    await cliente.query('commit');
-
-    return resultado;
-  } catch (erro) {
-    await cliente.query('rollback');
-    throw erro;
-  } finally {
-    cliente.release();
-  }
-};
+): Promise<T> => comoUsuario(poolApp, tenantId, USUARIO_AVULSO, executar, 'COMUM');
 
 /** CNPJs exclusivos desta suíte, para não colidir com dado de outra origem. */
 const CNPJ_A = '19131243000197';

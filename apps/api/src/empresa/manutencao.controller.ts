@@ -116,7 +116,11 @@ export class ManutencaoDaEmpresaController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
-    return this.manutencao.listarEnderecos(tenantDa(requisicao), empresaId);
+    return this.manutencao.listarEnderecos(
+      tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
+      empresaId,
+    );
   }
 
   @Post('enderecos')
@@ -229,7 +233,11 @@ export class ManutencaoDaEmpresaController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
   ): Promise<ComparacaoComAFonte> {
-    return this.manutencao.compararComAFonte(tenantDa(requisicao), empresaId);
+    return this.manutencao.compararComAFonte(
+      tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
+      empresaId,
+    );
   }
 
   @Post('fonte-externa')
@@ -266,7 +274,7 @@ export class HistoricoController {
     @Query() consulta: unknown,
   ): Promise<PaginaDoHistorico> {
     // O histórico de empresas só mostra o que a carteira alcança (SPEC-009 §3.5).
-    return this.manutencao.consultarHistorico(tenantDa(requisicao), {
+    return this.manutencao.consultarHistorico(tenantDa(requisicao), autorDa(requisicao).usuarioId, {
       ...analisar(filtroDoHistoricoSchema, consulta),
       carteiraDoUsuarioId: autorDa(requisicao).usuarioId,
       veArquivadasDoTenant: (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
@@ -281,6 +289,6 @@ export class HistoricoController {
   ): Promise<readonly string[]> {
     const { aba } = analisar(filtroDoHistoricoSchema, consulta);
 
-    return this.manutencao.camposDoHistorico(tenantDa(requisicao), aba);
+    return this.manutencao.camposDoHistorico(tenantDa(requisicao), autorDa(requisicao).usuarioId, aba);
   }
 }

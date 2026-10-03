@@ -48,7 +48,7 @@ const empresaPersistida = (situacao: 'ativo' | 'arquivado' = 'ativo') => ({
   },
 });
 
-// O `comContextoDeTenant` real abre transação no PostgreSQL; aqui ele só
+// O `comContextoHumano` real abre transação no PostgreSQL; aqui ele só
 // executa o callback com um cliente dublê, para provar a decisão sem banco.
 const { estado } = vi.hoisted(() => ({
   estado: {
@@ -73,11 +73,21 @@ const { estado } = vi.hoisted(() => ({
 
 vi.mock('@contaia/db', () => ({
   FILTROS_DA_LISTA: ['ATIVA', 'CADASTRO_INCOMPLETO', 'ARQUIVADA'],
-  comContextoDeTenant: async (
+  comContextoHumano: async (
     _pool: unknown,
-    _tenantId: string,
+    _entrada: unknown,
     executar: (cliente: unknown) => Promise<unknown>,
   ) => executar({}),
+  comFinalidade: async (
+    cliente: unknown,
+    _finalidade: string,
+    executar: (cliente: unknown) => Promise<unknown>,
+  ) => executar(cliente),
+  comEmpresaEmCriacao: async (
+    cliente: unknown,
+    _empresaId: string,
+    executar: (cliente: unknown) => Promise<unknown>,
+  ) => executar(cliente),
   carregarEmpresa: async () => estado.empresa,
   carregarEndereco: async () => estado.enderecoCarregado,
   listarEnderecosDaEmpresa: async () => estado.enderecos,
@@ -453,7 +463,7 @@ describe('atualização pela CNPJá (§3.3)', () => {
     const consultar = vi.fn().mockResolvedValue({ ok: true, dados: dadosExternos });
     const servico = criarServico(consultar);
 
-    const comparacao = await servico.compararComAFonte(TENANT, EMPRESA);
+    const comparacao = await servico.compararComAFonte(TENANT, AUTOR.usuarioId, EMPRESA);
 
     expect(comparacao.situacao).toBe('comparado');
     expect(comparacao.diferencas.map((item) => item.campo)).toEqual([
@@ -472,7 +482,7 @@ describe('atualização pela CNPJá (§3.3)', () => {
       dados: { ...dadosExternos, cnpj: '99888777000166' },
     });
 
-    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, EMPRESA);
+    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, AUTOR.usuarioId, EMPRESA);
 
     expect(comparacao.diferencas.some((item) => item.campo === 'cnpj')).toBe(false);
   });
@@ -508,7 +518,7 @@ describe('atualização pela CNPJá (§3.3)', () => {
       dados: { ...dadosExternos, situacaoCadastral: 'Baixada' },
     });
 
-    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, EMPRESA);
+    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, AUTOR.usuarioId, EMPRESA);
 
     expect(comparacao.alertaDeSituacaoExterna).toBe(true);
     // Alerta não arquiva nem bloqueia: a empresa segue editável.
@@ -518,7 +528,7 @@ describe('atualização pela CNPJá (§3.3)', () => {
   it('falha externa preserva os dados e não bloqueia a edição manual', async () => {
     const consultar = vi.fn().mockResolvedValue({ ok: false, motivo: 'indisponivel' });
 
-    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, EMPRESA);
+    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, AUTOR.usuarioId, EMPRESA);
 
     expect(comparacao.situacao).toBe('sem_fonte');
     expect(comparacao.motivo).toBe('indisponivel');
@@ -536,7 +546,7 @@ describe('atualização pela CNPJá (§3.3)', () => {
       },
     });
 
-    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, EMPRESA);
+    const comparacao = await criarServico(consultar).compararComAFonte(TENANT, AUTOR.usuarioId, EMPRESA);
 
     expect(comparacao.situacao).toBe('sem_diferencas');
     expect(comparacao.diferencas).toEqual([]);
