@@ -33,8 +33,11 @@ const SENHA_DO_PFX = 'senha-de-teste-pki';
 const SENHA_ERRADA = 'SENTINELA-senha-errada-f11';
 const CNPJ_ALFA = '11222333000181'; // o CNPJ dos certificados gerados por `pnpm cofre:pki-teste`
 const CNPJ_BETA = '33000167000101';
-const CNPJ_DO_ESCRITORIO = '11555666000130';
-const CNPJ_DO_OUTRO_ESCRITORIO = '11444777000161';
+// Exclusivos desta spec: a limpeza apaga TUDO dos tenants com estes CNPJs (triggers e FKs
+// desligados). Com os CNPJs da spec-007 e da spec-009, rodando em paralelo, ela apagava o
+// escritório delas no meio dos testes (o convite válido da spec-007 virava inválido).
+const CNPJ_DO_ESCRITORIO = '11881188000140';
+const CNPJ_DO_OUTRO_ESCRITORIO = '11991199000183';
 
 const NOME_ALFA = 'Alfa Cofre E2E';
 const NOME_BETA = 'Beta Cofre E2E';
