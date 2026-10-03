@@ -48,6 +48,8 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.TENANT_DIVERGENTE]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.CADASTRO_INCOMPLETO]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: HttpStatus.FORBIDDEN,
+  // SPEC-007: o papel permite a ação, mas ainda não há carteira que a alcance.
+  [CODIGOS_DE_ERRO.SEM_ALCADA]: HttpStatus.FORBIDDEN,
   // SPEC-003. Endereço inexistente responde como a empresa inexistente.
   // Finalidade duplicada, empresa arquivada e CNPJ imutável são conflito de
   // estado, não entrada malformada: a requisição está bem formada e o recurso

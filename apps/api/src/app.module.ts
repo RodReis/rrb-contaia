@@ -3,7 +3,8 @@ import { Module } from '@nestjs/common';
 import { PoolDoBanco } from './banco/pool.provider';
 import { SessaoService } from './auth/sessao.service';
 import { GuardDeCadastro, GuardDeSessao } from './auth/sessao.guard';
-import { GuardDePapel } from './auth/papel.guard';
+import { GuardDeAcao } from './auth/acao.guard';
+import { GuardDeEscopoDeEmpresa } from './auth/escopo';
 import { ConsultaDeCnpjNaCnpja } from './empresa/cnpja.adapter';
 import { DocumentosDaEmpresaController } from './empresa/documentos.controller';
 import { DocumentosDaEmpresaService } from './empresa/documentos.service';
@@ -58,7 +59,8 @@ import { PendenciasService } from './pendencias/pendencias.service';
     ConsultaDeCnpjNaCnpja,
     GuardDeSessao,
     GuardDeCadastro,
-    GuardDePapel,
+    GuardDeAcao,
+    GuardDeEscopoDeEmpresa,
   ],
 })
 export class AppModule {}

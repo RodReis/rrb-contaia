@@ -21,6 +21,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { LIMITE_DE_DOCUMENTO_BYTES } from '@contaia/shared';
 
+import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
 import {
   GuardDeSessao,
   PermiteCadastroIncompleto,
@@ -55,13 +56,16 @@ const tenantDa = (requisicao: RequisicaoAutenticada): string => {
 };
 
 @Controller('escritorio')
-@UseGuards(GuardDeSessao)
+@UseGuards(GuardDeSessao, GuardDeAcao)
 // O cadastro é justamente o que o tenant incompleto precisa acessar.
 @PermiteCadastroIncompleto()
+// Padrão da classe é a ação mais restrita; a leitura a relaxa explicitamente.
+@ExigeAcao('CADASTRO_ESCRITORIO', 'editar')
 export class EscritorioController {
   constructor(private readonly escritorioService: EscritorioService) {}
 
   @Get()
+  @ExigeAcao('CADASTRO_ESCRITORIO', 'consultar')
   async obter(@Req() requisicao: RequisicaoAutenticada): Promise<VisaoDoCadastro> {
     return this.escritorioService.obterVisao(tenantDa(requisicao));
   }
