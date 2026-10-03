@@ -217,7 +217,7 @@ beforeAll(async () => {
     `insert into app.tenant (cnpj, razao_social, status)
      values ($1, $3, 'ATIVO'), ($2, $4, 'ATIVO')
      returning id`,
-    [`81${SUFIXO}000181`, `82${SUFIXO}000182`, RAZOES[0], RAZOES[1]],
+    [`85${SUFIXO}000185`, `86${SUFIXO}000186`, RAZOES[0], RAZOES[1]],
   );
   tenantA = rows[0]?.id ?? '';
   tenantB = rows[1]?.id ?? '';
@@ -668,7 +668,7 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
           cliente,
           tenantA,
           empresaId,
-          [{ origem: 'CADASTRAL', tipo: 'CAMPO_OBRIGATORIO', chave, dataLimite: null }],
+          [{ origem: 'CADASTRAL', tipo: 'CAMPO_AUSENTE', chave, dataLimite: null }],
           [],
           adminA,
         );
