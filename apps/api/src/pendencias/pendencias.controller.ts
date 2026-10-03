@@ -7,8 +7,10 @@ import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { Body, Controller, Get, Param, Put, Query, Req, UseGuards } from '@nestjs/common';
 
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
-import { escopoDaSessao, GuardDeEscopoDeEmpresa } from '../auth/escopo';
+import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
+import { CarteiraService } from '../carteira/carteira.service';
+import { restringirPendencia } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import { dispensaDePendenciaSchema, filtroDaCentralSchema } from './pendencias.dto';
 import { type Autor, PendenciasService } from './pendencias.service';
@@ -37,19 +39,34 @@ const autorDa = (requisicao: RequisicaoAutenticada): Autor => {
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
 @ExigePermissao('pendencias.pendencias.consultar')
 export class PendenciasController {
-  constructor(private readonly pendencias: PendenciasService) {}
+  constructor(
+    private readonly pendencias: PendenciasService,
+    private readonly carteira: CarteiraService,
+  ) {}
 
   @Get()
   async consultarCentral(@Req() requisicao: RequisicaoAutenticada, @Query() consulta: unknown) {
-    // A central cruza empresas: sem carteira, nenhuma pendência é visível.
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { pendencias: [], total: 0, escopoDeEmpresas: 'NENHUMA' as const };
-    }
-
-    return this.pendencias.consultarCentral(
-      tenantDa(requisicao),
+    const tenantId = tenantDa(requisicao);
+    const { usuarioId } = autorDa(requisicao);
+    const pagina = await this.pendencias.consultarCentral(
+      tenantId,
+      usuarioId,
       analisar(filtroDaCentralSchema, consulta),
     );
+
+    // A referência da origem só sai com `pendencias.pendencias.abrir_origem`.
+    const permissoes = requisicao.sessao?.permissoes ?? [];
+    const visivel = {
+      ...pagina,
+      pendencias: pagina.pendencias.map((pendencia) => restringirPendencia(permissoes, pendencia)),
+    };
+
+    // Vazia por falta de carteira (não por filtro): a tela orienta a ausência de alçada.
+    if (pagina.total > 0 || (await this.carteira.possuiCarteira(tenantId, usuarioId))) {
+      return visivel;
+    }
+
+    return { ...visivel, escopoDeEmpresas: 'NENHUMA' as const };
   }
 }
 
@@ -71,12 +88,15 @@ export class PendenciasDaEmpresaController {
   ) {
     const entrada = analisar(dispensaDePendenciaSchema, corpo);
 
-    return this.pendencias.dispensar(
-      tenantDa(requisicao),
-      empresaId,
-      pendenciaId,
-      autorDa(requisicao),
-      entrada.justificativa,
+    return restringirPendencia(
+      requisicao.sessao?.permissoes ?? [],
+      await this.pendencias.dispensar(
+        tenantDa(requisicao),
+        empresaId,
+        pendenciaId,
+        autorDa(requisicao),
+        entrada.justificativa,
+      ),
     );
   }
 }

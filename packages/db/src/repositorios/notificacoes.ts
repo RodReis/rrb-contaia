@@ -4,23 +4,31 @@
  * Mesmo padrão de `pendencias.ts`: o caso de uso controla a transação
  * (`comContextoDeTenant`), aqui só SQL. Isolamento por RLS forçada.
  *
- * `marcarComoLida` e `marcarVariasComoLidas` filtram só por `id`/`tenant_id`
- * (sem `empresaId`): a RLS forçada já garante isolamento de tenant, e a rota
- * HTTP de notificações não é aninhada em empresa — não há `empresaId`
- * disponível no controller que chama isso (Task 5).
+ * `marcarComoLida` e `marcarVariasComoLidas` não recebem `empresaId` (a rota HTTP
+ * não é aninhada em empresa): o escopo é o sino do usuário — carteira dele para
+ * pendências e destinatário para a notificação consolidada de carteira (SPEC-009).
  */
 import type { CausaParaNotificar } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 
+/** Empresa resumida que a notificação consolidada de carteira cita. */
+export type EmpresaDaNotificacaoDeCarteira = Readonly<{ id: string; nome: string; cnpj: string }>;
+
+/**
+ * Notificação do sino: de pendência (tem empresa) ou consolidada de carteira
+ * (`tipo = 'CARTEIRA_ALTERADA'`, sem empresa, com o resumo adicionadas/removidas).
+ */
 export type NotificacaoPersistida = Readonly<{
   id: string;
-  empresaId: string;
-  empresaNome: string;
+  empresaId: string | null;
+  empresaNome: string | null;
   tipo: string;
   chave: string;
   lida: boolean;
   lidaEm: string | null;
   criadoEm: string;
+  adicionadas: readonly EmpresaDaNotificacaoDeCarteira[] | null;
+  removidas: readonly EmpresaDaNotificacaoDeCarteira[] | null;
 }>;
 
 export type PaginaDeNotificacoes = Readonly<{
@@ -30,13 +38,15 @@ export type PaginaDeNotificacoes = Readonly<{
 
 type LinhaDaNotificacao = {
   id: string;
-  empresa_id: string;
-  empresa_nome: string;
+  empresa_id: string | null;
+  empresa_nome: string | null;
   tipo: string;
   chave: string;
   lida: boolean;
   lida_em: Date | null;
   criado_em: Date;
+  adicionadas: EmpresaDaNotificacaoDeCarteira[] | null;
+  removidas: EmpresaDaNotificacaoDeCarteira[] | null;
 };
 
 const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida => ({
@@ -48,12 +58,37 @@ const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida 
   lida: linha.lida,
   lidaEm: linha.lida_em === null ? null : linha.lida_em.toISOString(),
   criadoEm: linha.criado_em.toISOString(),
+  adicionadas: linha.adicionadas,
+  removidas: linha.removidas,
 });
 
-const SELECAO_COM_EMPRESA = `
-  select n.*, coalesce(e.nome_fantasia, e.razao_social, e.cnpj) as empresa_nome
-  from app.empresa_notificacao n
-  join app.empresa e on e.id = n.empresa_id`;
+/**
+ * Sino do usuário (SPEC-009 §3.5/§3.6): as notificações de pendência valem só
+ * para as empresas da carteira dele; as consolidadas de carteira são dele por
+ * destinatário e não dependem de carteira — quem acabou de perder a última
+ * empresa é justamente quem precisa vê-las.
+ *
+ * `$1` tenant, `$2` usuário. As duas fontes têm sequências próprias; o `id`
+ * fecha o desempate.
+ */
+const ITENS_DO_SINO = `
+  select n.id, n.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj) as empresa_nome,
+         n.tipo, n.chave, n.lida, n.lida_em, n.criado_em, n.sequencia,
+         null::jsonb as adicionadas, null::jsonb as removidas
+    from app.empresa_notificacao n
+    join app.empresa e on e.id = n.empresa_id
+   where n.tenant_id = $1
+     and exists (
+       select 1 from app.carteira_vinculo cv
+        where cv.tenant_id = n.tenant_id and cv.empresa_id = n.empresa_id
+          and cv.usuario_id = $2 and cv.encerrado_em is null)
+  union all
+  select c.id, null::uuid, null::text, 'CARTEIRA_ALTERADA', c.evento_id::text,
+         c.lida, c.lida_em, c.criado_em, c.sequencia, c.adicionadas, c.removidas
+    from app.carteira_notificacao c
+   where c.tenant_id = $1 and c.usuario_id = $2`;
+
+const SELECAO_DO_SINO = `select * from (${ITENS_DO_SINO}) itens`;
 
 /**
  * Insere as causas novas (ignora conflito com notificação não lida já
@@ -93,13 +128,13 @@ export const criarNotificacoes = async (
 export const listarPainel = async (
   cliente: PoolClient,
   tenantId: string,
+  usuarioId: string,
 ): Promise<readonly NotificacaoPersistida[]> => {
   const resultado = await cliente.query<LinhaDaNotificacao>(
-    `${SELECAO_COM_EMPRESA}
-     where n.tenant_id = $1
-     order by n.criado_em desc, n.sequencia desc
+    `${SELECAO_DO_SINO}
+     order by criado_em desc, sequencia desc, id desc
      limit 15`,
-    [tenantId],
+    [tenantId, usuarioId],
   );
 
   return resultado.rows.map(linhaParaNotificacao);
@@ -109,20 +144,20 @@ export const listarPainel = async (
 export const listarHistorico = async (
   cliente: PoolClient,
   tenantId: string,
+  usuarioId: string,
   limite: number,
   deslocamento: number,
 ): Promise<PaginaDeNotificacoes> => {
   const linhas = await cliente.query<LinhaDaNotificacao>(
-    `${SELECAO_COM_EMPRESA}
-     where n.tenant_id = $1
-     order by n.criado_em desc, n.sequencia desc
-     limit $2 offset $3`,
-    [tenantId, limite, deslocamento],
+    `${SELECAO_DO_SINO}
+     order by criado_em desc, sequencia desc, id desc
+     limit $3 offset $4`,
+    [tenantId, usuarioId, limite, deslocamento],
   );
 
   const total = await cliente.query<{ total: string }>(
-    `select count(*)::text as total from app.empresa_notificacao where tenant_id = $1`,
-    [tenantId],
+    `select count(*)::text as total from (${ITENS_DO_SINO}) itens`,
+    [tenantId, usuarioId],
   );
 
   return {
@@ -131,20 +166,26 @@ export const listarHistorico = async (
   };
 };
 
-export const contarNaoLidas = async (cliente: PoolClient, tenantId: string): Promise<number> => {
+export const contarNaoLidas = async (
+  cliente: PoolClient,
+  tenantId: string,
+  usuarioId: string,
+): Promise<number> => {
   const resultado = await cliente.query<{ total: string }>(
-    `select count(*)::text as total from app.empresa_notificacao
-     where tenant_id = $1 and lida = false`,
-    [tenantId],
+    `select count(*)::text as total from (${ITENS_DO_SINO}) itens where not lida`,
+    [tenantId, usuarioId],
   );
 
   return Number(resultado.rows[0]?.total ?? '0');
 };
 
+const BUSCAR_NO_SINO = `${SELECAO_DO_SINO} where id = $3`;
+
 /**
  * Idempotente: já lida retorna a linha atual sem gravar novo evento nem erro
- * (seção 5). Filtra só por `id` e `tenant_id` — sem `empresaId`: a RLS forçada
- * já isola por tenant, e a rota HTTP não é aninhada em empresa.
+ * (seção 5). A rota HTTP não é aninhada em empresa; o escopo é o do SINO do
+ * usuário (empresas da carteira dele e notificações de carteira endereçadas a ele),
+ * então id de notificação alheia responde como inexistente (`null`).
  */
 export const marcarComoLida = async (
   cliente: PoolClient,
@@ -152,48 +193,35 @@ export const marcarComoLida = async (
   notificacaoId: string,
   usuarioId: string,
 ): Promise<NotificacaoPersistida | null> => {
-  const jaLida = await cliente.query<LinhaDaNotificacao>(
-    `${SELECAO_COM_EMPRESA}
-     where n.id = $1 and n.tenant_id = $2 and n.lida = true`,
-    [notificacaoId, tenantId],
-  );
+  const atual = await cliente.query<LinhaDaNotificacao>(BUSCAR_NO_SINO, [
+    tenantId,
+    usuarioId,
+    notificacaoId,
+  ]);
+  const linhaAtual = atual.rows[0];
 
-  if (jaLida.rows[0] !== undefined) {
-    return linhaParaNotificacao(jaLida.rows[0]);
-  }
-
-  const atualizada = await cliente.query<{ id: string; empresa_id: string }>(
-    `update app.empresa_notificacao
-     set lida = true, lida_em = now()
-     where id = $1 and tenant_id = $2 and lida = false
-     returning id, empresa_id`,
-    [notificacaoId, tenantId],
-  );
-
-  const linhaAtualizada = atualizada.rows[0];
-  if (linhaAtualizada === undefined) {
+  if (linhaAtual === undefined) {
     return null;
   }
+  if (linhaAtual.lida) {
+    return linhaParaNotificacao(linhaAtual);
+  }
 
-  await cliente.query(
-    `insert into app.empresa_evento_de_notificacao
-       (tenant_id, empresa_id, notificacao_id, acao, usuario_id)
-     values ($1, $2, $3, 'LEITURA', $4)`,
-    [tenantId, linhaAtualizada.empresa_id, linhaAtualizada.id, usuarioId],
-  );
+  await marcarVariasComoLidas(cliente, tenantId, [notificacaoId], usuarioId);
 
-  const linha = await cliente.query<LinhaDaNotificacao>(`${SELECAO_COM_EMPRESA} where n.id = $1`, [
-    linhaAtualizada.id,
+  const depois = await cliente.query<LinhaDaNotificacao>(BUSCAR_NO_SINO, [
+    tenantId,
+    usuarioId,
+    notificacaoId,
   ]);
 
-  return linha.rows[0] === undefined ? null : linhaParaNotificacao(linha.rows[0]);
+  return depois.rows[0] === undefined ? null : linhaParaNotificacao(depois.rows[0]);
 };
 
 /**
  * Marca em lote (checkbox "Todas" — seção 3). Retorna quantas foram
  * efetivamente marcadas agora; já lidas não contam de novo (idempotência).
- * Filtra só por `id`/`tenant_id`, sem `empresaId` — mesmo motivo de
- * `marcarComoLida`.
+ * Só alcança o que está no sino do usuário (mesmo escopo de `marcarComoLida`).
  */
 export const marcarVariasComoLidas = async (
   cliente: PoolClient,
@@ -205,15 +233,19 @@ export const marcarVariasComoLidas = async (
     return 0;
   }
 
-  const atualizadas = await cliente.query<{ id: string; empresa_id: string }>(
-    `update app.empresa_notificacao
-     set lida = true, lida_em = now()
-     where id = any($1) and tenant_id = $2 and lida = false
-     returning id, empresa_id`,
-    [ids, tenantId],
+  const deEmpresa = await cliente.query<{ id: string; empresa_id: string }>(
+    `update app.empresa_notificacao n
+        set lida = true, lida_em = now()
+      where n.id = any($1) and n.tenant_id = $2 and n.lida = false
+        and exists (
+          select 1 from app.carteira_vinculo cv
+           where cv.tenant_id = n.tenant_id and cv.empresa_id = n.empresa_id
+             and cv.usuario_id = $3 and cv.encerrado_em is null)
+      returning n.id, n.empresa_id`,
+    [ids, tenantId, usuarioId],
   );
 
-  for (const linha of atualizadas.rows) {
+  for (const linha of deEmpresa.rows) {
     await cliente.query(
       `insert into app.empresa_evento_de_notificacao
          (tenant_id, empresa_id, notificacao_id, acao, usuario_id)
@@ -222,5 +254,12 @@ export const marcarVariasComoLidas = async (
     );
   }
 
-  return atualizadas.rows.length;
+  const deCarteira = await cliente.query(
+    `update app.carteira_notificacao
+        set lida = true, lida_em = now()
+      where id = any($1) and tenant_id = $2 and usuario_id = $3 and lida = false`,
+    [ids, tenantId, usuarioId],
+  );
+
+  return deEmpresa.rows.length + (deCarteira.rowCount ?? 0);
 };

@@ -13,6 +13,8 @@ export type Problema = Readonly<{
   code: string;
   correlationId: string;
   campos?: readonly CampoComProblema[];
+  /** Dados estruturados do erro (ex.: nome e CNPJ da empresa fora da carteira). */
+  detalhes?: Readonly<Record<string, unknown>>;
 }>;
 
 export class ErroDaApi extends Error {

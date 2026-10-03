@@ -24,6 +24,8 @@ const PAINEL_COM_NAO_LIDAS = {
       id: 'n1',
       empresaId: 'e1',
       empresaNome: 'Acme Ltda',
+      adicionadas: null,
+      removidas: null,
       tipo: 'DOCUMENTO_REJEITADO',
       chave: 'exigencia:x1',
       lida: false,
@@ -32,6 +34,23 @@ const PAINEL_COM_NAO_LIDAS = {
     },
   ],
   naoLidas: 1,
+};
+
+/** Aviso consolidado (SPEC-009 §3.6): uma notificação por operação, sem empresa própria. */
+const AVISO_DE_CARTEIRA = {
+  id: 'c1',
+  empresaId: null,
+  empresaNome: null,
+  tipo: 'CARTEIRA_ALTERADA',
+  chave: 'evento-1',
+  adicionadas: [
+    { id: 'e1', nome: 'Alfa Ltda', cnpj: '11222333000181' },
+    { id: 'e2', nome: 'Beta Comércio', cnpj: '45242914000105' },
+  ],
+  removidas: [{ id: 'e3', nome: 'Gama Serviços', cnpj: '33000167000101' }],
+  lida: false,
+  lidaEm: null,
+  criadoEm: new Date().toISOString(),
 };
 
 describe('SinoDeNotificacoes', () => {
@@ -61,6 +80,37 @@ describe('SinoDeNotificacoes', () => {
       within(painel).getByText('Você ainda não tem empresas na sua carteira'),
     ).toBeInTheDocument();
     expect(within(painel).queryByText('Sem notificações')).not.toBeInTheDocument();
+  });
+
+  it('aviso de carteira resume o que entrou e o que saiu e leva à própria carteira', async () => {
+    vi.mocked(requisitar).mockResolvedValue({ notificacoes: [AVISO_DE_CARTEIRA], naoLidas: 1 });
+    const usuario = userEvent.setup();
+
+    renderizar();
+    await usuario.click(await screen.findByRole('button', { name: /notifica/iu }));
+
+    const painel = await screen.findByRole('dialog');
+    expect(within(painel).getByText('Sua carteira foi atualizada')).toBeInTheDocument();
+    expect(within(painel).getByText(/2 empresas adicionadas: Alfa Ltda, Beta Comércio/)).toBeInTheDocument();
+    expect(within(painel).getByText(/1 empresa removida: Gama Serviços/)).toBeInTheDocument();
+    // Uma notificação só por operação — nunca uma por vínculo.
+    expect(within(painel).getAllByRole('listitem')).toHaveLength(1);
+    expect(
+      within(painel).getByRole('link', { name: /Sua carteira foi atualizada/ }),
+    ).toHaveAttribute('href', '/carteira');
+  });
+
+  it('colaborador que perdeu a última empresa ainda vê o aviso, não a orientação de ausência de alçada', async () => {
+    vi.mocked(requisitar).mockResolvedValue({ notificacoes: [AVISO_DE_CARTEIRA], naoLidas: 1 });
+    const usuario = userEvent.setup();
+
+    renderizar();
+    await usuario.click(await screen.findByRole('button', { name: /notifica/iu }));
+
+    const painel = await screen.findByRole('dialog');
+    expect(
+      within(painel).queryByText('Você ainda não tem empresas na sua carteira'),
+    ).not.toBeInTheDocument();
   });
 
   it('exibe badge com o número de não lidas', async () => {

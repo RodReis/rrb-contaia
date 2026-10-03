@@ -1,9 +1,10 @@
 /**
  * Casos de uso de Notificações (SPEC-006). Mesmo padrão de `PendenciasService`.
  *
- * `marcarComoLida`/`marcarVariasComoLidas` não recebem `empresaId`: a rota
- * HTTP de notificações não é aninhada em empresa (diferente de pendências) e
- * o repositório já isola por `id`/`tenant_id` com a RLS forçada.
+ * O sino é do usuário (SPEC-009): notificação de pendência só das empresas da
+ * carteira dele e notificação consolidada de carteira só para o destinatário.
+ * `marcarComoLida`/`marcarVariasComoLidas` não recebem `empresaId` — a rota HTTP
+ * não é aninhada em empresa — e o repositório aplica o mesmo escopo do sino.
  */
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import {
@@ -31,11 +32,11 @@ export type PainelDeNotificacoes = Readonly<{
 export class NotificacoesService {
   constructor(private readonly pool: PoolDoBanco) {}
 
-  async consultarPainel(tenantId: string): Promise<PainelDeNotificacoes> {
+  async consultarPainel(tenantId: string, usuarioId: string): Promise<PainelDeNotificacoes> {
     return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
       const [notificacoes, naoLidas] = await Promise.all([
-        listarPainel(cliente, tenantId),
-        contarNaoLidas(cliente, tenantId),
+        listarPainel(cliente, tenantId, usuarioId),
+        contarNaoLidas(cliente, tenantId, usuarioId),
       ]);
 
       return { notificacoes, naoLidas };
@@ -44,11 +45,12 @@ export class NotificacoesService {
 
   async consultarHistorico(
     tenantId: string,
+    usuarioId: string,
     limite: number,
     deslocamento: number,
   ): Promise<PaginaDeNotificacoes> {
     return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
-      listarHistoricoDeNotificacoes(cliente, tenantId, limite, deslocamento),
+      listarHistoricoDeNotificacoes(cliente, tenantId, usuarioId, limite, deslocamento),
     );
   }
 

@@ -7,7 +7,7 @@ export type EmpresaId = Brand<string, 'EmpresaId'>;
 export { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, ErroDeValidacao } from './erros.js';
 export type { CampoInvalido, CodigoDeErro } from './erros.js';
 
-export { PAPEIS_PADRAO, ehPapelPadrao, escopoDeEmpresas } from './usuarios/papeis.js';
+export { PAPEIS_PADRAO, ehPapelPadrao } from './usuarios/papeis.js';
 export type { PapelPadrao } from './usuarios/papeis.js';
 export {
   AREA_EXCLUSIVA,
@@ -210,3 +210,19 @@ export type {
 } from './pendencias/pendencias.js';
 export { tipoDeNotificacaoParaCausa } from './notificacoes/notificacoes.js';
 export type { CausaParaNotificar, TipoDeNotificacao } from './notificacoes/notificacoes.js';
+
+export {
+  decidirAcessoEmpresarial,
+  empresaAceitaVinculo,
+  planejarAlteracao,
+  planejarOperacao,
+  usuarioPodeReceberCarteira,
+} from './carteira/carteira.js';
+export type {
+  DecisaoDeAcesso,
+  EfeitoNoUsuario,
+  EmpresaParaCarteira,
+  OperacaoDeCarteira,
+  PlanoDeCarteira,
+  UsuarioParaCarteira,
+} from './carteira/carteira.js';

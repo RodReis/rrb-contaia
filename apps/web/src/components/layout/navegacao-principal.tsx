@@ -33,6 +33,8 @@ const ITENS: readonly ItemDoMenu[] = [
     rotulo: 'Histórico de Informações',
     consultas: ['historico.global.consultar', 'empresas.historico.consultar'],
   },
+  // A carteira é de qualquer usuário ativo: sem permissão de catálogo, só a própria lista.
+  { href: '/carteira', rotulo: 'Minha carteira', consultas: [] },
   {
     href: '/configuracoes/usuarios',
     rotulo: 'Usuários e permissões',
@@ -46,7 +48,7 @@ export const NavegacaoPrincipal = () => {
 
   const visiveis = ITENS.filter((item) =>
     sessao === undefined
-      ? item.href === '/empresas'
+      ? item.href === '/empresas' || item.href === '/carteira'
       : item.consultas.every((chave) => sessao.permissoes.includes(chave)),
   );
 

@@ -28,6 +28,7 @@ import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import type { EventoDoHistorico } from '../empresa/manutencao-api';
 import { useCamposDoHistorico, useHistorico } from '../empresa/manutencao-queries';
+import { ABA_DE_CARTEIRAS, HistoricoDeCarteiras } from '../carteira/historico-de-carteiras';
 import { ABA_DE_USUARIOS, HistoricoDeUsuarios } from '../usuarios/historico-de-usuarios';
 import { pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
@@ -376,7 +377,9 @@ export const HistoricoDeInformacoes = () => {
   const abaNaUrl = parametros.get('aba');
   const aba: AbaDoHistorico = ehAba(abaNaUrl) ? abaNaUrl : 'DADOS_CADASTRAIS';
   const naAbaDeUsuarios = abaNaUrl === ABA_DE_USUARIOS && veUsuarios;
-  const abaAtiva = naAbaDeUsuarios ? ABA_DE_USUARIOS : aba;
+  // A aba "Carteiras" tem a mesma exigência da de usuários: ler o Histórico e ler usuários.
+  const naAbaDeCarteiras = abaNaUrl === ABA_DE_CARTEIRAS && veUsuarios;
+  const abaAtiva = naAbaDeUsuarios ? ABA_DE_USUARIOS : naAbaDeCarteiras ? ABA_DE_CARTEIRAS : aba;
 
   return (
     <div className="flex flex-col gap-xl">
@@ -413,13 +416,24 @@ export const HistoricoDeInformacoes = () => {
               Usuários e acessos
             </Tabs.Trigger>
           ) : null}
+          {veUsuarios ? (
+            <Tabs.Trigger value={ABA_DE_CARTEIRAS} className={cn(CLASSES_DA_ABA)}>
+              Carteiras
+            </Tabs.Trigger>
+          ) : null}
         </Tabs.List>
 
         <Tabs.Content
           value={abaAtiva}
           className="flex flex-col gap-lg rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          {naAbaDeUsuarios ? <HistoricoDeUsuarios /> : <HistoricoDeEmpresas aba={aba} />}
+          {naAbaDeUsuarios ? (
+            <HistoricoDeUsuarios />
+          ) : naAbaDeCarteiras ? (
+            <HistoricoDeCarteiras />
+          ) : (
+            <HistoricoDeEmpresas aba={aba} />
+          )}
         </Tabs.Content>
       </Tabs.Root>
     </div>

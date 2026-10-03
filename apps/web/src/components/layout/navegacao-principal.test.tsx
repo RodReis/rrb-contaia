@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/empresas' }));
 
 const sessao = (papeis: string[], permissoes: string[]) =>
   new Response(
-    JSON.stringify({ papeis, permissoes, escopoDeEmpresas: 'TODAS' }),
+    JSON.stringify({ papeis, permissoes, escopoDeEmpresas: 'CARTEIRA' }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 
@@ -49,7 +49,12 @@ describe('NavegacaoPrincipal', () => {
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
     await waitFor(() => expect(links()).toContain('Usuários e permissões'));
-    expect(links()).toEqual(['Empresas', 'Histórico de Informações', 'Usuários e permissões']);
+    expect(links()).toEqual([
+      'Empresas',
+      'Histórico de Informações',
+      'Minha carteira',
+      'Usuários e permissões',
+    ]);
   });
 
   it('auxiliar não vê Histórico nem Usuários e permissões', async () => {
@@ -58,7 +63,8 @@ describe('NavegacaoPrincipal', () => {
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
-    await waitFor(() => expect(links()).toEqual(['Empresas']));
+    // "Minha carteira" é de qualquer usuário ativo: a API devolve só os vínculos da própria sessão.
+    await waitFor(() => expect(links()).toEqual(['Empresas', 'Minha carteira']));
   });
 
   it('contador vê o Histórico, mas não Usuários e permissões', async () => {
@@ -100,17 +106,18 @@ describe('NavegacaoPrincipal', () => {
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
-    await waitFor(() => expect(links()).toEqual(['Empresas']));
+    // "Minha carteira" é de qualquer usuário ativo: a API devolve só os vínculos da própria sessão.
+    await waitFor(() => expect(links()).toEqual(['Empresas', 'Minha carteira']));
   });
 
-  it('enquanto a sessão carrega ou se falhar, só o item seguro (Empresas) aparece', async () => {
+  it('enquanto a sessão carrega ou se falhar, só os itens que toda sessão válida tem aparecem', async () => {
     vi.mocked(fetch).mockRejectedValue(new TypeError('fetch failed'));
 
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
-    expect(links()).toEqual(['Empresas']);
+    expect(links()).toEqual(['Empresas', 'Minha carteira']);
     await waitFor(() => expect(fetch).toHaveBeenCalled());
-    expect(links()).toEqual(['Empresas']);
+    expect(links()).toEqual(['Empresas', 'Minha carteira']);
   });
 
   it('marca a página atual com aria-current e passa no axe', async () => {

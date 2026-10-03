@@ -22,7 +22,7 @@ const opcionalNulo = (maximo: number) =>
  * grava a variante RFC 4122 no byte errado e produz ids que `z.uuid()` recusa.
  */
 export const IDENTIFICADOR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-const identificador = z.string().regex(IDENTIFICADOR);
+export const identificador = z.string().regex(IDENTIFICADOR);
 
 const ESTADOS = ['CONVIDADO', 'ATIVO', 'SUSPENSO', 'ARQUIVADO'] as const;
 
@@ -103,15 +103,15 @@ const existeNoCalendario = (data: string): boolean => {
   );
 };
 
-const dataCivil = z
+export const dataCivil = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/u)
   .refine(existeNoCalendario);
 
 // ponytail: offset fixo -03:00; o Brasil não tem horário de verão desde 2019, e os eventos
 // de usuários são de 2026 em diante. Se a regra voltar, trocar por cálculo com Intl/Temporal.
-const inicioDoDia = (data: string): Date => new Date(`${data}T00:00:00-03:00`);
-const inicioDoDiaSeguinte = (data: string): Date =>
+export const inicioDoDia = (data: string): Date => new Date(`${data}T00:00:00-03:00`);
+export const inicioDoDiaSeguinte = (data: string): Date =>
   new Date(inicioDoDia(data).getTime() + 24 * 3_600_000);
 
 export const filtroDeEventosSchema = z

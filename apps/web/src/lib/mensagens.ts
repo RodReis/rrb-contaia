@@ -88,6 +88,13 @@ const MENSAGENS: Readonly<Record<string, string>> = {
     'Confirme a redução de permissões para aplicar a alteração.',
   [CODIGOS_DE_ERRO.REVISAO_NAO_CONFIRMADA]: 'Confirme a matriz revisada para reativar o papel.',
   [CODIGOS_DE_ERRO.SEM_ALCADA]: 'Você ainda não tem empresas na sua carteira.',
+  [CODIGOS_DE_ERRO.EMPRESA_FORA_DA_CARTEIRA]:
+    'Esta empresa não está na sua carteira. Peça a um administrador do escritório para atribuí-la.',
+  [CODIGOS_DE_ERRO.EMPRESA_NAO_ATIVA]:
+    'Empresa com cadastro incompleto ainda não pode entrar em uma carteira.',
+  [CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA]: 'Empresa arquivada não aceita esta operação.',
+  [CODIGOS_DE_ERRO.CARTEIRA_DESATUALIZADA]:
+    'A carteira mudou desde que você a abriu. Recarregue a página e revise antes de salvar.',
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: 'Você não tem permissão para esta ação.',
   FALHA_DE_REDE: 'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',
   HTTP_401: 'Sua sessão expirou. Entre novamente para continuar.',

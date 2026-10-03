@@ -8,11 +8,12 @@
  */
 import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 
-import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import type { EmpresaNaLista } from '@contaia/db';
 
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
-import { escopoDaSessao, exigirAlcada, GuardDeEscopoDeEmpresa } from '../auth/escopo';
+import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
+import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
+import { CarteiraService } from '../carteira/carteira.service';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
 import { PendenciasService } from '../pendencias/pendencias.service';
@@ -33,19 +34,6 @@ import {
 export type EmpresaNaListaComPendencias = EmpresaNaLista &
   Readonly<{ pendenciasAbertas: number }>;
 
-const tenantDa = (requisicao: RequisicaoAutenticada): string => {
-  const tenantId = requisicao.sessao?.tenantId;
-
-  if (tenantId === undefined) {
-    throw new ErroDeDominio(
-      CODIGOS_DE_ERRO.TENANT_DIVERGENTE,
-      'Sessão sem escritório associado.',
-    );
-  }
-
-  return tenantId;
-};
-
 @Controller('empresas')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
 // Padrão da classe é a ação mais restrita; leitura e criação a relaxam explicitamente.
@@ -54,6 +42,7 @@ export class EmpresaController {
   constructor(
     private readonly empresaService: EmpresaService,
     private readonly pendencias: PendenciasService,
+    private readonly carteira: CarteiraService,
   ) {}
 
   @Get()
@@ -69,16 +58,28 @@ export class EmpresaController {
       escopoDeEmpresas?: 'NENHUMA';
     }>
   > {
-    // Sem carteira não há empresa visível: lista vazia, nunca a base inteira.
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
+    const tenantId = tenantDa(requisicao);
+    const { usuarioId } = autorDa(requisicao);
+    // Só as empresas da carteira de quem consulta: nunca a base inteira (SPEC-009 §3.5).
+    const resultado = await this.empresaService.listar(tenantId, {
+      ...analisar(filtroDaListaSchema, consulta),
+      carteiraDoUsuarioId: usuarioId,
+      veArquivadasDoTenant: (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
+    });
+
+    // O administrador com a carteira vazia ainda precisa do convite para cadastrar a primeira empresa
+    // (e ela entra na carteira dele na criação), então o marcador de ausência de alçada, que esconde
+    // esse convite, vale só para os demais papéis — que, se criassem, deixariam empresa sem dono.
+    const administrador = (requisicao.sessao?.papeis ?? []).includes('admin_escritorio');
+
+    if (
+      resultado.total === 0 &&
+      !administrador &&
+      !(await this.carteira.possuiCarteira(tenantId, usuarioId))
+    ) {
       return { empresas: [], total: 0, escopoDeEmpresas: 'NENHUMA' };
     }
 
-    const tenantId = tenantDa(requisicao);
-    const resultado = await this.empresaService.listar(
-      tenantId,
-      analisar(filtroDaListaSchema, consulta),
-    );
     const contagem = await this.pendencias.contarPorEmpresas(
       tenantId,
       resultado.empresas.map((empresa) => empresa.id),
@@ -103,9 +104,6 @@ export class EmpresaController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('cnpj') cnpj: string,
   ): Promise<ResultadoDaConsultaDeCnpj> {
-    // A consulta revela se a empresa já existe no escritório: exige alçada.
-    exigirAlcada(requisicao);
-
     return this.empresaService.consultarCnpj(tenantDa(requisicao), cnpj);
   }
 
@@ -115,12 +113,13 @@ export class EmpresaController {
     @Req() requisicao: RequisicaoAutenticada,
     @Body() corpo: unknown,
   ): Promise<VisaoDaEmpresa> {
-    // Sem carteira a empresa criada ficaria órfã: toda etapa seguinte é por empresaId.
-    exigirAlcada(requisicao);
-
     const { cnpj } = analisar(criacaoSchema, corpo);
 
-    return this.empresaService.criar(tenantDa(requisicao), cnpj);
+    // Só o `admin_escritorio` criador é autoatribuído (SPEC-009 §3.1).
+    return this.empresaService.criar(tenantDa(requisicao), cnpj, {
+      usuarioId: autorDa(requisicao).usuarioId,
+      autoatribuir: (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
+    });
   }
 
   @Get(':empresaId')

@@ -24,6 +24,8 @@ export type CorpoDoProblema = Readonly<{
   correlationId: CorrelationId;
   detail?: string;
   campos?: readonly CampoInvalido[];
+  /** Dados do erro que o cliente pode mostrar (ex.: empresa fora da carteira). */
+  detalhes?: Readonly<Record<string, unknown>>;
 }>;
 
 const TIPO_BASE = 'https://contaia.local/erros';
@@ -50,6 +52,7 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: HttpStatus.FORBIDDEN,
   // SPEC-007: o papel permite a ação, mas ainda não há carteira que a alcance.
   [CODIGOS_DE_ERRO.SEM_ALCADA]: HttpStatus.FORBIDDEN,
+  [CODIGOS_DE_ERRO.EMPRESA_FORA_DA_CARTEIRA]: HttpStatus.FORBIDDEN,
   // Usuário de outro escritório e convite inexistente, usado, invalidado ou
   // vencido respondem como inexistentes: 404 não revela dado alheio nem o motivo.
   [CODIGOS_DE_ERRO.USUARIO_NAO_ENCONTRADO]: HttpStatus.NOT_FOUND,
@@ -118,6 +121,7 @@ export const montarProblema = (
     code: erro.codigo,
     correlationId,
     ...(erro.campos.length > 0 ? { campos: erro.campos } : {}),
+    ...(Object.keys(erro.detalhes).length > 0 ? { detalhes: erro.detalhes } : {}),
   };
 };
 

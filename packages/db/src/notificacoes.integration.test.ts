@@ -107,6 +107,7 @@ const limpar = async (): Promise<void> => {
     );
   }
 
+  await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.usuario where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.tenant where id = any($1)', [ids]);
@@ -161,6 +162,15 @@ const criarEmpresaAtiva = async (tenantId: string): Promise<string> => {
     );
 
     return empresaId;
+  }).then(async (empresaId) => {
+    // O sino mostra pendências só das empresas da carteira de quem olha (SPEC-009 §3.5): o
+    // administrador do escritório da fixture entra na carteira de toda empresa que ela cria.
+    await poolAdmin.query(
+      `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id) values ($1, $2, $3)`,
+      [tenantId, tenantId === tenantA ? usuarioA : usuarioB, empresaId],
+    );
+
+    return empresaId;
   });
 };
 
@@ -174,8 +184,8 @@ describe('isolamento por tenant', () => {
       ]),
     );
 
-    const painelA = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
-    const painelB = await comTenant(tenantB, (cliente) => listarPainel(cliente, tenantB));
+    const painelA = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const painelB = await comTenant(tenantB, (cliente) => listarPainel(cliente, tenantB, usuarioB));
 
     expect(painelA).toHaveLength(1);
     expect(painelB).toHaveLength(0);
@@ -197,7 +207,7 @@ describe('criação de notificações (secao 2)', () => {
       ]),
     );
 
-    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
     const daMesmaCausa = painel.filter(
       (n) => n.empresaId === empresaId && n.chave === 'exigencia:x1',
     );
@@ -227,7 +237,7 @@ describe('criação de notificações (secao 2)', () => {
 
     await Promise.all([executarEmTransacaoPropria(), executarEmTransacaoPropria()]);
 
-    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
     const daMesmaCausa = painel.filter(
       (n) => n.empresaId === empresaId && n.chave === 'campo:concorrente',
     );
@@ -242,7 +252,7 @@ describe('criação de notificações (secao 2)', () => {
     // (empresa_id, chave). Antes do fix, a segunda inserção era descartada em
     // silêncio pelo `on conflict (empresa_id, chave) where lida = false`.
     const empresaId = await criarEmpresaAtiva(tenantA);
-    const antes = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA));
+    const antes = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA, usuarioA));
 
     await comTenant(tenantA, (cliente) =>
       criarNotificacoes(cliente, tenantA, empresaId, [
@@ -255,7 +265,7 @@ describe('criação de notificações (secao 2)', () => {
       ]),
     );
 
-    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
     const daMesmaChave = painel.filter(
       (n) => n.empresaId === empresaId && n.chave === 'exigencia:mesma-causa',
     );
@@ -266,7 +276,7 @@ describe('criação de notificações (secao 2)', () => {
       'NOVA_PENDENCIA',
     ]);
 
-    const depois = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA));
+    const depois = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA, usuarioA));
     expect(depois).toBe(antes + 2);
   });
 });
@@ -275,7 +285,7 @@ describe('contagem de não lidas (badge)', () => {
   it('conta só as não lidas do tenant, ignorando as lidas', async () => {
     const empresaId = await criarEmpresaAtiva(tenantB);
 
-    const antes = await comTenant(tenantB, (cliente) => contarNaoLidas(cliente, tenantB));
+    const antes = await comTenant(tenantB, (cliente) => contarNaoLidas(cliente, tenantB, usuarioB));
 
     await comTenant(tenantB, (cliente) =>
       criarNotificacoes(cliente, tenantB, empresaId, [
@@ -284,10 +294,10 @@ describe('contagem de não lidas (badge)', () => {
       ]),
     );
 
-    const depoisDeCriar = await comTenant(tenantB, (cliente) => contarNaoLidas(cliente, tenantB));
+    const depoisDeCriar = await comTenant(tenantB, (cliente) => contarNaoLidas(cliente, tenantB, usuarioB));
     expect(depoisDeCriar).toBe(antes + 2);
 
-    const painel = await comTenant(tenantB, (cliente) => listarPainel(cliente, tenantB));
+    const painel = await comTenant(tenantB, (cliente) => listarPainel(cliente, tenantB, usuarioB));
     const notificacao = painel.find(
       (n) => n.empresaId === empresaId && n.chave === 'campo:badge-1',
     );
@@ -297,7 +307,7 @@ describe('contagem de não lidas (badge)', () => {
       marcarComoLida(cliente, tenantB, notificacao!.id, usuarioB),
     );
 
-    const depoisDeLer = await comTenant(tenantB, (cliente) => contarNaoLidas(cliente, tenantB));
+    const depoisDeLer = await comTenant(tenantB, (cliente) => contarNaoLidas(cliente, tenantB, usuarioB));
     expect(depoisDeLer).toBe(antes + 1);
   });
 });
@@ -312,7 +322,7 @@ describe('marcar como lida (secao 5)', () => {
       ]),
     );
 
-    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
     const notificacao = painel.find((n) => n.chave === 'campo:leitura');
     expect(notificacao).toBeDefined();
 
@@ -358,7 +368,7 @@ describe('marcar como lida (secao 5)', () => {
       ]),
     );
 
-    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
     const ids = painel
       .filter((n) => n.chave === 'campo:l1' || n.chave === 'campo:l2')
       .map((n) => n.id);
@@ -385,7 +395,7 @@ describe('histórico (secao 3)', () => {
         { chave: 'campo:h1', tipo: 'NOVA_PENDENCIA' },
       ]),
     );
-    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA));
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
     const notificacao = painel.find((n) => n.chave === 'campo:h1');
     expect(notificacao).toBeDefined();
 
@@ -394,7 +404,7 @@ describe('histórico (secao 3)', () => {
     );
 
     const pagina = await comTenant(tenantA, (cliente) =>
-      listarHistorico(cliente, tenantA, 25, 0),
+      listarHistorico(cliente, tenantA, usuarioA, 25, 0),
     );
 
     expect(pagina.notificacoes.some((n) => n.id === notificacao!.id && n.lida)).toBe(true);

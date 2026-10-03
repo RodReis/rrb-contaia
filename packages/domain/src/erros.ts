@@ -91,6 +91,13 @@ export const CODIGOS_DE_ERRO = {
   PERMISSAO_EXCLUSIVA: 'PERMISSAO_EXCLUSIVA',
   REDUCAO_NAO_CONFIRMADA: 'REDUCAO_NAO_CONFIRMADA',
   REVISAO_NAO_CONFIRMADA: 'REVISAO_NAO_CONFIRMADA',
+  // Carteira do colaborador (SPEC-009 §6): empresa do próprio tenant fora da
+  // carteira do usuário. Responde 403 nomeando empresa e CNPJ, nada além.
+  EMPRESA_FORA_DA_CARTEIRA: 'EMPRESA_FORA_DA_CARTEIRA',
+  // Conflito de revisão da carteira (409): a tela foi montada sobre um estado velho.
+  CARTEIRA_DESATUALIZADA: 'CARTEIRA_DESATUALIZADA',
+  // Empresa ainda em cadastro: só empresa ativa recebe vínculo de carteira (SPEC-009 §3.4).
+  EMPRESA_NAO_ATIVA: 'EMPRESA_NAO_ATIVA',
 } as const;
 
 export type CodigoDeErro = (typeof CODIGOS_DE_ERRO)[keyof typeof CODIGOS_DE_ERRO];
@@ -100,12 +107,20 @@ export type CampoInvalido = Readonly<{ campo: string; codigo: CodigoDeErro }>;
 export class ErroDeDominio extends Error {
   readonly codigo: CodigoDeErro;
   readonly campos: readonly CampoInvalido[];
+  /** Dados estruturados que acompanham o erro até o cliente (ex.: nome e CNPJ da empresa). */
+  readonly detalhes: Readonly<Record<string, unknown>>;
 
-  constructor(codigo: CodigoDeErro, mensagem: string, campos: readonly CampoInvalido[] = []) {
+  constructor(
+    codigo: CodigoDeErro,
+    mensagem: string,
+    campos: readonly CampoInvalido[] = [],
+    detalhes: Readonly<Record<string, unknown>> = {},
+  ) {
     super(mensagem);
     this.name = 'ErroDeDominio';
     this.codigo = codigo;
     this.campos = campos;
+    this.detalhes = detalhes;
   }
 }
 

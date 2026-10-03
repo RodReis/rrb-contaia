@@ -59,6 +59,9 @@ const servicoDeTeste = () => ({
   novoConvite: vi.fn(async () => VISAO),
 });
 
+/** `possuiCarteira` é o único ponto em que o controller de usuários toca a carteira. */
+const carteiraDeTeste = (possui = false) => ({ possuiCarteira: vi.fn(async () => possui) });
+
 const codigoDe = async (executar: () => Promise<unknown>): Promise<string | undefined> => {
   try {
     await executar();
@@ -71,29 +74,40 @@ const codigoDe = async (executar: () => Promise<unknown>): Promise<string | unde
 
 describe('UsuariosController', () => {
   describe('leitura', () => {
-    it('GET /usuarios/eu devolve papéis, permissão efetiva e escopo da própria sessão', () => {
-      const controller = new UsuariosController(servicoDeTeste() as never);
+    it('GET /usuarios/eu devolve papéis, permissão efetiva e escopo da própria sessão', async () => {
+      const controller = new UsuariosController(servicoDeTeste() as never, carteiraDeTeste() as never);
 
-      const eu = controller.eu(requisicao(['contador', 'auxiliar']));
+      const eu = await controller.eu(requisicao(['contador', 'auxiliar']));
 
       expect(eu.papeis).toEqual(['contador', 'auxiliar']);
       expect(eu.permissoes).toContain('empresas.cadastro.arquivar');
       expect(eu.permissoes).not.toContain('usuarios.usuarios_e_papeis.consultar');
+      // Carteira vazia: o escopo não depende do papel — vale para o administrador também.
       expect(eu.escopoDeEmpresas).toBe('NENHUMA');
-      expect(controller.eu(ADMIN).escopoDeEmpresas).toBe('TODAS');
+      expect((await controller.eu(ADMIN)).escopoDeEmpresas).toBe('NENHUMA');
     });
 
-    it('a permissão efetiva inclui o que veio de papel personalizado', () => {
-      const controller = new UsuariosController(servicoDeTeste() as never);
+    it('com empresas na carteira, o escopo é CARTEIRA para qualquer papel', async () => {
+      const controller = new UsuariosController(
+        servicoDeTeste() as never,
+        carteiraDeTeste(true) as never,
+      );
 
-      const eu = controller.eu(requisicao(['auxiliar'], ['historico.global.consultar']));
+      expect((await controller.eu(requisicao(['auxiliar']))).escopoDeEmpresas).toBe('CARTEIRA');
+      expect((await controller.eu(ADMIN)).escopoDeEmpresas).toBe('CARTEIRA');
+    });
+
+    it('a permissão efetiva inclui o que veio de papel personalizado', async () => {
+      const controller = new UsuariosController(servicoDeTeste() as never, carteiraDeTeste() as never);
+
+      const eu = await controller.eu(requisicao(['auxiliar'], ['historico.global.consultar']));
 
       expect(eu.permissoes).toContain('historico.global.consultar');
       expect(eu.escopoDeEmpresas).toBe('NENHUMA');
     });
 
     it('administrador vê o estado técnico do convite; auditor não', async () => {
-      const controller = new UsuariosController(servicoDeTeste() as never);
+      const controller = new UsuariosController(servicoDeTeste() as never, carteiraDeTeste() as never);
 
       const visaoDoAdmin = await controller.obter(ADMIN, ID);
       const visaoDoAuditor = await controller.obter(AUDITOR, ID);
@@ -107,7 +121,7 @@ describe('UsuariosController', () => {
 
     it('a listagem aplica a mesma ocultação ao auditor e repassa o filtro validado', async () => {
       const servico = servicoDeTeste();
-      const controller = new UsuariosController(servico as never);
+      const controller = new UsuariosController(servico as never, carteiraDeTeste() as never);
 
       const pagina = await controller.listar(AUDITOR, { busca: 'ana', estado: 'ATIVO' });
 
@@ -125,7 +139,7 @@ describe('UsuariosController', () => {
       const servico = servicoDeTeste();
 
       expect(
-        await codigoDe(() => new UsuariosController(servico as never).listar(ADMIN, { estado: 'X' })),
+        await codigoDe(() => new UsuariosController(servico as never, carteiraDeTeste() as never).listar(ADMIN, { estado: 'X' })),
       ).toBe(CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO);
       expect(servico.listar).not.toHaveBeenCalled();
     });
@@ -135,7 +149,7 @@ describe('UsuariosController', () => {
     it('convidar usa tenant e autor da sessão, nunca do corpo', async () => {
       const servico = servicoDeTeste();
 
-      await new UsuariosController(servico as never).convidar(ADMIN, {
+      await new UsuariosController(servico as never, carteiraDeTeste() as never).convidar(ADMIN, {
         nome: 'Ana',
         email: 'ana@x.com',
         papeis: ['contador'],
@@ -164,7 +178,7 @@ describe('UsuariosController', () => {
       ['reenviarConvite', 'reenviarConvite'],
     ] as const)('%s delega ao caso de uso com o autor da sessão', async (metodo, chamada) => {
       const servico = servicoDeTeste();
-      const controller = new UsuariosController(servico as never);
+      const controller = new UsuariosController(servico as never, carteiraDeTeste() as never);
 
       await controller[metodo](ADMIN, ID);
 
@@ -173,7 +187,7 @@ describe('UsuariosController', () => {
 
     it('editar e novo convite validam o corpo e delegam', async () => {
       const servico = servicoDeTeste();
-      const controller = new UsuariosController(servico as never);
+      const controller = new UsuariosController(servico as never, carteiraDeTeste() as never);
 
       await controller.editar(ADMIN, ID, { nome: 'Ana', papeis: ['auxiliar'], email: 'n@x.com' });
       await controller.novoConvite(ADMIN, ID, { nome: 'Ana', papeis: ['auxiliar'] });
@@ -204,7 +218,7 @@ describe('UsuariosController', () => {
       const servico = servicoDeTeste();
 
       expect(
-        await codigoDe(() => new UsuariosController(servico as never).convidar(ADMIN, { nome: '' })),
+        await codigoDe(() => new UsuariosController(servico as never, carteiraDeTeste() as never).convidar(ADMIN, { nome: '' })),
       ).toBe(CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO);
       expect(servico.convidar).not.toHaveBeenCalled();
     });
@@ -213,7 +227,7 @@ describe('UsuariosController', () => {
   describe('identificador malformado', () => {
     it('responde como usuário inexistente sem tocar no serviço (o banco daria erro de cast)', async () => {
       const servico = servicoDeTeste();
-      const controller = new UsuariosController(servico as never);
+      const controller = new UsuariosController(servico as never, carteiraDeTeste() as never);
 
       for (const ruim of ['nao-e-uuid', '', "1'; drop table app.usuario;--", 'x'.repeat(500)]) {
         expect(await codigoDe(() => controller.obter(ADMIN, ruim))).toBe(

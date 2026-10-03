@@ -46,7 +46,11 @@ import type { EmpresaNaLista, FiltroDaLista } from '@contaia/db';
 import type { DadosPublicosDoCnpj, MotivoDeFalhaDaConsulta } from '@contaia/shared';
 
 import { PoolDoBanco } from '../banco/pool.provider';
+import { autoatribuirCriador } from '../carteira/registro';
 import { ConsultaDeCnpjNaCnpja } from './cnpja.adapter';
+
+/** Quem cria a empresa; `autoatribuir` é verdade só para o `admin_escritorio` (SPEC-009 §3.1). */
+export type CriadorDaEmpresa = Readonly<{ usuarioId: string; autoatribuir: boolean }>;
 
 export type VisaoDaEmpresa = Readonly<{
   id: string;
@@ -192,7 +196,11 @@ export class EmpresaService {
    * entrada externa e não pode ser gravada como se viesse da fonte oficial.
    * Falha da consulta não impede criar — só entra sem dado e sem validação.
    */
-  async criar(tenantId: string, cnpjInformado: string): Promise<VisaoDaEmpresa> {
+  async criar(
+    tenantId: string,
+    cnpjInformado: string,
+    criador: CriadorDaEmpresa,
+  ): Promise<VisaoDaEmpresa> {
     const cnpj = normalizarCnpj(cnpjInformado);
     const consulta = await this.cnpja.consultar(cnpj);
 
@@ -210,6 +218,13 @@ export class EmpresaService {
 
       if (consulta.ok) {
         await this.preencherComFonteExterna(cliente, tenantId, empresaId, consulta.dados);
+      }
+
+      // O `admin_escritorio` criador entra na própria carteira já na criação, e não
+      // só na ativação: as etapas do wizard rodam antes dela e passam pela alçada
+      // (SPEC-009 §3.1). Os demais papéis não são autoatribuídos.
+      if (criador.autoatribuir) {
+        await autoatribuirCriador(cliente, tenantId, criador.usuarioId, empresaId);
       }
 
       const criada = await carregarEmpresa(cliente, tenantId, empresaId);
@@ -314,6 +329,15 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
+      }
+
       const identificacao: IdentificacaoDaEmpresa = {
         // O CNPJ não é reeditável por esta rota: ele define a identidade da
         // empresa e a unicidade no tenant. Trocá-lo é criar outra empresa.
@@ -384,6 +408,15 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
+      }
+
       const invalidos = camposInvalidosDaEtapaDaEmpresa(
         { ...atual.cadastro, dadosFiscais },
         'fiscal',
@@ -421,6 +454,15 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
+      }
+
       const invalidos = camposInvalidosDaEtapaDaEmpresa(
         { ...atual.cadastro, enderecoPrincipal: endereco },
         'endereco',
@@ -451,6 +493,15 @@ export class EmpresaService {
 
       if (atual === null) {
         return empresaNaoEncontrada();
+      }
+
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
       }
 
       // Lança quando há etapa pendente ou quando falta a confirmação da

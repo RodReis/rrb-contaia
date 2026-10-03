@@ -339,6 +339,10 @@ export type EventoNaLista = Readonly<{
 }>;
 
 export type FiltroDoHistorico = Readonly<{
+  /** Só o histórico das empresas da carteira deste usuário (SPEC-009). */
+  carteiraDoUsuarioId: string;
+  /** Admin também vê o histórico das empresas ARQUIVADAS do tenant (é como chega a reativá-las). */
+  veArquivadasDoTenant: boolean;
   aba: AbaDoHistorico | null;
   empresaId: string | null;
   inicio: string | null;
@@ -385,7 +389,16 @@ export const listarHistorico = async (
       and ($4::date is null or evento.ocorrido_em >= $4::date)
       and ($5::date is null or evento.ocorrido_em < ($5::date + 1))
       and ($6::uuid is null or evento.usuario_id = $6)
-      and ($7::text is null or evento.campo = $7)`;
+      and ($7::text is null or evento.campo = $7)
+      and (
+        ($9::boolean and exists (
+          select 1 from app.empresa arquivada
+           where arquivada.id = evento.empresa_id and arquivada.situacao = 'arquivado'))
+        or exists (
+          select 1 from app.carteira_vinculo cv
+           where cv.tenant_id = evento.tenant_id and cv.empresa_id = evento.empresa_id
+             and cv.usuario_id = $8 and cv.encerrado_em is null)
+      )`;
 
   const parametros = [
     tenantId,
@@ -395,6 +408,8 @@ export const listarHistorico = async (
     filtro.fim,
     filtro.usuarioId,
     filtro.campo,
+    filtro.carteiraDoUsuarioId,
+    filtro.veArquivadasDoTenant,
   ];
 
   const { rows } = await cliente.query<LinhaDoEvento>(
@@ -412,7 +427,7 @@ export const listarHistorico = async (
        join app.usuario usuario on usuario.id = evento.usuario_id
       where ${condicoes}
       order by evento.ocorrido_em desc, evento.sequencia desc
-      limit $8 offset $9`,
+      limit $10 offset $11`,
     [...parametros, filtro.limite, filtro.deslocamento],
   );
 

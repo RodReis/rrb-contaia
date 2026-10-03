@@ -17,7 +17,8 @@ import { requisitar, requisitarPublico } from '@/lib/http';
 export type Sessao = Readonly<{
   papeis: readonly PapelPadrao[];
   permissoes: readonly ChaveDePermissao[];
-  escopoDeEmpresas: 'TODAS' | 'NENHUMA';
+  /** `NENHUMA` quando a carteira está vazia — vale para qualquer papel. */
+  escopoDeEmpresas: 'CARTEIRA' | 'NENHUMA';
 }>;
 
 export type PapelPersonalizadoDoUsuario = Readonly<{

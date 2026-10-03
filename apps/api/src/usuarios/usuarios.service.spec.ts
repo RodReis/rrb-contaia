@@ -506,6 +506,44 @@ describe('UsuariosService', () => {
       expect(estado.eventos.at(-1)?.tipo).toBe('ARQUIVADO');
     });
 
+    it('arquivar encerra os vínculos de carteira e registra o evento, sem notificar quem saiu', async () => {
+      estado.carteira.push(
+        { tenantId: T1, usuarioId: 'ativo-1', empresaId: 'e-1', ativo: true },
+        { tenantId: T1, usuarioId: 'ativo-1', empresaId: 'e-2', ativo: true },
+        { tenantId: T1, usuarioId: 'outro', empresaId: 'e-1', ativo: true },
+      );
+
+      await service.arquivar(T1, AUTOR, 'ativo-1');
+
+      expect(estado.carteira.filter((v) => v.usuarioId === 'ativo-1').every((v) => !v.ativo)).toBe(
+        true,
+      );
+      // O vínculo de outro colaborador com a mesma empresa não é tocado.
+      expect(estado.carteira.find((v) => v.usuarioId === 'outro')?.ativo).toBe(true);
+      expect(estado.eventosDeCarteira).toHaveLength(1);
+      expect(estado.eventosDeCarteira[0]).toMatchObject({
+        origem: 'ARQUIVAMENTO_USUARIO',
+        autorId: AUTOR.usuarioId,
+      });
+      expect(estado.notificacoesDeCarteira).toEqual([]);
+    });
+
+    it('suspender preserva os vínculos de carteira e não gera evento', async () => {
+      estado.carteira.push({ tenantId: T1, usuarioId: 'ativo-1', empresaId: 'e-1', ativo: true });
+
+      await service.suspender(T1, AUTOR, 'ativo-1');
+      await service.reativar(T1, AUTOR, 'ativo-1');
+
+      expect(estado.carteira[0]?.ativo).toBe(true);
+      expect(estado.eventosDeCarteira).toEqual([]);
+    });
+
+    it('arquivar sem vínculos não gera evento de carteira', async () => {
+      await service.arquivar(T1, AUTOR, 'ativo-1');
+
+      expect(estado.eventosDeCarteira).toEqual([]);
+    });
+
     it('o último administrador não se suspende nem se arquiva: 409 sem tocar no Keycloak', async () => {
       estado.usuarios.find((u) => u.id === 'admin-2')!.estado = 'SUSPENSO';
 

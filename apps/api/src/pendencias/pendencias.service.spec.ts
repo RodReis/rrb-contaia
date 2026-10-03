@@ -39,7 +39,7 @@ describe('PendenciasService', () => {
   it('consultarCentral delega ao repositorio com o filtro padrao ABERTA', async () => {
     vi.mocked(listarCentral).mockResolvedValue({ pendencias: [], total: 0 });
 
-    await service.consultarCentral('tenant-1', {
+    await service.consultarCentral('tenant-1', 'usuario-1', {
       empresaId: null,
       origem: null,
       tipo: null,

@@ -323,7 +323,7 @@ test('convite completo: convidar, capturar o e-mail, definir a senha e entrar se
   await expect(usuario.getByRole('link', { name: /Cadastrar empresa/ })).toHaveCount(0);
 
   // Contador não administra nem consulta usuários: o menu não os oferece...
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Histórico de Informações']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Histórico de Informações', 'Minha carteira']);
 
   // ...e a API recusa o acesso direto mesmo assim.
   await usuario.goto('/configuracoes/usuarios');
@@ -342,7 +342,7 @@ test('alterar papéis vale na próxima requisição, com a mesma sessão', async
   await usuario.goto('/empresas');
   await expect
     .poll(() => itensDoMenu(usuario))
-    .toEqual(['Empresas', 'Histórico de Informações', 'Usuários e permissões']);
+    .toEqual(['Empresas', 'Histórico de Informações', 'Minha carteira', 'Usuários e permissões']);
 
   await usuario.getByRole('link', { name: 'Usuários e permissões' }).click();
   await expect(usuario.getByRole('table')).toBeVisible();

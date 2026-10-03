@@ -5,68 +5,75 @@
  * Rota `/notificacoes` não é aninhada em empresa: notificação é lista do
  * usuário/tenant, diferente de pendências (aninhada em `empresas/:empresaId`).
  */
-import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { Body, Controller, Get, Param, Put, Query, Req, UseGuards } from '@nestjs/common';
 
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
-import { escopoDaSessao } from '../auth/escopo';
+import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
+import { CarteiraService } from '../carteira/carteira.service';
+import { restringirPendencia } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import { filtroDoHistoricoSchema, marcacaoEmLoteSchema } from './notificacoes.dto';
-import { type Autor, NotificacoesService } from './notificacoes.service';
-
-const tenantDa = (requisicao: RequisicaoAutenticada): string => {
-  const tenantId = requisicao.sessao?.tenantId;
-
-  if (tenantId === undefined) {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.TENANT_DIVERGENTE, 'Sessão sem escritório associado.');
-  }
-
-  return tenantId;
-};
-
-const autorDa = (requisicao: RequisicaoAutenticada): Autor => {
-  const usuarioId = requisicao.sessao?.usuarioId;
-
-  if (usuarioId === undefined) {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.TENANT_DIVERGENTE, 'Sessão sem usuário associado.');
-  }
-
-  return { usuarioId };
-};
+import { NotificacoesService } from './notificacoes.service';
 
 @Controller('notificacoes')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
 // Padrão da classe é a ação mais restrita; a leitura a relaxa explicitamente.
 @ExigePermissao('notificacoes.sino.marcar_lida')
 export class NotificacoesController {
-  constructor(private readonly notificacoes: NotificacoesService) {}
+  constructor(
+    private readonly notificacoes: NotificacoesService,
+    private readonly carteira: CarteiraService,
+  ) {}
 
-  // As notificações nascem de empresas: sem carteira, nada é visível nem marcável.
+  /**
+   * O sino é do usuário: pendências das empresas da carteira dele mais o aviso
+   * consolidado de carteira. `escopoDeEmpresas: 'NENHUMA'` só orienta a tela quando
+   * não há nada a mostrar e a carteira está vazia.
+   */
   @Get('painel')
   @ExigePermissao('notificacoes.sino.consultar')
   async consultarPainel(@Req() requisicao: RequisicaoAutenticada) {
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { notificacoes: [], naoLidas: 0, escopoDeEmpresas: 'NENHUMA' as const };
+    const tenantId = tenantDa(requisicao);
+    const { usuarioId } = autorDa(requisicao);
+    const permissoes = requisicao.sessao?.permissoes ?? [];
+    const bruto = await this.notificacoes.consultarPainel(tenantId, usuarioId);
+    // Mesma regra da Central: origem e veredito da análise só saem com a permissão.
+    const painel = {
+      ...bruto,
+      notificacoes: bruto.notificacoes.map((n) => restringirPendencia(permissoes, n)),
+    };
+
+    if (painel.notificacoes.length > 0 || (await this.carteira.possuiCarteira(tenantId, usuarioId))) {
+      return painel;
     }
 
-    return this.notificacoes.consultarPainel(tenantDa(requisicao));
+    return { ...painel, escopoDeEmpresas: 'NENHUMA' as const };
   }
 
   @Get('historico')
   @ExigePermissao('notificacoes.sino.consultar')
   async consultarHistorico(@Req() requisicao: RequisicaoAutenticada, @Query() consulta: unknown) {
     const filtro = analisar(filtroDoHistoricoSchema, consulta);
-
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { notificacoes: [], total: 0, escopoDeEmpresas: 'NENHUMA' as const };
-    }
-
-    return this.notificacoes.consultarHistorico(
-      tenantDa(requisicao),
+    const tenantId = tenantDa(requisicao);
+    const { usuarioId } = autorDa(requisicao);
+    const permissoes = requisicao.sessao?.permissoes ?? [];
+    const bruta = await this.notificacoes.consultarHistorico(
+      tenantId,
+      usuarioId,
       filtro.limite,
       filtro.deslocamento,
     );
+    const pagina = {
+      ...bruta,
+      notificacoes: bruta.notificacoes.map((n) => restringirPendencia(permissoes, n)),
+    };
+
+    if (pagina.total > 0 || (await this.carteira.possuiCarteira(tenantId, usuarioId))) {
+      return pagina;
+    }
+
+    return { ...pagina, escopoDeEmpresas: 'NENHUMA' as const };
   }
 
   @Put(':notificacaoId/leitura')
@@ -74,27 +81,15 @@ export class NotificacoesController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('notificacaoId') notificacaoId: string,
   ) {
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      throw new ErroDeDominio(
-        CODIGOS_DE_ERRO.NOTIFICACAO_NAO_ENCONTRADA,
-        'Notificação não encontrada.',
-      );
-    }
-
-    return this.notificacoes.marcarComoLida(
-      tenantDa(requisicao),
-      notificacaoId,
-      autorDa(requisicao),
+    return restringirPendencia(
+      requisicao.sessao?.permissoes ?? [],
+      await this.notificacoes.marcarComoLida(tenantDa(requisicao), notificacaoId, autorDa(requisicao)),
     );
   }
 
   @Put('leitura-em-lote')
   async marcarVariasComoLidas(@Req() requisicao: RequisicaoAutenticada, @Body() corpo: unknown) {
     const entrada = analisar(marcacaoEmLoteSchema, corpo);
-
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { marcadas: 0 };
-    }
 
     return this.notificacoes.marcarVariasComoLidas(
       tenantDa(requisicao),

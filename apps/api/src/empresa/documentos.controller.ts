@@ -29,6 +29,7 @@ import type { Response } from 'express';
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
+import { restringirDocumentos, restringirHistoricoDocumental } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import {
   analiseComJustificativaSchema,
@@ -99,10 +100,13 @@ export class DocumentosDaEmpresaController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
   ): Promise<VisaoDosDocumentos> {
-    return this.documentos.consultar(
+    return restringirDocumentos(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.consultar(
       tenantDa(requisicao),
       empresaId,
       autorDa(requisicao),
+    ),
     );
   }
 
@@ -113,11 +117,14 @@ export class DocumentosDaEmpresaController {
     @Param('empresaId') empresaId: string,
     @Body() corpo: unknown,
   ): Promise<VisaoDosDocumentos> {
-    return this.documentos.criarExigencia(
+    return restringirDocumentos(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.criarExigencia(
       tenantDa(requisicao),
       empresaId,
       autorDa(requisicao),
       analisar(exigenciaEspecificaSchema, corpo),
+    ),
     );
   }
 
@@ -143,7 +150,9 @@ export class DocumentosDaEmpresaController {
   ): Promise<VisaoDosDocumentos> {
     const entrada = analisar(envioDeDocumentoSchema, corpo);
 
-    return this.documentos.enviarArquivo(
+    return restringirDocumentos(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.enviarArquivo(
       tenantDa(requisicao),
       empresaId,
       exigenciaId,
@@ -153,6 +162,7 @@ export class DocumentosDaEmpresaController {
       entrada.versao,
       undefined,
       requisicao.sessao?.permissoes.includes('documentos.arquivos.substituir') === true,
+    ),
     );
   }
 
@@ -166,12 +176,15 @@ export class DocumentosDaEmpresaController {
   ): Promise<VisaoDosDocumentos> {
     const entrada = analisar(analiseSchema, corpo);
 
-    return this.documentos.aprovar(
+    return restringirDocumentos(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.aprovar(
       tenantDa(requisicao),
       empresaId,
       exigenciaId,
       autorDa(requisicao),
       entrada.versao,
+    ),
     );
   }
 
@@ -185,13 +198,16 @@ export class DocumentosDaEmpresaController {
   ): Promise<VisaoDosDocumentos> {
     const entrada = analisar(analiseComJustificativaSchema, corpo);
 
-    return this.documentos.rejeitar(
+    return restringirDocumentos(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.rejeitar(
       tenantDa(requisicao),
       empresaId,
       exigenciaId,
       autorDa(requisicao),
       entrada.justificativa,
       entrada.versao,
+    ),
     );
   }
 
@@ -205,13 +221,16 @@ export class DocumentosDaEmpresaController {
   ): Promise<VisaoDosDocumentos> {
     const entrada = analisar(analiseComJustificativaSchema, corpo);
 
-    return this.documentos.dispensar(
+    return restringirDocumentos(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.dispensar(
       tenantDa(requisicao),
       empresaId,
       exigenciaId,
       autorDa(requisicao),
       entrada.justificativa,
       entrada.versao,
+    ),
     );
   }
 
@@ -285,10 +304,13 @@ export class DocumentosDaEmpresaController {
     @Param('empresaId') empresaId: string,
     @Query() consulta: unknown,
   ): Promise<Readonly<{ eventos: readonly EventoDocumentalNaLista[]; total: number }>> {
-    return this.documentos.consultarHistorico(
-      tenantDa(requisicao),
-      empresaId,
-      analisar(paginacaoDoHistoricoSchema, consulta),
+    return restringirHistoricoDocumental(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.consultarHistorico(
+        tenantDa(requisicao),
+        empresaId,
+        analisar(paginacaoDoHistoricoSchema, consulta),
+      ),
     );
   }
 }
