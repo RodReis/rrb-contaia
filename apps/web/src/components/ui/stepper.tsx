@@ -29,11 +29,14 @@ const ROTULO_DA_SITUACAO: Readonly<Record<SituacaoDaEtapa, string>> = {
 export const Stepper = ({
   etapas,
   onSelecionar,
+  rotulo = 'Etapas do cadastro',
 }: {
   etapas: readonly EtapaDoStepper[];
   onSelecionar?: (id: string) => void;
+  /** Nome da navegação para leitor de tela: cada wizard diz de que etapas se trata. */
+  rotulo?: string;
 }) => (
-  <nav aria-label="Etapas do cadastro">
+  <nav aria-label={rotulo}>
     <ol className="flex flex-col gap-xs tablet:flex-row tablet:items-center tablet:gap-sm">
       {etapas.map((etapa, indice) => {
         const selecionavel = onSelecionar !== undefined && etapa.situacao !== 'pendente';
