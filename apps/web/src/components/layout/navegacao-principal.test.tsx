@@ -8,19 +8,9 @@ import { NavegacaoPrincipal } from './navegacao-principal';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/empresas' }));
 
-const SEM = {
-  CADASTRO_ESCRITORIO: [],
-  EMPRESAS: [],
-  DOCUMENTOS: [],
-  PENDENCIAS: [],
-  NOTIFICACOES: [],
-  HISTORICO: [],
-  USUARIOS: [],
-};
-
-const sessao = (papeis: string[], permissoes: Record<string, string[]>) =>
+const sessao = (papeis: string[], permissoes: string[]) =>
   new Response(
-    JSON.stringify({ papeis, permissoes: { ...SEM, ...permissoes }, escopoDeEmpresas: 'TODAS' }),
+    JSON.stringify({ papeis, permissoes, escopoDeEmpresas: 'TODAS' }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 
@@ -44,11 +34,15 @@ afterEach(() => {
 describe('NavegacaoPrincipal', () => {
   it('administrador vê Empresas, Histórico e Usuários e permissões', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      sessao(['admin_escritorio'], {
-        EMPRESAS: ['consultar'],
-        HISTORICO: ['consultar'],
-        USUARIOS: ['consultar', 'administrar'],
-      }),
+      sessao(
+        ['admin_escritorio'],
+        [
+          'empresas.cadastro.consultar',
+          'historico.global.consultar',
+          'usuarios.usuarios_e_papeis.consultar',
+          'usuarios.usuarios_e_papeis.administrar',
+        ],
+      ),
     );
 
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
@@ -58,7 +52,7 @@ describe('NavegacaoPrincipal', () => {
   });
 
   it('auxiliar não vê Histórico nem Usuários e permissões', async () => {
-    vi.mocked(fetch).mockResolvedValue(sessao(['auxiliar'], { EMPRESAS: ['consultar'] }));
+    vi.mocked(fetch).mockResolvedValue(sessao(['auxiliar'], ['empresas.cadastro.consultar']));
 
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
@@ -68,7 +62,7 @@ describe('NavegacaoPrincipal', () => {
 
   it('contador vê o Histórico, mas não Usuários e permissões', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      sessao(['contador'], { EMPRESAS: ['consultar'], HISTORICO: ['consultar'] }),
+      sessao(['contador'], ['empresas.cadastro.consultar', 'historico.global.consultar']),
     );
 
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
@@ -88,7 +82,7 @@ describe('NavegacaoPrincipal', () => {
   });
 
   it('marca a página atual com aria-current e passa no axe', async () => {
-    vi.mocked(fetch).mockResolvedValue(sessao(['auxiliar'], { EMPRESAS: ['consultar'] }));
+    vi.mocked(fetch).mockResolvedValue(sessao(['auxiliar'], ['empresas.cadastro.consultar']));
 
     const { container } = render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 

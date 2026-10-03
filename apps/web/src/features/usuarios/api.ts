@@ -1,7 +1,7 @@
-/** Chamadas ao backend de usuários, papéis padrão e convite (SPEC-007). */
+/** Chamadas ao backend de usuários, papéis padrão e convite (SPEC-007, SPEC-008). */
 import type {
-  Acao,
-  Capacidade,
+  ChaveDePermissao,
+  EstadoDoPapel,
   EstadoDoUsuario,
   PapelPadrao,
   SituacaoApresentada,
@@ -9,18 +9,21 @@ import type {
 
 import { requisitar, requisitarPublico } from '@/lib/http';
 
-export type PermissoesPorCapacidade = Readonly<Record<Capacidade, readonly Acao[]>>;
-
-/** Quem sou e o que posso: a interface decide o que mostrar a partir daqui. */
+/**
+ * Quem sou e o que posso: a interface decide o que mostrar a partir daqui. A
+ * permissão efetiva é a união dos papéis padrão e personalizados, resolvida pelo
+ * servidor a cada requisição; esconder um botão nunca substitui a recusa da API.
+ */
 export type Sessao = Readonly<{
   papeis: readonly PapelPadrao[];
-  permissoes: PermissoesPorCapacidade;
+  permissoes: readonly ChaveDePermissao[];
   escopoDeEmpresas: 'TODAS' | 'NENHUMA';
 }>;
 
-export type PapelNoCatalogo = Readonly<{
-  papel: PapelPadrao;
-  permissoes: PermissoesPorCapacidade;
+export type PapelPersonalizadoDoUsuario = Readonly<{
+  id: string;
+  nome: string;
+  estado: EstadoDoPapel;
 }>;
 
 /** Sem token, link, hash ou identificador da identidade: a API nunca os envia. */
@@ -31,6 +34,7 @@ export type VisaoDeUsuario = Readonly<{
   telefone: string | null;
   crc: string | null;
   papeis: readonly PapelPadrao[];
+  papeisPersonalizados: readonly PapelPersonalizadoDoUsuario[];
   estado: EstadoDoUsuario;
   situacao: SituacaoApresentada;
   /** `null` para quem só consulta: o prazo do convite é dado técnico. */
@@ -55,6 +59,8 @@ export type DadosDoConvite = Readonly<{
   telefone: string | null;
   crc: string | null;
   papeis: readonly PapelPadrao[];
+  /** Identificadores de papéis personalizados ativos. */
+  papeisPersonalizados: readonly string[];
 }>;
 
 export type DadosDeEdicao = Readonly<{
@@ -62,6 +68,7 @@ export type DadosDeEdicao = Readonly<{
   telefone: string | null;
   crc: string | null;
   papeis: readonly PapelPadrao[];
+  papeisPersonalizados: readonly string[];
   email?: string;
 }>;
 
@@ -71,8 +78,12 @@ export type EventoDeUsuario = Readonly<{
   id: string;
   ocorridoEm: string;
   tipo: string;
-  usuarioAfetadoId: string;
-  usuarioAfetadoNome: string;
+  /** Evento de usuário nomeia o usuário; evento de papel (SPEC-008 §3.6) nomeia o papel e a revisão. */
+  usuarioAfetadoId: string | null;
+  usuarioAfetadoNome: string | null;
+  papelId: string | null;
+  papelNome: string | null;
+  revisao: number | null;
   autorId: string | null;
   autorNome: string | null;
   antes: Readonly<Record<string, unknown>> | null;
@@ -119,8 +130,6 @@ const consulta = (parametros: Readonly<Record<string, string | number | null>>):
 };
 
 export const obterSessao = (): Promise<Sessao> => requisitar('/usuarios/eu');
-
-export const obterPapeis = (): Promise<readonly PapelNoCatalogo[]> => requisitar('/usuarios/papeis');
 
 export const listarUsuarios = (filtro: FiltroDeUsuarios): Promise<PaginaDeUsuarios> =>
   requisitar(

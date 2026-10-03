@@ -21,10 +21,13 @@ import { EmptyState, Skeleton } from '@/components/ui/estados';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import type { EventoDeUsuario } from './api';
+import { useCatalogo } from '../papeis/queries';
+import { rotuloDaChave } from '../papeis/rotulos';
 import { ErroDaConsulta } from './erro-da-consulta';
 import { useHistoricoDeUsuarios, useListaDeUsuarios } from './queries';
 import {
   ROTULO_DO_EVENTO,
+  ehEventoDePapel,
   ROTULO_DO_PAPEL,
   SITUACAO,
   TIPOS_DE_EVENTO,
@@ -47,6 +50,9 @@ const ROTULO_DO_VALOR: Readonly<Record<string, string>> = {
   telefone: 'Telefone',
   crc: 'Registro no CRC',
   email: 'E-mail',
+  papeisPersonalizados: 'Papéis personalizados',
+  descricao: 'Descrição',
+  origem: 'Papel de origem',
 };
 
 /** Data e hora em `America/Sao_Paulo` (I-11). */
@@ -64,6 +70,14 @@ const ehTipo = (valor: string | null): valor is TipoDeEvento =>
 const mostrar = (campo: string, valor: unknown): string => {
   if (valor === null || valor === undefined || valor === '') {
     return '—';
+  }
+
+  if (campo === 'papeisPersonalizados' && Array.isArray(valor)) {
+    return valor.map((papel) => (papel as { nome?: string }).nome ?? 'Papel').join(', ');
+  }
+
+  if (campo === 'origem' && typeof valor === 'string') {
+    return ROTULO_DO_PAPEL[valor as PapelPadrao] ?? valor;
   }
 
   if (campo === 'papeis' && Array.isArray(valor)) {
@@ -103,25 +117,118 @@ const Alteracoes = ({ evento }: { evento: EventoDeUsuario }) => {
   );
 };
 
-const LinhaDoEvento = ({ evento }: { evento: EventoDeUsuario }) => (
-  <li className="flex flex-col gap-sm border-b border-border py-md last:border-b-0">
-    <div className="flex flex-wrap items-baseline justify-between gap-sm">
-      <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs">
-        <span className="text-title-sm text-foreground">{evento.usuarioAfetadoNome}</span>
-      </div>
-      <StatusBadge tom="neutro" rotulo={ROTULO_DO_EVENTO[evento.tipo as TipoDeEvento] ?? evento.tipo} />
+const textos = (valor: unknown): readonly string[] =>
+  Array.isArray(valor) ? valor.filter((item): item is string => typeof item === 'string') : [];
+
+const ListaDePermissoes = ({
+  titulo,
+  chaves,
+  sinal,
+}: {
+  titulo: string;
+  chaves: readonly string[];
+  sinal: '+' | '−';
+}) => {
+  // Sem o catálogo (carregando ou fora do ar) a chave aparece crua, mas a linha não some.
+  const catalogo = useCatalogo();
+
+  if (chaves.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-xs">
+      <span className="text-label-md text-muted-foreground">
+        {titulo} ({chaves.length})
+      </span>
+      <ul className="flex flex-col gap-xs text-body-sm text-foreground">
+        {chaves.map((chave) => (
+          <li key={chave} className="flex gap-xs break-words">
+            <span aria-hidden="true" className="text-muted-foreground">
+              {sinal}
+            </span>
+            <span>{catalogo.data === undefined ? chave : rotuloDaChave(catalogo.data, chave)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
+  );
+};
 
-    <Alteracoes evento={evento} />
+/** Eventos de papel (SPEC-008 §3.6): matriz alterada diz o que entrou e o que saiu. */
+const DetalhesDoPapel = ({ evento }: { evento: EventoDeUsuario }) => {
+  const depois = evento.depois ?? {};
 
-    <p className="text-body-sm text-muted-foreground">
-      Por {evento.autorNome ?? 'Sistema'} ·{' '}
-      <time dateTime={evento.ocorridoEm} className="tabular-nums">
-        {formatarInstante(evento.ocorridoEm)}
-      </time>
-    </p>
-  </li>
-);
+  if (evento.tipo === 'PAPEL_MATRIZ_ALTERADA') {
+    return (
+      <div className="flex flex-col gap-sm">
+        <ListaDePermissoes titulo="Permissões adicionadas" chaves={textos(depois['adicionadas'])} sinal="+" />
+        <ListaDePermissoes titulo="Permissões retiradas" chaves={textos(depois['retiradas'])} sinal="−" />
+      </div>
+    );
+  }
+
+  if (evento.tipo === 'PAPEL_CRIADO') {
+    return (
+      <div className="flex flex-col gap-sm">
+        <Alteracoes evento={{ ...evento, antes: null, depois: { origem: depois['origem'], descricao: depois['descricao'] } }} />
+        <p className="text-body-sm text-muted-foreground">
+          {textos(depois['permissoes']).length} permissões na matriz inicial.
+        </p>
+      </div>
+    );
+  }
+
+  if (evento.tipo === 'PAPEL_REATIVADO') {
+    return (
+      <ListaDePermissoes
+        titulo="Incompatibilidades removidas na reativação"
+        chaves={textos(depois['incompatibilidadesRemovidas'])}
+        sinal="−"
+      />
+    );
+  }
+
+  return <Alteracoes evento={evento} />;
+};
+
+const LinhaDoEvento = ({ evento }: { evento: EventoDeUsuario }) => {
+  const dePapel = ehEventoDePapel(evento.tipo);
+
+  return (
+    <li className="flex flex-col gap-sm border-b border-border py-md last:border-b-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-sm">
+        <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs">
+          {dePapel ? (
+            <>
+              <span className="text-label-md text-muted-foreground">Papel</span>
+              <span className="break-words text-title-sm text-foreground">{evento.papelNome ?? '—'}</span>
+              {evento.revisao === null ? null : (
+                <span className="tabular-nums text-body-sm text-muted-foreground">
+                  revisão {evento.revisao}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="break-words text-title-sm text-foreground">
+              {evento.usuarioAfetadoNome ?? '—'}
+            </span>
+          )}
+        </div>
+        <StatusBadge tom="neutro" rotulo={ROTULO_DO_EVENTO[evento.tipo as TipoDeEvento] ?? evento.tipo} />
+      </div>
+
+      {dePapel ? <DetalhesDoPapel evento={evento} /> : <Alteracoes evento={evento} />}
+
+      <p className="text-body-sm text-muted-foreground">
+        Por {evento.autorNome ?? 'Sistema'} ·{' '}
+        <time dateTime={evento.ocorridoEm} className="tabular-nums">
+          {formatarInstante(evento.ocorridoEm)}
+        </time>
+      </p>
+    </li>
+  );
+};
 
 export const HistoricoDeUsuarios = () => {
   const navegador = useRouter();

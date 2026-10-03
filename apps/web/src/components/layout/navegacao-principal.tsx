@@ -9,19 +9,19 @@
  */
 'use client';
 
-import type { Capacidade } from '@contaia/domain';
+import type { ChaveDePermissao } from '@contaia/domain';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { useSessao } from '@/features/usuarios/queries';
 
-const ITENS: ReadonlyArray<Readonly<{ href: string; rotulo: string; capacidade: Capacidade }>> = [
-  { href: '/empresas', rotulo: 'Empresas', capacidade: 'EMPRESAS' },
+const ITENS: ReadonlyArray<Readonly<{ href: string; rotulo: string; consulta: ChaveDePermissao }>> = [
+  { href: '/empresas', rotulo: 'Empresas', consulta: 'empresas.cadastro.consultar' },
   // O Histórico de Informações é área global do escritório, não de uma empresa
   // (SPEC-003 §3.6): o acesso é de menu, não de tela.
-  { href: '/historico', rotulo: 'Histórico de Informações', capacidade: 'HISTORICO' },
-  { href: '/configuracoes/usuarios', rotulo: 'Usuários e permissões', capacidade: 'USUARIOS' },
+  { href: '/historico', rotulo: 'Histórico de Informações', consulta: 'historico.global.consultar' },
+  { href: '/configuracoes/usuarios', rotulo: 'Usuários e permissões', consulta: 'usuarios.usuarios_e_papeis.consultar' },
 ];
 
 export const NavegacaoPrincipal = () => {
@@ -30,8 +30,8 @@ export const NavegacaoPrincipal = () => {
 
   const visiveis = ITENS.filter((item) =>
     sessao === undefined
-      ? item.capacidade === 'EMPRESAS'
-      : sessao.permissoes[item.capacidade].includes('consultar'),
+      ? item.consulta === 'empresas.cadastro.consultar'
+      : sessao.permissoes.includes(item.consulta),
   );
 
   return (

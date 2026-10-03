@@ -10,6 +10,7 @@ import { axe } from 'jest-axe';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { papelDeTeste, sessaoDe } from '../papeis/papeis.fixtures';
 import type { Sessao, VisaoDeUsuario } from './api';
 import { EdicaoDeUsuario } from './edicao-de-usuario';
 
@@ -18,27 +19,8 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/configuracoes/usuarios/ana',
 }));
 
-const SEM = {
-  CADASTRO_ESCRITORIO: [],
-  EMPRESAS: [],
-  DOCUMENTOS: [],
-  PENDENCIAS: [],
-  NOTIFICACOES: [],
-  HISTORICO: [],
-  USUARIOS: [],
-} as const;
-
-const ADMIN: Sessao = {
-  papeis: ['admin_escritorio'],
-  permissoes: { ...SEM, USUARIOS: ['consultar', 'administrar'] },
-  escopoDeEmpresas: 'TODAS',
-};
-
-const AUDITOR: Sessao = {
-  papeis: ['auditor_readonly'],
-  permissoes: { ...SEM, USUARIOS: ['consultar'] },
-  escopoDeEmpresas: 'NENHUMA',
-};
+const ADMIN: Sessao = sessaoDe(['admin_escritorio']);
+const AUDITOR: Sessao = sessaoDe(['auditor_readonly']);
 
 const ANA: VisaoDeUsuario = {
   id: 'ana',
@@ -47,6 +29,7 @@ const ANA: VisaoDeUsuario = {
   telefone: '11987654321',
   crc: 'SP-123',
   papeis: ['contador'],
+  papeisPersonalizados: [],
   estado: 'ATIVO',
   situacao: 'ATIVO',
   conviteExpiraEm: null,
@@ -73,6 +56,7 @@ const problema = (status: number, code: string) =>
   json({ type: 'x', title: 'x', status, code, correlationId: 'corr-9' }, status);
 
 let sessaoAtual: Sessao = ADMIN;
+let papeisPersonalizados: ReturnType<typeof papelDeTeste>[] = [];
 let usuarioAtual: () => Response | Promise<Response> = () => json(ANA);
 let aoSalvar: () => Response | Promise<Response> = () => json(ANA);
 const chamadas: Array<{ url: string; metodo: string; corpo: unknown }> = [];
@@ -90,6 +74,7 @@ const salvos = (metodo: string, trecho: string) =>
 
 beforeEach(() => {
   sessaoAtual = ADMIN;
+  papeisPersonalizados = [];
   usuarioAtual = () => json(ANA);
   aoSalvar = () => json(ANA);
   chamadas.length = 0;
@@ -107,6 +92,7 @@ beforeEach(() => {
       });
 
       if (endereco.endsWith('/usuarios/eu')) return json(sessaoAtual);
+      if (metodo === 'GET' && endereco.includes('/papeis?')) return json({ papeis: papeisPersonalizados, total: papeisPersonalizados.length });
       if (metodo === 'GET' && endereco.endsWith('/usuarios/ana')) return usuarioAtual();
       if (metodo === 'PUT' || metodo === 'POST') return aoSalvar();
 
@@ -207,6 +193,7 @@ describe('abas Dados e Papéis (administrador)', () => {
       telefone: '11987654321',
       crc: 'SP-123',
       papeis: ['contador'],
+      papeisPersonalizados: [],
     });
     expect(screen.getByLabelText(/Nome completo/u)).toBeInTheDocument();
   });
@@ -382,6 +369,7 @@ describe('usuário arquivado', () => {
       telefone: '11987654321',
       crc: 'SP-123',
       papeis: ['contador', 'auxiliar'],
+      papeisPersonalizados: [],
     });
   });
 

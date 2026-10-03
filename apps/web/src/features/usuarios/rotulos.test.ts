@@ -2,13 +2,12 @@ import { PAPEIS_PADRAO } from '@contaia/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
-  ROTULO_DA_ACAO,
-  ROTULO_DA_CAPACIDADE,
   ROTULO_DO_EVENTO,
   ROTULO_DO_PAPEL,
   SITUACAO,
+  TIPOS_DE_EVENTO,
   acoesDaLinha,
-  descreverPermissoes,
+  ehEventoDePapel,
 } from './rotulos';
 
 describe('rótulos em PT-BR', () => {
@@ -21,16 +20,25 @@ describe('rótulos em PT-BR', () => {
     expect(ROTULO_DO_PAPEL.auditor_readonly).toBe('Auditor (somente leitura)');
   });
 
-  it('todas as capacidades e ações da matriz têm rótulo', () => {
-    expect(Object.keys(ROTULO_DA_CAPACIDADE)).toHaveLength(7);
-    expect(Object.keys(ROTULO_DA_ACAO)).toHaveLength(5);
-    expect(ROTULO_DA_CAPACIDADE.HISTORICO).toBe('Histórico de Informações');
-    expect(ROTULO_DA_ACAO.arquivar).toBe('Arquivar e reativar');
+  it('os quinze eventos de auditoria têm rótulo (dez de usuários, cinco de papéis)', () => {
+    expect(Object.keys(ROTULO_DO_EVENTO)).toHaveLength(15);
+    expect([...TIPOS_DE_EVENTO].sort()).toEqual(Object.keys(ROTULO_DO_EVENTO).sort());
+    expect(ROTULO_DO_EVENTO.CONVITE_EXPIRADO).toBe('Convite expirado');
+    expect(ROTULO_DO_EVENTO.PAPEL_MATRIZ_ALTERADA).toBe('Permissões do papel alteradas');
+    expect(ROTULO_DO_EVENTO.PAPEL_REATIVADO).toBe('Papel reativado');
   });
 
-  it('os dez eventos de auditoria têm rótulo', () => {
-    expect(Object.keys(ROTULO_DO_EVENTO)).toHaveLength(10);
-    expect(ROTULO_DO_EVENTO.CONVITE_EXPIRADO).toBe('Convite expirado');
+  it('só os eventos PAPEL_* nomeiam um papel em vez de um usuário', () => {
+    const dePapel = TIPOS_DE_EVENTO.filter(ehEventoDePapel);
+
+    expect(dePapel).toEqual([
+      'PAPEL_CRIADO',
+      'PAPEL_DADOS_ALTERADOS',
+      'PAPEL_MATRIZ_ALTERADA',
+      'PAPEL_ARQUIVADO',
+      'PAPEL_REATIVADO',
+    ]);
+    expect(ehEventoDePapel('SUSPENSO')).toBe(false);
   });
 });
 
@@ -61,39 +69,5 @@ describe('acoesDaLinha', () => {
 
   it('arquivado só volta por novo convite', () => {
     expect(acoesDaLinha('ARQUIVADO')).toEqual(['novo-convite']);
-  });
-});
-
-describe('descreverPermissoes', () => {
-  it('lista só as capacidades concedidas, com as ações por extenso', () => {
-    expect(
-      descreverPermissoes({
-        CADASTRO_ESCRITORIO: [],
-        EMPRESAS: ['consultar', 'criar', 'editar'],
-        DOCUMENTOS: ['administrar'],
-        PENDENCIAS: ['consultar'],
-        NOTIFICACOES: [],
-        HISTORICO: [],
-        USUARIOS: [],
-      }),
-    ).toEqual([
-      { capacidade: 'Empresas', acoes: ['Consultar', 'Criar', 'Editar'] },
-      { capacidade: 'Documentos da empresa', acoes: ['Administrar'] },
-      { capacidade: 'Central de Pendências', acoes: ['Consultar'] },
-    ]);
-  });
-
-  it('papel sem nenhuma permissão devolve lista vazia', () => {
-    expect(
-      descreverPermissoes({
-        CADASTRO_ESCRITORIO: [],
-        EMPRESAS: [],
-        DOCUMENTOS: [],
-        PENDENCIAS: [],
-        NOTIFICACOES: [],
-        HISTORICO: [],
-        USUARIOS: [],
-      }),
-    ).toEqual([]);
   });
 });

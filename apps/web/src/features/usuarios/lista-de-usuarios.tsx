@@ -54,11 +54,20 @@ const ehEstado = (valor: string | null): valor is EstadoDoUsuario =>
 const ehPapel = (valor: string | null): valor is PapelPadrao =>
   valor !== null && (PAPEIS_PADRAO as readonly string[]).includes(valor);
 
-const Papeis = ({ papeis }: { papeis: readonly PapelPadrao[] }) => (
+const Papeis = ({ usuario }: { usuario: VisaoDeUsuario }) => (
   <ul className="flex flex-wrap gap-xs" aria-label="Papéis">
-    {papeis.map((papel) => (
+    {usuario.papeis.map((papel) => (
       <li key={papel}>
         <StatusBadge tom="neutro" rotulo={ROTULO_DO_PAPEL[papel]} />
+      </li>
+    ))}
+    {/* Papel personalizado leva o nome que o escritório deu; arquivado é dito, não escondido. */}
+    {usuario.papeisPersonalizados.map((papel) => (
+      <li key={papel.id}>
+        <StatusBadge
+          tom={papel.estado === 'ATIVO' ? 'processando' : 'atencao'}
+          rotulo={papel.estado === 'ATIVO' ? papel.nome : `${papel.nome} (arquivado)`}
+        />
       </li>
     ))}
   </ul>
@@ -93,7 +102,7 @@ const LinhaDoUsuario = ({
       <span className="[overflow-wrap:anywhere]">{usuario.email}</span>
     </td>
     <td className="px-md py-sm">
-      <Papeis papeis={usuario.papeis} />
+      <Papeis usuario={usuario} />
     </td>
     <td className="px-md py-sm">
       <Situacao usuario={usuario} />
@@ -116,7 +125,7 @@ const CartaoDoUsuario = ({
       <span className="break-words text-title-sm text-foreground">{usuario.nome}</span>
       <span className="break-words text-body-sm text-muted-foreground">{usuario.email}</span>
     </div>
-    <Papeis papeis={usuario.papeis} />
+    <Papeis usuario={usuario} />
     <Situacao usuario={usuario} />
     <AcoesDoUsuario usuario={usuario} podeAdministrar={podeAdministrar} />
   </li>

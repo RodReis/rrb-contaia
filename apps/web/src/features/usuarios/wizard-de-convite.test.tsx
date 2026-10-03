@@ -9,6 +9,7 @@ import { axe } from 'jest-axe';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { sessaoDe } from '../papeis/papeis.fixtures';
 import type { Sessao } from './api';
 import { WizardDeConvite } from './wizard-de-convite';
 
@@ -19,34 +20,8 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/configuracoes/usuarios/novo',
 }));
 
-const SEM = {
-  CADASTRO_ESCRITORIO: [],
-  EMPRESAS: [],
-  DOCUMENTOS: [],
-  PENDENCIAS: [],
-  NOTIFICACOES: [],
-  HISTORICO: [],
-  USUARIOS: [],
-} as const;
-
-const ADMIN: Sessao = {
-  papeis: ['admin_escritorio'],
-  permissoes: { ...SEM, USUARIOS: ['consultar', 'administrar'] },
-  escopoDeEmpresas: 'TODAS',
-};
-
-const AUDITOR: Sessao = {
-  papeis: ['auditor_readonly'],
-  permissoes: { ...SEM, USUARIOS: ['consultar'] },
-  escopoDeEmpresas: 'NENHUMA',
-};
-
-const CATALOGO = [
-  { papel: 'admin_escritorio', permissoes: { ...SEM } },
-  { papel: 'contador', permissoes: { ...SEM } },
-  { papel: 'auxiliar', permissoes: { ...SEM } },
-  { papel: 'auditor_readonly', permissoes: { ...SEM } },
-];
+const ADMIN: Sessao = sessaoDe(['admin_escritorio']);
+const AUDITOR: Sessao = sessaoDe(['auditor_readonly']);
 
 const json = (corpo: unknown, status = 200): Response =>
   new Response(JSON.stringify(corpo), {
@@ -64,6 +39,7 @@ const CRIADO = {
   telefone: null,
   crc: null,
   papeis: ['contador'],
+  papeisPersonalizados: [],
   estado: 'CONVIDADO',
   situacao: 'CONVIDADO',
   conviteExpiraEm: null,
@@ -123,7 +99,7 @@ beforeEach(() => {
       });
 
       if (String(url).endsWith('/usuarios/eu')) return json(sessaoAtual);
-      if (String(url).endsWith('/usuarios/papeis')) return json(CATALOGO);
+      if (String(url).includes('/papeis?')) return json({ papeis: [], total: 0 });
       if (metodo === 'POST' && String(url).endsWith('/usuarios')) return aoCriar();
 
       throw new Error(`rota sem dublê: ${metodo} ${String(url)}`);
@@ -241,6 +217,7 @@ describe('etapa 2 — Papéis e revisão', () => {
       telefone: '11987654321',
       crc: 'SP-123',
       papeis: ['contador', 'auxiliar'],
+      papeisPersonalizados: [],
     });
     await waitFor(() => expect(empurrar).toHaveBeenCalledWith('/configuracoes/usuarios'));
   });

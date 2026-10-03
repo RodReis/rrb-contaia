@@ -23,8 +23,15 @@ export const dadosDoUsuarioFormSchema = z.object({
 
 export type DadosDoUsuarioForm = z.infer<typeof dadosDoUsuarioFormSchema>;
 
-export const erroDosPapeis = (papeis: readonly PapelPadrao[]): string | undefined =>
-  papeis.length === 0 ? ERRO_DE_PAPEL : undefined;
+/** Papéis escolhidos para o usuário: padrão e personalizados se combinam (SPEC-008 §3.4). */
+export type PapeisEscolhidos = Readonly<{
+  padrao: readonly PapelPadrao[];
+  personalizados: readonly string[];
+}>;
+
+/** Ao menos um papel, de qualquer tipo. */
+export const erroDosPapeis = (papeis: PapeisEscolhidos): string | undefined =>
+  papeis.padrao.length + papeis.personalizados.length === 0 ? ERRO_DE_PAPEL : undefined;
 
 const opcional = (valor: string): string | null => {
   const aparado = valor.trim();
@@ -40,16 +47,22 @@ const base = (dados: DadosDoUsuarioForm) => ({
 
 export const paraDadosDoConvite = (
   dados: DadosDoUsuarioForm,
-  papeis: readonly PapelPadrao[],
-): DadosDoConvite => ({ ...base(dados), email: dados.email.trim(), papeis });
+  papeis: PapeisEscolhidos,
+): DadosDoConvite => ({
+  ...base(dados),
+  email: dados.email.trim(),
+  papeis: papeis.padrao,
+  papeisPersonalizados: papeis.personalizados,
+});
 
 /** O e-mail só viaja quando ele ainda pode ser corrigido (convite não aceito). */
 export const paraDadosDeEdicao = (
   dados: DadosDoUsuarioForm,
-  papeis: readonly PapelPadrao[],
+  papeis: PapeisEscolhidos,
   emailEditavel: boolean,
 ): DadosDeEdicao => ({
   ...base(dados),
-  papeis,
+  papeis: papeis.padrao,
+  papeisPersonalizados: papeis.personalizados,
   ...(emailEditavel ? { email: dados.email.trim() } : {}),
 });

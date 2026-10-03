@@ -1,11 +1,11 @@
 /**
- * Textos e tons da área de usuários (SPEC-007 §5): tudo em PT-BR, nunca o
- * identificador técnico do papel, da ação ou do evento.
+ * Textos e tons da área de usuários (SPEC-007 §5, SPEC-008 §5): tudo em PT-BR,
+ * nunca o identificador técnico do papel, da ação ou do evento. Os rótulos de
+ * módulo, funcionalidade e ação vêm do catálogo do servidor, não daqui.
  */
-import type { Acao, Capacidade, PapelPadrao, SituacaoApresentada } from '@contaia/domain';
+import type { PapelPadrao, SituacaoApresentada } from '@contaia/domain';
 
 import type { TomDoStatus } from '@/components/ui/status-badge';
-import type { PermissoesPorCapacidade } from './api';
 
 export const ROTULO_DO_PAPEL: Readonly<Record<PapelPadrao, string>> = {
   admin_escritorio: 'Administrador do escritório',
@@ -22,24 +22,6 @@ export const DESCRICAO_DO_PAPEL: Readonly<Record<PapelPadrao, string>> = {
   auditor_readonly: 'Consulta tudo o que o escritório registra, sem alterar nada.',
 };
 
-export const ROTULO_DA_CAPACIDADE: Readonly<Record<Capacidade, string>> = {
-  CADASTRO_ESCRITORIO: 'Cadastro do escritório',
-  EMPRESAS: 'Empresas',
-  DOCUMENTOS: 'Documentos da empresa',
-  PENDENCIAS: 'Central de Pendências',
-  NOTIFICACOES: 'Notificações de pendências',
-  HISTORICO: 'Histórico de Informações',
-  USUARIOS: 'Usuários e papéis',
-};
-
-export const ROTULO_DA_ACAO: Readonly<Record<Acao, string>> = {
-  consultar: 'Consultar',
-  criar: 'Criar',
-  editar: 'Editar',
-  arquivar: 'Arquivar e reativar',
-  administrar: 'Administrar',
-};
-
 export const TIPOS_DE_EVENTO = [
   'CONVITE_CRIADO',
   'CONVITE_REENVIADO',
@@ -51,6 +33,11 @@ export const TIPOS_DE_EVENTO = [
   'REATIVADO',
   'ARQUIVADO',
   'NOVO_CONVITE_INICIADO',
+  'PAPEL_CRIADO',
+  'PAPEL_DADOS_ALTERADOS',
+  'PAPEL_MATRIZ_ALTERADA',
+  'PAPEL_ARQUIVADO',
+  'PAPEL_REATIVADO',
 ] as const;
 
 export type TipoDeEvento = (typeof TIPOS_DE_EVENTO)[number];
@@ -66,7 +53,15 @@ export const ROTULO_DO_EVENTO: Readonly<Record<TipoDeEvento, string>> = {
   REATIVADO: 'Usuário reativado',
   ARQUIVADO: 'Usuário arquivado',
   NOVO_CONVITE_INICIADO: 'Novo convite iniciado',
+  PAPEL_CRIADO: 'Papel criado',
+  PAPEL_DADOS_ALTERADOS: 'Dados do papel alterados',
+  PAPEL_MATRIZ_ALTERADA: 'Permissões do papel alteradas',
+  PAPEL_ARQUIVADO: 'Papel arquivado',
+  PAPEL_REATIVADO: 'Papel reativado',
 };
+
+/** Evento de papel nomeia o papel; os demais nomeiam o usuário (SPEC-008 §3.6). */
+export const ehEventoDePapel = (tipo: string): boolean => tipo.startsWith('PAPEL_');
 
 export const SITUACAO: Readonly<Record<SituacaoApresentada, { rotulo: string; tom: TomDoStatus }>> =
   {
@@ -93,22 +88,3 @@ export const acoesDaLinha = (situacao: SituacaoApresentada): readonly AcaoDaLinh
       return ['novo-convite'];
   }
 };
-
-const CAPACIDADES: readonly Capacidade[] = [
-  'CADASTRO_ESCRITORIO',
-  'EMPRESAS',
-  'DOCUMENTOS',
-  'PENDENCIAS',
-  'NOTIFICACOES',
-  'HISTORICO',
-  'USUARIOS',
-];
-
-/** Só o que o papel concede, com os nomes por extenso: a aba de papéis é leitura. */
-export const descreverPermissoes = (
-  permissoes: PermissoesPorCapacidade,
-): ReadonlyArray<{ capacidade: string; acoes: readonly string[] }> =>
-  CAPACIDADES.filter((capacidade) => permissoes[capacidade].length > 0).map((capacidade) => ({
-    capacidade: ROTULO_DA_CAPACIDADE[capacidade],
-    acoes: permissoes[capacidade].map((acao) => ROTULO_DA_ACAO[acao]),
-  }));

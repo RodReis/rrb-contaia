@@ -16,16 +16,23 @@ import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Abas, ConteudoDeAba, GatilhoDeAba, ListaDeAbas } from '@/components/ui/abas';
 import { Skeleton } from '@/components/ui/estados';
-import { CatalogoDePapeis } from './catalogo-de-papeis';
+import { ListaDePapeis } from '../papeis/lista-de-papeis';
 import { ErroDaConsulta, SemPermissao } from './erro-da-consulta';
 import { ListaDeUsuarios } from './lista-de-usuarios';
+import { ADMINISTRACAO_DE_USUARIOS, CONSULTA_DE_USUARIOS, pode } from './permissoes';
 import { useSessao } from './queries';
 
 const BASE = '/configuracoes/usuarios';
 
 type NomeDaAba = 'usuarios' | 'papeis';
 
-const Cabecalho = ({ podeConvidar = false }: { podeConvidar?: boolean }) => (
+const Cabecalho = ({
+  podeAdministrar = false,
+  aba = 'usuarios',
+}: {
+  podeAdministrar?: boolean;
+  aba?: NomeDaAba;
+}) => (
   <header className="flex flex-col gap-sm">
     <Breadcrumb
       itens={[
@@ -39,18 +46,25 @@ const Cabecalho = ({ podeConvidar = false }: { podeConvidar?: boolean }) => (
         <h1 className="font-display text-headline-lg text-foreground">Usuários e permissões</h1>
         <p className="max-w-prose text-body-md text-muted-foreground">
           Quem acessa o escritório e o que cada pessoa pode fazer. Cada usuário recebe um convite
-          por e-mail para definir a senha, e as mudanças de papel valem na hora, sem a pessoa
-          precisar entrar de novo.
+          por e-mail para definir a senha, e as mudanças de papel ou de permissões valem na
+          próxima requisição, sem a pessoa precisar entrar de novo.
         </p>
       </div>
 
-      {/* Uma ação primária por página (PATTERNS.md §2); só quem administra a vê. */}
-      {podeConvidar ? (
+      {/* Uma ação primária por página (PATTERNS.md §2), a da aba aberta; só quem administra a vê. */}
+      {podeAdministrar ? (
         <Button asChild>
-          <Link href={`${BASE}/novo`}>
-            <Plus aria-hidden="true" />
-            Convidar usuário
-          </Link>
+          {aba === 'papeis' ? (
+            <Link href={`${BASE}/papeis/novo`}>
+              <Plus aria-hidden="true" />
+              Criar papel
+            </Link>
+          ) : (
+            <Link href={`${BASE}/novo`}>
+              <Plus aria-hidden="true" />
+              Convidar usuário
+            </Link>
+          )}
         </Button>
       ) : null}
     </div>
@@ -87,7 +101,7 @@ export const AreaDeUsuarios = () => {
     );
   }
 
-  if (!sessao.permissoes.USUARIOS.includes('consultar')) {
+  if (!pode(sessao, CONSULTA_DE_USUARIOS)) {
     return (
       <div className="flex flex-col gap-xl">
         <Cabecalho />
@@ -96,11 +110,11 @@ export const AreaDeUsuarios = () => {
     );
   }
 
-  const podeAdministrar = sessao.permissoes.USUARIOS.includes('administrar');
+  const podeAdministrar = pode(sessao, ADMINISTRACAO_DE_USUARIOS);
 
   return (
     <div className="flex flex-col gap-xl">
-      <Cabecalho podeConvidar={podeAdministrar} />
+      <Cabecalho podeAdministrar={podeAdministrar} aba={aba} />
 
       <Abas
         value={aba}
@@ -120,7 +134,7 @@ export const AreaDeUsuarios = () => {
           <ListaDeUsuarios podeAdministrar={podeAdministrar} />
         </ConteudoDeAba>
         <ConteudoDeAba value="papeis">
-          <CatalogoDePapeis />
+          <ListaDePapeis podeAdministrar={podeAdministrar} />
         </ConteudoDeAba>
       </Abas>
     </div>
