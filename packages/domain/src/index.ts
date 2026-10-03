@@ -27,6 +27,8 @@ export type {
   Transicao,
 } from './usuarios/ciclo-de-vida.js';
 export { VALIDADE_DO_CONVITE_HORAS, conviteVigente, expiraEm } from './usuarios/convite.js';
+export { validarDadosDoUsuario } from './usuarios/dados.js';
+export type { DadosDoUsuario, DadosDoUsuarioDeEntrada } from './usuarios/dados.js';
 
 export { ehCnpjValido, formatarCnpj, normalizarCnpj } from './validadores/cnpj.js';
 export { ehCpfValido, formatarCpf, normalizarCpf } from './validadores/cpf.js';

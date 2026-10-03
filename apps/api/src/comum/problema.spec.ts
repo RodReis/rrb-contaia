@@ -108,4 +108,33 @@ describe('violação de constraint do banco', () => {
     expect(corpo.code).toBe('ERRO_INTERNO');
     expect(JSON.stringify(corpo)).not.toContain('10.0.0.5');
   });
+
+  it('e-mail de usuário repetido vira 409 EMAIL_JA_UTILIZADO sem revelar o escritório (SPEC-007 §6)', () => {
+    const { status, corpo } = capturar(erroDoBanco('23505', 'usuario_email_unico'));
+
+    expect(status).toBe(HttpStatus.CONFLICT);
+    expect(corpo.code).toBe(CODIGOS_DE_ERRO.EMAIL_JA_UTILIZADO);
+    expect(JSON.stringify(corpo)).not.toContain('usuario_email_unico');
+  });
+});
+
+describe('status dos códigos de usuários e convite (SPEC-007 §6)', () => {
+  const casos: ReadonlyArray<readonly [keyof typeof CODIGOS_DE_ERRO, number]> = [
+    ['SEM_ALCADA', HttpStatus.FORBIDDEN],
+    ['USUARIO_NAO_ENCONTRADO', HttpStatus.NOT_FOUND],
+    ['CONVITE_INVALIDO', HttpStatus.NOT_FOUND],
+    ['EMAIL_JA_UTILIZADO', HttpStatus.CONFLICT],
+    ['ULTIMO_ADMIN', HttpStatus.CONFLICT],
+    ['USUARIO_ARQUIVADO_USE_NOVO_CONVITE', HttpStatus.CONFLICT],
+    ['TRANSICAO_DE_USUARIO_INVALIDA', HttpStatus.CONFLICT],
+    ['EMAIL_IMUTAVEL', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['PAPEL_OBRIGATORIO', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['PAPEL_INVALIDO', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['SENHA_FRACA', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['IDENTIDADE_INDISPONIVEL', HttpStatus.SERVICE_UNAVAILABLE],
+  ];
+
+  it.each(casos)('%s responde %i', (codigo, esperado) => {
+    expect(statusDoErro(new ErroDeDominio(CODIGOS_DE_ERRO[codigo], 'x'))).toBe(esperado);
+  });
 });

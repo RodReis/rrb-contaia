@@ -21,6 +21,7 @@ import {
   PendenciasController,
   PendenciasDaEmpresaController,
 } from '../pendencias/pendencias.controller';
+import { UsuariosController } from '../usuarios/usuarios.controller';
 import { ACAO_EXIGIDA, GuardDeAcao } from './acao.guard';
 import { GuardDeSessao } from './sessao.guard';
 
@@ -134,6 +135,15 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais', () => {
     [NotificacoesController, 'marcarComoLida', so('admin_escritorio', 'contador', 'auxiliar')],
     // Histórico de Informações
     [HistoricoController, 'listar', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    // Usuários e papéis padrão
+    [UsuariosController, 'listar', so('admin_escritorio', 'auditor_readonly')],
+    [UsuariosController, 'papeis', so('admin_escritorio', 'auditor_readonly')],
+    [UsuariosController, 'eu', TODOS],
+    [UsuariosController, 'convidar', so('admin_escritorio')],
+    [UsuariosController, 'editar', so('admin_escritorio')],
+    [UsuariosController, 'suspender', so('admin_escritorio')],
+    [UsuariosController, 'arquivar', so('admin_escritorio')],
+    [UsuariosController, 'novoConvite', so('admin_escritorio')],
   ];
 
   for (const [controller, metodo, quemPode] of ROTAS) {

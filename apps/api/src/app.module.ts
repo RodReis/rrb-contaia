@@ -19,6 +19,10 @@ import { EscritorioController } from './escritorio/escritorio.controller';
 import { EscritorioService } from './escritorio/escritorio.service';
 import { PainelController } from './escritorio/painel.controller';
 import { StorageService } from './comum/storage.service';
+import { ConviteMailer } from './usuarios/convite.mailer';
+import { KeycloakAdminClient } from './usuarios/keycloak-admin.client';
+import { UsuariosController } from './usuarios/usuarios.controller';
+import { UsuariosService } from './usuarios/usuarios.service';
 import { HealthController } from './health/health.controller';
 import { NotificacoesController } from './notificacoes/notificacoes.controller';
 import { NotificacoesService } from './notificacoes/notificacoes.service';
@@ -45,6 +49,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     EmpresaController,
     PendenciasController,
     NotificacoesController,
+    UsuariosController,
   ],
   providers: [
     PoolDoBanco,
@@ -56,6 +61,9 @@ import { PendenciasService } from './pendencias/pendencias.service';
     DocumentosDaEmpresaService,
     PendenciasService,
     NotificacoesService,
+    UsuariosService,
+    KeycloakAdminClient,
+    ConviteMailer,
     ConsultaDeCnpjNaCnpja,
     GuardDeSessao,
     GuardDeCadastro,

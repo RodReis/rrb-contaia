@@ -1,0 +1,551 @@
+/**
+ * Casos de uso de usuários e convite (SPEC-007).
+ *
+ * Toda mutação roda numa transação que escreve o dado e o evento de auditoria
+ * juntos: se a auditoria falha, a mutação desfaz. As chamadas ao Keycloak
+ * acontecem dentro dessa transação, antes do commit — se o Keycloak falha, nada
+ * é gravado; se o commit falha depois de o Keycloak já ter mudado, cada efeito
+ * tem uma compensação registrada que o desfaz. Nunca fica estado parcial.
+ *
+ * O e-mail do convite sai só depois do commit: uma falha de envio preserva o
+ * cadastro e marca o convite para reenvio (§3.2).
+ */
+import { Injectable, Logger } from '@nestjs/common';
+
+import {
+  comContextoDeTenant,
+  atualizarDadosDoUsuario,
+  atualizarEstadoDoUsuario,
+  carregarUsuario,
+  conviteVigenteDoUsuario,
+  criarConvite,
+  criarUsuario,
+  invalidarConvitesVigentes,
+  listarUsuarios,
+  marcarEnvioFalhou,
+  reconciliarConvitesExpirados,
+  registrarEventoDeUsuario,
+  substituirPapeis,
+  travarAdminsAtivos,
+  usuarioComEmailNoTenant,
+} from '@contaia/db';
+import type {
+  ConviteVigente,
+  FiltroDeUsuarios,
+  TipoDeEventoDeUsuario,
+  UsuarioNaLista,
+  UsuarioPersistido,
+} from '@contaia/db';
+import {
+  CODIGOS_DE_ERRO,
+  ErroDeConflito,
+  ErroDeDominio,
+  expiraEm as expiracaoDoConvite,
+  podePerderAdministracao,
+  situacaoApresentada,
+  transicionar,
+  validarDadosDoUsuario,
+  validarPapeis,
+} from '@contaia/domain';
+import type { PapelPadrao, SituacaoApresentada, Transicao } from '@contaia/domain';
+
+import { PoolDoBanco } from '../banco/pool.provider';
+import { ConviteMailer } from './convite.mailer';
+import { KeycloakAdminClient } from './keycloak-admin.client';
+import { gerarTokenDeConvite, hashDoToken } from './token-de-convite';
+
+export type Autor = Readonly<{ usuarioId: string }>;
+
+export type DadosDoConvite = Readonly<{
+  nome: string;
+  email: string;
+  telefone: string | null;
+  crc: string | null;
+  papeis: readonly string[];
+}>;
+
+export type DadosDeEdicao = Readonly<{
+  nome: string;
+  telefone: string | null;
+  crc: string | null;
+  papeis: readonly string[];
+  /** Só aceito enquanto o usuário está CONVIDADO. */
+  email?: string | undefined;
+}>;
+
+export type DadosDeNovoConvite = Omit<DadosDeEdicao, 'email'>;
+
+/** Resposta administrativa: sem token, link, hash nem identificador da identidade. */
+export type VisaoDeUsuario = Readonly<{
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string | null;
+  crc: string | null;
+  papeis: readonly PapelPadrao[];
+  estado: UsuarioPersistido['estado'];
+  situacao: SituacaoApresentada;
+  conviteExpiraEm: string | null;
+  envioFalhou: boolean;
+  versao: number;
+}>;
+
+export type PaginaDeUsuariosVisao = Readonly<{
+  usuarios: readonly VisaoDeUsuario[];
+  total: number;
+}>;
+
+type Compensacao = () => Promise<void>;
+type RegistrarCompensacao = (compensacao: Compensacao) => void;
+type Cliente = Parameters<Parameters<typeof comContextoDeTenant>[2]>[0];
+
+type ConviteEmitido = Readonly<{ conviteId: string; token: string; expiraEm: Date }>;
+type DestinoDoConvite = Readonly<{ email: string; nome: string }>;
+
+const ADMIN: PapelPadrao = 'admin_escritorio';
+
+const urlPublicaDaWeb = (): string => process.env['WEB_PUBLIC_URL'] ?? 'http://127.0.0.1:15100';
+
+const paraVisao = (
+  usuario: UsuarioPersistido,
+  convite: Pick<ConviteVigente, 'expiraEm' | 'envioFalhou'> | null,
+  agora: Date,
+): VisaoDeUsuario => ({
+  id: usuario.id,
+  nome: usuario.nome,
+  email: usuario.email,
+  telefone: usuario.telefone,
+  crc: usuario.crc,
+  papeis: usuario.papeis,
+  estado: usuario.estado,
+  situacao: situacaoApresentada(
+    { estado: usuario.estado, conviteExpiraEm: convite?.expiraEm ?? null },
+    agora,
+  ),
+  conviteExpiraEm: convite?.expiraEm.toISOString() ?? null,
+  envioFalhou: convite?.envioFalhou ?? false,
+  versao: usuario.versao,
+});
+
+const paraVisaoDaLista = (usuario: UsuarioNaLista, agora: Date): VisaoDeUsuario =>
+  paraVisao(
+    usuario,
+    usuario.conviteExpiraEm === null
+      ? null
+      : { expiraEm: usuario.conviteExpiraEm, envioFalhou: usuario.envioFalhou },
+    agora,
+  );
+
+const mesmoConjunto = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|');
+
+@Injectable()
+export class UsuariosService {
+  private readonly logger = new Logger(UsuariosService.name);
+
+  constructor(
+    private readonly pool: PoolDoBanco,
+    private readonly identidade: KeycloakAdminClient,
+    private readonly mailer: ConviteMailer,
+  ) {}
+
+  // -- Consulta ---------------------------------------------------------------
+
+  async listar(tenantId: string, filtro: FiltroDeUsuarios): Promise<PaginaDeUsuariosVisao> {
+    const agora = new Date();
+
+    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+      // Expiração é preguiçosa (sem worker): o evento nasce na primeira observação.
+      await reconciliarConvitesExpirados(cliente, tenantId, agora);
+
+      const pagina = await listarUsuarios(cliente, tenantId, filtro);
+
+      return {
+        total: pagina.total,
+        usuarios: pagina.usuarios.map((usuario) => paraVisaoDaLista(usuario, agora)),
+      };
+    });
+  }
+
+  async obter(tenantId: string, usuarioId: string): Promise<VisaoDeUsuario> {
+    const agora = new Date();
+
+    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+      const convite = await conviteVigenteDoUsuario(cliente, tenantId, usuarioId);
+
+      return paraVisao(usuario, convite, agora);
+    });
+  }
+
+  // -- Convite ----------------------------------------------------------------
+
+  async convidar(tenantId: string, autor: Autor, entrada: DadosDoConvite): Promise<VisaoDeUsuario> {
+    const dados = validarDadosDoUsuario(entrada);
+    const papeis = validarPapeis(entrada.papeis);
+    const agora = new Date();
+
+    const emitido = await this.comTransacao(tenantId, async (cliente, compensar) => {
+      const existente = await usuarioComEmailNoTenant(cliente, tenantId, dados.email);
+
+      if (existente !== null) {
+        throw existente.estado === 'ARQUIVADO'
+          ? new ErroDeConflito(
+              CODIGOS_DE_ERRO.USUARIO_ARQUIVADO_USE_NOVO_CONVITE,
+              'Este usuário está arquivado. Inicie um novo convite para ele.',
+            )
+          : new ErroDeConflito(CODIGOS_DE_ERRO.EMAIL_JA_UTILIZADO, 'Este e-mail já está em uso.');
+      }
+
+      const sub = await this.identidade.criar({ email: dados.email, nome: dados.nome });
+
+      compensar(() => this.identidade.remover(sub));
+
+      const usuarioId = await criarUsuario(cliente, tenantId, { subOidc: sub, ...dados });
+
+      await substituirPapeis(cliente, tenantId, usuarioId, papeis);
+
+      const convite = await this.emitirConvite(cliente, tenantId, usuarioId, agora);
+
+      await registrarEventoDeUsuario(cliente, tenantId, {
+        tipo: 'CONVITE_CRIADO',
+        usuarioAfetadoId: usuarioId,
+        autorId: autor.usuarioId,
+        antes: null,
+        depois: { estado: 'CONVIDADO', nome: dados.nome, email: dados.email, papeis },
+      });
+
+      return { usuarioId, convite };
+    });
+
+    await this.enviarConvite(tenantId, emitido.convite, dados);
+
+    return this.obter(tenantId, emitido.usuarioId);
+  }
+
+  async reenviarConvite(tenantId: string, autor: Autor, usuarioId: string): Promise<VisaoDeUsuario> {
+    const agora = new Date();
+
+    const { convite, destino } = await this.comTransacao(tenantId, async (cliente) => {
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+
+      transicionar(usuario.estado, 'REENVIAR');
+
+      const emitido = await this.emitirConvite(cliente, tenantId, usuarioId, agora);
+
+      await registrarEventoDeUsuario(cliente, tenantId, {
+        tipo: 'CONVITE_REENVIADO',
+        usuarioAfetadoId: usuarioId,
+        autorId: autor.usuarioId,
+        antes: null,
+        depois: { expiraEm: emitido.expiraEm.toISOString() },
+      });
+
+      return { convite: emitido, destino: { email: usuario.email, nome: usuario.nome } };
+    });
+
+    await this.enviarConvite(tenantId, convite, destino);
+
+    return this.obter(tenantId, usuarioId);
+  }
+
+  async novoConvite(
+    tenantId: string,
+    autor: Autor,
+    usuarioId: string,
+    entrada: DadosDeNovoConvite,
+  ): Promise<VisaoDeUsuario> {
+    const papeis = validarPapeis(entrada.papeis);
+    const agora = new Date();
+
+    const { convite, destino } = await this.comTransacao(tenantId, async (cliente) => {
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+      const novoEstado = transicionar(usuario.estado, 'NOVO_CONVITE');
+      const dados = validarDadosDoUsuario({ ...entrada, email: usuario.email });
+
+      await atualizarDadosDoUsuario(cliente, tenantId, usuarioId, dados);
+      await substituirPapeis(cliente, tenantId, usuarioId, papeis);
+      await atualizarEstadoDoUsuario(cliente, tenantId, usuarioId, novoEstado);
+
+      const emitido = await this.emitirConvite(cliente, tenantId, usuarioId, agora);
+
+      await registrarEventoDeUsuario(cliente, tenantId, {
+        tipo: 'NOVO_CONVITE_INICIADO',
+        usuarioAfetadoId: usuarioId,
+        autorId: autor.usuarioId,
+        antes: { estado: usuario.estado, papeis: usuario.papeis },
+        depois: { estado: novoEstado, papeis },
+      });
+
+      return { convite: emitido, destino: { email: usuario.email, nome: dados.nome } };
+    });
+
+    await this.enviarConvite(tenantId, convite, destino);
+
+    return this.obter(tenantId, usuarioId);
+  }
+
+  // -- Edição -----------------------------------------------------------------
+
+  async editar(
+    tenantId: string,
+    autor: Autor,
+    usuarioId: string,
+    entrada: DadosDeEdicao,
+  ): Promise<VisaoDeUsuario> {
+    const papeis = validarPapeis(entrada.papeis);
+    const agora = new Date();
+
+    const reemissao = await this.comTransacao(tenantId, async (cliente, compensar) => {
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+
+      if (usuario.estado === 'ARQUIVADO') {
+        throw new ErroDeConflito(
+          CODIGOS_DE_ERRO.USUARIO_ARQUIVADO_USE_NOVO_CONVITE,
+          'Este usuário está arquivado. Inicie um novo convite para ele.',
+        );
+      }
+
+      const dados = validarDadosDoUsuario({ ...entrada, email: entrada.email ?? usuario.email });
+      const emailMudou = dados.email !== usuario.email.toLowerCase();
+
+      if (emailMudou && usuario.estado !== 'CONVIDADO') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMAIL_IMUTAVEL,
+          'O e-mail só pode ser corrigido antes de o convite ser aceito.',
+        );
+      }
+
+      const perdeAdministracao =
+        usuario.estado === 'ATIVO' && usuario.papeis.includes(ADMIN) && !papeis.includes(ADMIN);
+
+      if (perdeAdministracao) {
+        await this.exigirOutroAdministrador(cliente, tenantId, usuarioId);
+      }
+
+      const mudou = {
+        nome: dados.nome !== usuario.nome,
+        telefone: dados.telefone !== usuario.telefone,
+        crc: dados.crc !== usuario.crc,
+        papeis: !mesmoConjunto(papeis, usuario.papeis),
+      };
+
+      if (!emailMudou && !Object.values(mudou).some(Boolean)) {
+        return null;
+      }
+
+      await atualizarDadosDoUsuario(cliente, tenantId, usuarioId, {
+        ...dados,
+        ...(emailMudou ? { email: dados.email } : {}),
+      });
+      await substituirPapeis(cliente, tenantId, usuarioId, papeis);
+
+      if (Object.values(mudou).some(Boolean)) {
+        await registrarEventoDeUsuario(cliente, tenantId, {
+          tipo: 'DADOS_E_PAPEIS_ALTERADOS',
+          usuarioAfetadoId: usuarioId,
+          autorId: autor.usuarioId,
+          antes: this.camposAlterados(mudou, usuario, usuario.papeis),
+          depois: this.camposAlterados(mudou, dados, papeis),
+        });
+      }
+
+      if (!emailMudou) {
+        return null;
+      }
+
+      await this.identidade.atualizarEmail(usuario.subOidc, dados.email);
+      compensar(() => this.identidade.atualizarEmail(usuario.subOidc, usuario.email));
+
+      const convite = await this.emitirConvite(cliente, tenantId, usuarioId, agora);
+
+      await registrarEventoDeUsuario(cliente, tenantId, {
+        tipo: 'EMAIL_DE_CONVITE_CORRIGIDO',
+        usuarioAfetadoId: usuarioId,
+        autorId: autor.usuarioId,
+        antes: { email: usuario.email },
+        depois: { email: dados.email },
+      });
+
+      return { convite, destino: { email: dados.email, nome: dados.nome } };
+    });
+
+    if (reemissao !== null) {
+      await this.enviarConvite(tenantId, reemissao.convite, reemissao.destino);
+    }
+
+    return this.obter(tenantId, usuarioId);
+  }
+
+  // -- Ciclo de vida ----------------------------------------------------------
+
+  suspender(tenantId: string, autor: Autor, usuarioId: string): Promise<VisaoDeUsuario> {
+    return this.mudarEstado(tenantId, autor, usuarioId, 'SUSPENDER', 'SUSPENSO', (sub, compensar) =>
+      this.desabilitarEEncerrarSessoes(sub, compensar),
+    );
+  }
+
+  arquivar(tenantId: string, autor: Autor, usuarioId: string): Promise<VisaoDeUsuario> {
+    return this.mudarEstado(tenantId, autor, usuarioId, 'ARQUIVAR', 'ARQUIVADO', (sub, compensar) =>
+      this.desabilitarEEncerrarSessoes(sub, compensar),
+    );
+  }
+
+  reativar(tenantId: string, autor: Autor, usuarioId: string): Promise<VisaoDeUsuario> {
+    return this.mudarEstado(tenantId, autor, usuarioId, 'REATIVAR', 'REATIVADO', async (sub, compensar) => {
+      await this.identidade.habilitar(sub, true);
+      compensar(() => this.identidade.habilitar(sub, false));
+    });
+  }
+
+  // -- Internos ---------------------------------------------------------------
+
+  /** Desabilita a conta e revoga as sessões; reabilita se algo falhar depois. */
+  private async desabilitarEEncerrarSessoes(
+    sub: string,
+    compensar: RegistrarCompensacao,
+  ): Promise<void> {
+    await this.identidade.habilitar(sub, false);
+    compensar(() => this.identidade.habilitar(sub, true));
+    await this.identidade.encerrarSessoes(sub);
+  }
+
+  private async mudarEstado(
+    tenantId: string,
+    autor: Autor,
+    usuarioId: string,
+    transicao: Transicao,
+    tipo: TipoDeEventoDeUsuario,
+    aplicarNaIdentidade: (sub: string, compensar: RegistrarCompensacao) => Promise<void>,
+  ): Promise<VisaoDeUsuario> {
+    await this.comTransacao(tenantId, async (cliente, compensar) => {
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+      const novoEstado = transicionar(usuario.estado, transicao);
+      const deixaDeSerAdministrador =
+        usuario.estado === 'ATIVO' && usuario.papeis.includes(ADMIN) && novoEstado !== 'ATIVO';
+
+      // Antes de qualquer chamada ao Keycloak: o bloqueio não pode deixar efeito para trás.
+      if (deixaDeSerAdministrador) {
+        await this.exigirOutroAdministrador(cliente, tenantId, usuarioId);
+      }
+
+      await aplicarNaIdentidade(usuario.subOidc, compensar);
+      await atualizarEstadoDoUsuario(cliente, tenantId, usuarioId, novoEstado);
+      await registrarEventoDeUsuario(cliente, tenantId, {
+        tipo,
+        usuarioAfetadoId: usuarioId,
+        autorId: autor.usuarioId,
+        antes: { estado: usuario.estado },
+        depois: { estado: novoEstado },
+      });
+    });
+
+    return this.obter(tenantId, usuarioId);
+  }
+
+  /** Serializa alterações de administração: a segunda enxerga o conjunto já reduzido pela primeira. */
+  private async exigirOutroAdministrador(
+    cliente: Cliente,
+    tenantId: string,
+    usuarioId: string,
+  ): Promise<void> {
+    const administradores = await travarAdminsAtivos(cliente, tenantId);
+    const restantes = administradores.filter((id) => id !== usuarioId).length;
+
+    if (!podePerderAdministracao(restantes)) {
+      throw new ErroDeConflito(
+        CODIGOS_DE_ERRO.ULTIMO_ADMIN,
+        'O escritório precisa manter ao menos um administrador ativo.',
+      );
+    }
+  }
+
+  private camposAlterados(
+    mudou: Readonly<Record<'nome' | 'telefone' | 'crc' | 'papeis', boolean>>,
+    fonte: Readonly<{ nome: string; telefone: string | null; crc: string | null }>,
+    papeis: readonly string[],
+  ): Readonly<Record<string, unknown>> {
+    return {
+      ...(mudou.nome ? { nome: fonte.nome } : {}),
+      ...(mudou.telefone ? { telefone: fonte.telefone } : {}),
+      ...(mudou.crc ? { crc: fonte.crc } : {}),
+      ...(mudou.papeis ? { papeis } : {}),
+    };
+  }
+
+  private async carregarOuFalhar(
+    cliente: Cliente,
+    tenantId: string,
+    usuarioId: string,
+  ): Promise<UsuarioPersistido> {
+    const usuario = await carregarUsuario(cliente, tenantId, usuarioId);
+
+    if (usuario === null) {
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.USUARIO_NAO_ENCONTRADO, 'Usuário não encontrado.');
+    }
+
+    return usuario;
+  }
+
+  /** Invalida o convite pendente e emite outro: só um link vale por vez. */
+  private async emitirConvite(
+    cliente: Cliente,
+    tenantId: string,
+    usuarioId: string,
+    agora: Date,
+  ): Promise<ConviteEmitido> {
+    await invalidarConvitesVigentes(cliente, tenantId, usuarioId);
+
+    const token = gerarTokenDeConvite();
+    const expiraEm = expiracaoDoConvite(agora);
+    const conviteId = await criarConvite(cliente, tenantId, usuarioId, {
+      tokenHash: hashDoToken(token),
+      expiraEm,
+    });
+
+    return { conviteId, token, expiraEm };
+  }
+
+  /** Depois do commit. Falha não desfaz o cadastro: marca o convite para reenvio. */
+  private async enviarConvite(
+    tenantId: string,
+    convite: ConviteEmitido,
+    destino: DestinoDoConvite,
+  ): Promise<void> {
+    try {
+      await this.mailer.enviar({
+        para: destino.email,
+        nome: destino.nome,
+        link: `${urlPublicaDaWeb()}/convite/${convite.token}`,
+        expiraEm: convite.expiraEm,
+      });
+    } catch {
+      await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+        marcarEnvioFalhou(cliente, tenantId, convite.conviteId, true),
+      );
+    }
+  }
+
+  private async comTransacao<T>(
+    tenantId: string,
+    executar: (cliente: Cliente, compensar: RegistrarCompensacao) => Promise<T>,
+  ): Promise<T> {
+    const compensacoes: Compensacao[] = [];
+
+    try {
+      return await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+        executar(cliente, (compensacao) => compensacoes.push(compensacao)),
+      );
+    } catch (erro) {
+      for (const compensar of compensacoes.reverse()) {
+        try {
+          await compensar();
+        } catch {
+          this.logger.error('falha ao compensar a identidade; conferir o usuário no Keycloak');
+        }
+      }
+
+      throw erro;
+    }
+  }
+}
