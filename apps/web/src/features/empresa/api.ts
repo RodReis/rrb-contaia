@@ -44,6 +44,8 @@ export type FiltroDeStatus = StatusDaEmpresa | 'ARQUIVADA';
 export type ListaDeEmpresas = Readonly<{
   empresas: readonly EmpresaNaLista[];
   total: number;
+  /** Presente só quando a lista é vazia por falta de carteira (SPEC-007 §3.1), não por carteira vazia. */
+  escopoDeEmpresas?: 'NENHUMA';
 }>;
 
 export type FiltroDaLista = Readonly<{

@@ -246,6 +246,45 @@ describe('filtro na URL', () => {
   });
 });
 
+describe('usuário sem carteira (SPEC-007 §3.1)', () => {
+  const semCarteira: Resposta = { empresas: [], total: 0, escopoDeEmpresas: 'NENHUMA' };
+
+  it('explica a ausência de alçada em vez de convidar a cadastrar a primeira empresa', async () => {
+    responderCom(respostaJson(semCarteira));
+
+    renderizar();
+
+    expect(await screen.findByText('Você ainda não tem empresas na sua carteira')).toBeInTheDocument();
+    expect(screen.queryByText('Nenhuma empresa cadastrada')).not.toBeInTheDocument();
+  });
+
+  it('não oferece cadastrar empresa: a API recusaria e a empresa ficaria órfã', async () => {
+    responderCom(respostaJson(semCarteira));
+
+    renderizar();
+    await screen.findByText('Você ainda não tem empresas na sua carteira');
+
+    expect(screen.queryByRole('link', { name: /Cadastrar empresa/u })).not.toBeInTheDocument();
+  });
+
+  it('o estado de ausência de alçada não tem violação detectável pelo axe', async () => {
+    responderCom(respostaJson(semCarteira));
+
+    const { container } = renderizar();
+    await screen.findByText('Você ainda não tem empresas na sua carteira');
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('o administrador com carteira vazia continua vendo o convite ao primeiro cadastro', async () => {
+    responderCom(respostaJson(vazio));
+
+    renderizar();
+
+    expect(await screen.findByText('Nenhuma empresa cadastrada')).toBeInTheDocument();
+  });
+});
+
 describe('acessibilidade', () => {
   it('a listagem não tem violação detectável pelo axe', async () => {
     responderCom(respostaJson(comEmpresas));

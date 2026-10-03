@@ -3,7 +3,7 @@
  * recebe resposta vazia ou negada sem que o serviço de dados sequer seja
  * chamado — a prova é que o dublê do serviço não foi tocado.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CODIGOS_DE_ERRO, ErroDeDominio, type PapelPadrao } from '@contaia/domain';
 
@@ -40,11 +40,21 @@ describe('EmpresaController sem carteira', () => {
   const pendencias = { contarPorEmpresas: vi.fn() };
   const controller = new EmpresaController(servico as never, pendencias as never);
 
+  beforeEach(() => vi.clearAllMocks());
+
   it('lista devolve zero empresas sem consultar o serviço', async () => {
     const resposta = await controller.listar(SEM_CARTEIRA, {});
 
-    expect(resposta).toEqual({ empresas: [], total: 0 });
+    // O marcador deixa a tela distinguir "sem carteira" de "carteira ainda vazia".
+    expect(resposta).toEqual({ empresas: [], total: 0, escopoDeEmpresas: 'NENHUMA' });
     expect(servico.listar).not.toHaveBeenCalled();
+  });
+
+  it('administrador não recebe o marcador de escopo: para ele a lista vazia é carteira vazia', async () => {
+    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
+    pendencias.contarPorEmpresas.mockResolvedValue(new Map());
+
+    expect(await controller.listar(ADMIN, {})).not.toHaveProperty('escopoDeEmpresas');
   });
 
   it('consulta de CNPJ e criação são negadas com SEM_ALCADA', async () => {

@@ -9,6 +9,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { clienteDaRequisicao } from '@/lib/cliente-da-requisicao';
 import { COOKIE_DE_SESSAO } from '@/lib/oidc';
 
 const urlDaApi = (): string => process.env['API_ORIGIN'] ?? 'http://127.0.0.1:15101';
@@ -40,6 +41,12 @@ const encaminhar = async (
 
   cabecalhos.set('authorization', `Bearer ${token}`);
   cabecalhos.set('accept', requisicao.headers.get('accept') ?? 'application/json');
+
+  const cliente = clienteDaRequisicao(requisicao);
+
+  if (cliente !== null) {
+    cabecalhos.set('x-forwarded-for', cliente);
+  }
 
   const tipoDoConteudo = requisicao.headers.get('content-type');
 

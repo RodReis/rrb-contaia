@@ -61,10 +61,17 @@ export class EmpresaController {
   async listar(
     @Req() requisicao: RequisicaoAutenticada,
     @Query() consulta: unknown,
-  ): Promise<Readonly<{ empresas: readonly EmpresaNaListaComPendencias[]; total: number }>> {
+  ): Promise<
+    Readonly<{
+      empresas: readonly EmpresaNaListaComPendencias[];
+      total: number;
+      /** Presente só quando a lista é vazia por falta de carteira, não por carteira vazia. */
+      escopoDeEmpresas?: 'NENHUMA';
+    }>
+  > {
     // Sem carteira não há empresa visível: lista vazia, nunca a base inteira.
     if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { empresas: [], total: 0 };
+      return { empresas: [], total: 0, escopoDeEmpresas: 'NENHUMA' };
     }
 
     const tenantId = tenantDa(requisicao);

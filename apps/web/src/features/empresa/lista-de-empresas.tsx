@@ -11,7 +11,7 @@
  */
 'use client';
 
-import { Building2, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { Building2, Lock, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -61,7 +61,14 @@ const OPCOES_DE_STATUS = [
 const ehStatus = (valor: string | null): valor is FiltroDeStatus =>
   valor === 'ATIVA' || valor === 'CADASTRO_INCOMPLETO' || valor === 'ARQUIVADA';
 
-const Cabecalho = ({ total }: { total: number | null }) => (
+const Cabecalho = ({
+  total,
+  semAlcada = false,
+}: {
+  total: number | null;
+  /** Sem carteira a API recusa o cadastro: o botão não é oferecido (SPEC-007 §3.1). */
+  semAlcada?: boolean;
+}) => (
   <header className="flex flex-col gap-md tablet:flex-row tablet:items-end tablet:justify-between">
     <div className="flex flex-col gap-xs">
       <h1 className="font-display text-headline-lg text-foreground">Empresas</h1>
@@ -76,12 +83,14 @@ const Cabecalho = ({ total }: { total: number | null }) => (
       </p>
     </div>
 
-    <Button asChild>
-      <Link href="/empresas/nova">
-        <Plus aria-hidden="true" />
-        Cadastrar empresa
-      </Link>
-    </Button>
+    {semAlcada ? null : (
+      <Button asChild>
+        <Link href="/empresas/nova">
+          <Plus aria-hidden="true" />
+          Cadastrar empresa
+        </Link>
+      </Button>
+    )}
   </header>
 );
 
@@ -336,6 +345,25 @@ export const ListaDeEmpresas = () => {
               Tentar de novo
             </Button>
           }
+        />
+      </div>
+    );
+  }
+
+  const semAlcada = data.escopoDeEmpresas === 'NENHUMA';
+
+  if (semAlcada) {
+    // Quarto vazio, distinto dos três de PATTERNS.md §5: não é filtro nem carteira
+    // vazia, é falta de alçada — e quem não tem alçada não deve nem ser convidado
+    // a cadastrar (a API recusaria) nem receber a base inteira.
+    return (
+      <div className="flex flex-col gap-xl">
+        <Cabecalho total={null} semAlcada />
+        <EmptyState
+          nivel={2}
+          icone={<Lock />}
+          titulo="Você ainda não tem empresas na sua carteira"
+          descricao="Quando houver empresas atribuídas à sua carteira, elas aparecem aqui. Enquanto isso, você acessa apenas as áreas que não dependem de uma empresa."
         />
       </div>
     );

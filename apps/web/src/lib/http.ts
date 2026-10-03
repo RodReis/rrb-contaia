@@ -37,14 +37,15 @@ const ehProblema = (valor: unknown): valor is Problema =>
   valor !== null &&
   typeof (valor as { code?: unknown }).code === 'string';
 
-export const requisitar = async <T>(
-  caminho: string,
-  opcoes: RequestInit = {},
-): Promise<T> => {
+/** Rota autenticada (token em cookie `httpOnly`) e a rota pública, só do convite. */
+const BASE_AUTENTICADA = '/api/proxy';
+const BASE_PUBLICA = '/api/publico';
+
+const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Promise<T> => {
   let resposta: Response;
 
   try {
-    resposta = await fetch(`/api/proxy${caminho}`, {
+    resposta = await fetch(`${base}${caminho}`, {
       ...opcoes,
       headers: { accept: 'application/json', ...(opcoes.headers ?? {}) },
     });
@@ -74,3 +75,10 @@ export const requisitar = async <T>(
 
   return corpo as T;
 };
+
+export const requisitar = <T>(caminho: string, opcoes: RequestInit = {}): Promise<T> =>
+  chamar<T>(BASE_AUTENTICADA, caminho, opcoes);
+
+/** Sem sessão: só o que a rota pública libera (aceite do convite). */
+export const requisitarPublico = <T>(caminho: string, opcoes: RequestInit = {}): Promise<T> =>
+  chamar<T>(BASE_PUBLICA, caminho, opcoes);
