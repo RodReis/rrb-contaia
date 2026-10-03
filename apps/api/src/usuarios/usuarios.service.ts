@@ -21,6 +21,7 @@ import {
   conviteVigenteDoUsuario,
   criarConvite,
   criarUsuario,
+  encerrarVinculosDoUsuario,
   invalidarConvitesVigentes,
   listarEventosDeUsuario,
   listarUsuarios,
@@ -60,6 +61,7 @@ import type {
 } from '@contaia/domain';
 
 import { PoolDoBanco } from '../banco/pool.provider';
+import { registrarEncerramento } from '../carteira/registro';
 import { ConviteMailer } from './convite.mailer';
 import { KeycloakAdminClient } from './keycloak-admin.client';
 import { gerarTokenDeConvite, hashDoToken } from './token-de-convite';
@@ -528,6 +530,26 @@ export class UsuariosService {
         antes: { estado: usuario.estado },
         depois: { estado: novoEstado },
       });
+
+      // Arquivar encerra os vínculos de carteira e o histórico fica; suspender os preserva
+      // (voltam a valer na reativação) e o retorno do arquivado exige nova atribuição.
+      // Sem notificação: o colaborador arquivado já não acessa o sino (SPEC-009 §3.3).
+      if (transicao === 'ARQUIVAR') {
+        const afetados = await encerrarVinculosDoUsuario(
+          cliente,
+          tenantId,
+          usuarioId,
+          autor.usuarioId,
+        );
+        await registrarEncerramento(
+          cliente,
+          tenantId,
+          autor.usuarioId,
+          'ARQUIVAMENTO_USUARIO',
+          afetados,
+          false,
+        );
+      }
     });
 
     return this.obter(tenantId, usuarioId);

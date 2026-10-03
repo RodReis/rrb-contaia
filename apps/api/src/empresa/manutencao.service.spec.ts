@@ -63,6 +63,11 @@ const { estado } = vi.hoisted(() => ({
     situacaoDefinida: null as string | null,
     origemReconciliada: null as string | null,
     causasNotificadas: [] as Record<string, unknown>[],
+    // Carteira (SPEC-009): quem tem vínculo ativo com a empresa ao arquivá-la.
+    vinculadosAoArquivar: [] as string[],
+    vinculosEncerrados: 0,
+    eventosDeCarteira: [] as Record<string, unknown>[],
+    notificacoesDeCarteira: [] as string[],
   },
 }));
 
@@ -93,6 +98,33 @@ vi.mock('@contaia/db', () => ({
   },
   registrarEventos: async (_c: unknown, _t: string, eventos: Record<string, unknown>[]) => {
     estado.eventos.push(...eventos);
+  },
+  encerrarVinculosDaEmpresa: async () => {
+    estado.vinculosEncerrados += 1;
+    return estado.vinculadosAoArquivar.map((usuarioId) => ({
+      usuarioId,
+      usuarioNome: usuarioId,
+      adicionadas: [],
+      removidas: [{ id: EMPRESA, nome: 'Empresa', cnpj: '11222333000181' }],
+      revisaoAnterior: 0,
+      revisaoNova: 1,
+    }));
+  },
+  registrarEventoDeCarteira: async (
+    _c: unknown,
+    _t: string,
+    evento: Record<string, unknown>,
+  ) => {
+    estado.eventosDeCarteira.push(evento);
+    return 'evento-1';
+  },
+  criarNotificacoesDeCarteira: async (
+    _c: unknown,
+    _t: string,
+    _evento: string,
+    afetados: { usuarioId: string }[],
+  ) => {
+    estado.notificacoesDeCarteira.push(...afetados.map((a) => a.usuarioId));
   },
   salvarIdentificacaoDaEmpresa: async (
     _c: unknown,
@@ -179,6 +211,10 @@ beforeEach(() => {
   estado.gravacaoAceita = true;
   estado.fiscaisSalvos = null;
   estado.situacaoDefinida = null;
+  estado.vinculadosAoArquivar = [];
+  estado.vinculosEncerrados = 0;
+  estado.eventosDeCarteira = [];
+  estado.notificacoesDeCarteira = [];
   estado.aplicabilidades = [];
   estado.causasNotificadas = [];
 });
@@ -291,6 +327,42 @@ describe('arquivamento e reativação (§3.5)', () => {
       justificativa: 'Encerrou as atividades.',
       usuarioId: AUTOR.usuarioId,
     });
+  });
+
+  it('arquivar encerra os vínculos de carteira e avisa cada colaborador afetado', async () => {
+    estado.vinculadosAoArquivar = ['colab-1', 'colab-2'];
+    const servico = criarServico();
+
+    await servico.arquivar(TENANT, EMPRESA, AUTOR, 'Encerrou as atividades.');
+
+    expect(estado.vinculosEncerrados).toBe(1);
+    expect(estado.eventosDeCarteira).toHaveLength(1);
+    expect(estado.eventosDeCarteira[0]).toMatchObject({
+      origem: 'ARQUIVAMENTO_EMPRESA',
+      autorId: AUTOR.usuarioId,
+    });
+    // Uma notificação por colaborador, nunca uma por vínculo.
+    expect(estado.notificacoesDeCarteira).toEqual(['colab-1', 'colab-2']);
+  });
+
+  it('arquivar empresa sem colaboradores vinculados não gera evento de carteira', async () => {
+    estado.vinculadosAoArquivar = [];
+    const servico = criarServico();
+
+    await servico.arquivar(TENANT, EMPRESA, AUTOR, 'Encerrou as atividades.');
+
+    expect(estado.eventosDeCarteira).toEqual([]);
+    expect(estado.notificacoesDeCarteira).toEqual([]);
+  });
+
+  it('reativar não restaura carteira: nada é encerrado nem atribuído', async () => {
+    estado.empresa = empresaPersistida('arquivado');
+    const servico = criarServico();
+
+    await servico.reativar(TENANT, EMPRESA, AUTOR, 'Retomou as atividades.');
+
+    expect(estado.vinculosEncerrados).toBe(0);
+    expect(estado.eventosDeCarteira).toEqual([]);
   });
 
   it('recusa reativar empresa que não está arquivada', async () => {

@@ -28,9 +28,14 @@ const hojeEmSaoPaulo = (): string =>
 export class PendenciasService {
   constructor(private readonly pool: PoolDoBanco) {}
 
-  async consultarCentral(tenantId: string, filtro: FiltroDaCentralDto): Promise<PaginaDePendencias> {
+  /** A Central cruza empresas, mas só as da carteira de quem consulta (SPEC-009 §3.5). */
+  async consultarCentral(
+    tenantId: string,
+    usuarioId: string,
+    filtro: FiltroDaCentralDto,
+  ): Promise<PaginaDePendencias> {
     return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
-      listarCentral(cliente, filtro, hojeEmSaoPaulo()),
+      listarCentral(cliente, { ...filtro, carteiraDoUsuarioId: usuarioId }, hojeEmSaoPaulo()),
     );
   }
 

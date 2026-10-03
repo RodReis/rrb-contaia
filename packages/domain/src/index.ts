@@ -7,7 +7,7 @@ export type EmpresaId = Brand<string, 'EmpresaId'>;
 export { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, ErroDeValidacao } from './erros.js';
 export type { CampoInvalido, CodigoDeErro } from './erros.js';
 
-export { PAPEIS_PADRAO, ehPapelPadrao, escopoDeEmpresas } from './usuarios/papeis.js';
+export { PAPEIS_PADRAO, ehPapelPadrao } from './usuarios/papeis.js';
 export type { PapelPadrao } from './usuarios/papeis.js';
 export {
   AREA_EXCLUSIVA,

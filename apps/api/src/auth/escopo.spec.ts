@@ -1,72 +1,51 @@
+/**
+ * Alçada por empresa (SPEC-009 §3.5): o guard delega a decisão ao serviço de
+ * carteira e nunca decide pelo papel — nem para o administrador.
+ */
 import type { ExecutionContext } from '@nestjs/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { CODIGOS_DE_ERRO, ErroDeDominio, type PapelPadrao } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 
-import { escopoDaSessao, exigirAlcada, GuardDeEscopoDeEmpresa } from './escopo';
+import type { CarteiraService } from '../carteira/carteira.service';
+import { GuardDeEscopoDeEmpresa } from './escopo';
 import type { RequisicaoAutenticada } from './sessao.guard';
 
-const requisicaoCom = (
-  papeis: readonly PapelPadrao[],
-  params: Record<string, string> = {},
-): RequisicaoAutenticada => ({ sessao: { papeis }, params }) as unknown as RequisicaoAutenticada;
+const requisicaoCom = (params: Record<string, string> = {}): RequisicaoAutenticada =>
+  ({
+    sessao: { papeis: ['admin_escritorio'], tenantId: 'tenant-1', usuarioId: 'usuario-1' },
+    params,
+  }) as unknown as RequisicaoAutenticada;
 
 const contexto = (requisicao: RequisicaoAutenticada): ExecutionContext =>
   ({ switchToHttp: () => ({ getRequest: () => requisicao }) }) as unknown as ExecutionContext;
 
-const codigoDe = (funcao: () => unknown): string | undefined => {
-  try {
-    funcao();
-  } catch (erro) {
-    return erro instanceof ErroDeDominio ? erro.codigo : 'OUTRO';
-  }
+describe('GuardDeEscopoDeEmpresa', () => {
+  it('rota por empresa pergunta à carteira com tenant e usuário da sessão', async () => {
+    const carteira = { exigirAcessoAEmpresa: vi.fn().mockResolvedValue(undefined) };
+    const guard = new GuardDeEscopoDeEmpresa(carteira as unknown as CarteiraService);
 
-  return undefined;
-};
-
-describe('escopoDaSessao', () => {
-  it('administrador enxerga todas as empresas do escritório', () => {
-    expect(escopoDaSessao(requisicaoCom(['admin_escritorio']))).toBe('TODAS');
+    await expect(guard.canActivate(contexto(requisicaoCom({ empresaId: 'e-1' })))).resolves.toBe(
+      true,
+    );
+    expect(carteira.exigirAcessoAEmpresa).toHaveBeenCalledWith('tenant-1', 'usuario-1', 'e-1');
   });
 
-  it('demais papéis não enxergam nenhuma empresa até a carteira existir', () => {
-    expect(escopoDaSessao(requisicaoCom(['contador']))).toBe('NENHUMA');
-    expect(escopoDaSessao(requisicaoCom(['auxiliar', 'auditor_readonly']))).toBe('NENHUMA');
-  });
+  it('empresa fora da carteira nega a rota, mesmo para o administrador', async () => {
+    const negado = new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_FORA_DA_CARTEIRA, 'fora');
+    const carteira = { exigirAcessoAEmpresa: vi.fn().mockRejectedValue(negado) };
+    const guard = new GuardDeEscopoDeEmpresa(carteira as unknown as CarteiraService);
 
-  it('sem sessão não enxerga nenhuma', () => {
-    expect(escopoDaSessao({} as RequisicaoAutenticada)).toBe('NENHUMA');
-  });
-});
-
-describe('exigirAlcada', () => {
-  it('não lança para quem enxerga todas', () => {
-    expect(() => exigirAlcada(requisicaoCom(['admin_escritorio']))).not.toThrow();
-  });
-
-  it('lança SEM_ALCADA para quem não enxerga nenhuma', () => {
-    expect(codigoDe(() => exigirAlcada(requisicaoCom(['contador'])))).toBe(
-      CODIGOS_DE_ERRO.SEM_ALCADA,
+    await expect(guard.canActivate(contexto(requisicaoCom({ empresaId: 'e-1' })))).rejects.toBe(
+      negado,
     );
   });
-});
 
-describe('GuardDeEscopoDeEmpresa', () => {
-  const guard = new GuardDeEscopoDeEmpresa();
+  it('rota sem empresaId não é decidida por este guard', async () => {
+    const carteira = { exigirAcessoAEmpresa: vi.fn() };
+    const guard = new GuardDeEscopoDeEmpresa(carteira as unknown as CarteiraService);
 
-  it('rota por empresa responde como empresa inexistente quando não há alçada', () => {
-    expect(
-      codigoDe(() => guard.canActivate(contexto(requisicaoCom(['contador'], { empresaId: 'x' })))),
-    ).toBe(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA);
-  });
-
-  it('rota por empresa passa para o administrador', () => {
-    expect(
-      guard.canActivate(contexto(requisicaoCom(['admin_escritorio'], { empresaId: 'x' }))),
-    ).toBe(true);
-  });
-
-  it('rota sem empresaId não é decidida por este guard', () => {
-    expect(guard.canActivate(contexto(requisicaoCom(['contador'])))).toBe(true);
+    await expect(guard.canActivate(contexto(requisicaoCom()))).resolves.toBe(true);
+    expect(carteira.exigirAcessoAEmpresa).not.toHaveBeenCalled();
   });
 });

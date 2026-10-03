@@ -5,6 +5,8 @@ import { SessaoService } from './auth/sessao.service';
 import { GuardDeCadastro, GuardDeSessao } from './auth/sessao.guard';
 import { GuardDeAcao } from './auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from './auth/escopo';
+import { CarteirasController, HistoricoDeCarteirasController } from './carteira/carteira.controller';
+import { CarteiraService } from './carteira/carteira.service';
 import { ConsultaDeCnpjNaCnpja } from './empresa/cnpja.adapter';
 import { DocumentosDaEmpresaController } from './empresa/documentos.controller';
 import { DocumentosDaEmpresaService } from './empresa/documentos.service';
@@ -49,6 +51,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     EscritorioController,
     PainelController,
     HistoricoDeUsuariosController,
+    HistoricoDeCarteirasController,
     HistoricoController,
     ManutencaoDaEmpresaController,
     PendenciasDaEmpresaController,
@@ -57,6 +60,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     PendenciasController,
     NotificacoesController,
     UsuariosController,
+    CarteirasController,
     PapeisController,
     ConvitesController,
   ],
@@ -72,6 +76,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     NotificacoesService,
     UsuariosService,
     PapeisService,
+    CarteiraService,
     ConvitesService,
     KeycloakAdminClient,
     ConviteMailer,

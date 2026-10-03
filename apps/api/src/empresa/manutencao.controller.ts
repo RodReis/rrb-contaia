@@ -23,7 +23,7 @@ import {
 } from '@nestjs/common';
 
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
-import { escopoDaSessao, GuardDeEscopoDeEmpresa } from '../auth/escopo';
+import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
 import {
@@ -265,15 +265,11 @@ export class HistoricoController {
     @Req() requisicao: RequisicaoAutenticada,
     @Query() consulta: unknown,
   ): Promise<PaginaDoHistorico> {
-    // O histórico de empresas só mostra o que a carteira alcança: sem carteira, vazio.
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { eventos: [], total: 0 };
-    }
-
-    return this.manutencao.consultarHistorico(
-      tenantDa(requisicao),
-      analisar(filtroDoHistoricoSchema, consulta),
-    );
+    // O histórico de empresas só mostra o que a carteira alcança (SPEC-009 §3.5).
+    return this.manutencao.consultarHistorico(tenantDa(requisicao), {
+      ...analisar(filtroDoHistoricoSchema, consulta),
+      carteiraDoUsuarioId: autorDa(requisicao).usuarioId,
+    });
   }
 
   /** Campos já presentes no histórico, para alimentar o filtro da tela. */
@@ -283,10 +279,6 @@ export class HistoricoController {
     @Query() consulta: unknown,
   ): Promise<readonly string[]> {
     const { aba } = analisar(filtroDoHistoricoSchema, consulta);
-
-    if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return [];
-    }
 
     return this.manutencao.camposDoHistorico(tenantDa(requisicao), aba);
   }

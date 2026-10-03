@@ -158,12 +158,15 @@ export {
   marcarVariasComoLidas,
 } from './repositorios/notificacoes.js';
 export type {
+  EmpresaDaNotificacaoDeCarteira,
   NotificacaoPersistida,
   PaginaDeNotificacoes,
 } from './repositorios/notificacoes.js';
 export {
+  acessoAEmpresa,
   aplicarEfeitos,
   autoatribuirEmpresa,
+  carregarColaborador,
   carregarEmpresasDaOperacao,
   carregarUsuariosDaOperacao,
   criarNotificacoesDeCarteira,
@@ -173,12 +176,14 @@ export {
   listarColaboradores,
   listarColaboradoresDaEmpresa,
   listarEmpresasParaAtribuicao,
+  listarEmpresasDaCarteira,
   listarEventosDeCarteira,
   registrarEventoDeCarteira,
   resumoDaEmpresa,
   vinculoAtivo,
 } from './repositorios/carteira.js';
 export type {
+  AcessoAEmpresa,
   AfetadoDoEvento,
   ColaboradorDaEmpresa,
   ColaboradorNaCentral,

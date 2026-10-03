@@ -45,7 +45,7 @@ describe('NotificacoesService', () => {
     vi.mocked(db.listarPainel).mockResolvedValue([]);
     vi.mocked(db.contarNaoLidas).mockResolvedValue(3);
 
-    const resultado = await service.consultarPainel(TENANT_ID);
+    const resultado = await service.consultarPainel(TENANT_ID, USUARIO_ID);
 
     expect(resultado).toEqual({ notificacoes: [], naoLidas: 3 });
     expect(db.comContextoDeTenant).toHaveBeenCalledWith(
@@ -59,12 +59,13 @@ describe('NotificacoesService', () => {
     const pagina = { notificacoes: [], total: 0 };
     vi.mocked(db.listarHistoricoDeNotificacoes).mockResolvedValue(pagina);
 
-    const resultado = await service.consultarHistorico(TENANT_ID, 25, 0);
+    const resultado = await service.consultarHistorico(TENANT_ID, USUARIO_ID, 25, 0);
 
     expect(resultado).toEqual(pagina);
     expect(db.listarHistoricoDeNotificacoes).toHaveBeenCalledWith(
       expect.anything(),
       TENANT_ID,
+      USUARIO_ID,
       25,
       0,
     );
@@ -95,6 +96,8 @@ describe('NotificacoesService', () => {
       lida: true,
       lidaEm: '2026-09-22T00:00:00.000Z',
       criadoEm: '2026-09-01T00:00:00.000Z',
+      adicionadas: null,
+      removidas: null,
     };
     vi.mocked(db.marcarComoLida).mockResolvedValue(notificacaoMarcada);
 

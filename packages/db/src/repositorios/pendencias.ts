@@ -33,6 +33,8 @@ export type CausaParaReconciliar = Readonly<{
 }>;
 
 export type FiltroDaCentral = Readonly<{
+  /** Só as pendências das empresas da carteira deste usuário (SPEC-009). */
+  carteiraDoUsuarioId: string;
   empresaId: string | null;
   origem: string | null;
   tipo: string | null;
@@ -186,7 +188,11 @@ const CONDICOES_DA_CENTRAL = `
           then p.data_limite is not null
            and p.data_limite between $1::date and ($1::date + 3)
         else true
-      end`;
+      end
+      and exists (
+        select 1 from app.carteira_vinculo cv
+         where cv.empresa_id = p.empresa_id and cv.usuario_id = $7 and cv.encerrado_em is null
+      )`;
 
 const ORDEM_DE_PRIORIDADE = `
     case
@@ -210,6 +216,7 @@ export const listarCentral = async (
     filtro.tipo,
     filtro.estado,
     filtro.vencimento,
+    filtro.carteiraDoUsuarioId,
   ];
 
   const linhas = await cliente.query<LinhaDaPendencia & { empresa_nome: string }>(
@@ -218,7 +225,7 @@ export const listarCentral = async (
      join app.empresa e on e.id = p.empresa_id
      where ${CONDICOES_DA_CENTRAL}
      order by ${ORDEM_DE_PRIORIDADE}
-     limit $7 offset $8`,
+     limit $8 offset $9`,
     [...parametrosBase, filtro.limite, filtro.deslocamento],
   );
 

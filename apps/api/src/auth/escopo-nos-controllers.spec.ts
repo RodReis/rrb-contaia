@@ -1,11 +1,11 @@
 /**
- * "Sem carteira, nenhuma empresa" (SPEC-007 §3.1): quem não é administrador
- * recebe resposta vazia ou negada sem que o serviço de dados sequer seja
- * chamado — a prova é que o dublê do serviço não foi tocado.
+ * Listagens empresariais só devolvem o que a carteira de quem pergunta alcança
+ * (SPEC-009 §3.5), e a orientação de ausência de alçada aparece só quando a
+ * carteira está vazia — nunca por causa do papel.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CODIGOS_DE_ERRO, ErroDeDominio, type PapelPadrao } from '@contaia/domain';
+import type { PapelPadrao } from '@contaia/domain';
 
 import { EmpresaController } from '../empresa/empresa.controller';
 import { HistoricoController } from '../empresa/manutencao.controller';
@@ -18,120 +18,171 @@ const requisicao = (papeis: readonly PapelPadrao[]): RequisicaoAutenticada =>
     sessao: { papeis, tenantId: 'tenant-1', usuarioId: 'usuario-1' },
   }) as unknown as RequisicaoAutenticada;
 
-const SEM_CARTEIRA = requisicao(['contador']);
+const CONTADOR = requisicao(['contador']);
 const ADMIN = requisicao(['admin_escritorio']);
 
-const codigoDe = async (executar: () => Promise<unknown>): Promise<string | undefined> => {
-  try {
-    await executar();
-  } catch (erro) {
-    return erro instanceof ErroDeDominio ? erro.codigo : 'OUTRO';
-  }
+const comCarteira = (possui: boolean) => ({ possuiCarteira: vi.fn().mockResolvedValue(possui) });
 
-  return undefined;
-};
-
-describe('EmpresaController sem carteira', () => {
-  const servico = {
-    listar: vi.fn(),
-    consultarCnpj: vi.fn(),
-    criar: vi.fn(),
-  };
+describe('EmpresaController', () => {
+  const servico = { listar: vi.fn(), consultarCnpj: vi.fn(), criar: vi.fn() };
   const pendencias = { contarPorEmpresas: vi.fn() };
-  const controller = new EmpresaController(servico as never, pendencias as never);
 
-  beforeEach(() => vi.clearAllMocks());
-
-  it('lista devolve zero empresas sem consultar o serviço', async () => {
-    const resposta = await controller.listar(SEM_CARTEIRA, {});
-
-    // O marcador deixa a tela distinguir "sem carteira" de "carteira ainda vazia".
-    expect(resposta).toEqual({ empresas: [], total: 0, escopoDeEmpresas: 'NENHUMA' });
-    expect(servico.listar).not.toHaveBeenCalled();
-  });
-
-  it('administrador não recebe o marcador de escopo: para ele a lista vazia é carteira vazia', async () => {
-    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
+  beforeEach(() => {
+    vi.clearAllMocks();
     pendencias.contarPorEmpresas.mockResolvedValue(new Map());
-
-    expect(await controller.listar(ADMIN, {})).not.toHaveProperty('escopoDeEmpresas');
   });
 
-  it('consulta de CNPJ e criação são negadas com SEM_ALCADA', async () => {
-    expect(await codigoDe(() => controller.consultarCnpj(SEM_CARTEIRA, '12345678000195'))).toBe(
-      CODIGOS_DE_ERRO.SEM_ALCADA,
+  it('lista sempre pela carteira de quem pergunta — inclusive o administrador', async () => {
+    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
+    const controller = new EmpresaController(
+      servico as never,
+      pendencias as never,
+      comCarteira(true) as never,
     );
-    expect(
-      await codigoDe(() => controller.criar(SEM_CARTEIRA, { cnpj: '12345678000195' })),
-    ).toBe(CODIGOS_DE_ERRO.SEM_ALCADA);
-    expect(servico.consultarCnpj).not.toHaveBeenCalled();
-    expect(servico.criar).not.toHaveBeenCalled();
-  });
-
-  it('administrador continua listando pelo serviço', async () => {
-    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
-    pendencias.contarPorEmpresas.mockResolvedValue(new Map());
 
     await controller.listar(ADMIN, {});
 
-    expect(servico.listar).toHaveBeenCalledTimes(1);
+    expect(servico.listar).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ carteiraDoUsuarioId: 'usuario-1' }),
+    );
+  });
+
+  it('carteira vazia devolve o marcador de ausência de alçada, para qualquer papel', async () => {
+    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
+    const controller = new EmpresaController(
+      servico as never,
+      pendencias as never,
+      comCarteira(false) as never,
+    );
+
+    for (const sessao of [ADMIN, CONTADOR]) {
+      expect(await controller.listar(sessao, {})).toEqual({
+        empresas: [],
+        total: 0,
+        escopoDeEmpresas: 'NENHUMA',
+      });
+    }
+  });
+
+  it('carteira com empresas e lista vazia por filtro não recebe o marcador', async () => {
+    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
+    const controller = new EmpresaController(
+      servico as never,
+      pendencias as never,
+      comCarteira(true) as never,
+    );
+
+    expect(await controller.listar(CONTADOR, {})).not.toHaveProperty('escopoDeEmpresas');
+  });
+
+  it('só o administrador criador é autoatribuído à empresa criada', async () => {
+    servico.criar.mockResolvedValue({});
+    const controller = new EmpresaController(
+      servico as never,
+      pendencias as never,
+      comCarteira(true) as never,
+    );
+
+    await controller.criar(ADMIN, { cnpj: '12345678000195' });
+    await controller.criar(CONTADOR, { cnpj: '12345678000195' });
+
+    expect(servico.criar).toHaveBeenNthCalledWith(1, 'tenant-1', '12345678000195', {
+      usuarioId: 'usuario-1',
+      autoatribuir: true,
+    });
+    expect(servico.criar).toHaveBeenNthCalledWith(2, 'tenant-1', '12345678000195', {
+      usuarioId: 'usuario-1',
+      autoatribuir: false,
+    });
   });
 });
 
-describe('Central de Pendências, Histórico e Notificações sem carteira', () => {
-  it('central de pendências vem vazia', async () => {
-    const servico = { consultarCentral: vi.fn() };
-    const controller = new PendenciasController(servico as never);
+describe('Central de Pendências, Histórico e Notificações', () => {
+  it('central de pendências filtra pela carteira e orienta só quando ela está vazia', async () => {
+    const servico = { consultarCentral: vi.fn().mockResolvedValue({ pendencias: [], total: 0 }) };
 
-    expect(await controller.consultarCentral(SEM_CARTEIRA, {})).toEqual({
+    const semCarteira = new PendenciasController(servico as never, comCarteira(false) as never);
+    expect(await semCarteira.consultarCentral(CONTADOR, {})).toEqual({
       pendencias: [],
       total: 0,
-      // A tela distingue "sem alçada" de "nada pendente" por este campo (SPEC-007 §3.1).
       escopoDeEmpresas: 'NENHUMA',
     });
-    expect(servico.consultarCentral).not.toHaveBeenCalled();
+    expect(servico.consultarCentral).toHaveBeenCalledWith('tenant-1', 'usuario-1', expect.anything());
+
+    const comEmpresas = new PendenciasController(servico as never, comCarteira(true) as never);
+    expect(await comEmpresas.consultarCentral(ADMIN, {})).not.toHaveProperty('escopoDeEmpresas');
   });
 
-  it('histórico de empresas e seus campos vêm vazios', async () => {
-    const servico = { consultarHistorico: vi.fn(), camposDoHistorico: vi.fn() };
+  it('histórico de empresas filtra pela carteira do usuário', async () => {
+    const servico = { consultarHistorico: vi.fn().mockResolvedValue({ eventos: [], total: 0 }) };
     const controller = new HistoricoController(servico as never);
 
-    expect(await controller.listar(SEM_CARTEIRA, {})).toEqual({ eventos: [], total: 0 });
-    expect(await controller.campos(SEM_CARTEIRA, {})).toEqual([]);
-    expect(servico.consultarHistorico).not.toHaveBeenCalled();
-    expect(servico.camposDoHistorico).not.toHaveBeenCalled();
+    await controller.listar(ADMIN, {});
+
+    expect(servico.consultarHistorico).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ carteiraDoUsuarioId: 'usuario-1' }),
+    );
   });
 
-  it('painel e histórico de notificações vêm vazios; marcar como lida responde como inexistente', async () => {
+  it('sino é do usuário: aviso de carteira aparece mesmo com a carteira vazia', async () => {
+    const aviso = { id: 'n-1', tipo: 'CARTEIRA_ALTERADA' };
     const servico = {
-      consultarPainel: vi.fn(),
-      consultarHistorico: vi.fn(),
-      marcarComoLida: vi.fn(),
-      marcarVariasComoLidas: vi.fn(),
+      consultarPainel: vi.fn().mockResolvedValue({ notificacoes: [aviso], naoLidas: 1 }),
+      consultarHistorico: vi.fn().mockResolvedValue({ notificacoes: [aviso], total: 1 }),
     };
-    const controller = new NotificacoesController(servico as never);
+    const controller = new NotificacoesController(servico as never, comCarteira(false) as never);
 
-    expect(await controller.consultarPainel(SEM_CARTEIRA)).toEqual({
+    expect(await controller.consultarPainel(CONTADOR)).toEqual({
+      notificacoes: [aviso],
+      naoLidas: 1,
+    });
+    expect(await controller.consultarHistorico(CONTADOR, {})).toEqual({
+      notificacoes: [aviso],
+      total: 1,
+    });
+    expect(servico.consultarPainel).toHaveBeenCalledWith('tenant-1', 'usuario-1');
+  });
+
+  it('sino vazio com carteira vazia devolve a orientação de ausência de alçada', async () => {
+    const servico = {
+      consultarPainel: vi.fn().mockResolvedValue({ notificacoes: [], naoLidas: 0 }),
+      consultarHistorico: vi.fn().mockResolvedValue({ notificacoes: [], total: 0 }),
+    };
+    const controller = new NotificacoesController(servico as never, comCarteira(false) as never);
+
+    expect(await controller.consultarPainel(CONTADOR)).toEqual({
       notificacoes: [],
       naoLidas: 0,
       escopoDeEmpresas: 'NENHUMA',
     });
-    expect(await controller.consultarHistorico(SEM_CARTEIRA, {})).toEqual({
+    expect(await controller.consultarHistorico(CONTADOR, {})).toEqual({
       notificacoes: [],
       total: 0,
       escopoDeEmpresas: 'NENHUMA',
     });
-    expect(
-      await codigoDe(() => controller.marcarComoLida(SEM_CARTEIRA, 'qualquer-id')),
-    ).toBe(CODIGOS_DE_ERRO.NOTIFICACAO_NAO_ENCONTRADA);
-    expect(
-      await controller.marcarVariasComoLidas(SEM_CARTEIRA, {
-        ids: ['00000000-0000-7000-8000-000000000001'],
-      }),
-    ).toEqual({ marcadas: 0 });
+  });
 
-    for (const chamada of Object.values(servico)) {
-      expect(chamada).not.toHaveBeenCalled();
-    }
+  it('marcar leitura delega ao serviço com o usuário da sessão', async () => {
+    const servico = {
+      marcarComoLida: vi.fn().mockResolvedValue({}),
+      marcarVariasComoLidas: vi.fn().mockResolvedValue({ marcadas: 1 }),
+    };
+    const controller = new NotificacoesController(servico as never, comCarteira(true) as never);
+
+    await controller.marcarComoLida(CONTADOR, 'n-1');
+    await controller.marcarVariasComoLidas(CONTADOR, {
+      ids: ['00000000-0000-7000-8000-000000000001'],
+    });
+
+    expect(servico.marcarComoLida).toHaveBeenCalledWith('tenant-1', 'n-1', {
+      usuarioId: 'usuario-1',
+    });
+    expect(servico.marcarVariasComoLidas).toHaveBeenCalledWith(
+      'tenant-1',
+      ['00000000-0000-7000-8000-000000000001'],
+      { usuarioId: 'usuario-1' },
+    );
   });
 });

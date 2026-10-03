@@ -7,7 +7,7 @@
  */
 import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 
-import { CODIGOS_DE_ERRO, ErroDeDominio, escopoDeEmpresas } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import type { ChaveDePermissao, PapelPadrao } from '@contaia/domain';
 
 import { AcaoLivre, ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
@@ -18,6 +18,7 @@ import {
   PermiteCadastroIncompleto,
   type RequisicaoAutenticada,
 } from '../auth/sessao.guard';
+import { CarteiraService } from '../carteira/carteira.service';
 import { analisar } from '../escritorio/escritorio.dto';
 import {
   IDENTIFICADOR,
@@ -54,7 +55,10 @@ const paraLeitor = (requisicao: RequisicaoAutenticada, usuario: VisaoDeUsuario):
 // Padrão da classe é a ação mais restrita; a leitura a relaxa explicitamente.
 @ExigePermissao('usuarios.usuarios_e_papeis.administrar')
 export class UsuariosController {
-  constructor(private readonly usuarios: UsuariosService) {}
+  constructor(
+    private readonly usuarios: UsuariosService,
+    private readonly carteira: CarteiraService,
+  ) {}
 
   /**
    * Papéis padrão, permissão efetiva (união dos papéis padrão e personalizados) e
@@ -64,17 +68,22 @@ export class UsuariosController {
   @Get('eu')
   @AcaoLivre()
   @PermiteCadastroIncompleto()
-  eu(@Req() requisicao: RequisicaoAutenticada): Readonly<{
+  async eu(@Req() requisicao: RequisicaoAutenticada): Promise<Readonly<{
     papeis: readonly PapelPadrao[];
     permissoes: readonly ChaveDePermissao[];
-    escopoDeEmpresas: 'TODAS' | 'NENHUMA';
-  }> {
+    /** `NENHUMA` quando a carteira está vazia: a tela orienta a ausência de alçada. */
+    escopoDeEmpresas: 'CARTEIRA' | 'NENHUMA';
+  }>> {
     const papeis = papeisDa(requisicao);
+    const possuiCarteira = await this.carteira.possuiCarteira(
+      tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
+    );
 
     return {
       papeis,
       permissoes: permissoesDa(requisicao),
-      escopoDeEmpresas: escopoDeEmpresas(papeis),
+      escopoDeEmpresas: possuiCarteira ? 'CARTEIRA' : 'NENHUMA',
     };
   }
 

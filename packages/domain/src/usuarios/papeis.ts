@@ -15,14 +15,5 @@ export const PAPEIS_PADRAO = [
 
 export type PapelPadrao = (typeof PAPEIS_PADRAO)[number];
 
-/**
- * Escopo de empresas até a fatia de carteira (decisão do PI): o administrador
- * responde pelo escritório inteiro; os demais papéis não enxergam empresa
- * alguma enquanto não houver atribuição. Nunca existe liberação temporária de
- * toda a base para quem não é administrador — papel personalizado incluído.
- */
-export const escopoDeEmpresas = (papeis: readonly PapelPadrao[]): 'TODAS' | 'NENHUMA' =>
-  papeis.includes('admin_escritorio') ? 'TODAS' : 'NENHUMA';
-
 export const ehPapelPadrao = (valor: unknown): valor is PapelPadrao =>
   typeof valor === 'string' && (PAPEIS_PADRAO as readonly string[]).includes(valor);

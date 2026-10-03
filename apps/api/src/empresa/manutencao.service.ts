@@ -52,6 +52,7 @@ import {
   comContextoDeTenant,
   criarNotificacoes,
   definirSituacaoDaEmpresa,
+  encerrarVinculosDaEmpresa,
   inserirEndereco,
   listarAbertasDaEmpresa,
   listarEnderecosDaEmpresa,
@@ -71,6 +72,7 @@ import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 
 import { PoolDoBanco } from '../banco/pool.provider';
+import { registrarEncerramento } from '../carteira/registro';
 import { ConsultaDeCnpjNaCnpja } from './cnpja.adapter';
 import { EmpresaService, type VisaoDaEmpresa } from './empresa.service';
 
@@ -713,6 +715,20 @@ export class ManutencaoDaEmpresaService {
           : reativarEmpresa(persistida.situacao, justificativa);
 
       await definirSituacaoDaEmpresa(cliente, tenantId, empresaId, nova);
+
+      // Arquivar encerra os vínculos de carteira na mesma transação e avisa cada
+      // colaborador afetado; reativar não restaura nada — exige nova atribuição (SPEC-009 §3.4).
+      if (acao === 'ARQUIVAMENTO') {
+        const afetados = await encerrarVinculosDaEmpresa(cliente, tenantId, empresaId, autor.usuarioId);
+        await registrarEncerramento(
+          cliente,
+          tenantId,
+          autor.usuarioId,
+          'ARQUIVAMENTO_EMPRESA',
+          afetados,
+          true,
+        );
+      }
 
       await registrarEventos(cliente, tenantId, [
         {

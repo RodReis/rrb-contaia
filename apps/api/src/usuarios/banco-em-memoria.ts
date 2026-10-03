@@ -75,7 +75,19 @@ export type VinculoEmMemoria = {
   removido: boolean;
 };
 
+/** Vínculo de carteira: `ativo: false` é o encerrado, que nunca volta a ficar ativo (SPEC-009). */
+export type VinculoDeCarteiraEmMemoria = {
+  tenantId: string;
+  usuarioId: string;
+  empresaId: string;
+  ativo: boolean;
+  motivo?: string;
+};
+
 export const estado = {
+  carteira: [] as VinculoDeCarteiraEmMemoria[],
+  eventosDeCarteira: [] as Array<{ origem: string; autorId: string | null; afetados: unknown[] }>,
+  notificacoesDeCarteira: [] as Array<{ usuarioId: string; eventoId: string }>,
   usuarios: [] as UsuarioEmMemoria[],
   convites: [] as ConviteEmMemoria[],
   eventos: [] as EventoEmMemoria[],
@@ -87,6 +99,9 @@ export const estado = {
 };
 
 export const reiniciar = (): void => {
+  estado.carteira.length = 0;
+  estado.eventosDeCarteira.length = 0;
+  estado.notificacoesDeCarteira.length = 0;
   estado.usuarios.length = 0;
   estado.convites.length = 0;
   estado.eventos.length = 0;
@@ -170,6 +185,9 @@ export const funcoesDoBanco = {
   comContextoDeTenant: vi.fn(
     async (_pool: unknown, _tenantId: string, executar: (cliente: never) => Promise<unknown>) => {
       const antes = structuredClone({
+        carteira: estado.carteira,
+        eventosDeCarteira: estado.eventosDeCarteira,
+        notificacoesDeCarteira: estado.notificacoesDeCarteira,
         usuarios: estado.usuarios,
         convites: estado.convites,
         eventos: estado.eventos,
@@ -181,6 +199,17 @@ export const funcoesDoBanco = {
       try {
         return await executar({} as never);
       } catch (erro) {
+        estado.carteira.splice(0, estado.carteira.length, ...antes.carteira);
+        estado.eventosDeCarteira.splice(
+          0,
+          estado.eventosDeCarteira.length,
+          ...antes.eventosDeCarteira,
+        );
+        estado.notificacoesDeCarteira.splice(
+          0,
+          estado.notificacoesDeCarteira.length,
+          ...antes.notificacoesDeCarteira,
+        );
         estado.usuarios.splice(0, estado.usuarios.length, ...antes.usuarios);
         estado.convites.splice(0, estado.convites.length, ...antes.convites);
         estado.eventos.splice(0, estado.eventos.length, ...antes.eventos);
@@ -188,6 +217,53 @@ export const funcoesDoBanco = {
         estado.revisoes.splice(0, estado.revisoes.length, ...antes.revisoes);
         estado.vinculos.splice(0, estado.vinculos.length, ...antes.vinculos);
         throw erro;
+      }
+    },
+  ),
+  // Carteira (SPEC-009): encerra os vínculos ativos do usuário e devolve quem foi afetado.
+  encerrarVinculosDoUsuario: vi.fn(
+    async (_c: unknown, tenantId: string, usuarioId: string) => {
+      const ativos = estado.carteira.filter(
+        (v) => v.tenantId === tenantId && v.usuarioId === usuarioId && v.ativo,
+      );
+      for (const vinculo of ativos) {
+        vinculo.ativo = false;
+        vinculo.motivo = 'ARQUIVAMENTO_USUARIO';
+      }
+
+      return ativos.length === 0
+        ? []
+        : [
+            {
+              usuarioId,
+              usuarioNome: doTenant(tenantId, usuarioId)?.nome ?? '',
+              adicionadas: [],
+              removidas: ativos.map((v) => ({ id: v.empresaId, nome: v.empresaId, cnpj: '0' })),
+              revisaoAnterior: 0,
+              revisaoNova: 1,
+            },
+          ];
+    },
+  ),
+  registrarEventoDeCarteira: vi.fn(
+    async (
+      _c: unknown,
+      _t: string,
+      evento: { origem: string; autorId: string | null; afetados: unknown[] },
+    ) => {
+      estado.eventosDeCarteira.push(evento);
+      return `evento-carteira-${estado.eventosDeCarteira.length}`;
+    },
+  ),
+  criarNotificacoesDeCarteira: vi.fn(
+    async (
+      _c: unknown,
+      _t: string,
+      eventoId: string,
+      afetados: Array<{ usuarioId: string }>,
+    ) => {
+      for (const afetado of afetados) {
+        estado.notificacoesDeCarteira.push({ usuarioId: afetado.usuarioId, eventoId });
       }
     },
   ),

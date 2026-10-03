@@ -74,6 +74,7 @@ export type PaginaDeEventosDeCarteira = Readonly<{
 export type SituacaoDaCarteira = 'COM_EMPRESAS' | 'SEM_EMPRESAS';
 
 export type FiltroDeColaboradores = Readonly<{
+  usuarioId?: string;
   busca?: string;
   estado?: EstadoDoUsuario;
   papel?: PapelPadrao;
@@ -262,24 +263,25 @@ export const autoatribuirEmpresa = async (
   tenantId: string,
   usuarioId: string,
   empresaId: string,
-): Promise<Readonly<{ revisaoAnterior: number; revisaoNova: number }>> => {
+): Promise<Readonly<{ usuarioNome: string; revisaoAnterior: number; revisaoNova: number }>> => {
   await cliente.query(
     `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id, criado_por)
      values ($1, $2, $3, $2)`,
     [tenantId, usuarioId, empresaId],
   );
 
-  const { rows } = await cliente.query<{ anterior: string; nova: string }>(
+  const { rows } = await cliente.query<{ nome: string; anterior: string; nova: string }>(
     `update app.usuario u
         set revisao_carteira = u.revisao_carteira + 1
        from (select id, revisao_carteira from app.usuario
               where tenant_id = $1 and id = $2 for update) antes
       where u.id = antes.id
-      returning antes.revisao_carteira::text as anterior, u.revisao_carteira::text as nova`,
+      returning u.nome, antes.revisao_carteira::text as anterior, u.revisao_carteira::text as nova`,
     [tenantId, usuarioId],
   );
 
   return {
+    usuarioNome: rows[0]?.nome ?? '',
     revisaoAnterior: Number(rows[0]?.anterior ?? 0),
     revisaoNova: Number(rows[0]?.nova ?? 0),
   };
@@ -327,6 +329,18 @@ const encerrarPor = async (
   autorId: string | null,
   motivo: MotivoDeEncerramento,
 ): Promise<AfetadoDoEvento[]> => {
+  // Trava os colaboradores em ordem de id antes de subir a revisão deles: a mesma
+  // ordem de `carregarUsuariosDaOperacao`, para não haver deadlock entre operações.
+  await cliente.query(
+    `select u.id from app.usuario u
+      where u.tenant_id = $1
+        and u.id in (select v.usuario_id from app.carteira_vinculo v
+                      where v.tenant_id = $1 and v.${coluna} = $2 and v.encerrado_em is null)
+      order by u.id
+        for update`,
+    [tenantId, alvoId],
+  );
+
   const { rows } = await cliente.query<LinhaDeEncerramento>(
     `with encerrados as (
        update app.carteira_vinculo
@@ -450,6 +464,31 @@ export const resumoDaEmpresa = async (
   return rows[0] ?? null;
 };
 
+export type AcessoAEmpresa = Readonly<{ nome: string; cnpj: string; vinculado: boolean }>;
+
+/**
+ * Uma ida ao banco por requisição empresarial: nome e CNPJ da empresa do tenant
+ * e se o usuário tem vínculo ativo. `null` quando a empresa não existe no tenant
+ * (outro tenant incluído) — indistinguível de inexistente.
+ */
+export const acessoAEmpresa = async (
+  cliente: PoolClient,
+  tenantId: string,
+  usuarioId: string,
+  empresaId: string,
+): Promise<AcessoAEmpresa | null> => {
+  const { rows } = await cliente.query<AcessoAEmpresa>(
+    `select ${NOME_DA_EMPRESA} as nome, e.cnpj,
+            exists (select 1 from app.carteira_vinculo v
+                     where v.tenant_id = e.tenant_id and v.empresa_id = e.id
+                       and v.usuario_id = $2 and v.encerrado_em is null) as vinculado
+       from app.empresa e
+      where e.tenant_id = $1 and e.id = $3`,
+    [tenantId, usuarioId, empresaId],
+  );
+  return rows[0] ?? null;
+};
+
 export const empresasDaCarteira = async (
   cliente: PoolClient,
   tenantId: string,
@@ -473,6 +512,10 @@ export const listarColaboradores = async (
   const parametros: unknown[] = [tenantId];
   const condicoes = ['u.tenant_id = $1'];
 
+  if (filtro.usuarioId !== undefined) {
+    parametros.push(filtro.usuarioId);
+    condicoes.push(`u.id = $${parametros.length}`);
+  }
   if (filtro.busca !== undefined && filtro.busca.trim() !== '') {
     parametros.push(`%${escaparLike(filtro.busca.trim())}%`);
     condicoes.push(`(u.nome ilike $${parametros.length} or u.email ilike $${parametros.length})`);
@@ -711,4 +754,40 @@ export const listarEventosDeCarteira = async (
       afetados: linha.afetados,
     })),
   };
+};
+
+/** Cabeçalho da página de gestão: o colaborador com a revisão que o cliente precisa devolver. */
+export const carregarColaborador = async (
+  cliente: PoolClient,
+  tenantId: string,
+  usuarioId: string,
+): Promise<ColaboradorNaCentral | null> => {
+  const pagina = await listarColaboradores(cliente, tenantId, {
+    usuarioId,
+    limite: 1,
+    deslocamento: 0,
+  });
+  return pagina.colaboradores[0] ?? null;
+};
+
+/** Empresas da carteira de um colaborador, em qualquer situação (a própria carteira). */
+export const listarEmpresasDaCarteira = async (
+  cliente: PoolClient,
+  tenantId: string,
+  usuarioId: string,
+): Promise<EmpresaParaAtribuicao[]> => {
+  const { rows } = await cliente.query<
+    EmpresaResumida & {
+      status: 'CADASTRO_INCOMPLETO' | 'ATIVA';
+      situacao: 'ativo' | 'arquivado';
+    }
+  >(
+    `select e.id, ${NOME_DA_EMPRESA} as nome, e.cnpj, e.status, e.situacao
+       from app.carteira_vinculo v
+       join app.empresa e on e.id = v.empresa_id and e.tenant_id = v.tenant_id
+      where v.tenant_id = $1 and v.usuario_id = $2 and v.encerrado_em is null
+      order by lower(${NOME_DA_EMPRESA}), e.id`,
+    [tenantId, usuarioId],
+  );
+  return rows.map((linha) => ({ ...linha, atribuida: true }));
 };
