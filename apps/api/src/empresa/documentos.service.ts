@@ -104,6 +104,9 @@ export type ArquivoParaEntrega = Readonly<{
 
 const TIPO_DO_ARQUIVO = 'DOCUMENTO_DA_EMPRESA' as const;
 
+const semAutorizacaoParaSubstituir = (): ErroDeDominio =>
+  new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO, 'Sem autorização para substituir este documento.');
+
 const exigenciaNaoEncontrada = (): never => {
   throw new ErroDeDominio(
     CODIGOS_DE_ERRO.EXIGENCIA_NAO_ENCONTRADA,
@@ -351,6 +354,10 @@ export class DocumentosDaEmpresaService {
    * deixar linha órfã no banco, e objeto sem linha é lixo inerte, não estado
    * errado. O inverso — gravar a linha e falhar no upload — deixaria a aba
    * mostrando um documento que não existe.
+   *
+   * `podeSubstituir` é a permissão `Substituir` da sessão (SPEC-008 §3.2): com versão
+   * vigente o envio é substituição e exige mais que `Enviar`. O controller sempre
+   * informa o valor; o padrão só serve a chamadores internos sem sessão.
    */
   async enviarArquivo(
     tenantId: string,
@@ -361,6 +368,7 @@ export class DocumentosDaEmpresaService {
     validade: string | null,
     versaoEsperada: number,
     agora: Date = new Date(),
+    podeSubstituir = true,
   ): Promise<VisaoDosDocumentos> {
     const falha = validarArquivo(TIPO_DO_ARQUIVO, {
       tipoConteudo: arquivo.tipoConteudo,
@@ -419,6 +427,13 @@ export class DocumentosDaEmpresaService {
         // exigência dispensada antes de qualquer byte subir.
         registrarEnvio(exigencia.estado);
 
+        if (
+          !podeSubstituir &&
+          (await carregarVersaoVigente(cliente, tenantId, empresaId, exigenciaId)) !== null
+        ) {
+          throw semAutorizacaoParaSubstituir();
+        }
+
         return exigencia;
       },
     );
@@ -440,6 +455,12 @@ export class DocumentosDaEmpresaService {
       }
 
       const vigenteAnterior = await carregarVersaoVigente(cliente, tenantId, empresaId, exigenciaId);
+
+      // Repetida aqui porque outra substituição pode ter criado a versão vigente durante o upload.
+      if (vigenteAnterior !== null && !podeSubstituir) {
+        throw semAutorizacaoParaSubstituir();
+      }
+
       const estadoNovo = registrarEnvio(exigencia.estado);
 
       // Substituição: a anterior sai de vigente e fica preservada, somente

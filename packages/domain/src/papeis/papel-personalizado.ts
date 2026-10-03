@@ -70,7 +70,8 @@ export const garantirPapelSemVinculos = (usuariosVinculados: number): void => {
   if (usuariosVinculados > 0) {
     throw new ErroDeDominio(
       CODIGOS_DE_ERRO.PAPEL_EM_USO,
-      'Remova ou substitua o papel nos usuários vinculados antes de arquivar.',
+      `O papel está atribuído a ${usuariosVinculados} ${usuariosVinculados === 1 ? 'usuário' : 'usuários'}. ` +
+        'Remova ou substitua o papel nesses usuários antes de arquivar.',
     );
   }
 };

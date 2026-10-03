@@ -1,45 +1,35 @@
 /**
- * Guard de ação (SPEC-007 §3.1): cada rota declara a capacidade e a ação que
- * exige, e o servidor confere contra a matriz dos papéis padrão do usuário.
- * Permissões são aditivas: basta um dos papéis conceder a ação.
+ * Guard de permissão (SPEC-007 §3.1, SPEC-008 §3.4): cada rota declara as chaves
+ * do catálogo que exige, e o servidor confere contra a permissão efetiva da
+ * sessão — a união aditiva dos papéis padrão e personalizados do usuário,
+ * resolvida a cada requisição.
  *
- * Falha fechada: rota autenticada sem `@ExigeAcao` nem `@AcaoLivre` é negada.
+ * Falha fechada: rota autenticada sem `@ExigePermissao` nem `@AcaoLivre` é negada.
  * Esquecer a anotação nunca abre acesso — e `cobertura-de-acoes.spec.ts`
  * reprova a rota esquecida antes de chegar a produção.
  */
 import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import {
-  CODIGOS_DE_ERRO,
-  ErroDeDominio,
-  podeExecutar,
-  type Acao,
-  type Capacidade,
-} from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeDominio, type ChaveDePermissao } from '@contaia/domain';
 
 import type { RequisicaoAutenticada } from './sessao.guard';
 
 export const ACAO_EXIGIDA = 'acaoExigida';
 
-type Exigencia = Readonly<{ capacidade: Capacidade; acao: Acao }>;
-type AcaoExigida = readonly Exigencia[] | 'LIVRE';
+type AcaoExigida = readonly ChaveDePermissao[] | 'LIVRE';
 
-/** Exige todas as ações listadas: cada uma precisa ser concedida por algum papel do usuário. */
-export const ExigeAcoes = (
-  ...exigencias: ReadonlyArray<readonly [Capacidade, Acao]>
-): ClassDecorator & MethodDecorator =>
-  SetMetadata<string, AcaoExigida>(
-    ACAO_EXIGIDA,
-    exigencias.map(([capacidade, acao]) => ({ capacidade, acao })),
-  );
-
-export const ExigeAcao = (capacidade: Capacidade, acao: Acao): ClassDecorator & MethodDecorator =>
-  ExigeAcoes([capacidade, acao]);
+/** Exige todas as chaves listadas: cada uma precisa constar da permissão efetiva da sessão. */
+export const ExigePermissao = (
+  ...chaves: readonly ChaveDePermissao[]
+): ClassDecorator & MethodDecorator => SetMetadata<string, AcaoExigida>(ACAO_EXIGIDA, chaves);
 
 /** Qualquer sessão autenticada acessa; reservado a rotas que não dependem de papel. */
 export const AcaoLivre = (): ClassDecorator & MethodDecorator =>
   SetMetadata<string, AcaoExigida>(ACAO_EXIGIDA, 'LIVRE');
+
+const semAutorizacao = (): ErroDeDominio =>
+  new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO, 'Sem autorização para este recurso.');
 
 @Injectable()
 export class GuardDeAcao implements CanActivate {
@@ -56,19 +46,16 @@ export class GuardDeAcao implements CanActivate {
     }
 
     const requisicao = contexto.switchToHttp().getRequest<RequisicaoAutenticada>();
-    const papeis = requisicao.sessao?.papeis;
+    const permissoes = requisicao.sessao?.permissoes;
 
     const autorizado =
       exigida !== undefined &&
       exigida.length > 0 &&
-      papeis !== undefined &&
-      exigida.every(({ capacidade, acao }) => podeExecutar(papeis, capacidade, acao));
+      permissoes !== undefined &&
+      exigida.every((chave) => permissoes.includes(chave));
 
     if (!autorizado) {
-      throw new ErroDeDominio(
-        CODIGOS_DE_ERRO.SEM_AUTORIZACAO,
-        'Sem autorização para este recurso.',
-      );
+      throw semAutorizacao();
     }
 
     return true;

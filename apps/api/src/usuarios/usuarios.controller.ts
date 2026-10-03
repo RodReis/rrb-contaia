@@ -7,15 +7,10 @@
  */
 import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 
-import {
-  CODIGOS_DE_ERRO,
-  ErroDeDominio,
-  escopoDeEmpresas,
-  podeExecutar,
-} from '@contaia/domain';
-import type { PapelPadrao } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeDominio, escopoDeEmpresas } from '@contaia/domain';
+import type { ChaveDePermissao, PapelPadrao } from '@contaia/domain';
 
-import { AcaoLivre, ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { AcaoLivre, ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
 import {
   GuardDeCadastro,
@@ -24,7 +19,6 @@ import {
   type RequisicaoAutenticada,
 } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
-import { catalogoDePapeis, permissoesDe } from './permissoes';
 import {
   IDENTIFICADOR,
   conviteSchema,
@@ -46,41 +40,46 @@ const usuarioDe = (parametro: string): string => {
 const papeisDa = (requisicao: RequisicaoAutenticada): readonly PapelPadrao[] =>
   requisicao.sessao?.papeis ?? [];
 
+const permissoesDa = (requisicao: RequisicaoAutenticada): readonly ChaveDePermissao[] =>
+  requisicao.sessao?.permissoes ?? [];
+
 /** Sem `administrar`, o estado técnico do convite (prazo, falha de envio) não é exposto. */
 const paraLeitor = (requisicao: RequisicaoAutenticada, usuario: VisaoDeUsuario): VisaoDeUsuario =>
-  podeExecutar(papeisDa(requisicao), 'USUARIOS', 'administrar')
+  permissoesDa(requisicao).includes('usuarios.usuarios_e_papeis.administrar')
     ? usuario
     : { ...usuario, conviteExpiraEm: null, envioFalhou: false };
 
 @Controller('usuarios')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
 // Padrão da classe é a ação mais restrita; a leitura a relaxa explicitamente.
-@ExigeAcao('USUARIOS', 'administrar')
+@ExigePermissao('usuarios.usuarios_e_papeis.administrar')
 export class UsuariosController {
   constructor(private readonly usuarios: UsuariosService) {}
 
-  /** Papéis, permissões e escopo da própria sessão: a interface decide o que mostrar a partir daqui. */
+  /**
+   * Papéis padrão, permissão efetiva (união dos papéis padrão e personalizados) e
+   * escopo da própria sessão: a interface decide o que mostrar a partir daqui, e o
+   * servidor continua recusando o que a sessão não pode.
+   */
   @Get('eu')
   @AcaoLivre()
   @PermiteCadastroIncompleto()
-  eu(@Req() requisicao: RequisicaoAutenticada) {
+  eu(@Req() requisicao: RequisicaoAutenticada): Readonly<{
+    papeis: readonly PapelPadrao[];
+    permissoes: readonly ChaveDePermissao[];
+    escopoDeEmpresas: 'TODAS' | 'NENHUMA';
+  }> {
     const papeis = papeisDa(requisicao);
 
     return {
       papeis,
-      permissoes: permissoesDe(papeis),
+      permissoes: permissoesDa(requisicao),
       escopoDeEmpresas: escopoDeEmpresas(papeis),
     };
   }
 
-  @Get('papeis')
-  @ExigeAcao('USUARIOS', 'consultar')
-  papeis() {
-    return catalogoDePapeis();
-  }
-
   @Get()
-  @ExigeAcao('USUARIOS', 'consultar')
+  @ExigePermissao('usuarios.usuarios_e_papeis.consultar')
   async listar(
     @Req() requisicao: RequisicaoAutenticada,
     @Query() consulta: unknown,
@@ -97,7 +96,7 @@ export class UsuariosController {
   }
 
   @Get(':usuarioId')
-  @ExigeAcao('USUARIOS', 'consultar')
+  @ExigePermissao('usuarios.usuarios_e_papeis.consultar')
   async obter(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('usuarioId') usuarioId: string,

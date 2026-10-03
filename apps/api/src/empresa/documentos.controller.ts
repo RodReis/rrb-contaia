@@ -26,7 +26,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 
-import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
@@ -90,13 +90,11 @@ const exigirArquivo = (arquivo: ArquivoMultipart | undefined) => {
 
 @Controller('empresas/:empresaId/documentos')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
-// Padrão da classe é a ação mais restrita; a leitura a relaxa explicitamente.
-@ExigeAcao('DOCUMENTOS', 'administrar')
 export class DocumentosDaEmpresaController {
   constructor(private readonly documentos: DocumentosDaEmpresaService) {}
 
   @Get()
-  @ExigeAcao('DOCUMENTOS', 'consultar')
+  @ExigePermissao('documentos.exigencias.consultar')
   async consultar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -109,6 +107,7 @@ export class DocumentosDaEmpresaController {
   }
 
   @Post('exigencias')
+  @ExigePermissao('documentos.exigencias.criar')
   async criarExigencia(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -126,8 +125,12 @@ export class DocumentosDaEmpresaController {
    * Envio e substituição. O `limits` do interceptor corta o upload no limite
    * antes de o processo carregar 20 MB de corpo desnecessário; a validação de
    * tipo e tamanho é refeita no caso de uso, que é a fronteira real.
+   *
+   * A rota exige `Enviar`; quando já existe versão vigente o caso de uso trata o
+   * envio como substituição e exige também `Substituir` (SPEC-008 §3.2).
    */
   @Post('exigencias/:exigenciaId/versoes')
+  @ExigePermissao('documentos.arquivos.enviar')
   @UseInterceptors(
     FileInterceptor('arquivo', { limits: { fileSize: LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES } }),
   )
@@ -148,10 +151,13 @@ export class DocumentosDaEmpresaController {
       exigirArquivo(arquivo),
       entrada.validade,
       entrada.versao,
+      undefined,
+      requisicao.sessao?.permissoes.includes('documentos.arquivos.substituir') === true,
     );
   }
 
   @Put('exigencias/:exigenciaId/aprovacao')
+  @ExigePermissao('documentos.analise.aprovar')
   async aprovar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -170,6 +176,7 @@ export class DocumentosDaEmpresaController {
   }
 
   @Put('exigencias/:exigenciaId/rejeicao')
+  @ExigePermissao('documentos.analise.rejeitar')
   async rejeitar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -189,6 +196,7 @@ export class DocumentosDaEmpresaController {
   }
 
   @Put('exigencias/:exigenciaId/dispensa')
+  @ExigePermissao('documentos.exigencias.dispensar')
   async dispensar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -215,7 +223,7 @@ export class DocumentosDaEmpresaController {
    * executar o que deveria apenas exibir.
    */
   @Get('exigencias/:exigenciaId/versoes/:versaoId/conteudo')
-  @ExigeAcao('DOCUMENTOS', 'consultar')
+  @ExigePermissao('documentos.arquivos.visualizar')
   @Header('X-Content-Type-Options', 'nosniff')
   async visualizar(
     @Req() requisicao: RequisicaoAutenticada,
@@ -242,7 +250,7 @@ export class DocumentosDaEmpresaController {
 
   /** Download no formato original (§2.3). */
   @Get('exigencias/:exigenciaId/versoes/:versaoId/download')
-  @ExigeAcao('DOCUMENTOS', 'consultar')
+  @ExigePermissao('documentos.arquivos.baixar')
   @Header('X-Content-Type-Options', 'nosniff')
   async baixar(
     @Req() requisicao: RequisicaoAutenticada,
@@ -271,7 +279,7 @@ export class DocumentosDaEmpresaController {
   }
 
   @Get('historico')
-  @ExigeAcao('DOCUMENTOS', 'consultar')
+  @ExigePermissao('documentos.historico.consultar')
   async consultarHistorico(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,

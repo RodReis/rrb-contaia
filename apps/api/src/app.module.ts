@@ -28,6 +28,8 @@ import { KeycloakAdminClient } from './usuarios/keycloak-admin.client';
 import { UsuariosController } from './usuarios/usuarios.controller';
 import { UsuariosService } from './usuarios/usuarios.service';
 import { HealthController } from './health/health.controller';
+import { PapeisController } from './papeis/papeis.controller';
+import { PapeisService } from './papeis/papeis.service';
 import { NotificacoesController } from './notificacoes/notificacoes.controller';
 import { NotificacoesService } from './notificacoes/notificacoes.service';
 import {
@@ -55,6 +57,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     PendenciasController,
     NotificacoesController,
     UsuariosController,
+    PapeisController,
     ConvitesController,
   ],
   providers: [
@@ -68,6 +71,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     PendenciasService,
     NotificacoesService,
     UsuariosService,
+    PapeisService,
     ConvitesService,
     KeycloakAdminClient,
     ConviteMailer,

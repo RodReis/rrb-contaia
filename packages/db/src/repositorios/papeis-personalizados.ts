@@ -324,9 +324,9 @@ export const carregarPapeisParaAtribuir = async (
   cliente: PoolClient,
   tenantId: string,
   papelIds: readonly string[],
-): Promise<ReadonlyArray<Readonly<{ id: string; estado: EstadoDoPapel }>>> => {
-  const { rows } = await cliente.query<{ id: string; estado: EstadoDoPapel }>(
-    `select id, estado
+): Promise<ReadonlyArray<Readonly<{ id: string; nome: string; estado: EstadoDoPapel }>>> => {
+  const { rows } = await cliente.query<{ id: string; nome: string; estado: EstadoDoPapel }>(
+    `select id, nome, estado
        from app.papel_personalizado
       where tenant_id = $1 and id = any($2::uuid[])
       order by id

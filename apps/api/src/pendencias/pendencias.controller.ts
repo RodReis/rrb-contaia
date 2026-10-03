@@ -6,7 +6,7 @@
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { Body, Controller, Get, Param, Put, Query, Req, UseGuards } from '@nestjs/common';
 
-import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { escopoDaSessao, GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
@@ -35,7 +35,7 @@ const autorDa = (requisicao: RequisicaoAutenticada): Autor => {
 
 @Controller('pendencias')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
-@ExigeAcao('PENDENCIAS', 'consultar')
+@ExigePermissao('pendencias.pendencias.consultar')
 export class PendenciasController {
   constructor(private readonly pendencias: PendenciasService) {}
 
@@ -55,7 +55,10 @@ export class PendenciasController {
 
 @Controller('empresas/:empresaId/pendencias')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
-@ExigeAcao('PENDENCIAS', 'administrar')
+// Dispensar a pendência é dispensar a exigência que a origina (SPEC-005: "dispensa
+// documental também resolve a pendência"). O catálogo da SPEC-008 não traz ação
+// própria para isso; a decisão fica registrada na PR para confirmação do PI.
+@ExigePermissao('documentos.exigencias.dispensar')
 export class PendenciasDaEmpresaController {
   constructor(private readonly pendencias: PendenciasService) {}
 

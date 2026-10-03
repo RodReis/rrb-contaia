@@ -8,7 +8,7 @@
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { Body, Controller, Get, Param, Put, Query, Req, UseGuards } from '@nestjs/common';
 
-import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { escopoDaSessao } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
@@ -38,13 +38,13 @@ const autorDa = (requisicao: RequisicaoAutenticada): Autor => {
 @Controller('notificacoes')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
 // Padrão da classe é a ação mais restrita; a leitura a relaxa explicitamente.
-@ExigeAcao('NOTIFICACOES', 'administrar')
+@ExigePermissao('notificacoes.sino.marcar_lida')
 export class NotificacoesController {
   constructor(private readonly notificacoes: NotificacoesService) {}
 
   // As notificações nascem de empresas: sem carteira, nada é visível nem marcável.
   @Get('painel')
-  @ExigeAcao('NOTIFICACOES', 'consultar')
+  @ExigePermissao('notificacoes.sino.consultar')
   async consultarPainel(@Req() requisicao: RequisicaoAutenticada) {
     if (escopoDaSessao(requisicao) === 'NENHUMA') {
       return { notificacoes: [], naoLidas: 0, escopoDeEmpresas: 'NENHUMA' as const };
@@ -54,7 +54,7 @@ export class NotificacoesController {
   }
 
   @Get('historico')
-  @ExigeAcao('NOTIFICACOES', 'consultar')
+  @ExigePermissao('notificacoes.sino.consultar')
   async consultarHistorico(@Req() requisicao: RequisicaoAutenticada, @Query() consulta: unknown) {
     const filtro = analisar(filtroDoHistoricoSchema, consulta);
 

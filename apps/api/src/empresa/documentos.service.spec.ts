@@ -358,6 +358,38 @@ describe('envio de arquivo', () => {
     expect(estado.estadoDefinido?.['estado']).toBe('ENVIADO');
   });
 
+  it('com versão vigente o envio é substituição: sem a permissão Substituir é negado e nada muda (SPEC-008 §3.2)', async () => {
+    estado.exigencias = [exigenciaPersistida({ estado: 'APROVADO' })];
+    estado.versoes = [versaoPersistida()];
+
+    const codigo = await codigoDoErro(() =>
+      criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 0, HOJE, false),
+    );
+
+    expect(codigo).toBe(CODIGOS_DE_ERRO.SEM_AUTORIZACAO);
+    expect(estado.arquivamentos).toBe(0);
+    expect(estado.eventos).toHaveLength(0);
+    expect(estado.versoes).toHaveLength(1);
+  });
+
+  it('sem versão vigente o primeiro envio só exige Enviar, mesmo sem a permissão Substituir', async () => {
+    estado.exigencias = [exigenciaPersistida()];
+    estado.versoes = [];
+
+    await criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 0, HOJE, false);
+
+    expect(estado.eventos.at(-1)?.['acao']).toBe('ENVIO');
+  });
+
+  it('com a permissão Substituir a substituição segue normal', async () => {
+    estado.exigencias = [exigenciaPersistida({ estado: 'APROVADO' })];
+    estado.versoes = [versaoPersistida()];
+
+    await criarService().enviarArquivo(TENANT, EMPRESA, EXIGENCIA, AUTOR, pdf(), null, 0, HOJE, true);
+
+    expect(estado.eventos.at(-1)?.['acao']).toBe('SUBSTITUICAO');
+  });
+
   it('recusa envio em exigência que não se aplica à empresa', async () => {
     estado.exigencias = [exigenciaPersistida({ aplicavel: false })];
 

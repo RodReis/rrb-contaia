@@ -37,10 +37,20 @@ export const TIPOS_DE_EVENTO = [
   'REATIVADO',
   'ARQUIVADO',
   'NOVO_CONVITE_INICIADO',
+  'PAPEL_CRIADO',
+  'PAPEL_DADOS_ALTERADOS',
+  'PAPEL_MATRIZ_ALTERADA',
+  'PAPEL_ARQUIVADO',
+  'PAPEL_REATIVADO',
 ] as const;
 
-// O papel obrigatório (≥ 1) e o catálogo padrão são regras do domínio (`validarPapeis`).
+// O papel obrigatório (≥ 1, de qualquer tipo) e o catálogo padrão são regras do domínio
+// (`validarPapeisDoUsuario`); a existência do papel personalizado é conferida no caso de uso.
 const papeis = z.array(texto(40)).max(PAPEIS_PADRAO.length * 2);
+const papeisPersonalizados = z
+  .array(identificador)
+  .max(50)
+  .default(() => []);
 
 export const conviteSchema = z.object({
   nome: texto(120),
@@ -48,6 +58,7 @@ export const conviteSchema = z.object({
   telefone: opcionalNulo(20),
   crc: opcionalNulo(40),
   papeis,
+  papeisPersonalizados,
 });
 
 export const edicaoSchema = z.object({
@@ -55,6 +66,7 @@ export const edicaoSchema = z.object({
   telefone: opcionalNulo(20),
   crc: opcionalNulo(40),
   papeis,
+  papeisPersonalizados,
   // Só aceito enquanto o convite não foi aceito: a regra é do caso de uso.
   email: texto(254).optional(),
 });

@@ -6,6 +6,7 @@ import {
   situacaoApresentada,
   transicionar,
   validarPapeis,
+  validarPapeisDoUsuario,
   type EstadoDoUsuario,
   type Transicao,
 } from './ciclo-de-vida.js';
@@ -131,5 +132,34 @@ describe('podePerderAdministracao', () => {
   it('permite quando resta ao menos um administrador ativo', () => {
     expect(podePerderAdministracao(1)).toBe(true);
     expect(podePerderAdministracao(5)).toBe(true);
+  });
+});
+
+describe('validarPapeisDoUsuario (SPEC-008 §3.4)', () => {
+  it('aceita só papel personalizado, só padrão ou os dois juntos', () => {
+    expect(validarPapeisDoUsuario([], ['p1'])).toEqual({ padrao: [], personalizados: ['p1'] });
+    expect(validarPapeisDoUsuario(['auxiliar'], [])).toEqual({
+      padrao: ['auxiliar'],
+      personalizados: [],
+    });
+    expect(validarPapeisDoUsuario(['auxiliar'], ['p1', 'p2'])).toEqual({
+      padrao: ['auxiliar'],
+      personalizados: ['p1', 'p2'],
+    });
+  });
+
+  it('exige ao menos um papel de qualquer tipo', () => {
+    expect(() => validarPapeisDoUsuario([], [])).toThrow(
+      expect.objectContaining({ codigo: CODIGOS_DE_ERRO.PAPEL_OBRIGATORIO }),
+    );
+  });
+
+  it('remove repetição e mantém a validação dos papéis padrão', () => {
+    expect(validarPapeisDoUsuario(['contador', 'contador'], ['p1', 'p1']).personalizados).toEqual([
+      'p1',
+    ]);
+    expect(() => validarPapeisDoUsuario(['inventado'], ['p1'])).toThrow(
+      expect.objectContaining({ codigo: CODIGOS_DE_ERRO.PAPEL_INVALIDO }),
+    );
   });
 });

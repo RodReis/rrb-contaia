@@ -63,9 +63,11 @@ export {
   situacaoApresentada,
   transicionar,
   validarPapeis,
+  validarPapeisDoUsuario,
 } from './usuarios/ciclo-de-vida.js';
 export type {
   EstadoDoUsuario,
+  PapeisDoUsuario,
   SituacaoApresentada,
   Transicao,
 } from './usuarios/ciclo-de-vida.js';

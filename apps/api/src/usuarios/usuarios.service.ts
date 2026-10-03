@@ -16,6 +16,7 @@ import {
   comContextoDeTenant,
   atualizarDadosDoUsuario,
   atualizarEstadoDoUsuario,
+  carregarPapeisParaAtribuir,
   carregarUsuario,
   conviteVigenteDoUsuario,
   criarConvite,
@@ -27,6 +28,7 @@ import {
   reconciliarConvitesExpirados,
   registrarEventoDeUsuario,
   substituirPapeis,
+  substituirPapeisPersonalizados,
   travarAdminsAtivos,
   usuarioComEmailNoTenant,
 } from '@contaia/db';
@@ -48,9 +50,14 @@ import {
   situacaoApresentada,
   transicionar,
   validarDadosDoUsuario,
-  validarPapeis,
+  validarPapeisDoUsuario,
 } from '@contaia/domain';
-import type { PapelPadrao, SituacaoApresentada, Transicao } from '@contaia/domain';
+import type {
+  PapeisDoUsuario,
+  PapelPadrao,
+  SituacaoApresentada,
+  Transicao,
+} from '@contaia/domain';
 
 import { PoolDoBanco } from '../banco/pool.provider';
 import { ConviteMailer } from './convite.mailer';
@@ -65,6 +72,7 @@ export type DadosDoConvite = Readonly<{
   telefone: string | null;
   crc: string | null;
   papeis: readonly string[];
+  papeisPersonalizados?: readonly string[] | undefined;
 }>;
 
 export type DadosDeEdicao = Readonly<{
@@ -72,6 +80,7 @@ export type DadosDeEdicao = Readonly<{
   telefone: string | null;
   crc: string | null;
   papeis: readonly string[];
+  papeisPersonalizados?: readonly string[] | undefined;
   /** Só aceito enquanto o usuário está CONVIDADO. */
   email?: string | undefined;
 }>;
@@ -86,6 +95,7 @@ export type VisaoDeUsuario = Readonly<{
   telefone: string | null;
   crc: string | null;
   papeis: readonly PapelPadrao[];
+  papeisPersonalizados: UsuarioPersistido['papeisPersonalizados'];
   estado: UsuarioPersistido['estado'];
   situacao: SituacaoApresentada;
   conviteExpiraEm: string | null;
@@ -143,6 +153,7 @@ const paraVisao = (
   telefone: usuario.telefone,
   crc: usuario.crc,
   papeis: usuario.papeis,
+  papeisPersonalizados: usuario.papeisPersonalizados,
   estado: usuario.estado,
   situacao: situacaoApresentada(
     { estado: usuario.estado, conviteExpiraEm: convite?.expiraEm ?? null },
@@ -161,6 +172,11 @@ const paraVisaoDaLista = (usuario: UsuarioNaLista, agora: Date): VisaoDeUsuario 
       : { expiraEm: usuario.conviteExpiraEm, envioFalhou: usuario.envioFalhou },
     agora,
   );
+
+const nomesDosPapeis = (
+  papeis: UsuarioPersistido['papeisPersonalizados'],
+): ReadonlyArray<Readonly<{ id: string; nome: string }>> =>
+  papeis.map(({ id, nome }) => ({ id, nome }));
 
 const mesmoConjunto = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|');
@@ -224,7 +240,7 @@ export class UsuariosService {
 
   async convidar(tenantId: string, autor: Autor, entrada: DadosDoConvite): Promise<VisaoDeUsuario> {
     const dados = validarDadosDoUsuario(entrada);
-    const papeis = validarPapeis(entrada.papeis);
+    const papeis = validarPapeisDoUsuario(entrada.papeis, entrada.papeisPersonalizados ?? []);
     const agora = new Date();
 
     const emitido = await this.comTransacao(tenantId, async (cliente, compensar) => {
@@ -245,7 +261,7 @@ export class UsuariosService {
 
       const usuarioId = await criarUsuario(cliente, tenantId, { subOidc: sub, ...dados });
 
-      await substituirPapeis(cliente, tenantId, usuarioId, papeis);
+      const personalizados = await this.atribuirPapeis(cliente, tenantId, usuarioId, papeis);
 
       const convite = await this.emitirConvite(cliente, tenantId, usuarioId, agora);
 
@@ -254,7 +270,13 @@ export class UsuariosService {
         usuarioAfetadoId: usuarioId,
         autorId: autor.usuarioId,
         antes: null,
-        depois: { estado: 'CONVIDADO', nome: dados.nome, email: dados.email, papeis },
+        depois: {
+          estado: 'CONVIDADO',
+          nome: dados.nome,
+          email: dados.email,
+          papeis: papeis.padrao,
+          ...(personalizados.length > 0 ? { papeisPersonalizados: personalizados } : {}),
+        },
       });
 
       return { usuarioId, convite };
@@ -297,7 +319,7 @@ export class UsuariosService {
     usuarioId: string,
     entrada: DadosDeNovoConvite,
   ): Promise<VisaoDeUsuario> {
-    const papeis = validarPapeis(entrada.papeis);
+    const papeis = validarPapeisDoUsuario(entrada.papeis, entrada.papeisPersonalizados ?? []);
     const agora = new Date();
 
     const { convite, destino } = await this.comTransacao(tenantId, async (cliente) => {
@@ -306,7 +328,7 @@ export class UsuariosService {
       const dados = validarDadosDoUsuario({ ...entrada, email: usuario.email });
 
       await atualizarDadosDoUsuario(cliente, tenantId, usuarioId, dados);
-      await substituirPapeis(cliente, tenantId, usuarioId, papeis);
+      const personalizados = await this.atribuirPapeis(cliente, tenantId, usuarioId, papeis);
       await atualizarEstadoDoUsuario(cliente, tenantId, usuarioId, novoEstado);
 
       const emitido = await this.emitirConvite(cliente, tenantId, usuarioId, agora);
@@ -315,8 +337,18 @@ export class UsuariosService {
         tipo: 'NOVO_CONVITE_INICIADO',
         usuarioAfetadoId: usuarioId,
         autorId: autor.usuarioId,
-        antes: { estado: usuario.estado, papeis: usuario.papeis },
-        depois: { estado: novoEstado, papeis },
+        antes: {
+          estado: usuario.estado,
+          papeis: usuario.papeis,
+          ...(usuario.papeisPersonalizados.length > 0
+            ? { papeisPersonalizados: nomesDosPapeis(usuario.papeisPersonalizados) }
+            : {}),
+        },
+        depois: {
+          estado: novoEstado,
+          papeis: papeis.padrao,
+          ...(personalizados.length > 0 ? { papeisPersonalizados: personalizados } : {}),
+        },
       });
 
       return { convite: emitido, destino: { email: usuario.email, nome: dados.nome } };
@@ -335,7 +367,7 @@ export class UsuariosService {
     usuarioId: string,
     entrada: DadosDeEdicao,
   ): Promise<VisaoDeUsuario> {
-    const papeis = validarPapeis(entrada.papeis);
+    const papeis = validarPapeisDoUsuario(entrada.papeis, entrada.papeisPersonalizados ?? []);
     const agora = new Date();
 
     const reemissao = await this.comTransacao(tenantId, async (cliente, compensar) => {
@@ -359,7 +391,9 @@ export class UsuariosService {
       }
 
       const perdeAdministracao =
-        usuario.estado === 'ATIVO' && usuario.papeis.includes(ADMIN) && !papeis.includes(ADMIN);
+        usuario.estado === 'ATIVO' &&
+        usuario.papeis.includes(ADMIN) &&
+        !papeis.padrao.includes(ADMIN);
 
       if (perdeAdministracao) {
         await this.exigirOutroAdministrador(cliente, tenantId, usuarioId);
@@ -369,7 +403,11 @@ export class UsuariosService {
         nome: dados.nome !== usuario.nome,
         telefone: dados.telefone !== usuario.telefone,
         crc: dados.crc !== usuario.crc,
-        papeis: !mesmoConjunto(papeis, usuario.papeis),
+        papeis: !mesmoConjunto(papeis.padrao, usuario.papeis),
+        papeisPersonalizados: !mesmoConjunto(
+          papeis.personalizados,
+          usuario.papeisPersonalizados.map((papel) => papel.id),
+        ),
       };
 
       if (!emailMudou && !Object.values(mudou).some(Boolean)) {
@@ -380,15 +418,20 @@ export class UsuariosService {
         ...dados,
         ...(emailMudou ? { email: dados.email } : {}),
       });
-      await substituirPapeis(cliente, tenantId, usuarioId, papeis);
+      const personalizados = await this.atribuirPapeis(cliente, tenantId, usuarioId, papeis);
 
       if (Object.values(mudou).some(Boolean)) {
         await registrarEventoDeUsuario(cliente, tenantId, {
           tipo: 'DADOS_E_PAPEIS_ALTERADOS',
           usuarioAfetadoId: usuarioId,
           autorId: autor.usuarioId,
-          antes: this.camposAlterados(mudou, usuario, usuario.papeis),
-          depois: this.camposAlterados(mudou, dados, papeis),
+          antes: this.camposAlterados(
+            mudou,
+            usuario,
+            usuario.papeis,
+            nomesDosPapeis(usuario.papeisPersonalizados),
+          ),
+          depois: this.camposAlterados(mudou, dados, papeis.padrao, personalizados),
         });
       }
 
@@ -508,16 +551,57 @@ export class UsuariosService {
   }
 
   private camposAlterados(
-    mudou: Readonly<Record<'nome' | 'telefone' | 'crc' | 'papeis', boolean>>,
+    mudou: Readonly<
+      Record<'nome' | 'telefone' | 'crc' | 'papeis' | 'papeisPersonalizados', boolean>
+    >,
     fonte: Readonly<{ nome: string; telefone: string | null; crc: string | null }>,
     papeis: readonly string[],
+    papeisPersonalizados: ReadonlyArray<Readonly<{ id: string; nome: string }>>,
   ): Readonly<Record<string, unknown>> {
     return {
       ...(mudou.nome ? { nome: fonte.nome } : {}),
       ...(mudou.telefone ? { telefone: fonte.telefone } : {}),
       ...(mudou.crc ? { crc: fonte.crc } : {}),
       ...(mudou.papeis ? { papeis } : {}),
+      ...(mudou.papeisPersonalizados ? { papeisPersonalizados } : {}),
     };
+  }
+
+  /**
+   * Troca os papéis do usuário, padrão e personalizados. O papel personalizado
+   * precisa existir no escritório e estar `ATIVO`; a leitura o trava em modo
+   * compartilhado, então um arquivamento simultâneo espera esta transação (e
+   * vice-versa) em vez de decidir sobre estado antigo. Devolve id e nome dos
+   * personalizados atribuídos, para a auditoria.
+   */
+  private async atribuirPapeis(
+    cliente: Cliente,
+    tenantId: string,
+    usuarioId: string,
+    papeis: PapeisDoUsuario,
+  ): Promise<ReadonlyArray<Readonly<{ id: string; nome: string }>>> {
+    await substituirPapeis(cliente, tenantId, usuarioId, papeis.padrao);
+
+    const encontrados =
+      papeis.personalizados.length === 0
+        ? []
+        : await carregarPapeisParaAtribuir(cliente, tenantId, papeis.personalizados);
+
+    if (encontrados.length !== papeis.personalizados.length) {
+      // Papel de outro escritório responde como inexistente, sem revelar que existe.
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.PAPEL_NAO_ENCONTRADO, 'Papel não encontrado.');
+    }
+
+    if (encontrados.some((papel) => papel.estado === 'ARQUIVADO')) {
+      throw new ErroDeConflito(
+        CODIGOS_DE_ERRO.PAPEL_ARQUIVADO,
+        'Papel arquivado não pode ser atribuído. Reative-o ou escolha outro.',
+      );
+    }
+
+    await substituirPapeisPersonalizados(cliente, tenantId, usuarioId, papeis.personalizados);
+
+    return encontrados.map(({ id, nome }) => ({ id, nome }));
   }
 
   private async carregarOuFalhar(

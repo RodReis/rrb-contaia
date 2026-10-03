@@ -559,7 +559,7 @@ describe('vínculos com usuários', () => {
 
       const vistos = await pendente;
 
-      expect(vistos).toEqual([{ id: papel, estado: 'ARQUIVADO' }]);
+      expect(vistos).toEqual([{ id: papel, nome: `Corrida ${SUFIXO}`, estado: 'ARQUIVADO' }]);
 
       await atribuindo.query('commit');
     } finally {

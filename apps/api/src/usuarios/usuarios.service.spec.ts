@@ -748,4 +748,193 @@ describe('UsuariosService', () => {
       expect(outroTenant.eventos).toHaveLength(0);
     });
   });
+
+  describe('papéis personalizados (SPEC-008 §3.4)', () => {
+    const semearPapel = (
+      id: string,
+      nome: string,
+      opcoes: { estado?: string; tenantId?: string } = {},
+    ): void => {
+      estado.papeis.push({
+        id,
+        tenantId: opcoes.tenantId ?? T1,
+        nome,
+        descricao: null,
+        papelBase: 'auxiliar',
+        estado: opcoes.estado ?? 'ATIVO',
+        revisao: 1,
+        permissoes: ['empresas.cadastro.consultar'],
+        criadoEm: AGORA,
+        atualizadoEm: AGORA,
+      });
+    };
+
+    beforeEach(() => {
+      semearPapel('papel-1', 'Revisor');
+      semearPapel('papel-2', 'Conferente');
+    });
+
+    it('convida com papel padrão e personalizado juntos e audita os dois', async () => {
+      const usuario = await service.convidar(T1, AUTOR, {
+        ...DADOS,
+        papeisPersonalizados: ['papel-1'],
+      });
+
+      expect(usuario.papeis).toEqual(['contador']);
+      expect(usuario.papeisPersonalizados).toEqual([
+        { id: 'papel-1', nome: 'Revisor', estado: 'ATIVO' },
+      ]);
+      expect(estado.eventos[0]).toMatchObject({
+        tipo: 'CONVITE_CRIADO',
+        depois: { papeis: ['contador'], papeisPersonalizados: [{ id: 'papel-1', nome: 'Revisor' }] },
+      });
+    });
+
+    it('aceita usuário só com papel personalizado, mas não sem nenhum papel', async () => {
+      const usuario = await service.convidar(T1, AUTOR, {
+        ...DADOS,
+        papeis: [],
+        papeisPersonalizados: ['papel-1'],
+      });
+
+      expect(usuario.papeis).toEqual([]);
+      expect(usuario.papeisPersonalizados).toHaveLength(1);
+
+      expect(
+        await codigoDe(() =>
+          service.convidar(T1, AUTOR, {
+            ...DADOS,
+            email: 'outra@escritorio.com',
+            papeis: [],
+            papeisPersonalizados: [],
+          }),
+        ),
+      ).toBe(CODIGOS_DE_ERRO.PAPEL_OBRIGATORIO);
+    });
+
+    it('papel inexistente ou de outro escritório responde como inexistente e desfaz o convite', async () => {
+      semearPapel('papel-alheio', 'Alheio', { tenantId: T2 });
+
+      for (const id of ['papel-que-nao-existe', 'papel-alheio']) {
+        expect(
+          await codigoDe(() => service.convidar(T1, AUTOR, { ...DADOS, papeisPersonalizados: [id] })),
+        ).toBe(CODIGOS_DE_ERRO.PAPEL_NAO_ENCONTRADO);
+      }
+
+      expect(estado.usuarios.some((u) => u.email === 'ana@escritorio.com')).toBe(false);
+      expect(estado.vinculos).toHaveLength(0);
+      expect(identidade.remover).toHaveBeenCalled();
+    });
+
+    it('papel arquivado não pode ser atribuído', async () => {
+      semearPapel('papel-arquivado', 'Antigo', { estado: 'ARQUIVADO' });
+
+      expect(
+        await codigoDe(() =>
+          service.convidar(T1, AUTOR, { ...DADOS, papeisPersonalizados: ['papel-arquivado'] }),
+        ),
+      ).toBe(CODIGOS_DE_ERRO.PAPEL_ARQUIVADO);
+      expect(estado.vinculos).toHaveLength(0);
+    });
+
+    it('editar troca os vínculos e registra o antes/depois com nomes', async () => {
+      const usuario = await service.convidar(T1, AUTOR, {
+        ...DADOS,
+        papeisPersonalizados: ['papel-1'],
+      });
+
+      await service.editar(T1, AUTOR, usuario.id, {
+        nome: DADOS.nome,
+        telefone: null,
+        crc: null,
+        papeis: ['contador'],
+        papeisPersonalizados: ['papel-2'],
+      });
+
+      const evento = estado.eventos.find((e) => e.tipo === 'DADOS_E_PAPEIS_ALTERADOS');
+
+      expect(evento).toMatchObject({
+        antes: { papeisPersonalizados: [{ id: 'papel-1', nome: 'Revisor' }] },
+        depois: { papeisPersonalizados: [{ id: 'papel-2', nome: 'Conferente' }] },
+      });
+      expect(estado.vinculos.filter((v) => !v.removido).map((v) => v.papelId)).toEqual(['papel-2']);
+      // O vínculo antigo não é apagado: fica marcado como removido.
+      expect(estado.vinculos.find((v) => v.papelId === 'papel-1')?.removido).toBe(true);
+    });
+
+    it('editar sem mexer nos papéis não grava evento nem recria vínculo', async () => {
+      const usuario = await service.convidar(T1, AUTOR, {
+        ...DADOS,
+        papeisPersonalizados: ['papel-1'],
+      });
+      const eventosAntes = estado.eventos.length;
+
+      await service.editar(T1, AUTOR, usuario.id, {
+        nome: DADOS.nome,
+        telefone: null,
+        crc: null,
+        papeis: ['contador'],
+        papeisPersonalizados: ['papel-1'],
+      });
+
+      expect(estado.eventos).toHaveLength(eventosAntes);
+      expect(estado.vinculos).toHaveLength(1);
+    });
+
+    it('retirar o administrador padrão ainda respeita o último administrador, mesmo com papel personalizado', async () => {
+      estado.usuarios.splice(
+        estado.usuarios.findIndex((u) => u.id === 'admin-2'),
+        1,
+      );
+
+      expect(
+        await codigoDe(() =>
+          service.editar(T1, AUTOR, 'admin-1', {
+            nome: 'Nome admin-1',
+            telefone: null,
+            crc: null,
+            papeis: [],
+            papeisPersonalizados: ['papel-1'],
+          }),
+        ),
+      ).toBe(CODIGOS_DE_ERRO.ULTIMO_ADMIN);
+    });
+
+    it('novo convite de usuário arquivado exige papéis revisados e não reaproveita vínculo antigo', async () => {
+      const usuario = await service.convidar(T1, AUTOR, {
+        ...DADOS,
+        papeisPersonalizados: ['papel-1'],
+      });
+
+      const criado = estado.usuarios.find((u) => u.id === usuario.id);
+
+      if (criado !== undefined) criado.estado = 'ATIVO';
+
+      await service.arquivar(T1, AUTOR, usuario.id);
+      await service.novoConvite(T1, AUTOR, usuario.id, {
+        nome: DADOS.nome,
+        telefone: null,
+        crc: null,
+        papeis: ['contador'],
+        papeisPersonalizados: ['papel-2'],
+      });
+
+      expect(estado.vinculos.filter((v) => !v.removido).map((v) => v.papelId)).toEqual(['papel-2']);
+      expect(estado.eventos.at(-1)).toMatchObject({
+        tipo: 'NOVO_CONVITE_INICIADO',
+        antes: { papeisPersonalizados: [{ id: 'papel-1', nome: 'Revisor' }] },
+        depois: { papeisPersonalizados: [{ id: 'papel-2', nome: 'Conferente' }] },
+      });
+    });
+
+    it('se a auditoria falha, nenhum vínculo permanece', async () => {
+      estado.falharAoRegistrarEvento = true;
+
+      await expect(
+        service.convidar(T1, AUTOR, { ...DADOS, papeisPersonalizados: ['papel-1'] }),
+      ).rejects.toThrow('falha na auditoria');
+
+      expect(estado.vinculos).toHaveLength(0);
+    });
+  });
 });

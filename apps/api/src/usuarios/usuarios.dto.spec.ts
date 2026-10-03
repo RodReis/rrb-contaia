@@ -16,7 +16,12 @@ const BASE = { nome: 'Ana Souza', email: 'ana@x.com', papeis: ['contador'] };
 
 describe('conviteSchema', () => {
   it('aceita o mínimo: nome, e-mail e papéis; telefone e CRC viram null', () => {
-    expect(analisar(conviteSchema, BASE)).toEqual({ ...BASE, telefone: null, crc: null });
+    expect(analisar(conviteSchema, BASE)).toEqual({
+      ...BASE,
+      telefone: null,
+      crc: null,
+      papeisPersonalizados: [],
+    });
   });
 
   it('exige nome, e-mail e a lista de papéis (a regra do papel obrigatório é do domínio)', () => {
@@ -60,6 +65,7 @@ describe('edicaoSchema e novoConviteSchema', () => {
     expect(analisar(edicaoSchema, { nome: 'Ana', papeis: ['auxiliar'] })).toEqual({
       nome: 'Ana',
       papeis: ['auxiliar'],
+      papeisPersonalizados: [],
       telefone: null,
       crc: null,
     });
@@ -76,6 +82,26 @@ describe('edicaoSchema e novoConviteSchema', () => {
     });
 
     expect(resultado).not.toHaveProperty('email');
+  });
+});
+
+describe('papéis personalizados no convite e na edição (SPEC-008 §3.4)', () => {
+  const PAPEL = '01927b5c-8e1a-7c3d-9a1b-0123456789ab';
+
+  it('aceita identificadores junto dos papéis padrão, ou sozinhos', () => {
+    expect(
+      analisar(conviteSchema, { ...BASE, papeisPersonalizados: [PAPEL] }).papeisPersonalizados,
+    ).toEqual([PAPEL]);
+    expect(
+      analisar(edicaoSchema, { nome: 'Ana', papeis: [], papeisPersonalizados: [PAPEL] }),
+    ).toMatchObject({ papeis: [], papeisPersonalizados: [PAPEL] });
+  });
+
+  it('recusa identificador malformado e lista longa demais', () => {
+    expect(() => analisar(conviteSchema, { ...BASE, papeisPersonalizados: ['abc'] })).toThrow();
+    expect(() =>
+      analisar(conviteSchema, { ...BASE, papeisPersonalizados: Array(51).fill(PAPEL) }),
+    ).toThrow();
   });
 });
 

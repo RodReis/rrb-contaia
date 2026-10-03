@@ -39,6 +39,7 @@ describe('SessaoService.resolver', () => {
       usuarioId: 'u1',
       tenantId: 't1',
       papeis: ['contador', 'auxiliar'],
+      permissoesPersonalizadas: [],
       statusDoTenant: 'ATIVO',
     });
 
@@ -47,6 +48,40 @@ describe('SessaoService.resolver', () => {
     expect(sessao.papeis).toEqual(['contador', 'auxiliar']);
     expect(sessao.sub).toBe('sub-1');
     expect(sessao.email).toBe('ana@x.com');
+  });
+
+  it('a permissão efetiva une papéis padrão e personalizados (SPEC-008 §3.4)', async () => {
+    resolverIdentidadeMock.mockResolvedValue({
+      usuarioId: 'u1',
+      tenantId: 't1',
+      papeis: ['auxiliar'],
+      permissoesPersonalizadas: ['historico.global.consultar', 'empresas.cadastro.consultar'],
+      statusDoTenant: 'ATIVO',
+    });
+
+    const { permissoes } = await servico().resolver('token');
+
+    expect(permissoes).toContain('empresas.cadastro.criar');
+    expect(permissoes).toContain('historico.global.consultar');
+    expect(new Set(permissoes).size).toBe(permissoes.length);
+  });
+
+  it('só personalizado também resolve, e chave obsoleta ou exclusiva do banco não concede nada', async () => {
+    resolverIdentidadeMock.mockResolvedValue({
+      usuarioId: 'u1',
+      tenantId: 't1',
+      papeis: [],
+      permissoesPersonalizadas: [
+        'empresas.cadastro.consultar',
+        'empresas.cadastro.excluir',
+        'usuarios.usuarios_e_papeis.administrar',
+      ],
+      statusDoTenant: 'ATIVO',
+    });
+
+    const { permissoes } = await servico().resolver('token');
+
+    expect(permissoes).toEqual(['empresas.cadastro.consultar']);
   });
 
   it('token válido de usuário suspenso, arquivado ou ainda convidado não cria sessão', async () => {
