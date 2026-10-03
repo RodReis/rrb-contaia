@@ -65,6 +65,7 @@ const PARAMETROS_VAZIOS: Readonly<Record<string, string>> = {
   'app.finalidade': '',
   'app.identidade_tecnica': '',
   'app.correlation_id': '',
+  'app.empresa_em_criacao': '',
 };
 
 const executarComoAtor = async <T>(
@@ -235,6 +236,23 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
     ['técnico sem empresa', { tipo: 'bruto', parametros: { 'app.tenant_id': c.tenantA, 'app.origem': 'TECNICA', 'app.finalidade': 'PROCESSAMENTO_DE_EMPRESA', 'app.identidade_tecnica': 'x', 'app.correlation_id': 'y' } }],
   ];
 
+  // Empresa em criação (SPEC-009 §3.1): o criador escreve nela antes de ter vínculo — só nela.
+  const humanoCriando = (
+    usuarioId: string,
+    empresaEmCriacao: string,
+    sobre: Readonly<Record<string, string>> = {},
+  ): Ator => ({
+    tipo: 'bruto',
+    parametros: {
+      'app.tenant_id': c.tenantA,
+      'app.origem': 'HUMANA',
+      'app.usuario_id': usuarioId,
+      'app.finalidade': 'COMUM',
+      'app.empresa_em_criacao': empresaEmCriacao,
+      ...sobre,
+    },
+  });
+
   const registrar = (
     tabela: string,
     classe: ClasseDeTabela,
@@ -329,8 +347,20 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       for (const [nome, ator] of adulterados) {
         await leitura(`contexto adulterado: ${nome}`, ator, 'invisivel');
       }
+      await leitura('criador sem vínculo na empresa que está criando', humanoCriando(u.fora, c.empresaA1), 'visivel');
+      await leitura('criação de outra empresa não abre esta', humanoCriando(u.fora, c.empresaA2), 'invisivel');
+      await leitura('criação com usuário suspenso', humanoCriando(u.suspenso, c.empresaA3Arquivada), 'invisivel');
+      await leitura('criação sob finalidade administrativa', humanoCriando(u.fora, c.empresaA1, { 'app.finalidade': 'ADMIN_ACESSO' }), 'invisivel');
+      await leitura('criação sob outro tenant', humanoCriando(u.deB, c.empresaA1, { 'app.tenant_id': c.tenantB }), 'invisivel');
+      await leitura(
+        'job técnico não herda a marca de criação',
+        { tipo: 'bruto', parametros: { 'app.tenant_id': c.tenantA, 'app.origem': 'TECNICA', 'app.empresa_id': c.empresaA2, 'app.finalidade': 'PROCESSAMENTO_DE_EMPRESA', 'app.identidade_tecnica': 'x', 'app.correlation_id': 'y', 'app.empresa_em_criacao': c.empresaA1 } },
+        'invisivel',
+      );
 
       await insercao('na carteira (controle positivo)', humano(u.naCarteira), 'inserido');
+      await insercao('criador sem vínculo na empresa que está criando', humanoCriando(u.fora, c.empresaA1), 'inserido');
+      await insercao('criação de outra empresa não abre esta', humanoCriando(u.fora, c.empresaA2), 'rejeitado_por_rls');
       await insercao('fora da carteira', humano(u.fora), 'rejeitado_por_rls');
       await insercao('usuário suspenso', humano(u.suspenso), 'rejeitado_por_rls');
       await insercao('outro tenant gravando no tenant A', humano(u.deB, 'COMUM', c.tenantB), 'rejeitado_por_rls');
@@ -467,6 +497,8 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await leitura('sem contexto', nenhum, 'invisivel');
       await leitura('job técnico na empresa do trabalho', tecnico(c.empresaA1), 'visivel');
       await leitura('job técnico em outra empresa', tecnico(c.empresaA2), 'invisivel');
+      await leitura('criador sem vínculo na empresa que está criando', humanoCriando(u.fora, c.empresaA1), 'visivel');
+      await leitura('criação de outra empresa não abre esta', humanoCriando(u.fora, c.empresaA2), 'invisivel');
       for (const [nome, ator] of adulterados) {
         await leitura(`contexto adulterado: ${nome}`, ator, 'invisivel');
       }
@@ -484,6 +516,8 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'nenhuma_linha_alterada');
       await alteracao('administrador sem vínculo, empresa ativa', humano(u.admin), 'nenhuma_linha_alterada');
       await alteracao('administrador reativa empresa arquivada', humano(u.admin), 'atualizado', arquivada);
+      await alteracao('criador sem vínculo completa a empresa que está criando', humanoCriando(u.fora, c.empresaA1), 'atualizado');
+      await alteracao('criação de outra empresa não abre esta', humanoCriando(u.fora, c.empresaA2), 'nenhuma_linha_alterada');
       await alteracao('gestão de acesso trava mas não altera', humano(u.admin, 'ADMIN_ACESSO'), 'rejeitado_por_rls');
       await alteracao('sem contexto', nenhum, 'nenhuma_linha_alterada');
       await alteracao('job técnico em outra empresa', tecnico(c.empresaA2), 'nenhuma_linha_alterada');

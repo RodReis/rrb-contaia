@@ -53,7 +53,11 @@ export class PapeisController {
     @Req() requisicao: RequisicaoAutenticada,
     @Query() consulta: unknown,
   ): Promise<PaginaDePapeisVisao> {
-    return this.papeis.listar(tenantDa(requisicao), analisar(filtroDePapeisSchema, consulta));
+    return this.papeis.listar(
+      tenantDa(requisicao),
+      autorDa(requisicao),
+      analisar(filtroDePapeisSchema, consulta),
+    );
   }
 
   @Get(':papelId')
@@ -62,7 +66,7 @@ export class PapeisController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('papelId') papelId: string,
   ): Promise<DetalheDePapel> {
-    return this.papeis.obter(tenantDa(requisicao), papelDe(papelId));
+    return this.papeis.obter(tenantDa(requisicao), autorDa(requisicao), papelDe(papelId));
   }
 
   @Post()

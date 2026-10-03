@@ -116,6 +116,36 @@ export const comFinalidade = async <T>(
   return resultado;
 };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/**
+ * Marca a empresa que ESTA transação acabou de criar: o criador escreve nela
+ * antes de existir vínculo de carteira (SPEC-009 §3.1), e só nela. A marca vale
+ * até o fim do trecho e da transação; só requisição humana a usa.
+ */
+export const comEmpresaEmCriacao = async <T>(
+  cliente: PoolClient,
+  empresaId: string,
+  executar: ExecutarNaTransacao<T>,
+): Promise<T> => {
+  const { rows } = await cliente.query<{ origem: string | null }>(
+    `select app.origem_atual() as origem`,
+  );
+
+  if (rows[0]?.origem !== 'HUMANA' || !UUID.test(empresaId)) {
+    throw new ErroDeDominio(
+      CODIGOS_DE_ERRO.CONTEXTO_DE_ACESSO_INVALIDO,
+      'Contexto de acesso inválido: a empresa em criação exige requisição humana e id válido.',
+    );
+  }
+
+  await cliente.query(`select set_config('app.empresa_em_criacao', $1, true)`, [empresaId]);
+  const resultado = await executar(cliente);
+  await cliente.query(`select set_config('app.empresa_em_criacao', '', true)`);
+
+  return resultado;
+};
+
 /**
  * Executa sem contexto. Existe para o caminho de autenticação, que precisa
  * descobrir o tenant do usuário antes de tê-lo (funções SECURITY DEFINER) — e

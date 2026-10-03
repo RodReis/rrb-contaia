@@ -143,6 +143,7 @@ describe('parâmetros de sessão', () => {
       'app.finalidade': 'COMUM',
       'app.identidade_tecnica': '',
       'app.correlation_id': 'r1',
+      'app.empresa_em_criacao': '',
     });
   });
 
@@ -158,6 +159,7 @@ describe('parâmetros de sessão', () => {
     );
 
     expect(parametros['app.usuario_id']).toBe('');
+    expect(parametros['app.empresa_em_criacao']).toBe('');
     expect(parametros['app.empresa_id']).toBe(EMPRESA);
     expect(parametros['app.origem']).toBe('TECNICA');
   });

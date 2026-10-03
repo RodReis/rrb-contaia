@@ -5,7 +5,7 @@
  */
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import {
-  comContextoDeTenant,
+  comContextoHumano,
   contarAbertasPorEmpresa,
   dispensar,
   listarCentral,
@@ -23,7 +23,7 @@ const hojeEmSaoPaulo = (): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
 // Injeta `PoolDoBanco` (provider wrapper), não `Pool` cru — mesmo padrão de
-// `DocumentosDaEmpresaService`. `comContextoDeTenant` recebe `this.pool.instancia`.
+// `DocumentosDaEmpresaService`. `comContextoHumano` recebe `this.pool.instancia`.
 @Injectable()
 export class PendenciasService {
   constructor(private readonly pool: PoolDoBanco) {}
@@ -34,16 +34,17 @@ export class PendenciasService {
     usuarioId: string,
     filtro: FiltroDaCentralDto,
   ): Promise<PaginaDePendencias> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, (cliente) =>
       listarCentral(cliente, { ...filtro, carteiraDoUsuarioId: usuarioId }, hojeEmSaoPaulo()),
     );
   }
 
   async contarPorEmpresas(
     tenantId: string,
+    usuarioId: string,
     empresaIds: readonly string[],
   ): Promise<ReadonlyMap<string, number>> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, (cliente) =>
       contarAbertasPorEmpresa(cliente, empresaIds),
     );
   }
@@ -55,7 +56,10 @@ export class PendenciasService {
     autor: Autor,
     justificativa: string,
   ): Promise<PendenciaPersistida> {
-    const resolvida = await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    const resolvida = await comContextoHumano(
+      this.pool.instancia,
+      { tenantId, usuarioId: autor.usuarioId },
+      (cliente) =>
       dispensar(cliente, tenantId, empresaId, pendenciaId, autor.usuarioId, justificativa),
     );
 

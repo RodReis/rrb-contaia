@@ -20,12 +20,14 @@ describe('HistoricoDeUsuariosController', () => {
       tenantId: 'tenant-malicioso',
     });
 
-    const [tenant, filtro] = servico.consultarHistorico.mock.calls[0] as unknown as [
+    const [tenant, autor, filtro] = servico.consultarHistorico.mock.calls[0] as unknown as [
       string,
+      { usuarioId: string },
       { tipo: string; de: Date; ate: Date; limite: number; deslocamento: number },
     ];
 
     expect(tenant).toBe('tenant-1');
+    expect(autor).toEqual({ usuarioId: 'autor-1' });
     expect(filtro.tipo).toBe('SUSPENSO');
     expect(filtro.de.toISOString()).toBe('2026-10-01T03:00:00.000Z');
     expect(filtro.ate.toISOString()).toBe('2026-10-03T03:00:00.000Z');

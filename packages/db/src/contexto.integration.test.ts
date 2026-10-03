@@ -10,7 +10,13 @@ import { Pool } from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { obterUrlDaAplicacao } from './client.js';
-import { comContexto, comContextoHumano, comFinalidade, semContexto } from './contexto.js';
+import {
+  comContexto,
+  comContextoHumano,
+  comEmpresaEmCriacao,
+  comFinalidade,
+  semContexto,
+} from './contexto.js';
 
 const TENANT = '0197a1b2-0000-7000-8000-0000000000a1';
 const USUARIO = '0197a1b2-0000-7000-8000-0000000000a2';
@@ -160,6 +166,51 @@ describe('troca de finalidade na mesma transação', () => {
   it('recusa sem contexto algum', async () => {
     await expect(
       semContexto(pool, (cliente) => comFinalidade(cliente, 'ADMIN_ACESSO', async () => 1)),
+    ).rejects.toMatchObject({ codigo: CODIGOS_DE_ERRO.CONTEXTO_DE_ACESSO_INVALIDO });
+  });
+});
+
+describe('empresa em criação', () => {
+  const marca = `select app.empresa_em_criacao_atual()::text as empresa`;
+
+  it('vale só no trecho e some depois, sem vazar para a transação seguinte', async () => {
+    const resultado = await comContextoHumano(
+      pool,
+      { tenantId: TENANT, usuarioId: USUARIO },
+      async (cliente) => {
+        const antes = (await cliente.query<{ empresa: string | null }>(marca)).rows[0]?.empresa;
+        const durante = await comEmpresaEmCriacao(cliente, EMPRESA, async () =>
+          (await cliente.query<{ empresa: string | null }>(marca)).rows[0]?.empresa,
+        );
+        const depois = (await cliente.query<{ empresa: string | null }>(marca)).rows[0]?.empresa;
+
+        return { antes, durante, depois };
+      },
+    );
+
+    expect(resultado).toEqual({ antes: null, durante: EMPRESA, depois: null });
+    expect((await semContexto(pool, (c) => c.query(marca))).rows[0]).toEqual({ empresa: null });
+  });
+
+  it('não se aplica a job técnico, sem contexto nem a id malformado', async () => {
+    const tecnico = contextoTecnico({
+      identidadeTecnica: 'w',
+      finalidade: 'PROCESSAMENTO_DE_EMPRESA',
+      tenantId: TENANT,
+      empresaId: EMPRESA,
+      correlationId: 'c',
+    });
+
+    await expect(
+      comContexto(pool, tecnico, (c) => comEmpresaEmCriacao(c, EMPRESA, async () => 1)),
+    ).rejects.toMatchObject({ codigo: CODIGOS_DE_ERRO.CONTEXTO_DE_ACESSO_INVALIDO });
+    await expect(
+      semContexto(pool, (c) => comEmpresaEmCriacao(c, EMPRESA, async () => 1)),
+    ).rejects.toMatchObject({ codigo: CODIGOS_DE_ERRO.CONTEXTO_DE_ACESSO_INVALIDO });
+    await expect(
+      comContextoHumano(pool, { tenantId: TENANT, usuarioId: USUARIO }, (c) =>
+        comEmpresaEmCriacao(c, "x'; drop table app.empresa;--", async () => 1),
+      ),
     ).rejects.toMatchObject({ codigo: CODIGOS_DE_ERRO.CONTEXTO_DE_ACESSO_INVALIDO });
   });
 });

@@ -6,7 +6,7 @@
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
-import { tenantDa } from '../auth/contexto-da-sessao';
+import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
 import { filtroDeEventosSchema } from './usuarios.dto';
@@ -25,6 +25,7 @@ export class HistoricoDeUsuariosController {
   ): Promise<PaginaDeEventosVisao> {
     return this.usuarios.consultarHistorico(
       tenantDa(requisicao),
+      autorDa(requisicao),
       analisar(filtroDeEventosSchema, consulta),
     );
   }

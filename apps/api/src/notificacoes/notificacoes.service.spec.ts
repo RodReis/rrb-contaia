@@ -13,7 +13,7 @@ vi.mock('@contaia/db', async () => {
   const real = await vi.importActual<typeof import('@contaia/db')>('@contaia/db');
   return {
     ...real,
-    comContextoDeTenant: vi.fn(async (_pool, _tenantId, executar) => executar({} as never)),
+    comContextoHumano: vi.fn(async (_pool, _entrada, executar) => executar({} as never)),
     listarPainel: vi.fn(),
     contarNaoLidas: vi.fn(),
     listarHistoricoDeNotificacoes: vi.fn(),
@@ -48,9 +48,9 @@ describe('NotificacoesService', () => {
     const resultado = await service.consultarPainel(TENANT_ID, USUARIO_ID);
 
     expect(resultado).toEqual({ notificacoes: [], naoLidas: 3 });
-    expect(db.comContextoDeTenant).toHaveBeenCalledWith(
+    expect(db.comContextoHumano).toHaveBeenCalledWith(
       expect.anything(),
-      TENANT_ID,
+      { tenantId: TENANT_ID, usuarioId: USUARIO_ID },
       expect.any(Function),
     );
   });

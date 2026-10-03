@@ -308,6 +308,7 @@ export class DocumentosDaEmpresaController {
       requisicao.sessao?.permissoes ?? [],
       await this.documentos.consultarHistorico(
         tenantDa(requisicao),
+        autorDa(requisicao).usuarioId,
         empresaId,
         analisar(paginacaoDoHistoricoSchema, consulta),
       ),

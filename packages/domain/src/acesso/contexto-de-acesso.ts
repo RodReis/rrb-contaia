@@ -156,10 +156,12 @@ export type ParametrosDeSessao = Readonly<{
   'app.finalidade': string;
   'app.identidade_tecnica': string;
   'app.correlation_id': string;
+  /** Empresa que a transação está criando; só o caso de uso a preenche, depois do INSERT. */
+  'app.empresa_em_criacao': string;
 }>;
 
 /**
- * Sempre as sete variáveis, com vazio onde não se aplica: a transação sobrescreve
+ * Sempre as oito variáveis, com vazio onde não se aplica: a transação sobrescreve
  * qualquer valor que uma etapa anterior tenha deixado, sem depender do reset do fim.
  */
 export const parametrosDeSessao = (contexto: ContextoDeAcesso): ParametrosDeSessao => {
@@ -172,6 +174,7 @@ export const parametrosDeSessao = (contexto: ContextoDeAcesso): ParametrosDeSess
       'app.finalidade': contexto.finalidade,
       'app.identidade_tecnica': '',
       'app.correlation_id': contexto.correlationId ?? '',
+      'app.empresa_em_criacao': '',
     };
   }
 
@@ -183,5 +186,6 @@ export const parametrosDeSessao = (contexto: ContextoDeAcesso): ParametrosDeSess
     'app.finalidade': contexto.finalidade,
     'app.identidade_tecnica': contexto.identidadeTecnica,
     'app.correlation_id': contexto.correlationId,
+    'app.empresa_em_criacao': '',
   };
 };

@@ -44,6 +44,7 @@ describe('EmpresaController', () => {
 
     expect(servico.listar).toHaveBeenCalledWith(
       'tenant-1',
+      'usuario-1',
       expect.objectContaining({ carteiraDoUsuarioId: 'usuario-1' }),
     );
   });
@@ -62,11 +63,13 @@ describe('EmpresaController', () => {
     expect(servico.listar).toHaveBeenNthCalledWith(
       1,
       'tenant-1',
+      'usuario-1',
       expect.objectContaining({ veArquivadasDoTenant: true }),
     );
     expect(servico.listar).toHaveBeenNthCalledWith(
       2,
       'tenant-1',
+      'usuario-1',
       expect.objectContaining({ veArquivadasDoTenant: false }),
     );
   });
@@ -154,6 +157,7 @@ describe('Central de Pendências, Histórico e Notificações', () => {
 
     expect(servico.consultarHistorico).toHaveBeenCalledWith(
       'tenant-1',
+      'usuario-1',
       expect.objectContaining({ carteiraDoUsuarioId: 'usuario-1' }),
     );
   });

@@ -14,7 +14,7 @@ import {
   carregarColaborador,
   carregarEmpresasDaOperacao,
   carregarUsuariosDaOperacao,
-  comContextoDeTenant,
+  comContextoHumano,
   criarNotificacoesDeCarteira,
   empresasDaCarteira,
   listarColaboradores,
@@ -58,6 +58,14 @@ export type ResultadoDaAlteracao = Readonly<{
   afetados: readonly Readonly<{ usuarioId: string; revisaoNova: number }>[];
 }>;
 
+/** Contextos humanos do ator da sessão; a finalidade é do caso de uso, nunca da entrada. */
+const admin = (tenantId: string, usuarioId: string) =>
+  ({ tenantId, usuarioId, finalidade: 'ADMIN_ACESSO' }) as const;
+const comum = (tenantId: string, usuarioId: string) =>
+  ({ tenantId, usuarioId, finalidade: 'COMUM' }) as const;
+const localizacao = (tenantId: string, usuarioId: string) =>
+  ({ tenantId, usuarioId, finalidade: 'LOCALIZACAO_BASICA_EMPRESA' }) as const;
+
 const unicos = (ids: readonly string[]): string[] => [...new Set(ids)];
 
 /** Monta o item do evento com nome e CNPJ do momento — o histórico não muda se o cadastro mudar. */
@@ -93,7 +101,7 @@ export class CarteiraService {
     autorId: string,
     entrada: AlteracaoDeEntrada,
   ): Promise<ResultadoDaAlteracao> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, admin(tenantId, autorId), async (cliente) => {
       const idsDosUsuarios = unicos(entrada.usuarios.map((u) => u.id));
       const idsDasEmpresas = unicos([...entrada.adicionar, ...entrada.remover]);
 
@@ -148,16 +156,24 @@ export class CarteiraService {
 
   listarColaboradores(
     tenantId: string,
+    atorId: string,
     filtro: FiltroDeColaboradores,
   ): Promise<PaginaDeColaboradores> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    return comContextoHumano(this.pool.instancia, admin(tenantId, atorId), (cliente) =>
       listarColaboradores(cliente, tenantId, filtro),
     );
   }
 
-  async obterColaborador(tenantId: string, usuarioId: string): Promise<ColaboradorNaCentral> {
-    const colaborador = await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
-      carregarColaborador(cliente, tenantId, usuarioId),
+  async obterColaborador(
+    tenantId: string,
+    atorId: string,
+    usuarioId: string,
+  ): Promise<ColaboradorNaCentral> {
+    const colaborador = await comContextoHumano(
+      this.pool.instancia,
+      admin(tenantId, atorId),
+      (cliente) =>
+        carregarColaborador(cliente, tenantId, usuarioId),
     );
 
     if (colaborador === null) {
@@ -169,37 +185,48 @@ export class CarteiraService {
 
   empresasParaAtribuicao(
     tenantId: string,
+    atorId: string,
     usuarioId: string,
     filtro: FiltroDeEmpresasParaAtribuicao,
   ): Promise<PaginaDeEmpresasParaAtribuicao> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    return comContextoHumano(this.pool.instancia, admin(tenantId, atorId), (cliente) =>
       listarEmpresasParaAtribuicao(cliente, tenantId, usuarioId, filtro),
     );
   }
 
-  colaboradoresDaEmpresa(tenantId: string, empresaId: string): Promise<ColaboradorDaEmpresa[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+  colaboradoresDaEmpresa(
+    tenantId: string,
+    atorId: string,
+    empresaId: string,
+  ): Promise<ColaboradorDaEmpresa[]> {
+    return comContextoHumano(this.pool.instancia, admin(tenantId, atorId), (cliente) =>
       listarColaboradoresDaEmpresa(cliente, tenantId, empresaId),
     );
   }
 
   /** A carteira do próprio usuário, em qualquer situação da empresa. */
   minhaCarteira(tenantId: string, usuarioId: string): Promise<EmpresaParaAtribuicao[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+    return comContextoHumano(this.pool.instancia, comum(tenantId, usuarioId), (cliente) =>
       listarEmpresasDaCarteira(cliente, tenantId, usuarioId),
     );
   }
 
-  eventos(tenantId: string, filtro: FiltroDeEventosDeCarteira): Promise<PaginaDeEventosDeCarteira> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+  eventos(
+    tenantId: string,
+    atorId: string,
+    filtro: FiltroDeEventosDeCarteira,
+  ): Promise<PaginaDeEventosDeCarteira> {
+    return comContextoHumano(this.pool.instancia, admin(tenantId, atorId), (cliente) =>
       listarEventosDeCarteira(cliente, tenantId, filtro),
     );
   }
 
   /** `true` quando há ao menos uma empresa na carteira: define a orientação de ausência de alçada. */
   async possuiCarteira(tenantId: string, usuarioId: string): Promise<boolean> {
-    const empresas = await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
-      empresasDaCarteira(cliente, tenantId, usuarioId),
+    const empresas = await comContextoHumano(
+      this.pool.instancia,
+      comum(tenantId, usuarioId),
+      (cliente) => empresasDaCarteira(cliente, tenantId, usuarioId),
     );
 
     return empresas.length > 0;
@@ -224,8 +251,10 @@ export class CarteiraService {
       throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada.');
     }
 
-    const acesso = await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
-      acessoAEmpresa(cliente, tenantId, usuarioId, empresaId),
+    const acesso = await comContextoHumano(
+      this.pool.instancia,
+      localizacao(tenantId, usuarioId),
+      (cliente) => acessoAEmpresa(cliente, tenantId, usuarioId, empresaId),
     );
 
     const decisao = decidirAcessoEmpresarial({

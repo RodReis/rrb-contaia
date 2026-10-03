@@ -33,7 +33,9 @@ import type {
 } from '@contaia/domain';
 import {
   carregarEmpresa,
-  comContextoDeTenant,
+  comContextoHumano,
+  comEmpresaEmCriacao,
+  comFinalidade,
   criarEmpresa,
   empresaComCnpj,
   listarEmpresas,
@@ -115,14 +117,18 @@ export class EmpresaService {
     };
   }
 
-  async listar(tenantId: string, filtro: FiltroDaLista): Promise<ListaDeEmpresas> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) =>
+  async listar(
+    tenantId: string,
+    usuarioId: string,
+    filtro: FiltroDaLista,
+  ): Promise<ListaDeEmpresas> {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) =>
       listarEmpresas(cliente, tenantId, filtro),
     );
   }
 
-  async obter(tenantId: string, empresaId: string): Promise<VisaoDaEmpresa> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+  async obter(tenantId: string, usuarioId: string, empresaId: string): Promise<VisaoDaEmpresa> {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) => {
       const persistida = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (persistida === null) {
@@ -139,7 +145,11 @@ export class EmpresaService {
    * antes de checar duplicidade gastaria requisição e vazaria intenção para
    * fora por um CNPJ que já está cadastrado aqui.
    */
-  async consultarCnpj(tenantId: string, cnpjInformado: string): Promise<ResultadoDaConsultaDeCnpj> {
+  async consultarCnpj(
+    tenantId: string,
+    usuarioId: string,
+    cnpjInformado: string,
+  ): Promise<ResultadoDaConsultaDeCnpj> {
     const cnpj = normalizarCnpj(cnpjInformado);
 
     const invalidos = camposInvalidosDaEtapaDaEmpresa(
@@ -169,9 +179,10 @@ export class EmpresaService {
       throw new ErroDeValidacao(invalidos);
     }
 
-    const existente = await comContextoDeTenant(
+    // A duplicidade é do escritório, não da carteira: a leitura é só do cadastro básico.
+    const existente = await comContextoHumano(
       this.pool.instancia,
-      tenantId,
+      { tenantId, usuarioId, finalidade: 'LOCALIZACAO_BASICA_EMPRESA' },
       async (cliente) => empresaComCnpj(cliente, tenantId, cnpj),
     );
 
@@ -204,37 +215,53 @@ export class EmpresaService {
     const cnpj = normalizarCnpj(cnpjInformado);
     const consulta = await this.cnpja.consultar(cnpj);
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
-      const existente = await empresaComCnpj(cliente, tenantId, cnpj);
-
-      if (existente !== null) {
-        throw new ErroDeConflito(
-          CODIGOS_DE_ERRO.CNPJ_JA_CADASTRADO_NO_TENANT,
-          'Esta empresa já está cadastrada neste escritório.',
+    return comContextoHumano(
+      this.pool.instancia,
+      { tenantId, usuarioId: criador.usuarioId },
+      async (cliente) => {
+        // A duplicidade é do escritório, não da carteira (SPEC-010 §3.3).
+        const existente = await comFinalidade(cliente, 'LOCALIZACAO_BASICA_EMPRESA', () =>
+          empresaComCnpj(cliente, tenantId, cnpj),
         );
-      }
 
-      const empresaId = await criarEmpresa(cliente, tenantId, cnpj);
+        if (existente !== null) {
+          throw new ErroDeConflito(
+            CODIGOS_DE_ERRO.CNPJ_JA_CADASTRADO_NO_TENANT,
+            'Esta empresa já está cadastrada neste escritório.',
+          );
+        }
 
-      if (consulta.ok) {
-        await this.preencherComFonteExterna(cliente, tenantId, empresaId, consulta.dados);
-      }
+        // Empresa nova ainda não tem vínculo: só a gestão de acesso a cria.
+        const empresaId = await comFinalidade(cliente, 'ADMIN_ACESSO', () =>
+          criarEmpresa(cliente, tenantId, cnpj),
+        );
 
-      // O `admin_escritorio` criador entra na própria carteira já na criação, e não
-      // só na ativação: as etapas do wizard rodam antes dela e passam pela alçada
-      // (SPEC-009 §3.1). Os demais papéis não são autoatribuídos.
-      if (criador.autoatribuir) {
-        await autoatribuirCriador(cliente, tenantId, criador.usuarioId, empresaId);
-      }
+        // Daqui até o fim, o criador escreve só nesta empresa, mesmo sem vínculo
+        // (papéis que não são autoatribuídos): a RLS reconhece a empresa em criação.
+        return comEmpresaEmCriacao(cliente, empresaId, async () => {
+          if (consulta.ok) {
+            await this.preencherComFonteExterna(cliente, tenantId, empresaId, consulta.dados);
+          }
 
-      const criada = await carregarEmpresa(cliente, tenantId, empresaId);
+          // O `admin_escritorio` criador entra na própria carteira já na criação, e não
+          // só na ativação: as etapas do wizard rodam antes dela e passam pela alçada
+          // (SPEC-009 §3.1). Os demais papéis não são autoatribuídos.
+          if (criador.autoatribuir) {
+            await comFinalidade(cliente, 'ADMIN_ACESSO', () =>
+              autoatribuirCriador(cliente, tenantId, criador.usuarioId, empresaId),
+            );
+          }
 
-      if (criada === null) {
-        return empresaNaoEncontrada();
-      }
+          const criada = await carregarEmpresa(cliente, tenantId, empresaId);
 
-      return this.paraVisao(criada.id, criada.cadastro, criada.situacao);
-    });
+          if (criada === null) {
+            return empresaNaoEncontrada();
+          }
+
+          return this.paraVisao(criada.id, criada.cadastro, criada.situacao);
+        });
+      },
+    );
   }
 
   /**
@@ -310,6 +337,7 @@ export class EmpresaService {
 
   async salvarIdentificacao(
     tenantId: string,
+    usuarioId: string,
     empresaId: string,
     entrada: Readonly<{
       razaoSocial: string;
@@ -322,7 +350,7 @@ export class EmpresaService {
       validado: false,
     },
   ): Promise<VisaoDaEmpresa> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) => {
       const atual = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (atual === null) {
@@ -372,6 +400,7 @@ export class EmpresaService {
 
   async salvarFiscal(
     tenantId: string,
+    usuarioId: string,
     empresaId: string,
     entrada: DadosFiscaisDaEmpresa,
   ): Promise<VisaoDaEmpresa> {
@@ -401,7 +430,7 @@ export class EmpresaService {
       },
     };
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) => {
       const atual = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (atual === null) {
@@ -434,6 +463,7 @@ export class EmpresaService {
 
   async salvarEndereco(
     tenantId: string,
+    usuarioId: string,
     empresaId: string,
     entrada: EnderecoDaEmpresa,
   ): Promise<VisaoDaEmpresa> {
@@ -447,7 +477,7 @@ export class EmpresaService {
       uf: entrada.uf.trim().toUpperCase(),
     };
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) => {
       const atual = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (atual === null) {
@@ -485,10 +515,11 @@ export class EmpresaService {
    */
   async ativar(
     tenantId: string,
+    usuarioId: string,
     empresaId: string,
     situacaoExternaConfirmada: boolean,
   ): Promise<VisaoDaEmpresa> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) => {
       const atual = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (atual === null) {

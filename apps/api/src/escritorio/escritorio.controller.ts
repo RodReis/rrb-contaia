@@ -22,6 +22,7 @@ import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { LIMITE_DE_DOCUMENTO_BYTES } from '@contaia/shared';
 
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
+import { autorDa } from '../auth/contexto-da-sessao';
 import {
   GuardDeSessao,
   PermiteCadastroIncompleto,
@@ -67,7 +68,7 @@ export class EscritorioController {
   @Get()
   @ExigePermissao('escritorio.dados.consultar')
   async obter(@Req() requisicao: RequisicaoAutenticada): Promise<VisaoDoCadastro> {
-    return this.escritorioService.obterVisao(tenantDa(requisicao));
+    return this.escritorioService.obterVisao(tenantDa(requisicao), autorDa(requisicao).usuarioId);
   }
 
   @Put('identificacao')
@@ -77,6 +78,7 @@ export class EscritorioController {
   ): Promise<VisaoDoCadastro> {
     return this.escritorioService.salvarEtapaIdentificacao(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       analisar(identificacaoSchema, corpo),
     );
   }
@@ -88,6 +90,7 @@ export class EscritorioController {
   ): Promise<VisaoDoCadastro> {
     return this.escritorioService.salvarEtapaResponsavel(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       analisar(responsavelSchema, corpo),
     );
   }
@@ -99,6 +102,7 @@ export class EscritorioController {
   ): Promise<VisaoDoCadastro> {
     return this.escritorioService.salvarEtapaEndereco(
       tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
       analisar(enderecoSchema, corpo),
     );
   }
@@ -109,7 +113,12 @@ export class EscritorioController {
     @Req() requisicao: RequisicaoAutenticada,
     @UploadedFile() arquivo: ArquivoMultipart | undefined,
   ): Promise<VisaoDoCadastro> {
-    return this.escritorioService.enviarArquivo(tenantDa(requisicao), 'LOGO', exigir(arquivo));
+    return this.escritorioService.enviarArquivo(
+      tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
+      'LOGO',
+      exigir(arquivo),
+    );
   }
 
   @Post('documentos')
@@ -118,7 +127,12 @@ export class EscritorioController {
     @Req() requisicao: RequisicaoAutenticada,
     @UploadedFile() arquivo: ArquivoMultipart | undefined,
   ): Promise<VisaoDoCadastro> {
-    return this.escritorioService.enviarArquivo(tenantDa(requisicao), 'DOCUMENTO', exigir(arquivo));
+    return this.escritorioService.enviarArquivo(
+      tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
+      'DOCUMENTO',
+      exigir(arquivo),
+    );
   }
 
   @Delete('documentos/:id')
@@ -126,12 +140,16 @@ export class EscritorioController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('id') id: string,
   ): Promise<VisaoDoCadastro> {
-    return this.escritorioService.arquivarDocumento(tenantDa(requisicao), id);
+    return this.escritorioService.arquivarDocumento(
+      tenantDa(requisicao),
+      autorDa(requisicao).usuarioId,
+      id,
+    );
   }
 
   @Post('conclusao')
   async concluir(@Req() requisicao: RequisicaoAutenticada): Promise<VisaoDoCadastro> {
-    return this.escritorioService.concluir(tenantDa(requisicao));
+    return this.escritorioService.concluir(tenantDa(requisicao), autorDa(requisicao).usuarioId);
   }
 }
 

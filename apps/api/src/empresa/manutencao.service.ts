@@ -49,7 +49,8 @@ import {
   camposComHistorico,
   carregarEmpresa,
   carregarEndereco,
-  comContextoDeTenant,
+  comContextoHumano,
+  comFinalidade,
   criarNotificacoes,
   definirSituacaoDaEmpresa,
   encerrarVinculosDaEmpresa,
@@ -177,7 +178,7 @@ export class ManutencaoDaEmpresaService {
       email: string | null;
     }>,
   ): Promise<VisaoDaEmpresa> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       const atual = await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
       const anterior = atual.cadastro.identificacao;
 
@@ -271,7 +272,7 @@ export class ManutencaoDaEmpresaService {
     vigencia: string,
     agora: Date,
   ): Promise<VisaoDaEmpresa> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       const atual = await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
       const anterior = atual.cadastro.dadosFiscais;
 
@@ -386,9 +387,10 @@ export class ManutencaoDaEmpresaService {
 
   async listarEnderecos(
     tenantId: string,
+    usuarioId: string,
     empresaId: string,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) => {
       const persistida = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (persistida === null) {
@@ -405,7 +407,7 @@ export class ManutencaoDaEmpresaService {
     autor: Autor,
     entrada: EnderecoComFinalidade,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
 
       const endereco = this.normalizarEndereco(entrada);
@@ -459,7 +461,7 @@ export class ManutencaoDaEmpresaService {
     entrada: EnderecoComFinalidade,
     versaoEsperada: number,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
 
       const anterior = await carregarEndereco(cliente, tenantId, empresaId, enderecoId);
@@ -543,7 +545,7 @@ export class ManutencaoDaEmpresaService {
     autor: Autor,
     entrada: Readonly<{ novoFiscalId: string; finalidadeDoAnterior: FinalidadeDeEndereco }>,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
 
       const ativos = await listarEnderecosDaEmpresa(cliente, tenantId, empresaId);
@@ -593,7 +595,7 @@ export class ManutencaoDaEmpresaService {
     enderecoId: string,
     autor: Autor,
   ): Promise<readonly EnderecoDaEmpresaPersistido[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
 
       const alvo = await carregarEndereco(cliente, tenantId, empresaId, enderecoId);
@@ -688,7 +690,7 @@ export class ManutencaoDaEmpresaService {
     justificativa: string,
     acao: 'ARQUIVAMENTO' | 'REATIVACAO',
   ): Promise<VisaoDaEmpresa> {
-    await comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       const persistida = await carregarEmpresa(cliente, tenantId, empresaId);
 
       if (persistida === null) {
@@ -714,22 +716,9 @@ export class ManutencaoDaEmpresaService {
           ? arquivarEmpresa(persistida.situacao, justificativa)
           : reativarEmpresa(persistida.situacao, justificativa);
 
-      await definirSituacaoDaEmpresa(cliente, tenantId, empresaId, nova);
-
-      // Arquivar encerra os vínculos de carteira na mesma transação e avisa cada
-      // colaborador afetado; reativar não restaura nada — exige nova atribuição (SPEC-009 §3.4).
-      if (acao === 'ARQUIVAMENTO') {
-        const afetados = await encerrarVinculosDaEmpresa(cliente, tenantId, empresaId, autor.usuarioId);
-        await registrarEncerramento(
-          cliente,
-          tenantId,
-          autor.usuarioId,
-          'ARQUIVAMENTO_EMPRESA',
-          afetados,
-          true,
-        );
-      }
-
+      // O evento entra ANTES da troca de situação e do fim dos vínculos: a RLS libera a
+      // empresa arquivada ao administrador sem vínculo e a ativa a quem tem vínculo, e
+      // qualquer das duas condições deixa de valer depois da própria operação.
       await registrarEventos(cliente, tenantId, [
         {
           empresaId,
@@ -744,10 +733,40 @@ export class ManutencaoDaEmpresaService {
         },
       ]);
 
-      return nova;
-    });
+      await definirSituacaoDaEmpresa(cliente, tenantId, empresaId, nova);
 
-    return this.empresas.obter(tenantId, empresaId);
+      // A visão sai agora, ainda dentro do recorte de quem operou: arquivar tira a empresa
+      // da carteira dele, e uma segunda transação já não a enxergaria.
+      const atualizada = await carregarEmpresa(cliente, tenantId, empresaId);
+
+      if (atualizada === null) {
+        return empresaNaoEncontrada();
+      }
+
+      // Arquivar encerra os vínculos de carteira na mesma transação e avisa cada
+      // colaborador afetado; reativar não restaura nada — exige nova atribuição (SPEC-009 §3.4).
+      // Encerrar vínculo de OUTROS colaboradores é gestão de acesso, não leitura da empresa.
+      if (acao === 'ARQUIVAMENTO') {
+        await comFinalidade(cliente, 'ADMIN_ACESSO', async () => {
+          const afetados = await encerrarVinculosDaEmpresa(
+            cliente,
+            tenantId,
+            empresaId,
+            autor.usuarioId,
+          );
+          await registrarEncerramento(
+            cliente,
+            tenantId,
+            autor.usuarioId,
+            'ARQUIVAMENTO_EMPRESA',
+            afetados,
+            true,
+          );
+        });
+      }
+
+      return this.empresas.paraVisao(atualizada.id, atualizada.cadastro, atualizada.situacao);
+    });
   }
 
   // -- Atualização pela CNPJá ------------------------------------------------
@@ -756,10 +775,14 @@ export class ManutencaoDaEmpresaService {
    * Consulta a fonte externa e devolve as diferenças **sem aplicar nenhuma**
    * (§3.3). A aplicação é outra rota, e é campo a campo.
    */
-  async compararComAFonte(tenantId: string, empresaId: string): Promise<ComparacaoComAFonte> {
-    const persistida = await comContextoDeTenant(
+  async compararComAFonte(
+    tenantId: string,
+    usuarioId: string,
+    empresaId: string,
+  ): Promise<ComparacaoComAFonte> {
+    const persistida = await comContextoHumano(
       this.pool.instancia,
-      tenantId,
+      { tenantId, usuarioId },
       async (cliente) => carregarEmpresa(cliente, tenantId, empresaId),
     );
 
@@ -829,16 +852,16 @@ export class ManutencaoDaEmpresaService {
     autor: Autor,
     campos: readonly string[],
   ): Promise<VisaoDaEmpresa> {
-    const comparacao = await this.compararComAFonte(tenantId, empresaId);
+    const comparacao = await this.compararComAFonte(tenantId, autor.usuarioId, empresaId);
     const escolhidas = comparacao.diferencas.filter((diferenca) =>
       campos.includes(diferenca.campo),
     );
 
     if (escolhidas.length === 0) {
-      return this.empresas.obter(tenantId, empresaId);
+      return this.empresas.obter(tenantId, autor.usuarioId, empresaId);
     }
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: autor.usuarioId }, async (cliente) => {
       const atual = await this.exigirEmpresaEditavel(cliente, tenantId, empresaId);
       const identificacao = atual.cadastro.identificacao;
 
@@ -902,18 +925,20 @@ export class ManutencaoDaEmpresaService {
 
   async consultarHistorico(
     tenantId: string,
+    usuarioId: string,
     filtro: FiltroDoHistorico,
   ): Promise<PaginaDoHistorico> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) =>
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) =>
       listarHistorico(cliente, tenantId, filtro),
     );
   }
 
   async camposDoHistorico(
     tenantId: string,
+    usuarioId: string,
     aba: AbaDoHistorico | null,
   ): Promise<readonly string[]> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) =>
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId }, async (cliente) =>
       camposComHistorico(cliente, tenantId, aba),
     );
   }

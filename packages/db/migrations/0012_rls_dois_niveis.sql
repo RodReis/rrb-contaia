@@ -47,6 +47,13 @@ LANGUAGE sql STABLE AS $$
   SELECT app.uuid_ou_nulo(NULLIF(current_setting('app.empresa_id', true), ''));
 $$;
 
+-- Empresa que ESTA transacao esta criando (caso de uso `criar empresa`): o criador
+-- escreve nela antes de existir vinculo, e so nela, e so ate o fim da transacao.
+CREATE OR REPLACE FUNCTION app.empresa_em_criacao_atual() RETURNS uuid
+LANGUAGE sql STABLE AS $$
+  SELECT app.uuid_ou_nulo(NULLIF(current_setting('app.empresa_em_criacao', true), ''));
+$$;
+
 CREATE OR REPLACE FUNCTION app.origem_atual() RETURNS text
 LANGUAGE sql STABLE AS $$
   SELECT NULLIF(current_setting('app.origem', true), '');
@@ -104,7 +111,8 @@ LANGUAGE sql STABLE AS $$
 $$;
 
 -- Dois niveis, parte 1: a empresa esta na carteira ativa do usuario ATIVO
--- (humano COMUM) ou e exatamente a empresa do trabalho (tecnico). Nao le
+-- (humano COMUM), e a empresa que a transacao esta criando, ou e exatamente a
+-- empresa do trabalho (tecnico). Nao le
 -- `empresa`: a politica de `empresa` chama esta funcao, e ler `empresa` aqui
 -- criaria recursao de politica.
 CREATE OR REPLACE FUNCTION app.empresa_na_carteira(p_empresa uuid) RETURNS boolean
@@ -116,12 +124,15 @@ LANGUAGE sql STABLE AS $$
          app.contexto_humano()
          AND app.finalidade_atual() = 'COMUM'
          AND app.usuario_ativo_atual()
-         AND EXISTS (
-           SELECT 1 FROM app.carteira_vinculo v
-            WHERE v.tenant_id = app.tenant_atual()
-              AND v.usuario_id = app.usuario_atual()
-              AND v.empresa_id = p_empresa
-              AND v.encerrado_em IS NULL
+         AND (
+           EXISTS (
+             SELECT 1 FROM app.carteira_vinculo v
+              WHERE v.tenant_id = app.tenant_atual()
+                AND v.usuario_id = app.usuario_atual()
+                AND v.empresa_id = p_empresa
+                AND v.encerrado_em IS NULL
+           )
+           OR p_empresa = app.empresa_em_criacao_atual()
          )
        )
        OR (app.contexto_tecnico() AND p_empresa = app.empresa_tecnica_atual())
@@ -172,7 +183,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION
   app.uuid_ou_nulo(text), app.tenant_atual(), app.usuario_atual(),
-  app.empresa_tecnica_atual(), app.origem_atual(), app.finalidade_atual(),
+  app.empresa_tecnica_atual(), app.empresa_em_criacao_atual(), app.origem_atual(), app.finalidade_atual(),
   app.contexto_humano(), app.contexto_tecnico(), app.usuario_ativo_atual(),
   app.usuario_admin_atual(), app.empresa_na_carteira(uuid),
   app.administrador_comum(), app.empresa_autorizada(uuid),

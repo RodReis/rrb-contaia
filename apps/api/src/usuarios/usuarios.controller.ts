@@ -95,6 +95,7 @@ export class UsuariosController {
   ): Promise<PaginaDeUsuariosVisao> {
     const pagina = await this.usuarios.listar(
       tenantDa(requisicao),
+      autorDa(requisicao),
       analisar(filtroDeUsuariosSchema, consulta),
     );
 
@@ -112,7 +113,7 @@ export class UsuariosController {
   ): Promise<VisaoDeUsuario> {
     return paraLeitor(
       requisicao,
-      await this.usuarios.obter(tenantDa(requisicao), usuarioDe(usuarioId)),
+      await this.usuarios.obter(tenantDa(requisicao), autorDa(requisicao), usuarioDe(usuarioId)),
     );
   }
 

@@ -16,7 +16,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   atualizarEstadoDoUsuario,
   carregarUsuario,
-  comContextoDeTenant,
+  comContextoHumano,
   consumirConvite,
   reconciliarConvitesExpirados,
   registrarEventoDeUsuario,
@@ -49,6 +49,10 @@ export const mascararEmail = (email: string): string => {
   return arroba <= 0 ? '***' : `${email.slice(0, 1)}***${email.slice(arroba)}`;
 };
 
+/** O convite resolve tenant e usuário convidado: é ele quem age no aceite público. */
+const comoConvidado = (convite: ConviteResolvido) =>
+  ({ tenantId: convite.tenantId, usuarioId: convite.usuarioId, finalidade: 'COMUM' }) as const;
+
 @Injectable()
 export class ConvitesService {
   private readonly logger = new Logger(ConvitesService.name);
@@ -61,7 +65,7 @@ export class ConvitesService {
   async consultar(token: string): Promise<VisaoDoConvite> {
     const convite = await this.localizarVigente(token, new Date());
 
-    return comContextoDeTenant(this.pool.instancia, convite.tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoConvidado(convite), async (cliente) => {
       const usuario = await carregarUsuario(cliente, convite.tenantId, convite.usuarioId);
 
       if (usuario === null) {
@@ -82,7 +86,7 @@ export class ConvitesService {
     const compensacoes: Array<() => Promise<void>> = [];
 
     try {
-      await comContextoDeTenant(this.pool.instancia, convite.tenantId, async (cliente) => {
+      await comContextoHumano(this.pool.instancia, comoConvidado(convite), async (cliente) => {
         // Primeiro passo de propósito: sob duas aceitações simultâneas a segunda
         // espera aqui, encontra o convite já usado e sai antes de tocar no Keycloak.
         if (!(await consumirConvite(cliente, convite.tenantId, convite.conviteId))) {
@@ -149,7 +153,7 @@ export class ConvitesService {
     if (!conviteVigente(convite, agora)) {
       // Expiração é preguiçosa (sem worker): o evento nasce na primeira observação,
       // numa transação própria que se confirma mesmo com a recusa que vem a seguir.
-      await comContextoDeTenant(this.pool.instancia, convite.tenantId, (cliente) =>
+      await comContextoHumano(this.pool.instancia, comoConvidado(convite), (cliente) =>
         reconciliarConvitesExpirados(cliente, convite.tenantId, agora),
       );
 

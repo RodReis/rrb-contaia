@@ -8,7 +8,13 @@ export {
 export { aplicarMigrations, listarMigrations } from './migrate.js';
 export { verificarRoleDaAplicacao, verificarSaudeDoBanco } from './health.js';
 export type { RoleDaAplicacao, SaudeDoBanco } from './health.js';
-export { comContexto, comContextoHumano, comFinalidade, semContexto } from './contexto.js';
+export {
+  comContexto,
+  comContextoHumano,
+  comEmpresaEmCriacao,
+  comFinalidade,
+  semContexto,
+} from './contexto.js';
 export type { ExecutarNaTransacao } from './contexto.js';
 export {
   arquivarArquivo,

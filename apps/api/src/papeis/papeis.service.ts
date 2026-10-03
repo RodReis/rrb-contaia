@@ -12,7 +12,7 @@ import { Injectable } from '@nestjs/common';
 
 import {
   carregarPapel,
-  comContextoDeTenant,
+  comContextoHumano,
   contarVinculosDoPapel,
   criarPapel,
   gravarNovaRevisao,
@@ -73,7 +73,11 @@ export type DetalheDePapel = VisaoDePapel &
 
 export type PaginaDePapeisVisao = Readonly<{ papeis: readonly VisaoDePapel[]; total: number }>;
 
-type Cliente = Parameters<Parameters<typeof comContextoDeTenant>[2]>[0];
+/** Papéis são tabela de tenant: basta contexto humano válido, na finalidade comum. */
+const comoComum = (tenantId: string, autor: Autor) =>
+  ({ tenantId, usuarioId: autor.usuarioId, finalidade: 'COMUM' }) as const;
+
+type Cliente = Parameters<Parameters<typeof comContextoHumano>[2]>[0];
 
 const papelNaoEncontrado = (): ErroDeDominio =>
   new ErroDeDominio(CODIGOS_DE_ERRO.PAPEL_NAO_ENCONTRADO, 'Papel não encontrado.');
@@ -111,16 +115,20 @@ export class PapeisService {
 
   // -- Consulta ---------------------------------------------------------------
 
-  async listar(tenantId: string, filtro: FiltroDePapeis): Promise<PaginaDePapeisVisao> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+  async listar(
+    tenantId: string,
+    autor: Autor,
+    filtro: FiltroDePapeis,
+  ): Promise<PaginaDePapeisVisao> {
+    return comContextoHumano(this.pool.instancia, comoComum(tenantId, autor), async (cliente) => {
       const pagina = await listarPapeis(cliente, tenantId, filtro);
 
       return { total: pagina.total, papeis: pagina.papeis.map(paraVisaoDaLista) };
     });
   }
 
-  async obter(tenantId: string, papelId: string): Promise<DetalheDePapel> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+  async obter(tenantId: string, autor: Autor, papelId: string): Promise<DetalheDePapel> {
+    return comContextoHumano(this.pool.instancia, comoComum(tenantId, autor), (cliente) =>
       this.detalhe(cliente, tenantId, papelId),
     );
   }
@@ -140,7 +148,7 @@ export class PapeisService {
     const papelBase = entrada.papelBase;
     const matriz = normalizarMatriz(entrada.permissoes);
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoComum(tenantId, autor), async (cliente) => {
       await this.exigirNomeLivre(cliente, tenantId, dados.nome, null);
 
       const papelId = await criarPapel(cliente, tenantId, {
@@ -179,7 +187,7 @@ export class PapeisService {
     const dados = validarDadosDoPapel(entrada);
     const matriz = normalizarMatriz(entrada.permissoes);
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoComum(tenantId, autor), async (cliente) => {
       const papel = await this.carregarParaAlterar(cliente, tenantId, papelId, entrada.revisaoEsperada);
 
       if (papel.estado === 'ARQUIVADO') {
@@ -252,7 +260,7 @@ export class PapeisService {
     papelId: string,
     entrada: ArquivamentoDePapel,
   ): Promise<DetalheDePapel> {
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoComum(tenantId, autor), async (cliente) => {
       const papel = await this.carregarParaAlterar(cliente, tenantId, papelId, entrada.revisaoEsperada);
       const novoEstado = transicionarPapel(papel.estado, 'ARQUIVAR');
 
@@ -288,7 +296,7 @@ export class PapeisService {
   ): Promise<DetalheDePapel> {
     const matriz = normalizarMatriz(entrada.permissoes);
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoComum(tenantId, autor), async (cliente) => {
       const papel = await this.carregarParaAlterar(cliente, tenantId, papelId, entrada.revisaoEsperada);
       const novoEstado = transicionarPapel(papel.estado, 'REATIVAR');
       const preservada = matrizParaRevisao(papel.permissoes);

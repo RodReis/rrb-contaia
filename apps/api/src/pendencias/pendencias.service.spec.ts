@@ -12,14 +12,14 @@ vi.mock('@contaia/db', async () => {
   const real = await vi.importActual<typeof import('@contaia/db')>('@contaia/db');
   return {
     ...real,
-    comContextoDeTenant: vi.fn(async (_pool, _tenantId, executar) => executar({} as never)),
+    comContextoHumano: vi.fn(async (_pool, _entrada, executar) => executar({} as never)),
     listarCentral: vi.fn(),
     dispensar: vi.fn(),
     contarAbertasPorEmpresa: vi.fn(),
   };
 });
 
-import { comContextoDeTenant, contarAbertasPorEmpresa, dispensar, listarCentral } from '@contaia/db';
+import { comContextoHumano, contarAbertasPorEmpresa, dispensar, listarCentral } from '@contaia/db';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 
 import { PendenciasService } from './pendencias.service';
@@ -49,9 +49,9 @@ describe('PendenciasService', () => {
       deslocamento: 0,
     });
 
-    expect(comContextoDeTenant).toHaveBeenCalledWith(
+    expect(comContextoHumano).toHaveBeenCalledWith(
       expect.anything(),
-      'tenant-1',
+      { tenantId: 'tenant-1', usuarioId: 'usuario-1' },
       expect.any(Function),
     );
     expect(listarCentral).toHaveBeenCalledWith(
@@ -112,7 +112,7 @@ describe('PendenciasService', () => {
   it('contarPorEmpresas delega ao repositorio', async () => {
     vi.mocked(contarAbertasPorEmpresa).mockResolvedValue(new Map([['empresa-1', 2]]));
 
-    const resultado = await service.contarPorEmpresas('tenant-1', ['empresa-1']);
+    const resultado = await service.contarPorEmpresas('tenant-1', 'user-1', ['empresa-1']);
 
     expect(resultado.get('empresa-1')).toBe(2);
     expect(contarAbertasPorEmpresa).toHaveBeenCalledWith(expect.anything(), ['empresa-1']);

@@ -13,7 +13,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import {
-  comContextoDeTenant,
+  comContextoHumano,
   atualizarDadosDoUsuario,
   atualizarEstadoDoUsuario,
   carregarPapeisParaAtribuir,
@@ -135,7 +135,11 @@ type Compensacao = () => Promise<void>;
 /** A descrição entra no log se a compensação falhar: diz o que conferir no Keycloak. */
 type RegistrarCompensacao = (compensacao: Compensacao, descricao: string) => void;
 type CompensacaoRegistrada = Readonly<{ executar: Compensacao; descricao: string }>;
-type Cliente = Parameters<Parameters<typeof comContextoDeTenant>[2]>[0];
+/** Gestão de usuários e carteiras: o autor da sessão age na finalidade administrativa. */
+const comoAdmin = (tenantId: string, autor: Autor) =>
+  ({ tenantId, usuarioId: autor.usuarioId, finalidade: 'ADMIN_ACESSO' }) as const;
+
+type Cliente = Parameters<Parameters<typeof comContextoHumano>[2]>[0];
 
 type ConviteEmitido = Readonly<{ conviteId: string; token: string; expiraEm: Date }>;
 type DestinoDoConvite = Readonly<{ email: string; nome: string }>;
@@ -195,10 +199,14 @@ export class UsuariosService {
 
   // -- Consulta ---------------------------------------------------------------
 
-  async listar(tenantId: string, filtro: FiltroDeUsuarios): Promise<PaginaDeUsuariosVisao> {
+  async listar(
+    tenantId: string,
+    autor: Autor,
+    filtro: FiltroDeUsuarios,
+  ): Promise<PaginaDeUsuariosVisao> {
     const agora = new Date();
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoAdmin(tenantId, autor), async (cliente) => {
       // Expiração é preguiçosa (sem worker): o evento nasce na primeira observação.
       await reconciliarConvitesExpirados(cliente, tenantId, agora);
 
@@ -214,11 +222,12 @@ export class UsuariosService {
   /** Aba "Usuários e acessos" do Histórico: somente leitura, só do escritório da sessão. */
   async consultarHistorico(
     tenantId: string,
+    autor: Autor,
     filtro: FiltroDeEventosDeUsuario,
   ): Promise<PaginaDeEventosVisao> {
     const agora = new Date();
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoAdmin(tenantId, autor), async (cliente) => {
       await reconciliarConvitesExpirados(cliente, tenantId, agora);
 
       const pagina = await listarEventosDeUsuario(cliente, tenantId, filtro);
@@ -227,10 +236,10 @@ export class UsuariosService {
     });
   }
 
-  async obter(tenantId: string, usuarioId: string): Promise<VisaoDeUsuario> {
+  async obter(tenantId: string, autor: Autor, usuarioId: string): Promise<VisaoDeUsuario> {
     const agora = new Date();
 
-    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+    return comContextoHumano(this.pool.instancia, comoAdmin(tenantId, autor), async (cliente) => {
       const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
       const convite = await conviteVigenteDoUsuario(cliente, tenantId, usuarioId);
 
@@ -245,7 +254,7 @@ export class UsuariosService {
     const papeis = validarPapeisDoUsuario(entrada.papeis, entrada.papeisPersonalizados ?? []);
     const agora = new Date();
 
-    const emitido = await this.comTransacao(tenantId, async (cliente, compensar) => {
+    const emitido = await this.comTransacao(tenantId, autor, async (cliente, compensar) => {
       const existente = await usuarioComEmailNoTenant(cliente, tenantId, dados.email);
 
       if (existente !== null) {
@@ -284,15 +293,15 @@ export class UsuariosService {
       return { usuarioId, convite };
     });
 
-    await this.enviarConvite(tenantId, emitido.convite, dados);
+    await this.enviarConvite(tenantId, autor, emitido.convite, dados);
 
-    return this.obter(tenantId, emitido.usuarioId);
+    return this.obter(tenantId, autor, emitido.usuarioId);
   }
 
   async reenviarConvite(tenantId: string, autor: Autor, usuarioId: string): Promise<VisaoDeUsuario> {
     const agora = new Date();
 
-    const { convite, destino } = await this.comTransacao(tenantId, async (cliente) => {
+    const { convite, destino } = await this.comTransacao(tenantId, autor, async (cliente) => {
       const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
 
       transicionar(usuario.estado, 'REENVIAR');
@@ -310,9 +319,9 @@ export class UsuariosService {
       return { convite: emitido, destino: { email: usuario.email, nome: usuario.nome } };
     });
 
-    await this.enviarConvite(tenantId, convite, destino);
+    await this.enviarConvite(tenantId, autor, convite, destino);
 
-    return this.obter(tenantId, usuarioId);
+    return this.obter(tenantId, autor, usuarioId);
   }
 
   async novoConvite(
@@ -324,7 +333,7 @@ export class UsuariosService {
     const papeis = validarPapeisDoUsuario(entrada.papeis, entrada.papeisPersonalizados ?? []);
     const agora = new Date();
 
-    const { convite, destino } = await this.comTransacao(tenantId, async (cliente) => {
+    const { convite, destino } = await this.comTransacao(tenantId, autor, async (cliente) => {
       const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
       const novoEstado = transicionar(usuario.estado, 'NOVO_CONVITE');
       const dados = validarDadosDoUsuario({ ...entrada, email: usuario.email });
@@ -356,9 +365,9 @@ export class UsuariosService {
       return { convite: emitido, destino: { email: usuario.email, nome: dados.nome } };
     });
 
-    await this.enviarConvite(tenantId, convite, destino);
+    await this.enviarConvite(tenantId, autor, convite, destino);
 
-    return this.obter(tenantId, usuarioId);
+    return this.obter(tenantId, autor, usuarioId);
   }
 
   // -- Edição -----------------------------------------------------------------
@@ -372,7 +381,7 @@ export class UsuariosService {
     const papeis = validarPapeisDoUsuario(entrada.papeis, entrada.papeisPersonalizados ?? []);
     const agora = new Date();
 
-    const reemissao = await this.comTransacao(tenantId, async (cliente, compensar) => {
+    const reemissao = await this.comTransacao(tenantId, autor, async (cliente, compensar) => {
       const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
 
       if (usuario.estado === 'ARQUIVADO') {
@@ -463,10 +472,10 @@ export class UsuariosService {
     });
 
     if (reemissao !== null) {
-      await this.enviarConvite(tenantId, reemissao.convite, reemissao.destino);
+      await this.enviarConvite(tenantId, autor, reemissao.convite, reemissao.destino);
     }
 
-    return this.obter(tenantId, usuarioId);
+    return this.obter(tenantId, autor, usuarioId);
   }
 
   // -- Ciclo de vida ----------------------------------------------------------
@@ -510,7 +519,7 @@ export class UsuariosService {
     tipo: TipoDeEventoDeUsuario,
     aplicarNaIdentidade: (sub: string, compensar: RegistrarCompensacao) => Promise<void>,
   ): Promise<VisaoDeUsuario> {
-    await this.comTransacao(tenantId, async (cliente, compensar) => {
+    await this.comTransacao(tenantId, autor, async (cliente, compensar) => {
       const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
       const novoEstado = transicionar(usuario.estado, transicao);
       const deixaDeSerAdministrador =
@@ -552,7 +561,7 @@ export class UsuariosService {
       }
     });
 
-    return this.obter(tenantId, usuarioId);
+    return this.obter(tenantId, autor, usuarioId);
   }
 
   /** Serializa alterações de administração: a segunda enxerga o conjunto já reduzido pela primeira. */
@@ -666,6 +675,7 @@ export class UsuariosService {
   /** Depois do commit. Falha não desfaz o cadastro: marca o convite para reenvio. */
   private async enviarConvite(
     tenantId: string,
+    autor: Autor,
     convite: ConviteEmitido,
     destino: DestinoDoConvite,
   ): Promise<void> {
@@ -680,7 +690,7 @@ export class UsuariosService {
       // O cadastro já foi gravado: se nem a marcação de falha couber no banco, o pedido não
       // vira erro (o admin repetiria "Convidar" e esbarraria em e-mail já usado).
       try {
-        await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+        await comContextoHumano(this.pool.instancia, comoAdmin(tenantId, autor), (cliente) =>
           marcarEnvioFalhou(cliente, tenantId, convite.conviteId, true),
         );
       } catch (falha) {
@@ -694,12 +704,13 @@ export class UsuariosService {
 
   private async comTransacao<T>(
     tenantId: string,
+    autor: Autor,
     executar: (cliente: Cliente, compensar: RegistrarCompensacao) => Promise<T>,
   ): Promise<T> {
     const compensacoes: CompensacaoRegistrada[] = [];
 
     try {
-      return await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+      return await comContextoHumano(this.pool.instancia, comoAdmin(tenantId, autor), (cliente) =>
         executar(cliente, (executarCompensacao, descricao) =>
           compensacoes.push({ executar: executarCompensacao, descricao }),
         ),

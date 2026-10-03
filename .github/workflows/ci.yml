@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROVA_ESCOPO: SPEC-001
+  PROVA_ESCOPO: SPEC-010
 
 jobs:
   quality:
@@ -94,6 +94,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
       - run: pnpm test:banco
+      # A matriz de RLS (SPEC-010) nasce dentro do pacote; a evidência sobe vinculada à SPEC e à issue.
+      - name: Publicar rls-matrix.json
+        if: always()
+        run: |
+          mkdir -p "test-results/$PROVA_ESCOPO/banco"
+          if [ -f packages/db/test-results/banco/rls-matrix.json ]; then
+            cp packages/db/test-results/banco/rls-matrix.json "test-results/$PROVA_ESCOPO/banco/rls-matrix.json"
+          fi
       - name: Resumo da categoria
         if: always()
         run: node scripts/ci/write-summary.mjs banco "$PROVA_ESCOPO"

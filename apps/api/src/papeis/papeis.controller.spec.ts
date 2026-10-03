@@ -51,7 +51,7 @@ describe('PapeisController', () => {
 
     await new PapeisController(servico as never).listar(REQUISICAO, { estado: 'ATIVO', busca: 'rev' });
 
-    expect(servico.listar).toHaveBeenCalledWith('tenant-1', {
+    expect(servico.listar).toHaveBeenCalledWith('tenant-1', { usuarioId: 'autor-1' }, {
       estado: 'ATIVO',
       busca: 'rev',
       limite: 25,
