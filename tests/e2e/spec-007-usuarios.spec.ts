@@ -37,6 +37,9 @@ const CNPJ_DO_ESCRITORIO = '11444777000161';
 const SUFIXO = Date.now().toString(36);
 const EMAIL_A = `e2e-f7-${SUFIXO}-a@escritorio.local`;
 const EMAIL_B = `e2e-f7-${SUFIXO}-b@escritorio.local`;
+const EMAIL_C_ERRADO = `e2e-f7-${SUFIXO}-c-errado@escritorio.local`;
+const EMAIL_C = `e2e-f7-${SUFIXO}-c@escritorio.local`;
+const NOME_C = 'Terceiro E2E';
 const NOME_A = 'Contadora E2E';
 const NOME_B = 'Segundo E2E';
 const SENHA_1 = 'primeira-senha-longa-123';
@@ -446,6 +449,34 @@ test('reenviar invalida o link anterior', async () => {
   await contexto.close();
 });
 
+const identidadesNoKeycloak = async (emailExato: string): Promise<Array<{ username: string }>> => {
+  const token = await tokenDeAdministracao();
+  const resposta = await fetch(
+    `${KEYCLOAK}/admin/realms/${REALM}/users?email=${encodeURIComponent(emailExato)}&exact=true`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+
+  return (await resposta.json()) as Array<{ username: string }>;
+};
+
+test('corrigir o e-mail de um convidado vale na identidade real e manda o link ao endereço certo', async () => {
+  // Contra o Keycloak real: trocar o `username` junto com o e-mail exige o realm permitir.
+  await convidarPeloWizard(admin, { nome: NOME_C, email: EMAIL_C_ERRADO, papel: 'Auxiliar' });
+  await linkDoConvite(EMAIL_C_ERRADO);
+
+  await abrirLista(admin, EMAIL_C_ERRADO);
+  await admin.getByRole('link', { name: `Editar — ${NOME_C}` }).click();
+  await admin.getByLabel(/^E-mail/).fill(EMAIL_C);
+  await admin.getByRole('button', { name: 'Salvar alterações' }).click();
+
+  const link = await linkDoConvite(EMAIL_C);
+
+  expect(link).toMatch(/\/convite\/[A-Za-z0-9_-]{43}$/);
+  expect(await identidadesNoKeycloak(EMAIL_C)).toHaveLength(1);
+  expect(await identidadesNoKeycloak(EMAIL_C_ERRADO)).toHaveLength(0);
+  expect((await identidadesNoKeycloak(EMAIL_C))[0]?.username).toBe(EMAIL_C);
+});
+
 test('e-mail repetido é recusado ignorando a caixa, sem revelar de quem é', async () => {
   await admin.goto('/configuracoes/usuarios/novo');
   await admin.getByLabel(/Nome completo/).fill('Duplicada E2E');
@@ -469,9 +500,9 @@ test('o último administrador não se suspende: o servidor recusa e explica', as
     [ADMIN_EMAIL],
   );
 
-  // Se o escritório da spec tiver outro administrador ativo, suspender este funcionaria
-  // de verdade e o teste deixaria de provar a proteção: não se tenta.
-  test.skip(Number(rows[0]?.total) !== 1, 'o escritório da spec tem mais de um administrador ativo');
+  // O escritório da spec é criado por ela, com um único administrador: se houver outro, a
+  // proteção deixaria de ser provada. Falha em vez de pular (um skip esconderia a perda da prova).
+  expect(Number(rows[0]?.total), 'o escritório da spec deve ter exatamente um administrador ativo').toBe(1);
 
   await abrirLista(admin, ADMIN_EMAIL);
   await admin.getByRole('button', { name: /^Suspender — / }).first().click();

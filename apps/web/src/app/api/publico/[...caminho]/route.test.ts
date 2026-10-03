@@ -69,10 +69,10 @@ describe('rota pública do convite', () => {
     expect(Buffer.from(init.body as ArrayBuffer).toString()).toContain('senha-longa-123');
   });
 
-  it('repassa o cliente real (X-Forwarded-For) para o limite de tentativas da API', async () => {
+  it('repassa o cliente que o último salto escreveu em X-Forwarded-For, não o início da lista', async () => {
     await GET(
       requisicao(`/api/publico/convites/${TOKEN}`, {
-        headers: { 'x-forwarded-for': '203.0.113.7, 10.0.0.1' },
+        headers: { 'x-forwarded-for': 'inventado-pelo-cliente, 203.0.113.7' },
       }),
       contexto('convites', TOKEN),
     );
@@ -80,6 +80,20 @@ describe('rota pública do convite', () => {
     const [, init] = vi.mocked(fetch).mock.calls[0] as unknown as [string, RequestInit];
 
     expect(new Headers(init.headers).get('x-forwarded-for')).toBe('203.0.113.7');
+  });
+
+  it('corpo maior que o teto é 413 e a API nem é chamada', async () => {
+    const resposta = await POST(
+      requisicao('/api/publico/convites/aceitar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: TOKEN, senha: 'x'.repeat(20_000) }),
+      }),
+      contexto('convites', 'aceitar'),
+    );
+
+    expect(resposta.status).toBe(413);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each([

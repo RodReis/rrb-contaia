@@ -120,7 +120,9 @@ const paraEventoVisivel = (evento: EventoDeUsuarioNaLista): EventoDeUsuarioVisao
 });
 
 type Compensacao = () => Promise<void>;
-type RegistrarCompensacao = (compensacao: Compensacao) => void;
+/** A descrição entra no log se a compensação falhar: diz o que conferir no Keycloak. */
+type RegistrarCompensacao = (compensacao: Compensacao, descricao: string) => void;
+type CompensacaoRegistrada = Readonly<{ executar: Compensacao; descricao: string }>;
 type Cliente = Parameters<Parameters<typeof comContextoDeTenant>[2]>[0];
 
 type ConviteEmitido = Readonly<{ conviteId: string; token: string; expiraEm: Date }>;
@@ -239,7 +241,7 @@ export class UsuariosService {
 
       const sub = await this.identidade.criar({ email: dados.email, nome: dados.nome });
 
-      compensar(() => this.identidade.remover(sub));
+      compensar(() => this.identidade.remover(sub), `remover a identidade criada (sub ${sub})`);
 
       const usuarioId = await criarUsuario(cliente, tenantId, { subOidc: sub, ...dados });
 
@@ -267,7 +269,7 @@ export class UsuariosService {
     const agora = new Date();
 
     const { convite, destino } = await this.comTransacao(tenantId, async (cliente) => {
-      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
 
       transicionar(usuario.estado, 'REENVIAR');
 
@@ -299,7 +301,7 @@ export class UsuariosService {
     const agora = new Date();
 
     const { convite, destino } = await this.comTransacao(tenantId, async (cliente) => {
-      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
       const novoEstado = transicionar(usuario.estado, 'NOVO_CONVITE');
       const dados = validarDadosDoUsuario({ ...entrada, email: usuario.email });
 
@@ -337,7 +339,7 @@ export class UsuariosService {
     const agora = new Date();
 
     const reemissao = await this.comTransacao(tenantId, async (cliente, compensar) => {
-      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
 
       if (usuario.estado === 'ARQUIVADO') {
         throw new ErroDeConflito(
@@ -394,8 +396,13 @@ export class UsuariosService {
         return null;
       }
 
+      // A compensação vem antes da chamada: se o tempo esgotar depois de o Keycloak ter aplicado
+      // a troca, o erro sobe sem ela e a identidade ficaria com o e-mail novo. É idempotente.
+      compensar(
+        () => this.identidade.atualizarEmail(usuario.subOidc, usuario.email),
+        `devolver o e-mail anterior (usuário ${usuarioId}, sub ${usuario.subOidc})`,
+      );
       await this.identidade.atualizarEmail(usuario.subOidc, dados.email);
-      compensar(() => this.identidade.atualizarEmail(usuario.subOidc, usuario.email));
 
       const convite = await this.emitirConvite(cliente, tenantId, usuarioId, agora);
 
@@ -433,8 +440,8 @@ export class UsuariosService {
 
   reativar(tenantId: string, autor: Autor, usuarioId: string): Promise<VisaoDeUsuario> {
     return this.mudarEstado(tenantId, autor, usuarioId, 'REATIVAR', 'REATIVADO', async (sub, compensar) => {
+      compensar(() => this.identidade.habilitar(sub, false), `desabilitar de novo (sub ${sub})`);
       await this.identidade.habilitar(sub, true);
-      compensar(() => this.identidade.habilitar(sub, false));
     });
   }
 
@@ -445,8 +452,8 @@ export class UsuariosService {
     sub: string,
     compensar: RegistrarCompensacao,
   ): Promise<void> {
+    compensar(() => this.identidade.habilitar(sub, true), `reabilitar (sub ${sub})`);
     await this.identidade.habilitar(sub, false);
-    compensar(() => this.identidade.habilitar(sub, true));
     await this.identidade.encerrarSessoes(sub);
   }
 
@@ -459,7 +466,7 @@ export class UsuariosService {
     aplicarNaIdentidade: (sub: string, compensar: RegistrarCompensacao) => Promise<void>,
   ): Promise<VisaoDeUsuario> {
     await this.comTransacao(tenantId, async (cliente, compensar) => {
-      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId);
+      const usuario = await this.carregarOuFalhar(cliente, tenantId, usuarioId, true);
       const novoEstado = transicionar(usuario.estado, transicao);
       const deixaDeSerAdministrador =
         usuario.estado === 'ATIVO' && usuario.papeis.includes(ADMIN) && novoEstado !== 'ATIVO';
@@ -517,8 +524,9 @@ export class UsuariosService {
     cliente: Cliente,
     tenantId: string,
     usuarioId: string,
+    travar = false,
   ): Promise<UsuarioPersistido> {
-    const usuario = await carregarUsuario(cliente, tenantId, usuarioId);
+    const usuario = await carregarUsuario(cliente, tenantId, usuarioId, { travar });
 
     if (usuario === null) {
       throw new ErroDeDominio(CODIGOS_DE_ERRO.USUARIO_NAO_ENCONTRADO, 'Usuário não encontrado.');
@@ -534,6 +542,9 @@ export class UsuariosService {
     usuarioId: string,
     agora: Date,
   ): Promise<ConviteEmitido> {
+    // Antes de invalidar: um convite que já venceu precisa deixar o evento CONVITE_EXPIRADO
+    // (SPEC-007 §3.5), e depois de invalidado ele não seria mais reconhecido como vencido.
+    await reconciliarConvitesExpirados(cliente, tenantId, agora);
     await invalidarConvitesVigentes(cliente, tenantId, usuarioId);
 
     const token = gerarTokenDeConvite();
@@ -560,9 +571,18 @@ export class UsuariosService {
         expiraEm: convite.expiraEm,
       });
     } catch {
-      await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
-        marcarEnvioFalhou(cliente, tenantId, convite.conviteId, true),
-      );
+      // O cadastro já foi gravado: se nem a marcação de falha couber no banco, o pedido não
+      // vira erro (o admin repetiria "Convidar" e esbarraria em e-mail já usado).
+      try {
+        await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
+          marcarEnvioFalhou(cliente, tenantId, convite.conviteId, true),
+        );
+      } catch (falha) {
+        this.logger.warn(
+          `envio do convite ${convite.conviteId} falhou e a marcação de reenvio também ` +
+            `(${falha instanceof Error ? falha.message : 'erro desconhecido'})`,
+        );
+      }
     }
   }
 
@@ -570,18 +590,23 @@ export class UsuariosService {
     tenantId: string,
     executar: (cliente: Cliente, compensar: RegistrarCompensacao) => Promise<T>,
   ): Promise<T> {
-    const compensacoes: Compensacao[] = [];
+    const compensacoes: CompensacaoRegistrada[] = [];
 
     try {
       return await comContextoDeTenant(this.pool.instancia, tenantId, (cliente) =>
-        executar(cliente, (compensacao) => compensacoes.push(compensacao)),
+        executar(cliente, (executarCompensacao, descricao) =>
+          compensacoes.push({ executar: executarCompensacao, descricao }),
+        ),
       );
     } catch (erro) {
-      for (const compensar of compensacoes.reverse()) {
+      for (const compensacao of compensacoes.reverse()) {
         try {
-          await compensar();
-        } catch {
-          this.logger.error('falha ao compensar a identidade; conferir o usuário no Keycloak');
+          await compensacao.executar();
+        } catch (falha) {
+          this.logger.error(
+            `falha ao compensar a identidade; conferir no Keycloak: ${compensacao.descricao}` +
+              ` (${falha instanceof Error ? falha.message : 'erro desconhecido'})`,
+          );
         }
       }
 

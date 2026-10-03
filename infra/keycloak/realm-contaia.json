@@ -5,6 +5,7 @@
   "sslRequired": "none",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
+  "editUsernameAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "passwordPolicy": "length(10)",

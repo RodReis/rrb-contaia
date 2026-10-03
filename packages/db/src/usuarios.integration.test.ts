@@ -12,6 +12,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
+import { comContextoDeTenant } from './contexto.js';
 import {
   atualizarDados,
   atualizarEstado,
@@ -545,6 +546,112 @@ describe('proteção do último administrador sob concorrência', () => {
       const vistosPelaSegunda = await segunda;
 
       expect(vistosPelaSegunda).toEqual([adminB]);
+      await clienteDois.query('rollback');
+    } finally {
+      clienteUm.release();
+      clienteDois.release();
+    }
+  });
+});
+
+describe('proteção do último administrador contra suspensão simultânea', () => {
+  it('a segunda operação enxerga o estado já suspenso pela primeira, não o do início', async () => {
+    // Suspender muda `usuario.estado`, não as linhas de papel: travar só os papéis deixaria a
+    // segunda transação ler o estado antigo e os dois admins se suspenderem em paralelo.
+    const y = await novoUsuario(tenantB, 'conc-susp', ['admin_escritorio']);
+    const clienteUm = await poolApp.connect();
+    const clienteDois = await poolApp.connect();
+
+    try {
+      await clienteUm.query('begin');
+      await clienteUm.query('select set_config($1, $2, true)', ['app.tenant_id', tenantB]);
+      const vistosPelaPrimeira = await travarAdminsAtivos(clienteUm, tenantB);
+
+      expect(vistosPelaPrimeira).toContain(y);
+
+      await clienteDois.query('begin');
+      await clienteDois.query('select set_config($1, $2, true)', ['app.tenant_id', tenantB]);
+
+      let resolvida = false;
+      const segunda = travarAdminsAtivos(clienteDois, tenantB).then((ids) => {
+        resolvida = true;
+
+        return ids;
+      });
+
+      await new Promise((resolver) => setTimeout(resolver, 300));
+      expect(resolvida).toBe(false);
+
+      await atualizarEstado(clienteUm, tenantB, y, 'SUSPENSO');
+      await clienteUm.query('commit');
+
+      expect(await segunda).not.toContain(y);
+      await clienteDois.query('rollback');
+    } finally {
+      clienteUm.release();
+      clienteDois.release();
+    }
+  });
+});
+
+describe('atomicidade de mutação + auditoria no PostgreSQL real', () => {
+  it('se o evento é recusado pelo banco, a mutação anterior da mesma transação não persiste', async () => {
+    const id = await novoUsuario(tenantA, 'atomico', ['auxiliar']);
+    const antes = await comTenant(tenantA, (cliente) => carregarUsuario(cliente, tenantA, id));
+
+    await expect(
+      comContextoDeTenant(poolApp, tenantA, async (cliente) => {
+        await atualizarEstado(cliente, tenantA, id, 'SUSPENSO');
+        await substituirPapeis(cliente, tenantA, id, ['auditor_readonly']);
+        await registrarEventoDeUsuario(cliente, tenantA, {
+          // Tipo fora do CHECK da tabela: o banco recusa e a transação inteira desfaz.
+          tipo: 'TIPO_INEXISTENTE' as never,
+          usuarioAfetadoId: id,
+          autorId: adminA,
+          antes: null,
+          depois: null,
+        });
+      }),
+    ).rejects.toThrow();
+
+    const depois = await comTenant(tenantA, (cliente) => carregarUsuario(cliente, tenantA, id));
+
+    expect(depois?.estado).toBe(antes?.estado);
+    expect(depois?.papeis).toEqual(antes?.papeis);
+    expect(depois?.versao).toBe(antes?.versao);
+  });
+});
+
+describe('carregar para alterar', () => {
+  it('quem carrega o usuário travado faz a segunda operação esperar e ver o que a primeira gravou', async () => {
+    // Sem a trava, dois "suspender" simultâneos passam pela mesma validação e gravam dois eventos.
+    const id = await novoUsuario(tenantA, 'trava-linha', ['auxiliar']);
+    const clienteUm = await poolApp.connect();
+    const clienteDois = await poolApp.connect();
+
+    try {
+      await clienteUm.query('begin');
+      await clienteUm.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+      await carregarUsuario(clienteUm, tenantA, id, { travar: true });
+
+      await clienteDois.query('begin');
+      await clienteDois.query('select set_config($1, $2, true)', ['app.tenant_id', tenantA]);
+
+      let estadoVisto: string | undefined;
+      const segunda = carregarUsuario(clienteDois, tenantA, id, { travar: true }).then((usuario) => {
+        estadoVisto = usuario?.estado;
+
+        return usuario;
+      });
+
+      await new Promise((resolver) => setTimeout(resolver, 300));
+      expect(estadoVisto).toBeUndefined();
+
+      await atualizarEstado(clienteUm, tenantA, id, 'SUSPENSO');
+      await clienteUm.query('commit');
+      await segunda;
+
+      expect(estadoVisto).toBe('SUSPENSO');
       await clienteDois.query('rollback');
     } finally {
       clienteUm.release();

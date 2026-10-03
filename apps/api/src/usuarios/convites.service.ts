@@ -97,8 +97,10 @@ export class ConvitesService {
 
         const novoEstado = transicionar(usuario.estado, 'ACEITAR');
 
-        await this.identidade.definirSenhaEAtivar(usuario.subOidc, senha);
+        // Registrada antes da chamada: se o tempo esgotar depois de o Keycloak ter ativado a
+        // conta, a compensação ainda a desabilita (é idempotente).
         compensacoes.push(() => this.identidade.habilitar(usuario.subOidc, false));
+        await this.identidade.definirSenhaEAtivar(usuario.subOidc, senha);
 
         await atualizarEstadoDoUsuario(cliente, convite.tenantId, usuario.id, novoEstado);
         await registrarEventoDeUsuario(cliente, convite.tenantId, {
@@ -113,8 +115,11 @@ export class ConvitesService {
       for (const compensar of compensacoes.reverse()) {
         try {
           await compensar();
-        } catch {
-          this.logger.error('falha ao compensar a identidade; conferir o usuário no Keycloak');
+        } catch (falha) {
+          this.logger.error(
+            `falha ao compensar o aceite; conferir no Keycloak se a conta do usuário ${convite.usuarioId} ` +
+              `ficou habilitada sem o aceite gravado (${falha instanceof Error ? falha.message : 'erro desconhecido'})`,
+          );
         }
       }
 

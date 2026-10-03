@@ -124,6 +124,15 @@ describe('filtroDeEventosSchema', () => {
     expect(filtro.tipo).toBe('SUSPENSO');
   });
 
+  it('recusa data que não existe no calendário em vez de virar Invalid Date (500) ou outro dia', () => {
+    for (const impossivel of ['2026-13-01', '2026-02-31', '2026-00-10', '2026-04-31']) {
+      expect(() => analisar(filtroDeEventosSchema, { de: impossivel })).toThrow(ErroDeValidacao);
+      expect(() => analisar(filtroDeEventosSchema, { ate: impossivel })).toThrow(ErroDeValidacao);
+    }
+
+    expect(analisar(filtroDeEventosSchema, { de: '2028-02-29' }).de).toBeInstanceOf(Date);
+  });
+
   it('recusa tipo desconhecido, data malformada e id que não é identificador', () => {
     expect(() => analisar(filtroDeEventosSchema, { tipo: 'APAGADO' })).toThrow(ErroDeValidacao);
     expect(() => analisar(filtroDeEventosSchema, { de: '01/10/2026' })).toThrow(ErroDeValidacao);

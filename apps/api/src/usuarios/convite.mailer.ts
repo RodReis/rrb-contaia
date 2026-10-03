@@ -20,6 +20,7 @@ export type EntradaDoConvite = Readonly<{
 }>;
 
 const ASSUNTO = 'Convite para acessar o ContaIA';
+const PRAZO_DO_SMTP_MS = 10_000;
 
 const escaparHtml = (texto: string): string =>
   texto
@@ -68,6 +69,10 @@ export class ConviteMailer {
         host: process.env['SMTP_HOST'] ?? '127.0.0.1',
         port: Number(process.env['SMTP_PORT'] ?? 11025),
         secure: false,
+        // Sem isto um SMTP que não responde segura a requisição do admin indefinidamente.
+        connectionTimeout: PRAZO_DO_SMTP_MS,
+        greetingTimeout: PRAZO_DO_SMTP_MS,
+        socketTimeout: PRAZO_DO_SMTP_MS,
       });
 
       await transporte.sendMail({

@@ -79,7 +79,22 @@ export const filtroDeUsuariosSchema = z
     deslocamento: filtro.deslocamento,
   }));
 
-const dataCivil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
+/** Confere o formato e que o dia existe: `2026-02-31` viraria 3 de março, `2026-13-01` Invalid Date. */
+const existeNoCalendario = (data: string): boolean => {
+  const [ano, mes, dia] = data.split('-').map(Number);
+  const conferida = new Date(Date.UTC(ano ?? 0, (mes ?? 0) - 1, dia ?? 0));
+
+  return (
+    conferida.getUTCFullYear() === ano &&
+    conferida.getUTCMonth() === (mes ?? 0) - 1 &&
+    conferida.getUTCDate() === dia
+  );
+};
+
+const dataCivil = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/u)
+  .refine(existeNoCalendario);
 
 // ponytail: offset fixo -03:00; o Brasil não tem horário de verão desde 2019, e os eventos
 // de usuários são de 2026 em diante. Se a regra voltar, trocar por cálculo com Intl/Temporal.

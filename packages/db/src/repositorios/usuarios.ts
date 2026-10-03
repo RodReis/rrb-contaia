@@ -190,15 +190,21 @@ export const substituirPapeis = async (
   );
 };
 
+/**
+ * `travar: true` segura a linha até o fim da transação: quem vai alterar o usuário
+ * carrega assim, para que duas alterações simultâneas se enfileirem e a segunda valide
+ * contra o que a primeira gravou (sem evento duplicado nem atualização perdida).
+ */
 export const carregarUsuario = async (
   cliente: PoolClient,
   tenantId: string,
   usuarioId: string,
+  opcoes: Readonly<{ travar?: boolean }> = {},
 ): Promise<UsuarioPersistido | null> => {
   const { rows } = await cliente.query<LinhaDeUsuario>(
     `select ${COLUNAS_DO_USUARIO}
        from app.usuario u
-      where u.tenant_id = $1 and u.id = $2`,
+      where u.tenant_id = $1 and u.id = $2${opcoes.travar === true ? ' for update' : ''}`,
     [tenantId, usuarioId],
   );
 
@@ -250,14 +256,23 @@ export const atualizarEstado = async (
 };
 
 /**
- * Trava as linhas de papel dos administradores ativos do tenant. Quem altera
- * administração chama isto primeiro: duas remoções simultâneas se serializam e
- * a segunda enxerga o conjunto já reduzido pela primeira.
+ * Serializa por tenant quem altera administração e devolve os administradores
+ * ativos. Quem remove papel de administrador, suspende ou arquiva chama isto
+ * primeiro: duas operações simultâneas se enfileiram e a segunda enxerga o
+ * conjunto já reduzido pela primeira.
+ *
+ * O lock consultivo vem antes da consulta porque travar só as linhas de papel não
+ * basta: suspender e arquivar mudam `usuario.estado`, não o papel, e a segunda
+ * transação leria o estado antigo do seu snapshot.
  */
 export const travarAdminsAtivos = async (
   cliente: PoolClient,
   tenantId: string,
 ): Promise<string[]> => {
+  await cliente.query('select pg_advisory_xact_lock(hashtextextended($1::text, 0))', [
+    `admins:${tenantId}`,
+  ]);
+
   const { rows } = await cliente.query<{ usuario_id: string }>(
     `select p.usuario_id
        from app.usuario_papel p

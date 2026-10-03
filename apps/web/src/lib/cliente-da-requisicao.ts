@@ -6,7 +6,10 @@
 import type { NextRequest } from 'next/server';
 
 export const clienteDaRequisicao = (requisicao: NextRequest): string | null => {
-  const encaminhado = requisicao.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  // A última entrada é a que o salto mais próximo (o proxy da frente) acrescentou; o início
+  // da lista vem do cliente e ele pode inventá-lo a cada requisição.
+  const entradas = requisicao.headers.get('x-forwarded-for')?.split(',') ?? [];
+  const encaminhado = entradas[entradas.length - 1]?.trim();
 
   if (encaminhado !== undefined && encaminhado !== '') {
     return encaminhado;

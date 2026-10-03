@@ -8,6 +8,7 @@
  * SQL, RLS e concorrência real têm provas próprias em `packages/db`.
  */
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
+import { Logger } from '@nestjs/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@contaia/db', async () => {
@@ -17,7 +18,7 @@ vi.mock('@contaia/db', async () => {
   return { ...real, ...funcoesDoBanco };
 });
 
-import { estado, reiniciar } from './banco-em-memoria';
+import { estado, funcoesDoBanco, reiniciar } from './banco-em-memoria';
 import { UsuariosService } from './usuarios.service';
 
 const T1 = 'tenant-1';
@@ -195,6 +196,18 @@ describe('UsuariosService', () => {
       ).toBe(CODIGOS_DE_ERRO.USUARIO_ARQUIVADO_USE_NOVO_CONVITE);
     });
 
+    it('se nem a marcação de envio falho couber no banco, o convite continua 201 (cadastro já gravado)', async () => {
+      const aviso = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      mailer.enviar.mockRejectedValueOnce(new Error('smtp fora'));
+      funcoesDoBanco.marcarEnvioFalhou.mockRejectedValueOnce(new Error('banco caiu'));
+
+      const usuario = await service.convidar(T1, AUTOR, DADOS);
+
+      expect(estado.usuarios.some((u) => u.id === usuario.id)).toBe(true);
+      expect(aviso).toHaveBeenCalled();
+      aviso.mockRestore();
+    });
+
     it('falha de envio não apaga o cadastro: responde 201 com envioFalhou e permite reenviar', async () => {
       mailer.enviar.mockRejectedValueOnce(new Error('smtp fora'));
 
@@ -225,6 +238,20 @@ describe('UsuariosService', () => {
       expect(estado.usuarios.find((u) => u.email === 'ana@escritorio.com')).toBeUndefined();
       expect(estado.convites).toHaveLength(0);
       expect(identidade.remover).toHaveBeenCalledWith('kc-1');
+    });
+
+    it('se a compensação também falhar, o log diz qual identidade conferir no Keycloak', async () => {
+      const erro = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      estado.falharAoRegistrarEvento = true;
+      identidade.remover.mockRejectedValueOnce(new Error('keycloak caiu'));
+
+      await expect(service.convidar(T1, AUTOR, DADOS)).rejects.toThrow('falha na auditoria');
+
+      const mensagem = String(erro.mock.calls[0]?.[0]);
+
+      expect(mensagem).toContain('sub kc-1');
+      expect(mensagem).toContain('keycloak caiu');
+      erro.mockRestore();
     });
 
     it('e-mail inválido: 422 com o campo, sem tocar no Keycloak', async () => {
@@ -412,6 +439,19 @@ describe('UsuariosService', () => {
       expect(reenviado.situacao).toBe('CONVIDADO');
     });
 
+    it('reenviar um convite vencido deixa o evento CONVITE_EXPIRADO antes do reenvio (§3.5)', async () => {
+      const convidado = await service.convidar(T1, AUTOR, DADOS);
+
+      vi.setSystemTime(new Date(AGORA.getTime() + 49 * 3_600_000));
+      await service.reenviarConvite(T1, AUTOR, convidado.id);
+
+      expect(estado.eventos.map((e) => e.tipo)).toEqual([
+        'CONVITE_CRIADO',
+        'CONVITE_EXPIRADO',
+        'CONVITE_REENVIADO',
+      ]);
+    });
+
     it('só CONVIDADO recebe reenvio', async () => {
       expect(await codigoDe(() => service.reenviarConvite(T1, AUTOR, 'admin-2'))).toBe(
         CODIGOS_DE_ERRO.TRANSICAO_DE_USUARIO_INVALIDA,
@@ -494,6 +534,17 @@ describe('UsuariosService', () => {
       );
       expect(estado.usuarios.find((u) => u.id === 'ativo-1')?.estado).toBe('ATIVO');
       expect(estado.eventos).toHaveLength(0);
+    });
+
+    it('se o Keycloak esgota o tempo depois de aplicar, a compensação já estava registrada e reabilita', async () => {
+      identidade.habilitar.mockImplementationOnce(async (_sub: string, ligado: boolean) => {
+        ordem.push(`habilitar:${String(ligado)}`);
+        throw indisponivel();
+      });
+
+      await codigoDe(() => service.suspender(T1, AUTOR, 'ativo-1'));
+
+      expect(ordem).toEqual(['habilitar:false', 'habilitar:true']);
     });
 
     it('falha ao encerrar sessões também desfaz: não fica suspenso com sessão viva', async () => {
