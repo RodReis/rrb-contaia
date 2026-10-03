@@ -282,15 +282,20 @@ test('CNPJ já cadastrado no escritório abre o existente e não duplica', async
 
   expect([201, 200, 409]).toContain(criacao.status());
 
-  const antes = await page.request.get('/api/proxy/empresas?limite=100&deslocamento=0');
+  // Só as empresas deste CNPJ: o total do escritório inteiro muda sob outras specs que criam
+  // empresas no mesmo tenant em paralelo, e a comparação falhava sem haver duplicação.
+  const listaDoCnpj = `/api/proxy/empresas?busca=${CNPJ_NOVO}&limite=100&deslocamento=0`;
+  const antes = await page.request.get(listaDoCnpj);
   const { total } = (await antes.json()) as { total: number };
+
+  expect(total).toBe(1);
 
   // Sem dublê aqui: o que se prova é a decisão do servidor sobre duplicidade.
   await consultar(page, CNPJ_NOVO);
 
   await expect(page.getByText('Esta empresa já está neste escritório')).toBeVisible();
 
-  const depois = await page.request.get('/api/proxy/empresas?limite=100&deslocamento=0');
+  const depois = await page.request.get(listaDoCnpj);
 
   expect(((await depois.json()) as { total: number }).total).toBe(total);
 });
