@@ -504,7 +504,7 @@ export const CentralDeCarteiras = () => {
                       className="size-4 cursor-pointer rounded-sm border border-input bg-card accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </th>
-                  {['Nome', 'E-mail', 'Papéis', 'Situação', 'Carteira'].map((titulo) => (
+                  {['Colaborador', 'Papéis', 'Situação', 'Carteira'].map((titulo) => (
                     <th
                       key={titulo}
                       scope="col"
@@ -537,11 +537,17 @@ export const CentralDeCarteiras = () => {
                           aoAlternar={() => alternar(colaborador)}
                         />
                       </td>
-                      <td className="px-md py-sm text-title-sm text-foreground">
-                        <span className="break-words">{colaborador.nome}</span>
-                      </td>
-                      <td className="min-w-[12rem] px-md py-sm text-body-md text-muted-foreground">
-                        <span className="[overflow-wrap:anywhere]">{colaborador.email}</span>
+                      {/* Nome e e-mail na mesma célula: com sete colunas a ação "Gerenciar carteira"
+                          ficava cortada na largura útil de 1440px. */}
+                      <td className="px-md py-sm">
+                        <div className="flex flex-col gap-xs">
+                          <span className="break-words text-title-sm text-foreground">
+                            {colaborador.nome}
+                          </span>
+                          <span className="text-body-sm text-muted-foreground [overflow-wrap:anywhere]">
+                            {colaborador.email}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-md py-sm">
                         <Papeis colaborador={colaborador} />
@@ -552,7 +558,7 @@ export const CentralDeCarteiras = () => {
                       <td className="px-md py-sm">
                         <Empresas quantidade={colaborador.empresas} />
                       </td>
-                      <td className="px-md py-sm text-right">
+                      <td className="px-md py-sm text-right whitespace-nowrap">
                         <Gerenciar colaborador={colaborador} />
                       </td>
                     </tr>

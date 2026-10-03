@@ -185,7 +185,8 @@ const Adicionar = ({
 
   if (!aberto) {
     return (
-      <Button tamanho="compacto" onClick={() => definirAberto(true)}>
+      // `self-start`: dentro de uma coluna flex o botão esticaria a largura inteira.
+      <Button tamanho="compacto" className="self-start" onClick={() => definirAberto(true)}>
         <UserPlus aria-hidden="true" />
         Adicionar colaboradores
       </Button>
