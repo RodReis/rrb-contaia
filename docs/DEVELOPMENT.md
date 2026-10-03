@@ -31,7 +31,10 @@ pnpm dev
 Portas reservadas para este projeto, verificadas como livres antes da primeira
 subida: Web `15100`, API `15101`, workers `15102`, Signer `15103`,
 PostgreSQL `15432`, Redis `16379`, Keycloak `18080`, storage `19000` e console
-`19001`. Todas publicadas apenas em `127.0.0.1`.
+`19001`. Todas publicadas apenas em `127.0.0.1`. A F7 acrescenta o Mailpit, que
+captura o e-mail do convite: SMTP `11025` e interface `18025` (`MAILPIT_SMTP_PORT`
+e `MAILPIT_UI_PORT`). Quem já tem outra instância local sobe o Mailpit com portas
+novas pelo `.env`, sem reutilizar as de outro projeto.
 
 Para parar e limpar **somente** os volumes deste projeto:
 
@@ -75,6 +78,7 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | 5 | [#5](https://github.com/RodReis/rrb-contaia/issues/5) `[MVP1][SPEC-004][F4]` Documentos da empresa | F4 / SPEC-004 | entregue | #49 | checklist, upload com versões, análise explícita, storage privado, histórico documental append-only |
 | 6 | [#6](https://github.com/RodReis/rrb-contaia/issues/6) `[MVP1][SPEC-005][F5]` Central de Pendências cadastrais | F5 / SPEC-005 | entregue | #50 | reconciliação síncrona cadastral/documental, indicador na lista, dispensa com justificativa, histórico append-only |
 | 7 | [#7](https://github.com/RodReis/rrb-contaia/issues/7) `[MVP1][SPEC-006][F6]` Notificações de pendências | F6 / SPEC-006 | entregue | #51 | sino, badge, painel das 15 mais recentes, seleção individual/lote, histórico paginado, notificação na mesma transação da reconciliação |
+| 8 | [#9](https://github.com/RodReis/rrb-contaia/issues/9) `[MVP1][SPEC-007][F7]` Gestão de usuários e papéis padrão | F7 / SPEC-007 | em revisão | — | convite por e-mail com link de uso único, quatro papéis padrão aditivos, suspensão/arquivamento, proteção do último administrador, histórico de usuários, rota pública do convite |
 
 ---
 
@@ -125,6 +129,27 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] `EmptyState` e `ErroDeTela` com `nivel` — o `<h3>` fixo pulava nível depois do `<h1>` e reprovava no `heading-order`
 - [x] Telas nos temas CLARO e ESCURO, com os quatro estados e sem violação de acessibilidade
 - [x] Provas: 107 de regras, 50 de banco, 21 de tela e 4 E2E; prova externa real executada fora da CI com o CNPJ de teste da SPEC
+
+### Card #9 — `[MVP1][SPEC-007][F7]` Gestão de usuários e papéis padrão
+
+- [x] Quatro papéis padrão **aditivos** (matriz capacidade × ação em `packages/domain/src/usuarios/papeis.ts`, `administrar` implica todas); `GuardDeAcao` **falha fechado**: rota sem `@ExigeAcao`/`@AcaoLivre` é negada, e o teste de cobertura reprova rota esquecida — esquecer anotação nunca abre acesso
+- [x] Papel e situação são lidos **ao vivo** em `app.resolver_identidade` a cada requisição: suspender, arquivar ou trocar papel vale na requisição seguinte, mesmo com JWT ainda válido (nenhuma revisão cacheada no token)
+- [x] Convite do produto, não do Keycloak: token de 256 bits, só o `sha256` vai ao banco, 48 h, uso único; reenvio ou correção de e-mail invalida o link anterior; **qualquer recusa responde o mesmo `CONVITE_INVALIDO`** (sem oráculo de "usado/expirado/inexistente"). O aceite consome o convite como **primeiro passo** da transação, então dois aceites simultâneos se serializam antes de tocar o Keycloak
+- [x] Expiração do convite é **preguiçosa** (sem worker): o evento `CONVITE_EXPIRADO` nasce, de forma idempotente, ao listar, consultar o histórico, tentar aceitar ou reenviar. Reenviar sem reconciliar antes perdia o evento (invalidar vem antes de reconhecer o vencimento)
+- [x] Keycloak entra **dentro** da transação do banco, com compensações. A compensação precisa ser registrada **antes** da chamada: com timeout de 5 s, o Keycloak pode aplicar depois de o cliente desistir, e o erro subiria sem compensação (identidade com e-mail novo ou conta ativa sem o aceite gravado). Todas as compensações são idempotentes
+- [x] **Último administrador: travar linhas de papel não basta.** Suspender e arquivar mudam `usuario.estado`, não o papel; a segunda transação lia o estado do snapshot antigo e os dois admins se suspendiam em paralelo (escritório sem administrador). `travarAdminsAtivos` agora toma um lock consultivo por tenant **antes** da consulta. O teste de concorrência original só cobria rebaixar × rebaixar
+- [x] Quem altera um usuário o carrega com `for update`: sem isso, dois "suspender" simultâneos gravavam dois eventos e duas edições se sobrescreviam. Falta o controle otimista por `versao` (deferido)
+- [x] **Rota pública do convite** (`/api/publico/convites/*`): lista fechada de caminhos, sem `Authorization` nem cookie, corpo com teto de 8 KB. O limitador em memória (10/min por cliente e rota) lê a **última** entrada de `X-Forwarded-For`, que a web escreve — o início da lista vem do cliente e permitia zerar o limite e encher o `Map`; agora há teto de chaves, limpeza amortizada e teto global por rota
+- [x] **Corrigir o e-mail de um convidado só funcionava no dublê**: o Keycloak 26 recusa trocar `username` (`error-user-attribute-read-only`) com `editUsernameAllowed=false`, e a API respondia 503. O realm local passou a permitir, e um E2E contra o Keycloak real cobre o caso. PUT parcial (`{enabled}`, `{email}`) preserva nome e sobrenome — verificado ao vivo
+- [x] Sem carteira (F9 ainda não existe), só `admin_escritorio` enxerga empresas; os demais veem zero. As listas devolvem `escopoDeEmpresas: 'NENHUMA'` e a tela diz "Você ainda não tem empresas na sua carteira" (componente `SemCarteira`) em vez de afirmar "Sem pendências" ou "Sem notificações"
+- [x] Migration `0009` troca `usuario.papel/situacao` por `estado` + `usuario_papel` (sem DELETE: papel removido ganha `removido_em`), com backfill, e **aborta** se sobrar usuário ativo sem papel em vez de mascarar com default. `usuario_evento` é append-only por trigger e `REVOKE`; RLS forçada nas três tabelas novas
+- [x] E-mail único **entre escritórios** (índice em `lower(email)`): a recusa não diz de quem é. Efeito: o seed local reassocia o usuário existente quando o Keycloak é recriado sem reset do Postgres, em vez de criar um segundo tenant
+- [x] UI: lista (tabela só a partir de 1024 px, cartões abaixo — a 768 px a tabela cortava as ações), catálogo de papéis, wizard de duas etapas com revisão, edição por abas, aceite público e aba "Usuários e acessos" no Histórico, nos dois temas, em 390/768/1024/1440 px
+- [x] **E2E da F7 roda em escritório e administrador próprios**: ativar o tenant do seed quebrava a SPEC-001 (exige tenant incompleto) sob paralelismo; e o helper `abrirEtapa` da F2 usava `isVisible` (não espera) e falhava com a máquina ocupada
+- [x] **Banco de teste limpo antes do E2E completo, com 2 workers** (como a CI): com workers ilimitados as `beforeAll` das specs 003–006 ativam o tenant antes de a SPEC-001 rodar, falha que já existia
+- [x] `@contaia/api` compila contra o `dist` de `@contaia/db`: depois de mudar assinatura no db, reconstruir o db antes do `nest build` isolado (o `pnpm build` já ordena)
+- [x] Provas: 354 no domínio, 380 na API, 134 de banco (RLS real, concorrência com transações independentes, atomicidade mutação + auditoria), 301 de tela e 39 E2E (8 + 1 de correção de e-mail na F7) contra a pilha real com Keycloak, PostgreSQL e Mailpit
+- [ ] Deferidos (registrados na PR): controle otimista por `versao`, identidade órfã se a criação no Keycloak estourar o tempo, foco do teclado após confirmar suspender/arquivar, e os itens de endurecimento do gate de produção (segredo do client de administração fora do repositório, `bruteForceProtected`, SMTP com TLS, CSP na página de aceite)
 
 ### Card #7 — `[MVP1][SPEC-006][F6]` Notificações de pendências (PR #51)
 
