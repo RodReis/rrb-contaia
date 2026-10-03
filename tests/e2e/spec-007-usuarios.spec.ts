@@ -610,7 +610,7 @@ test('provas visuais nos dois temas e nas quatro larguras', async () => {
       await capturar(admin, 'lista');
 
       await admin.goto('/configuracoes/usuarios?aba=papeis');
-      await admin.getByRole('heading', { level: 2, name: 'Auxiliar' }).waitFor();
+      await admin.getByRole('heading', { level: 3, name: 'Auxiliar' }).waitFor();
       await capturar(admin, 'papeis');
 
       // Wizard: etapas 1 e 2

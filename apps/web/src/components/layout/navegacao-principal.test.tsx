@@ -39,6 +39,7 @@ describe('NavegacaoPrincipal', () => {
         [
           'empresas.cadastro.consultar',
           'historico.global.consultar',
+          'empresas.historico.consultar',
           'usuarios.usuarios_e_papeis.consultar',
           'usuarios.usuarios_e_papeis.administrar',
         ],
@@ -62,13 +63,44 @@ describe('NavegacaoPrincipal', () => {
 
   it('contador vê o Histórico, mas não Usuários e permissões', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      sessao(['contador'], ['empresas.cadastro.consultar', 'historico.global.consultar']),
+      sessao(['contador'], [
+        'empresas.cadastro.consultar',
+        'historico.global.consultar',
+        'empresas.historico.consultar',
+      ]),
     );
 
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
     await waitFor(() => expect(links()).toContain('Histórico de Informações'));
     expect(links()).not.toContain('Usuários e permissões');
+  });
+
+  it('permissão vinda de papel personalizado abre o item, como a de qualquer papel padrão', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['auxiliar'], [
+        'empresas.cadastro.consultar',
+        'historico.global.consultar',
+        'empresas.historico.consultar',
+      ]),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(links()).toContain('Histórico de Informações'));
+    // Papel personalizado nunca concede a área exclusiva de usuários e papéis.
+    expect(links()).not.toContain('Usuários e permissões');
+  });
+
+  it('o Histórico exige o global e o cadastral, como a API: só um deles não abre o item', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['auxiliar'], ['empresas.cadastro.consultar', 'historico.global.consultar']),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await waitFor(() => expect(links()).toEqual(['Empresas']));
   });
 
   it('enquanto a sessão carrega ou se falhar, só o item seguro (Empresas) aparece', async () => {

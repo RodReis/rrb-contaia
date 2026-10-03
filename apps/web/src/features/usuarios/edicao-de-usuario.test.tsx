@@ -406,3 +406,133 @@ describe('acessibilidade', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('papéis personalizados do usuário (SPEC-008 §3.4)', () => {
+  const REVISOR = papelDeTeste({ id: 'p-revisor', nome: 'Revisor fiscal', papelBase: 'contador' });
+  const CONFERENTE = papelDeTeste({ id: 'p-conferente', nome: 'Conferente', papelBase: 'auxiliar' });
+
+  const comRevisor: VisaoDeUsuario = {
+    ...ANA,
+    papeisPersonalizados: [{ id: 'p-revisor', nome: 'Revisor fiscal', estado: 'ATIVO' }],
+  };
+
+  beforeEach(() => {
+    papeisPersonalizados = [REVISOR, CONFERENTE];
+  });
+
+  it('a aba Papéis mostra os personalizados ativos, com os atuais marcados', async () => {
+    usuarioAtual = () => json(comRevisor);
+
+    renderizar();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+
+    expect(await screen.findByRole('checkbox', { name: 'Revisor fiscal' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Conferente' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Contador' })).toBeChecked();
+  });
+
+  it('trocar o papel personalizado e salvar envia os identificadores, mantendo os padrão', async () => {
+    usuarioAtual = () => json(comRevisor);
+
+    renderizar();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Revisor fiscal' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Conferente' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    await waitFor(() => expect(salvos('PUT', '/usuarios/ana')).toHaveLength(1));
+
+    expect(salvos('PUT', '/usuarios/ana')[0]?.corpo).toMatchObject({
+      papeis: ['contador'],
+      papeisPersonalizados: ['p-conferente'],
+    });
+  });
+
+  it('o usuário pode ficar só com papel personalizado, tirando o padrão', async () => {
+    usuarioAtual = () => json(comRevisor);
+
+    renderizar();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Contador' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    await waitFor(() => expect(salvos('PUT', '/usuarios/ana')).toHaveLength(1));
+
+    expect(salvos('PUT', '/usuarios/ana')[0]?.corpo).toMatchObject({
+      papeis: [],
+      papeisPersonalizados: ['p-revisor'],
+    });
+  });
+
+  it('sem nenhum papel de qualquer tipo não salva', async () => {
+    usuarioAtual = () => json(comRevisor);
+
+    renderizar();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Contador' }));
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Revisor fiscal' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Selecione ao menos um papel');
+    expect(salvos('PUT', '/usuarios/ana')).toHaveLength(0);
+  });
+
+  it('papel personalizado arquivado ainda vinculado não é oferecido nem reenviado ao salvar', async () => {
+    usuarioAtual = () =>
+      json({
+        ...ARQUIVADO,
+        papeisPersonalizados: [{ id: 'p-antigo', nome: 'Papel antigo', estado: 'ARQUIVADO' }],
+      });
+
+    renderizar();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+
+    expect(screen.queryByRole('checkbox', { name: 'Papel antigo' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar novo convite' }));
+
+    await waitFor(() => expect(salvos('POST', '/usuarios/ana/novo-convite')).toHaveLength(1));
+
+    expect(salvos('POST', '/usuarios/ana/novo-convite')[0]?.corpo).toMatchObject({
+      papeisPersonalizados: [],
+    });
+  });
+
+  it('papel arquivado recusado pelo servidor mantém a tela e o que foi escolhido, sem sair da página', async () => {
+    usuarioAtual = () => json(comRevisor);
+    aoSalvar = () => problema(409, 'PAPEL_ARQUIVADO');
+
+    renderizar();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Conferente' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+    await waitFor(() => expect(salvos('PUT', '/usuarios/ana')).toHaveLength(1));
+    expect(screen.getByRole('tab', { name: 'Papéis' })).toBeInTheDocument();
+  });
+
+  it('o auditor vê os personalizados, mas as caixas ficam desabilitadas', async () => {
+    sessaoAtual = AUDITOR;
+    usuarioAtual = () => json(comRevisor);
+
+    renderizar();
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+
+    const revisor = await screen.findByRole('checkbox', { name: 'Revisor fiscal' });
+
+    expect(revisor).toBeChecked();
+    expect(revisor).toBeDisabled();
+    expect(screen.queryByRole('link', { name: 'Criar papel personalizado' })).not.toBeInTheDocument();
+  });
+
+  it('a aba Papéis com personalizados não tem violação detectável pelo axe', async () => {
+    usuarioAtual = () => json(comRevisor);
+
+    const { container } = renderizar();
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Papéis' }));
+    await screen.findByRole('checkbox', { name: 'Revisor fiscal' });
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
