@@ -11,14 +11,10 @@ import type { JWTPayload } from 'jose';
 
 import { resolverIdentidade, semContexto } from '@contaia/db';
 import type { IdentidadeResolvida } from '@contaia/db';
-import {
-  ehChaveDoCatalogo,
-  permissoesDosPapeisPadrao,
-  uniaoDePermissoes,
-  type ChaveDePermissao,
-} from '@contaia/domain';
+import type { ChaveDePermissao } from '@contaia/domain';
 
 import { PoolDoBanco } from '../banco/pool.provider';
+import { permissoesEfetivas } from './permissoes-efetivas';
 
 export type SessaoDaRequisicao = IdentidadeResolvida &
   Readonly<{
@@ -78,11 +74,7 @@ export class SessaoService {
 
     const email = typeof payload['email'] === 'string' ? payload['email'] : '';
 
-    // Chave obsoleta no snapshot de um papel não concede nada: só o catálogo vigente vale.
-    const permissoes = uniaoDePermissoes(
-      permissoesDosPapeisPadrao(identidade.papeis),
-      identidade.permissoesPersonalizadas.filter(ehChaveDoCatalogo),
-    );
+    const permissoes = permissoesEfetivas(identidade);
 
     return { ...identidade, sub, email, permissoes };
   }

@@ -247,3 +247,50 @@ export type {
   FinalidadeTecnica,
   ParametrosDeSessao,
 } from './acesso/contexto-de-acesso.js';
+
+export {
+  CODIGOS_DE_RECUSA_DA_INGESTAO,
+  PREFIXO_DA_POLITICA_A1,
+  avaliarCertificado,
+} from './certificados/avaliacao.js';
+export type {
+  CertificadoExtraido,
+  CodigoDeRecusaDaIngestao,
+  ResultadoDaAvaliacao,
+} from './certificados/avaliacao.js';
+
+export {
+  MARCOS_DE_VENCIMENTO,
+  diasParaVencer,
+  estadoDeValidade,
+  estadoNoCofre,
+  marcoDeVencimentoAtual,
+} from './certificados/estado.js';
+export type { EstadoNoCofre, MarcoDeVencimento } from './certificados/estado.js';
+export {
+  acoesDoCofre,
+  ehResponsavelElegivel,
+  podeMutarCofre,
+  situacaoDoResponsavel,
+} from './certificados/autorizacao.js';
+export type { AcaoDoCofre, SituacaoDoResponsavel } from './certificados/autorizacao.js';
+export {
+  TAMANHO_MAXIMO_DO_MOTIVO,
+  avaliarMetadadosDoCertificado,
+  planejarAtivacao,
+  planejarCadastro,
+  planejarDesativacao,
+  planejarSubstituicao,
+  planejarTrocaDeResponsavel,
+} from './certificados/transicoes.js';
+export type {
+  OperacaoDeIngestao,
+  PlanoDeAtivacao,
+  PlanoDeDesativacao,
+  PlanoDeTrocaDeResponsavel,
+  VersaoVigente,
+} from './certificados/transicoes.js';
+export {
+  CHAVES_DE_PENDENCIA_DO_CERTIFICADO,
+  causasDeCertificado,
+} from './certificados/pendencias.js';

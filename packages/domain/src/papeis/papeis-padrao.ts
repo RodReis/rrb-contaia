@@ -37,9 +37,15 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
   contador: [
     ...chavesDoModulo('empresas'),
     ...OPERACAO,
+    ...chavesDoModulo('certificados'),
     'historico.global.consultar',
   ],
-  auxiliar: [...CADASTRO_DE_EMPRESAS_SEM_ARQUIVAR, ...OPERACAO],
+  // Consulta o cofre mas não muta (SPEC-011 §3.2); sem histórico de certificados.
+  auxiliar: [
+    ...CADASTRO_DE_EMPRESAS_SEM_ARQUIVAR,
+    ...OPERACAO,
+    'certificados.cofre.consultar',
+  ],
   auditor_readonly: [
     'escritorio.dados.consultar',
     'empresas.cadastro.consultar',
@@ -47,6 +53,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...consultas('documentos'),
     ...consultas('pendencias'),
     ...consultas('notificacoes'),
+    ...consultas('certificados'),
     'historico.global.consultar',
     'usuarios.usuarios_e_papeis.consultar',
   ],

@@ -8,6 +8,8 @@
  *
  * Tabela nova precisa de fixture aqui — sem ela o teste de cobertura reprova.
  */
+import { randomUUID } from 'node:crypto';
+
 import type { Pool, PoolClient } from 'pg';
 
 export type Consultavel = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
@@ -75,6 +77,30 @@ const usuarioLivre = (admin: Consultavel, escopo: Escopo): Promise<string> => {
     [escopo.tenantId, `livre-${escopo.sufixo}-${n}`, `livre${n}.${escopo.sufixo}@matriz.local`, `Livre ${n}`],
   );
 };
+
+
+/** Versão DESATIVADA: várias coexistem por empresa, ao contrário do vigente (índice único parcial). */
+const SQL_CERTIFICADO = `insert into app.empresa_certificado
+   (tenant_id, empresa_id, versao, estado, titular, cnpj_titular, autoridade_certificadora, cadeia,
+    numero_serie, impressao_digital, valido_de, valido_ate, responsavel_id, referencia_segredo,
+    cadastrado_por, encerrado_em, encerrado_por, motivo_encerramento, justificativa)
+ values ($1, $2, $3, 'DESATIVADO', 'Titular da Prova', '00000000000000', 'AC da Prova',
+         array['AC da Prova'], $4, $5, '2026-01-01', '2027-01-01', $6, $7, $6,
+         now(), $6, 'DESATIVACAO', 'prova da matriz')
+ returning id`;
+
+const parametrosDoCertificado = (e: Escopo, n: number): unknown[] => [
+  e.tenantId,
+  e.empresaId,
+  1_000 + n,
+  `serie-${e.sufixo}-${n}`,
+  `impressao-${e.sufixo}-${n}`,
+  e.autorId,
+  randomUUID(),
+];
+
+const certificado = (banco: Consultavel, e: Escopo): Promise<string> =>
+  unico(banco, SQL_CERTIFICADO, parametrosDoCertificado(e, proximo()));
 
 export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.tenant': {
@@ -214,6 +240,53 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
          values ($1, $2, $3, 'CRIACAO') returning id`,
         [e.tenantId, e.empresaId, r['notificacaoId']],
       ),
+  },
+  'app.empresa_certificado': {
+    inserir: (banco, e) => certificado(banco, e),
+    // Colunas atualizáveis são só as de encerramento e o responsável; a versão desativada não muda.
+    colunaDeAtualizacao: 'responsavel_id',
+  },
+  'app.empresa_certificado_evento': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.empresa_certificado_evento
+           (tenant_id, empresa_id, acao, resultado, codigo, usuario_id, identidade_tecnica, correlation_id)
+         values ($1, $2, 'RECUSA', 'RECUSADO', 'CERTIFICADO_SENHA_INCORRETA', $3, 'matriz-rls', 'matriz-rls')
+         returning id`,
+        [e.tenantId, e.empresaId, e.autorId],
+      ),
+  },
+  'app.empresa_certificado_ingestao': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.empresa_certificado_ingestao
+           (tenant_id, empresa_id, usuario_id, operacao, responsavel_id, correlation_id, expira_em)
+         values ($1, $2, $3, 'CADASTRO', $3, 'matriz-rls', now() + interval '5 minutes')
+         returning id`,
+        [e.tenantId, e.empresaId, e.autorId],
+      ),
+    colunaDeAtualizacao: 'estado',
+  },
+  'app.empresa_certificado_notificacao': {
+    // O certificado-pai nasce na mesma instrução, na empresa da própria tentativa: a FK composta
+    // (certificado, empresa, tenant) recusaria um pai de outra empresa, e a matriz repete a
+    // tentativa em empresas diferentes (arquivada, outro tenant) com as mesmas referências.
+    inserir: (banco, e) => {
+      const n = proximo();
+
+      return unico(
+        banco,
+        `with certificado as (${SQL_CERTIFICADO})
+         insert into app.empresa_certificado_notificacao
+           (tenant_id, empresa_id, certificado_id, usuario_id, marco)
+         select $1, $2, certificado.id, $6, 'D30' from certificado
+         returning id`,
+        parametrosDoCertificado(e, n),
+      );
+    },
+    colunaDeAtualizacao: 'lida',
   },
   'app.carteira_vinculo': {
     preparar: async (admin, e) => ({ usuarioId: await usuarioLivre(admin, e) }),

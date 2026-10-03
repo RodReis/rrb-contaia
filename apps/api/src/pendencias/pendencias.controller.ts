@@ -10,6 +10,8 @@ import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { CarteiraService } from '../carteira/carteira.service';
+import { CertificadosService } from '../certificados/certificados.service';
+import { obterCorrelationId } from '../comum/problema';
 import { restringirPendencia } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import { dispensaDePendenciaSchema, filtroDaCentralSchema } from './pendencias.dto';
@@ -42,12 +44,15 @@ export class PendenciasController {
   constructor(
     private readonly pendencias: PendenciasService,
     private readonly carteira: CarteiraService,
+    private readonly certificados: CertificadosService,
   ) {}
 
   @Get()
   async consultarCentral(@Req() requisicao: RequisicaoAutenticada, @Query() consulta: unknown) {
     const tenantId = tenantDa(requisicao);
     const { usuarioId } = autorDa(requisicao);
+    // Pendências do cofre (ausente, vencido, sem responsável) são mantidas ao consultar a Central.
+    await this.certificados.reconciliarDaCarteira({ tenantId, usuarioId }, obterCorrelationId(requisicao));
     const pagina = await this.pendencias.consultarCentral(
       tenantId,
       usuarioId,

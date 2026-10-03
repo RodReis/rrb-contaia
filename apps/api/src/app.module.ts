@@ -32,6 +32,15 @@ import { UsuariosService } from './usuarios/usuarios.service';
 import { HealthController } from './health/health.controller';
 import { PapeisController } from './papeis/papeis.controller';
 import { PapeisService } from './papeis/papeis.service';
+import {
+  CertificadosController,
+  CertificadosDaEmpresaController,
+  CofreInternoController,
+  HistoricoDeCertificadosController,
+} from './certificados/certificados.controller';
+import { CertificadosService } from './certificados/certificados.service';
+import { CofreClient } from './certificados/cofre.client';
+import { GuardDeServicoInterno } from './certificados/servico-interno.guard';
 import { NotificacoesController } from './notificacoes/notificacoes.controller';
 import { NotificacoesService } from './notificacoes/notificacoes.service';
 import {
@@ -52,12 +61,16 @@ import { PendenciasService } from './pendencias/pendencias.service';
     PainelController,
     HistoricoDeUsuariosController,
     HistoricoDeCarteirasController,
+    HistoricoDeCertificadosController,
     HistoricoController,
     ManutencaoDaEmpresaController,
     PendenciasDaEmpresaController,
+    CertificadosDaEmpresaController,
     DocumentosDaEmpresaController,
     EmpresaController,
     PendenciasController,
+    CertificadosController,
+    CofreInternoController,
     NotificacoesController,
     UsuariosController,
     CarteirasController,
@@ -73,6 +86,9 @@ import { PendenciasService } from './pendencias/pendencias.service';
     ManutencaoDaEmpresaService,
     DocumentosDaEmpresaService,
     PendenciasService,
+    CertificadosService,
+    CofreClient,
+    GuardDeServicoInterno,
     NotificacoesService,
     UsuariosService,
     PapeisService,

@@ -41,6 +41,15 @@ const OPERACAO = [
   'notificacoes.sino.marcar_lida',
 ];
 
+const CERTIFICADOS_TODAS = [
+  'certificados.cofre.consultar',
+  'certificados.cofre.criar',
+  'certificados.cofre.substituir',
+  'certificados.cofre.editar',
+  'certificados.cofre.desativar',
+  'certificados.historico.consultar',
+];
+
 // Matriz da SPEC-007 §3.1 lida em chaves, escrita à mão: o teste não lê a constante de produção.
 const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
   admin_escritorio: [
@@ -56,13 +65,16 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.reativar',
     'empresas.historico.consultar',
     ...OPERACAO,
+    ...CERTIFICADOS_TODAS,
     'historico.global.consultar',
   ],
+  // SPEC-011 §3.2: o auxiliar consulta o cofre e não muta; sem histórico de certificados.
   auxiliar: [
     'empresas.cadastro.consultar',
     'empresas.cadastro.criar',
     'empresas.cadastro.editar',
     ...OPERACAO,
+    'certificados.cofre.consultar',
   ],
   auditor_readonly: [
     'escritorio.dados.consultar',
@@ -71,6 +83,8 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...DOCUMENTOS_LEITURA,
     'pendencias.pendencias.consultar',
     'notificacoes.sino.consultar',
+    'certificados.cofre.consultar',
+    'certificados.historico.consultar',
     'historico.global.consultar',
     'usuarios.usuarios_e_papeis.consultar',
   ],

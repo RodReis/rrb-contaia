@@ -11,6 +11,8 @@ import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { CarteiraService } from '../carteira/carteira.service';
+import { CertificadosService } from '../certificados/certificados.service';
+import { obterCorrelationId } from '../comum/problema';
 import { restringirPendencia } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import { filtroDoHistoricoSchema, marcacaoEmLoteSchema } from './notificacoes.dto';
@@ -24,6 +26,7 @@ export class NotificacoesController {
   constructor(
     private readonly notificacoes: NotificacoesService,
     private readonly carteira: CarteiraService,
+    private readonly certificados: CertificadosService,
   ) {}
 
   /**
@@ -37,6 +40,8 @@ export class NotificacoesController {
     const tenantId = tenantDa(requisicao);
     const { usuarioId } = autorDa(requisicao);
     const permissoes = requisicao.sessao?.permissoes ?? [];
+    // Alertas do cofre (D-30/15/7/vencido) nascem preguiçosos, ao consultar o sino (SPEC-011).
+    await this.certificados.reconciliarDaCarteira({ tenantId, usuarioId }, obterCorrelationId(requisicao));
     const bruto = await this.notificacoes.consultarPainel(tenantId, usuarioId);
     // Mesma regra da Central: origem e veredito da análise só saem com a permissão.
     const painel = {
@@ -58,6 +63,7 @@ export class NotificacoesController {
     const tenantId = tenantDa(requisicao);
     const { usuarioId } = autorDa(requisicao);
     const permissoes = requisicao.sessao?.permissoes ?? [];
+    await this.certificados.reconciliarDaCarteira({ tenantId, usuarioId }, obterCorrelationId(requisicao));
     const bruta = await this.notificacoes.consultarHistorico(
       tenantId,
       usuarioId,

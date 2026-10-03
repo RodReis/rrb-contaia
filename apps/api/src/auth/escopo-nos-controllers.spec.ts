@@ -16,12 +16,15 @@ import type { RequisicaoAutenticada } from './sessao.guard';
 const requisicao = (papeis: readonly PapelPadrao[]): RequisicaoAutenticada =>
   ({
     sessao: { papeis, tenantId: 'tenant-1', usuarioId: 'usuario-1' },
+    header: () => undefined,
   }) as unknown as RequisicaoAutenticada;
 
 const CONTADOR = requisicao(['contador']);
 const ADMIN = requisicao(['admin_escritorio']);
 
 const comCarteira = (possui: boolean) => ({ possuiCarteira: vi.fn().mockResolvedValue(possui) });
+// Sino e Central reconciliam o cofre ao consultar (SPEC-011); aqui só importa que não derrube a tela.
+const cofre = { reconciliarDaCarteira: vi.fn().mockResolvedValue(undefined) };
 
 describe('EmpresaController', () => {
   const servico = { listar: vi.fn(), consultarCnpj: vi.fn(), criar: vi.fn() };
@@ -137,7 +140,7 @@ describe('Central de Pendências, Histórico e Notificações', () => {
   it('central de pendências filtra pela carteira e orienta só quando ela está vazia', async () => {
     const servico = { consultarCentral: vi.fn().mockResolvedValue({ pendencias: [], total: 0 }) };
 
-    const semCarteira = new PendenciasController(servico as never, comCarteira(false) as never);
+    const semCarteira = new PendenciasController(servico as never, comCarteira(false) as never, cofre as never);
     expect(await semCarteira.consultarCentral(CONTADOR, {})).toEqual({
       pendencias: [],
       total: 0,
@@ -145,7 +148,7 @@ describe('Central de Pendências, Histórico e Notificações', () => {
     });
     expect(servico.consultarCentral).toHaveBeenCalledWith('tenant-1', 'usuario-1', expect.anything());
 
-    const comEmpresas = new PendenciasController(servico as never, comCarteira(true) as never);
+    const comEmpresas = new PendenciasController(servico as never, comCarteira(true) as never, cofre as never);
     expect(await comEmpresas.consultarCentral(ADMIN, {})).not.toHaveProperty('escopoDeEmpresas');
   });
 
@@ -168,7 +171,7 @@ describe('Central de Pendências, Histórico e Notificações', () => {
       consultarPainel: vi.fn().mockResolvedValue({ notificacoes: [aviso], naoLidas: 1 }),
       consultarHistorico: vi.fn().mockResolvedValue({ notificacoes: [aviso], total: 1 }),
     };
-    const controller = new NotificacoesController(servico as never, comCarteira(false) as never);
+    const controller = new NotificacoesController(servico as never, comCarteira(false) as never, cofre as never);
 
     expect(await controller.consultarPainel(CONTADOR)).toEqual({
       notificacoes: [aviso],
@@ -186,7 +189,7 @@ describe('Central de Pendências, Histórico e Notificações', () => {
       consultarPainel: vi.fn().mockResolvedValue({ notificacoes: [], naoLidas: 0 }),
       consultarHistorico: vi.fn().mockResolvedValue({ notificacoes: [], total: 0 }),
     };
-    const controller = new NotificacoesController(servico as never, comCarteira(false) as never);
+    const controller = new NotificacoesController(servico as never, comCarteira(false) as never, cofre as never);
 
     expect(await controller.consultarPainel(CONTADOR)).toEqual({
       notificacoes: [],
@@ -200,12 +203,31 @@ describe('Central de Pendências, Histórico e Notificações', () => {
     });
   });
 
+  it('sino e Central mantêm o cofre em dia para o usuário da sessão antes de ler', async () => {
+    cofre.reconciliarDaCarteira.mockClear();
+    const sino = {
+      consultarPainel: vi.fn().mockResolvedValue({ notificacoes: [], naoLidas: 0 }),
+      consultarHistorico: vi.fn().mockResolvedValue({ notificacoes: [], total: 0 }),
+    };
+    const central = { consultarCentral: vi.fn().mockResolvedValue({ pendencias: [], total: 0 }) };
+
+    await new NotificacoesController(sino as never, comCarteira(true) as never, cofre as never).consultarPainel(CONTADOR);
+    await new NotificacoesController(sino as never, comCarteira(true) as never, cofre as never).consultarHistorico(CONTADOR, {});
+    await new PendenciasController(central as never, comCarteira(true) as never, cofre as never).consultarCentral(CONTADOR, {});
+
+    expect(cofre.reconciliarDaCarteira).toHaveBeenCalledTimes(3);
+    expect(cofre.reconciliarDaCarteira).toHaveBeenCalledWith(
+      { tenantId: 'tenant-1', usuarioId: 'usuario-1' },
+      expect.any(String),
+    );
+  });
+
   it('marcar leitura delega ao serviço com o usuário da sessão', async () => {
     const servico = {
       marcarComoLida: vi.fn().mockResolvedValue({}),
       marcarVariasComoLidas: vi.fn().mockResolvedValue({ marcadas: 1 }),
     };
-    const controller = new NotificacoesController(servico as never, comCarteira(true) as never);
+    const controller = new NotificacoesController(servico as never, comCarteira(true) as never, cofre as never);
 
     await controller.marcarComoLida(CONTADOR, 'n-1');
     await controller.marcarVariasComoLidas(CONTADOR, {

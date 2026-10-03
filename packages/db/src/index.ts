@@ -122,7 +122,7 @@ export type {
   PapelPersistido,
   UsuarioVinculadoAoPapel,
 } from './repositorios/papeis-personalizados.js';
-export { resolverIdentidade } from './repositorios/identidade.js';
+export { identidadeDoUsuario, resolverIdentidade } from './repositorios/identidade.js';
 export type { IdentidadeResolvida } from './repositorios/identidade.js';
 export {
   ACOES_DOCUMENTAIS,
@@ -218,3 +218,47 @@ export type {
   SituacaoDaCarteira,
   UsuarioDaOperacao,
 } from './repositorios/carteira.js';
+export {
+  ativarVersao,
+  carregarVersaoDoCertificado,
+  carregarVigente,
+  consumirTicketDeIngestao,
+  desativarVigente,
+  emitirTicketDeIngestao,
+  listarHistoricoDeCertificados,
+  listarVersoesDoCertificado,
+  registrarEventoDeCertificado,
+  travarCofreDaEmpresa,
+  trocarResponsavel,
+} from './repositorios/certificados.js';
+export type {
+  AcaoDoEventoDeCertificado,
+  AtivacaoDeVersao,
+  DadosDoCertificado,
+  EstadoDaVersao,
+  EventoDeCertificadoParaRegistrar,
+  EventoNaLista as EventoDeCertificadoNaLista,
+  FiltroDoHistoricoDeCertificados,
+  TicketEmitido,
+  TicketParaConsumir,
+  TrocaDeResponsavel,
+  VersaoAtivada,
+  VersaoDoCertificado,
+} from './repositorios/certificados.js';
+export {
+  carregarItemDoCofre,
+  listarCofre,
+  listarResponsaveisElegiveis,
+  reconciliarCofre,
+  situacoesDeResponsaveis,
+} from './repositorios/certificados-cofre.js';
+export type {
+  EntradaDaReconciliacao,
+  FiltroDeEstadoDoCofre,
+  FiltroDoCofre,
+  ItemDoCofreBruto,
+  OrdenacaoDoCofre,
+  ResponsavelElegivelPersistido,
+  ResultadoDaReconciliacao,
+  ResumoDoCofreBruto,
+} from './repositorios/certificados-cofre.js';

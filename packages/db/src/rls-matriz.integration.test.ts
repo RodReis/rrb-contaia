@@ -4,7 +4,8 @@
  * Roda pelo papel `contaia_app` (sem BYPASSRLS) e prova, tabela a tabela, o
  * isolamento entre tenants, entre empresas do mesmo tenant, fora da carteira,
  * sem contexto, com contexto adulterado, para usuário suspenso e para job
- * técnico. Publica `rls-matrix.json` vinculado à SPEC-010 e à issue #12.
+ * técnico. Publica `rls-matrix.json` vinculado à SPEC-011 e à issue #13 (a matriz nasceu
+ * na SPEC-010 e cresce a cada tabela nova, como as do cofre de certificados).
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -111,7 +112,7 @@ describe('matriz de RLS', () => {
     }
   });
 
-  it('publica rls-matrix.json vinculado à SPEC-010 e à issue #12', async () => {
+  it('publica rls-matrix.json vinculado à SPEC-011 e à issue #13', async () => {
     const porTabela = TABELAS_SENSIVEIS.map((entrada) => {
       const dela = casos.filter((caso) => caso.tabela === entrada.tabela);
 
@@ -127,9 +128,9 @@ describe('matriz de RLS', () => {
     });
 
     const matriz = {
-      spec: 'SPEC-010',
-      fatia: 'F10',
-      issue: 12,
+      spec: 'SPEC-011',
+      fatia: 'F11',
+      issue: 13,
       papel_da_aplicacao: 'contaia_app',
       banco: 'PostgreSQL real (sem mock de SQL)',
       gerado_em: new Date().toISOString(),
