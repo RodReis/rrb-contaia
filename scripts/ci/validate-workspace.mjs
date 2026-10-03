@@ -8,6 +8,7 @@ const REQUIRED_PACKAGES = [
   'apps/api',
   'apps/workers',
   'apps/signer',
+  'apps/cofre',
   'packages/config',
   'packages/shared',
   'packages/domain',
@@ -23,6 +24,7 @@ const REQUIRED_FILES = [
   '.npmrc',
   '.env.example',
   'infra/docker/compose.yml',
+  'infra/docker/vault/bootstrap.mjs',
 ];
 
 const REQUIRED_SCRIPTS = [

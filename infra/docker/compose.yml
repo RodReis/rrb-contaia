@@ -6,7 +6,7 @@ name: ${COMPOSE_PROJECT_NAME:-contaia}
 services:
   postgres:
     image: pgvector/pgvector:pg17
-    container_name: contaia-postgres
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -26,7 +26,7 @@ services:
 
   redis:
     image: redis:8.2-alpine
-    container_name: contaia-redis
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-redis
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
     ports:
@@ -43,7 +43,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.5.2
-    container_name: contaia-keycloak
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-keycloak
     restart: unless-stopped
     command: ['start-dev', '--import-realm', '--health-enabled=true']
     environment:
@@ -70,7 +70,7 @@ services:
     # congelada e fixada por digest; entra pelo binário `minio`, como root, com o mesmo
     # `/data` (volumes antigos, criados como root, continuam legíveis).
     image: bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c
-    container_name: contaia-minio
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-minio
     restart: unless-stopped
     user: '0:0'
     entrypoint: ['minio']
@@ -100,7 +100,7 @@ services:
   # mensagem pela API HTTP. Nenhuma entrega externa real acontece nos MVPs 1-4.
   mailpit:
     image: axllent/mailpit:v1.31.3
-    container_name: contaia-mailpit
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-mailpit
     restart: unless-stopped
     ports:
       - '127.0.0.1:${MAILPIT_SMTP_PORT}:1025'
@@ -113,14 +113,78 @@ services:
       start_period: 3s
     networks: [contaia]
 
+  # Cofre local de certificados A1 (SPEC-011 §6.1): Vault em modo SERVIDOR standalone
+  # (nunca `-dev`), storage `file` em volume proprio, KV v2 e audit device persistentes.
+  # Isto prova comportamento local com material de teste: nao e KMS/HSM, nao tem
+  # auto-unseal nem alta disponibilidade e nao esta pronto para producao.
+  vault:
+    image: ${VAULT_IMAGE:-hashicorp/vault:1.20}
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-vault
+    restart: unless-stopped
+    command: ['server']
+    environment:
+      VAULT_ADDR: http://127.0.0.1:8200
+      # O entrypoint grava isto em /vault/config/local.json e sobe com `-config`.
+      VAULT_LOCAL_CONFIG: >-
+        {"storage":{"file":{"path":"/vault/file"}},
+        "listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":true}},
+        "disable_mlock":true,"ui":false,"api_addr":"http://127.0.0.1:8200"}
+      # `disable_mlock` dispensa a capability IPC_LOCK que o setcap do entrypoint pediria.
+      SKIP_SETCAP: 'true'
+    ports:
+      - '127.0.0.1:${VAULT_PORT}:8200'
+    volumes:
+      # Os dois diretorios sao VOLUME da imagem; o entrypoint faz chown para o usuario `vault`.
+      - contaia_vault:/vault/file
+      - contaia_vault_audit:/vault/logs
+    healthcheck:
+      # Saude do PROCESSO: 0 = desselado, 2 = selado (normal apos reinicio), 1 = nao responde.
+      # "Pronto" (inicializado + desselado) quem confere e o vault-bootstrap.
+      test: ['CMD-SHELL', 'vault status >/dev/null 2>&1; [ $$? -ne 1 ]']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks: [contaia]
+
+  # Mesmo script da CI (infra/docker/vault/bootstrap.mjs): inicializa, desseleia e
+  # configura de forma idempotente e, em `--vigiar`, desseleia de novo apos um reinicio.
+  # Chaves e tokens ficam em infra/docker/.vault-local/ (ignorado pelo Git).
+  vault-bootstrap:
+    image: node:24-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-vault-bootstrap
+    restart: unless-stopped
+    depends_on:
+      vault:
+        condition: service_healthy
+    command: ['node', '/app/bootstrap.mjs', '--vigiar']
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_LOCAL_DIR: /vault-local
+    volumes:
+      - ./vault/bootstrap.mjs:/app/bootstrap.mjs:ro
+      - ./.vault-local:/vault-local
+    healthcheck:
+      # sys/health responde 200 somente com o Vault inicializado, desselado e ativo.
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://vault:8200/v1/sys/health']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 5s
+    networks: [contaia]
+
 networks:
   contaia:
-    name: contaia_local
+    name: ${COMPOSE_PROJECT_NAME:-contaia}_local
 
 volumes:
   contaia_postgres:
-    name: contaia_postgres
+    name: ${COMPOSE_PROJECT_NAME:-contaia}_postgres
   contaia_redis:
-    name: contaia_redis
+    name: ${COMPOSE_PROJECT_NAME:-contaia}_redis
   contaia_minio:
-    name: contaia_minio
+    name: ${COMPOSE_PROJECT_NAME:-contaia}_minio
+  contaia_vault:
+    name: ${COMPOSE_PROJECT_NAME:-contaia}_vault
+  contaia_vault_audit:
+    name: ${COMPOSE_PROJECT_NAME:-contaia}_vault_audit

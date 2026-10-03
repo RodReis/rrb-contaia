@@ -29,6 +29,9 @@ blob-report/
 *.crt
 
 graphify-out/
+
+# Material do Vault/cofre local (SPEC-011): unseal key, root token, tokens tecnicos e PKI de teste.
+infra/docker/.vault-local/
 .DS_Store
 Thumbs.db
 *.log
