@@ -10,6 +10,7 @@ const ambiente: Record<string, string> = Object.fromEntries(
 );
 const portaWeb = process.env['WEB_PORT'] ?? '15100';
 const portaApi = process.env['API_PORT'] ?? '15101';
+const portaCofre = process.env['COFRE_PORT'] ?? '15104';
 /** Porta do dublê da CNPJá; fora da faixa das aplicações (DEVELOPMENT.md §1.2). */
 const portaDubleDaCnpja = process.env['CNPJA_DUBLE_PORTA'] ?? '15310';
 
@@ -56,6 +57,15 @@ export default defineConfig({
         API_PORT: portaApi,
         CNPJA_URL: `http://127.0.0.1:${portaDubleDaCnpja}`,
       },
+    },
+    {
+      // Cofre isolado (SPEC-011): recebe o upload do navegador, guarda no Vault e avisa a API.
+      // Exige Vault inicializado e a PKI de teste em `COFRE_RAIZES_ICP_DIR` (CI-PR.md §5).
+      command: 'node apps/cofre/dist/main.js',
+      url: `http://127.0.0.1:${portaCofre}/health`,
+      reuseExistingServer: !process.env['CI'],
+      timeout: 60_000,
+      env: { ...ambiente, COFRE_PORT: portaCofre },
     },
     {
       command: 'node tests/e2e/duble-da-cnpja.mjs',
