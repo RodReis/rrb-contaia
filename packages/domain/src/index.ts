@@ -214,6 +214,7 @@ export type { CausaParaNotificar, TipoDeNotificacao } from './notificacoes/notif
 export {
   decidirAcessoEmpresarial,
   empresaAceitaVinculo,
+  planejarAlteracao,
   planejarOperacao,
   usuarioPodeReceberCarteira,
 } from './carteira/carteira.js';

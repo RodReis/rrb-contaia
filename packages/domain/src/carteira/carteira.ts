@@ -176,3 +176,85 @@ export const decidirAcessoEmpresarial = (
   if (!entrada.permissaoConcedida) return 'SEM_PERMISSAO';
   return 'PERMITIDO';
 };
+
+type EntradaDaAlteracao = Readonly<{
+  usuarios: readonly UsuarioParaCarteira[];
+  /** Empresas realmente encontradas no tenant, entre as pedidas. */
+  empresas: readonly EmpresaParaCarteira[];
+  adicionar: readonly string[];
+  remover: readonly string[];
+  revisoesEsperadas: Readonly<Record<string, number>>;
+}>;
+
+const problemasDeSelecao = (entrada: EntradaDaAlteracao): CampoInvalido[] => {
+  const problemas: CampoInvalido[] = [];
+  const conhecidas = new Set(entrada.empresas.map((e) => e.id));
+  const pedidas = unicos([...entrada.adicionar, ...entrada.remover]);
+
+  if (pedidas.length === 0) {
+    problemas.push({ campo: 'empresas', codigo: CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO });
+  }
+  for (const id of pedidas) {
+    if (!conhecidas.has(id)) {
+      problemas.push({ campo: `empresas.${id}`, codigo: CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA });
+    }
+  }
+  const remover = new Set(entrada.remover);
+  for (const id of unicos(entrada.adicionar).filter((id) => remover.has(id))) {
+    problemas.push({ campo: `empresas.${id}`, codigo: CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO });
+  }
+  return problemas;
+};
+
+/**
+ * Alteração completa de carteira: adições e remoções na mesma operação (a
+ * página de gestão individual salva as duas de uma vez; a Central em lote usa
+ * só um lado). Cada colaborador afetado ganha uma única revisão nova.
+ */
+export const planejarAlteracao = (entrada: EntradaDaAlteracao): PlanoDeCarteira => {
+  const usuarios = [...new Map(entrada.usuarios.map((u) => [u.id, u])).values()];
+
+  exigirRevisoesAtuais(usuarios, entrada.revisoesEsperadas);
+
+  const problemas = problemasDeSelecao(entrada);
+  if (problemas.length > 0) {
+    throw new ErroDeValidacao(problemas);
+  }
+
+  const doLado = (ids: readonly string[]): EmpresaParaCarteira[] =>
+    entrada.empresas.filter((e) => ids.includes(e.id));
+  const planos = (
+    [
+      ['ADICIONAR', entrada.adicionar],
+      ['REMOVER', entrada.remover],
+    ] as const
+  )
+    .filter(([, ids]) => ids.length > 0)
+    .map(([operacao, ids]) =>
+      planejarOperacao({
+        operacao,
+        usuarios,
+        empresas: doLado(ids),
+        revisoesEsperadas: entrada.revisoesEsperadas,
+      }),
+    );
+
+  const porUsuario = new Map<string, EfeitoNoUsuario>();
+  for (const efeito of planos.flatMap((plano) => plano.efeitos)) {
+    const anterior = porUsuario.get(efeito.usuarioId);
+    porUsuario.set(
+      efeito.usuarioId,
+      anterior === undefined
+        ? efeito
+        : {
+            usuarioId: efeito.usuarioId,
+            adicionadas: [...anterior.adicionadas, ...efeito.adicionadas],
+            removidas: [...anterior.removidas, ...efeito.removidas],
+            revisaoNova: efeito.revisaoNova,
+          },
+    );
+  }
+
+  const efeitos = [...porUsuario.values()];
+  return { efeitos, semEfeito: efeitos.length === 0 };
+};

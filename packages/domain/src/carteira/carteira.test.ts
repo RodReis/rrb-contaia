@@ -4,6 +4,7 @@ import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeValidacao } from '../erros.js';
 import {
   decidirAcessoEmpresarial,
   empresaAceitaVinculo,
+  planejarAlteracao,
   planejarOperacao,
   usuarioPodeReceberCarteira,
 } from './carteira.js';
@@ -265,5 +266,66 @@ describe('decidirAcessoEmpresarial', () => {
     expect(decidirAcessoEmpresarial({ ...base, permissaoConcedida: false })).toBe(
       'SEM_PERMISSAO',
     );
+  });
+});
+
+describe('planejarAlteracao', () => {
+  it('soma adições e remoções do mesmo colaborador em uma única revisão', () => {
+    const plano = planejarAlteracao({
+      usuarios: [usuario('u1', { revisao: 2, empresasVinculadas: ['e1'] })],
+      empresas: [empresa('e1'), empresa('e2')],
+      adicionar: ['e2'],
+      remover: ['e1'],
+      revisoesEsperadas: { u1: 2 },
+    });
+
+    expect(plano.efeitos).toEqual([
+      { usuarioId: 'u1', adicionadas: ['e2'], removidas: ['e1'], revisaoNova: 3 },
+    ]);
+  });
+
+  it('recusa a mesma empresa nos dois lados', () => {
+    try {
+      planejarAlteracao({
+        usuarios: [usuario('u1')],
+        empresas: [empresa('e1')],
+        adicionar: ['e1'],
+        remover: ['e1'],
+        revisoesEsperadas: revisoes('u1'),
+      });
+      expect.unreachable();
+    } catch (erro) {
+      expect(erro).toBeInstanceOf(ErroDeValidacao);
+      expect((erro as ErroDeValidacao).campos[0]?.campo).toBe('empresas.e1');
+    }
+  });
+
+  it('empresa pedida que não foi carregada derruba o lote como inexistente', () => {
+    try {
+      planejarAlteracao({
+        usuarios: [usuario('u1')],
+        empresas: [empresa('e1')],
+        adicionar: ['e1', 'e9'],
+        remover: [],
+        revisoesEsperadas: revisoes('u1'),
+      });
+      expect.unreachable();
+    } catch (erro) {
+      expect((erro as ErroDeValidacao).campos).toEqual([
+        { campo: 'empresas.e9', codigo: CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA },
+      ]);
+    }
+  });
+
+  it('sem nada a adicionar nem remover é erro de entrada', () => {
+    expect(() =>
+      planejarAlteracao({
+        usuarios: [usuario('u1')],
+        empresas: [],
+        adicionar: [],
+        remover: [],
+        revisoesEsperadas: revisoes('u1'),
+      }),
+    ).toThrow(ErroDeValidacao);
   });
 });
