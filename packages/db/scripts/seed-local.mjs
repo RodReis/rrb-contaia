@@ -96,10 +96,17 @@ const semearBanco = async (sub) => {
 
       const tenantId = tenant.rows[0].id;
 
-      await cliente.query(
-        `insert into app.usuario (tenant_id, sub_oidc, email, nome, papel)
-         values ($1, $2, $3, $4, 'admin_escritorio')`,
+      const usuario = await cliente.query(
+        `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+         values ($1, $2, $3, $4, 'ATIVO')
+         returning id`,
         [tenantId, sub, EMAIL_SEED, 'Rodrigo Administrador'],
+      );
+
+      await cliente.query(
+        `insert into app.usuario_papel (tenant_id, usuario_id, papel)
+         values ($1, $2, 'admin_escritorio')`,
+        [tenantId, usuario.rows[0].id],
       );
 
       await cliente.query('commit');
