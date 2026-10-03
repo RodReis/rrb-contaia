@@ -183,7 +183,11 @@ CREATE POLICY carteira_notificacao_isolamento ON app.carteira_notificacao
 
 GRANT SELECT, INSERT, UPDATE ON app.carteira_vinculo TO contaia_app;
 GRANT SELECT, INSERT ON app.carteira_evento TO contaia_app;
-GRANT SELECT, INSERT, UPDATE ON app.carteira_notificacao TO contaia_app;
+-- A notificacao so muda de nao lida para lida: destinatario e resumo sao imutaveis por privilegio.
+-- O default ACL do schema concede UPDATE de tabela inteira: sem o REVOKE o GRANT por coluna nao restringe nada.
+GRANT SELECT, INSERT ON app.carteira_notificacao TO contaia_app;
+REVOKE UPDATE ON app.carteira_notificacao FROM contaia_app;
+GRANT UPDATE (lida, lida_em) ON app.carteira_notificacao TO contaia_app;
 
 -- O `pg_default_acl` do schema volta a conceder DELETE a cada tabela nova (ver
 -- o comentario extenso em 0004): o revoke tem de alcancar o default e o que ja

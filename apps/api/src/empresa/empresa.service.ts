@@ -329,6 +329,15 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
+      }
+
       const identificacao: IdentificacaoDaEmpresa = {
         // O CNPJ não é reeditável por esta rota: ele define a identidade da
         // empresa e a unicidade no tenant. Trocá-lo é criar outra empresa.
@@ -399,6 +408,15 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
+      }
+
       const invalidos = camposInvalidosDaEtapaDaEmpresa(
         { ...atual.cadastro, dadosFiscais },
         'fiscal',
@@ -436,6 +454,15 @@ export class EmpresaService {
         return empresaNaoEncontrada();
       }
 
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
+      }
+
       const invalidos = camposInvalidosDaEtapaDaEmpresa(
         { ...atual.cadastro, enderecoPrincipal: endereco },
         'endereco',
@@ -466,6 +493,15 @@ export class EmpresaService {
 
       if (atual === null) {
         return empresaNaoEncontrada();
+      }
+
+      // Empresa arquivada é só consulta: o administrador a alcança sem vínculo para reativá-la
+      // (SPEC-009), e isso não pode virar porta de edição pelas rotas do cadastro.
+      if (atual.situacao === 'arquivado') {
+        throw new ErroDeDominio(
+          CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+          'Empresa arquivada fica somente para consulta; reative-a antes de editar.',
+        );
       }
 
       // Lança quando há etapa pendente ou quando falta a confirmação da

@@ -41,7 +41,7 @@ import {
   marcarComoLida,
   marcarVariasComoLidas,
 } from './repositorios/notificacoes.js';
-import { listarCentral, reconciliar } from './repositorios/pendencias.js';
+import { dispensar, listarCentral, reconciliar } from './repositorios/pendencias.js';
 import { atualizarEstado, criarUsuario, substituirPapeis } from './repositorios/usuarios.js';
 
 const urlDaAplicacao = (): string => {
@@ -851,6 +851,68 @@ describe('leituras empresariais filtradas pela carteira (SPEC-009 §3.5)', () =>
       marcarComoLida(c, tenantA, avisoDeX?.id ?? '', usuarioX),
     );
     expect(lida?.lida).toBe(true);
+  });
+});
+
+describe('privilégios finos e empresa arquivada', () => {
+  it('a notificação consolidada só muda de não lida para lida: destinatário e resumo são imutáveis', async () => {
+    const destinatario = await novoUsuario(tenantA, 'destinatario');
+    const afetados = [afetado(destinatario, [empresaA1], [], 0)];
+    await comTenant(tenantA, async (cliente) => {
+      const id = await registrarEventoDeCarteira(cliente, tenantA, {
+        origem: 'INDIVIDUAL',
+        autorId: adminA,
+        afetados,
+      });
+      await criarNotificacoesDeCarteira(cliente, tenantA, id, afetados);
+    });
+
+    await expect(
+      comTenant(tenantA, (cliente) =>
+        cliente.query(`update app.carteira_notificacao set usuario_id = $1 where usuario_id = $2`, [
+          colabA1,
+          destinatario,
+        ]),
+      ),
+    ).rejects.toMatchObject({ code: '42501' });
+    await expect(
+      comTenant(tenantA, (cliente) =>
+        cliente.query(`update app.carteira_notificacao set removidas = '[]'::jsonb where usuario_id = $1`, [
+          destinatario,
+        ]),
+      ),
+    ).rejects.toMatchObject({ code: '42501' });
+    await comTenant(tenantA, (cliente) =>
+      cliente.query(`update app.carteira_notificacao set lida = true, lida_em = now() where usuario_id = $1`, [
+        destinatario,
+      ]),
+    );
+  });
+
+  it('pendência de empresa arquivada não se dispensa: o admin a alcança sem vínculo, mas só para consultar', async () => {
+    const empresaId = await novaEmpresa(tenantA, `69${SUFIXO}000169`);
+    await comTenant(tenantA, (cliente) =>
+      reconciliar(
+        cliente,
+        tenantA,
+        empresaId,
+        [{ origem: 'CADASTRAL', tipo: 'CAMPO_AUSENTE', chave: 'campo:cnae', dataLimite: null }],
+        [],
+        adminA,
+      ),
+    );
+    const pendenciaId = (
+      await poolAdmin.query<{ id: string }>('select id from app.empresa_pendencia where empresa_id = $1', [
+        empresaId,
+      ])
+    ).rows[0]?.id;
+    await poolAdmin.query(`update app.empresa set situacao = 'arquivado' where id = $1`, [empresaId]);
+
+    const dispensada = await comTenant(tenantA, (cliente) =>
+      dispensar(cliente, tenantA, empresaId, pendenciaId ?? '', adminA, 'Tentativa em empresa arquivada.'),
+    );
+
+    expect(dispensada).toBeNull();
   });
 });
 

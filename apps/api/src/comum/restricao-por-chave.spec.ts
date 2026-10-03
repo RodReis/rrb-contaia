@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 import type { ChaveDePermissao } from '@contaia/domain';
 
 import type { VisaoDosDocumentos } from '../empresa/documentos.service';
-import { restringirDocumentos, restringirPendencia } from './restricao-por-chave';
+import type { EventoDocumentalNaLista } from '@contaia/db';
+
+import { restringirDocumentos, restringirHistoricoDocumental, restringirPendencia } from './restricao-por-chave';
 
 const versao = {
   id: 'v1',
@@ -75,12 +77,12 @@ describe('restringirDocumentos', () => {
       ),
     );
 
-    // Aprovado e rejeitado colapsam em "enviado": o arquivo chegou, o veredito não é revelado.
+    // Aprovado, rejeitado e vencido (que só nasce de aprovado) colapsam em "enviado": o arquivo chegou, o veredito não é revelado.
     expect(restrita.exigencias.map((e) => e.estado)).toEqual([
       'ENVIADO',
       'ENVIADO',
       'PENDENTE',
-      'VENCIDO',
+      'ENVIADO',
       'DISPENSADO',
     ]);
     // O motivo da rejeição é parte da análise; o da dispensa pertence à exigência.
@@ -121,5 +123,96 @@ describe('restringirPendencia', () => {
       ...pendencia,
       chave: '',
     });
+  });
+});
+
+describe('VENCIDO não revela a aprovação', () => {
+  it('sem analise.consultar o documento vencido aparece como enviado', () => {
+    const restrita = restringirDocumentos(SO_EXIGENCIAS, visao(exigencia('VENCIDO')));
+
+    expect(restrita.exigencias[0]?.estado).toBe('ENVIADO');
+  });
+});
+
+describe('restringirPendencia: tipo que revela o veredito', () => {
+  const rejeitada = { id: 'p1', origem: 'DOCUMENTAL', tipo: 'DOCUMENTO_REJEITADO', chave: 'exigencia:abc' };
+
+  it('sem analise.consultar vira nova pendência; com a chave, passa', () => {
+    expect(restringirPendencia(['pendencias.pendencias.abrir_origem'], rejeitada).tipo).toBe('NOVA_PENDENCIA');
+    expect(
+      restringirPendencia(
+        ['pendencias.pendencias.abrir_origem', 'documentos.analise.consultar'],
+        rejeitada,
+      ),
+    ).toEqual(rejeitada);
+  });
+
+  it('o aviso consolidado de carteira passa intacto, sem origem nem análise', () => {
+    const aviso = { id: 'c1', tipo: 'CARTEIRA_ALTERADA', chave: 'evento-1' };
+
+    expect(restringirPendencia([], aviso)).toEqual(aviso);
+  });
+
+  it('tipo que não é veredito não muda, mesmo sem a chave', () => {
+    const nova = { id: 'p2', tipo: 'NOVA_EXIGENCIA', chave: 'exigencia:x' };
+
+    expect(restringirPendencia(['pendencias.pendencias.abrir_origem'], nova)).toEqual(nova);
+  });
+});
+
+describe('restringirHistoricoDocumental', () => {
+  const evento = (acao: EventoDocumentalNaLista['acao'], sobre: Partial<EventoDocumentalNaLista> = {}) =>
+    ({
+      id: acao,
+      exigenciaId: 'ex',
+      exigenciaNome: 'Contrato',
+      versaoNumero: 2,
+      acao,
+      estadoAnterior: null,
+      estadoNovo: null,
+      justificativa: null,
+      usuarioNome: 'Ana',
+      ocorridoEm: '2026-10-01T00:00:00.000Z',
+      ...sobre,
+    }) as EventoDocumentalNaLista;
+
+  const pagina = {
+    eventos: [
+      evento('ENVIO', { estadoNovo: 'ENVIADO' }),
+      evento('REJEICAO', { estadoAnterior: 'ENVIADO', estadoNovo: 'REJEITADO', justificativa: 'Ilegível.' }),
+      evento('APROVACAO', { estadoNovo: 'APROVADO' }),
+      evento('VENCIMENTO', { estadoNovo: 'VENCIDO' }),
+      evento('DOWNLOAD'),
+      evento('DISPENSA', { estadoNovo: 'DISPENSADO', justificativa: 'Não se aplica.' }),
+    ],
+    total: 6,
+  };
+
+  it('com todas as chaves devolve tudo', () => {
+    expect(restringirHistoricoDocumental(TUDO, pagina)).toEqual(pagina);
+  });
+
+  it('sem analise.consultar somem aprovação, rejeição e vencimento, e nenhum motivo de rejeição sai', () => {
+    const restrita = restringirHistoricoDocumental(
+      ['documentos.historico.consultar', 'documentos.arquivos.consultar'],
+      pagina,
+    );
+
+    expect(restrita.eventos.map((e) => e.acao)).toEqual(['ENVIO', 'DOWNLOAD', 'DISPENSA']);
+    expect(JSON.stringify(restrita)).not.toContain('Ilegível');
+    expect(JSON.stringify(restrita)).not.toMatch(/APROVADO|REJEITADO|VENCIDO/);
+    // O motivo da dispensa pertence à exigência e permanece.
+    expect(restrita.eventos.at(-1)?.justificativa).toBe('Não se aplica.');
+    expect(restrita.total).toBe(3);
+  });
+
+  it('sem arquivos.consultar somem visualização e download e o número da versão', () => {
+    const restrita = restringirHistoricoDocumental(
+      ['documentos.historico.consultar', 'documentos.analise.consultar'],
+      pagina,
+    );
+
+    expect(restrita.eventos.map((e) => e.acao)).not.toContain('DOWNLOAD');
+    expect(restrita.eventos.every((e) => e.versaoNumero === null)).toBe(true);
   });
 });

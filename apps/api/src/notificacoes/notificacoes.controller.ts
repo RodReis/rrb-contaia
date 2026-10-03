@@ -11,6 +11,7 @@ import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { CarteiraService } from '../carteira/carteira.service';
+import { restringirPendencia } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import { filtroDoHistoricoSchema, marcacaoEmLoteSchema } from './notificacoes.dto';
 import { NotificacoesService } from './notificacoes.service';
@@ -35,7 +36,13 @@ export class NotificacoesController {
   async consultarPainel(@Req() requisicao: RequisicaoAutenticada) {
     const tenantId = tenantDa(requisicao);
     const { usuarioId } = autorDa(requisicao);
-    const painel = await this.notificacoes.consultarPainel(tenantId, usuarioId);
+    const permissoes = requisicao.sessao?.permissoes ?? [];
+    const bruto = await this.notificacoes.consultarPainel(tenantId, usuarioId);
+    // Mesma regra da Central: origem e veredito da análise só saem com a permissão.
+    const painel = {
+      ...bruto,
+      notificacoes: bruto.notificacoes.map((n) => restringirPendencia(permissoes, n)),
+    };
 
     if (painel.notificacoes.length > 0 || (await this.carteira.possuiCarteira(tenantId, usuarioId))) {
       return painel;
@@ -50,12 +57,17 @@ export class NotificacoesController {
     const filtro = analisar(filtroDoHistoricoSchema, consulta);
     const tenantId = tenantDa(requisicao);
     const { usuarioId } = autorDa(requisicao);
-    const pagina = await this.notificacoes.consultarHistorico(
+    const permissoes = requisicao.sessao?.permissoes ?? [];
+    const bruta = await this.notificacoes.consultarHistorico(
       tenantId,
       usuarioId,
       filtro.limite,
       filtro.deslocamento,
     );
+    const pagina = {
+      ...bruta,
+      notificacoes: bruta.notificacoes.map((n) => restringirPendencia(permissoes, n)),
+    };
 
     if (pagina.total > 0 || (await this.carteira.possuiCarteira(tenantId, usuarioId))) {
       return pagina;
@@ -69,7 +81,10 @@ export class NotificacoesController {
     @Req() requisicao: RequisicaoAutenticada,
     @Param('notificacaoId') notificacaoId: string,
   ) {
-    return this.notificacoes.marcarComoLida(tenantDa(requisicao), notificacaoId, autorDa(requisicao));
+    return restringirPendencia(
+      requisicao.sessao?.permissoes ?? [],
+      await this.notificacoes.marcarComoLida(tenantDa(requisicao), notificacaoId, autorDa(requisicao)),
+    );
   }
 
   @Put('leitura-em-lote')

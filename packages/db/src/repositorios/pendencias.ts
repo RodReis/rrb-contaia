@@ -257,6 +257,8 @@ export const dispensar = async (
     `update app.empresa_pendencia
      set estado = 'RESOLVIDA', resolvido_em = now()
      where id = $1 and empresa_id = $2 and estado = 'ABERTA'
+       -- Empresa arquivada é só consulta (o admin a alcança sem vínculo, SPEC-009): sem dispensa.
+       and exists (select 1 from app.empresa e where e.id = $2 and e.situacao = 'ativo')
      returning *`,
     [pendenciaId, empresaId],
   );

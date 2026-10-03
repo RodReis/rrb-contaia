@@ -29,7 +29,7 @@ import type { Response } from 'express';
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
-import { restringirDocumentos } from '../comum/restricao-por-chave';
+import { restringirDocumentos, restringirHistoricoDocumental } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import {
   analiseComJustificativaSchema,
@@ -304,10 +304,13 @@ export class DocumentosDaEmpresaController {
     @Param('empresaId') empresaId: string,
     @Query() consulta: unknown,
   ): Promise<Readonly<{ eventos: readonly EventoDocumentalNaLista[]; total: number }>> {
-    return this.documentos.consultarHistorico(
-      tenantDa(requisicao),
-      empresaId,
-      analisar(paginacaoDoHistoricoSchema, consulta),
+    return restringirHistoricoDocumental(
+      requisicao.sessao?.permissoes ?? [],
+      await this.documentos.consultarHistorico(
+        tenantDa(requisicao),
+        empresaId,
+        analisar(paginacaoDoHistoricoSchema, consulta),
+      ),
     );
   }
 }
