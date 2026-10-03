@@ -1,0 +1,4 @@
+# Scripts com shebang importados pelos testes do cofre: com CRLF (core.autocrlf no Windows) o
+# `#!/usr/bin/env node\r` quebra o parse no Vitest. Ficam sempre em LF.
+scripts/gerar-pki-de-teste.mjs text eol=lf
+infra/docker/vault/bootstrap.mjs text eol=lf
