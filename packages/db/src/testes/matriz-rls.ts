@@ -594,7 +594,30 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await alteracao('usuário suspenso', humano(u.suspenso), 'nenhuma_linha_alterada');
       await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'nenhuma_linha_alterada');
       await alteracao('administrador sem vínculo, empresa ativa', humano(u.admin), 'nenhuma_linha_alterada');
-      await alteracao('administrador reativa empresa arquivada', humano(u.admin), 'atualizado', arquivada);
+      await alteracao('administrador altera empresa arquivada sem mudar a situação', humano(u.admin), 'atualizado', arquivada);
+      // A política de leitura também confere a linha NOVA do UPDATE: sem a marca de reativação o
+      // administrador sem vínculo não "lê" a empresa que acabou de ativar, e a troca é recusada.
+      await alteracao(
+        'administrador sem a marca não reativa a empresa',
+        humano(u.admin),
+        'rejeitado_por_rls',
+        arquivada,
+        `situacao = 'ativo'`,
+      );
+      await alteracao(
+        'administrador reativa empresa arquivada com a marca da operação',
+        humanoCriando(u.admin, arquivada),
+        'atualizado',
+        arquivada,
+        `situacao = 'ativo'`,
+      );
+      await alteracao(
+        'colaborador comum com a marca de outra empresa não reativa',
+        humanoCriando(u.fora, c.empresaA2),
+        'nenhuma_linha_alterada',
+        arquivada,
+        `situacao = 'ativo'`,
+      );
       await alteracao('criador sem vínculo completa a empresa que está criando', humanoCriando(u.fora, c.empresaA1), 'atualizado');
       await alteracao('criação de outra empresa não abre esta', humanoCriando(u.fora, c.empresaA2), 'nenhuma_linha_alterada');
       await alteracao('gestão de acesso trava mas não altera', humano(u.admin, 'ADMIN_ACESSO'), 'rejeitado_por_rls');

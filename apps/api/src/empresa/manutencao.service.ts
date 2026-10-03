@@ -50,6 +50,7 @@ import {
   carregarEmpresa,
   carregarEndereco,
   comContextoHumano,
+  comEmpresaEmCriacao,
   comFinalidade,
   criarNotificacoes,
   definirSituacaoDaEmpresa,
@@ -716,55 +717,64 @@ export class ManutencaoDaEmpresaService {
           ? arquivarEmpresa(persistida.situacao, justificativa)
           : reativarEmpresa(persistida.situacao, justificativa);
 
-      // O evento entra ANTES da troca de situação e do fim dos vínculos: a RLS libera a
-      // empresa arquivada ao administrador sem vínculo e a ativa a quem tem vínculo, e
-      // qualquer das duas condições deixa de valer depois da própria operação.
-      await registrarEventos(cliente, tenantId, [
-        {
-          empresaId,
-          aba: 'STATUS_DA_EMPRESA',
-          acao,
-          campo: 'situacao',
-          valorAnterior: persistida.situacao,
-          valorNovo: nova,
-          vigencia: null,
-          justificativa: justificativa.trim(),
-          usuarioId: autor.usuarioId,
-        },
-      ]);
-
-      await definirSituacaoDaEmpresa(cliente, tenantId, empresaId, nova);
-
-      // Arquivar encerra os vínculos de carteira na mesma transação e avisa cada
-      // colaborador afetado; reativar não restaura nada — exige nova atribuição (SPEC-009 §3.4).
-      // Encerrar vínculo de OUTROS colaboradores é gestão de acesso, não leitura da empresa.
-      if (acao === 'ARQUIVAMENTO') {
-        await comFinalidade(cliente, 'ADMIN_ACESSO', async () => {
-          const afetados = await encerrarVinculosDaEmpresa(
-            cliente,
-            tenantId,
+      const aplicar = async (): Promise<VisaoDaEmpresa> => {
+        // O evento entra ANTES da troca de situação e do fim dos vínculos: a RLS libera a
+        // empresa arquivada ao administrador sem vínculo e a ativa a quem tem vínculo, e
+        // qualquer das duas condições deixa de valer depois da própria operação.
+        await registrarEventos(cliente, tenantId, [
+          {
             empresaId,
-            autor.usuarioId,
-          );
-          await registrarEncerramento(
-            cliente,
-            tenantId,
-            autor.usuarioId,
-            'ARQUIVAMENTO_EMPRESA',
-            afetados,
-            true,
-          );
-        });
-      }
+            aba: 'STATUS_DA_EMPRESA',
+            acao,
+            campo: 'situacao',
+            valorAnterior: persistida.situacao,
+            valorNovo: nova,
+            vigencia: null,
+            justificativa: justificativa.trim(),
+            usuarioId: autor.usuarioId,
+          },
+        ]);
 
-      // A visão sai da própria transação, sem reler: a UPDATE só troca situação e versão, e depois
-      // dela o recorte de quem operou já não alcança a empresa (arquivar encerra a carteira dele;
-      // reativar devolve uma empresa ativa que o administrador sem vínculo não lê).
-      return this.empresas.paraVisao(
-        persistida.id,
-        { ...persistida.cadastro, versao: persistida.cadastro.versao + 1 },
-        nova,
-      );
+        await definirSituacaoDaEmpresa(cliente, tenantId, empresaId, nova);
+
+        // Arquivar encerra os vínculos de carteira na mesma transação e avisa cada
+        // colaborador afetado; reativar não restaura nada — exige nova atribuição (SPEC-009 §3.4).
+        // Encerrar vínculo de OUTROS colaboradores é gestão de acesso, não leitura da empresa.
+        if (acao === 'ARQUIVAMENTO') {
+          await comFinalidade(cliente, 'ADMIN_ACESSO', async () => {
+            const afetados = await encerrarVinculosDaEmpresa(
+              cliente,
+              tenantId,
+              empresaId,
+              autor.usuarioId,
+            );
+            await registrarEncerramento(
+              cliente,
+              tenantId,
+              autor.usuarioId,
+              'ARQUIVAMENTO_EMPRESA',
+              afetados,
+              true,
+            );
+          });
+        }
+
+        // A visão sai da própria transação, sem reler: a UPDATE só troca situação e versão, e depois
+        // dela o recorte de quem operou já não alcança a empresa (arquivar encerra a carteira dele;
+        // reativar devolve uma empresa ativa que o administrador sem vínculo não lê).
+        return this.empresas.paraVisao(
+          persistida.id,
+          { ...persistida.cadastro, versao: persistida.cadastro.versao + 1 },
+          nova,
+        );
+      };
+
+      // Reativar devolve uma empresa ATIVA que o administrador sem vínculo não lê: o UPDATE
+      // passa pelo USING (arquivada), mas a política de leitura também confere a linha nova.
+      // A marca de empresa em criação/reativação vale só nesta operação, para esta empresa.
+      return acao === 'REATIVACAO'
+        ? comEmpresaEmCriacao(cliente, empresaId, aplicar)
+        : aplicar();
     });
   }
 
