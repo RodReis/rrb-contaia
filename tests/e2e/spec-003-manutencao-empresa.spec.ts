@@ -207,7 +207,8 @@ test('arquiva com justificativa, consulta e reativa preservando os dados', async
   await expect(page.getByText('Empresa arquivada.')).toBeVisible();
 
   // Arquivada fica somente para consulta até ser reativada (§3.5).
-  await expect(page.getByRole('status').first()).toContainText(/somente para consulta/iu);
+  // Há mais de um aviso `status` na tela (o indicador de pendências, inclusive a do cofre, SPEC-011).
+  await expect(page.getByRole('status').filter({ hasText: /somente para consulta/iu })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /razão social/iu })).toBeDisabled();
   await expect(page.getByRole('button', { name: /salvar alterações/iu })).toHaveCount(0);
 
