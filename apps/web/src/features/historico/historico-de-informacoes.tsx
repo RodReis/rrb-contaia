@@ -415,7 +415,10 @@ export const HistoricoDeInformacoes = () => {
           ) : null}
         </Tabs.List>
 
-        <Tabs.Content value={abaAtiva} className="flex flex-col gap-lg focus-visible:outline-none">
+        <Tabs.Content
+          value={abaAtiva}
+          className="flex flex-col gap-lg rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           {naAbaDeUsuarios ? <HistoricoDeUsuarios /> : <HistoricoDeEmpresas aba={aba} />}
         </Tabs.Content>
       </Tabs.Root>

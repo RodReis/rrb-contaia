@@ -15,7 +15,7 @@ import type { EstadoDoUsuario, PapelPadrao } from '@contaia/domain';
 import { Plus, Search, SlidersHorizontal, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Campo } from '@/components/ui/campo';
@@ -148,8 +148,30 @@ export const ListaDeUsuarios = ({ podeAdministrar }: { podeAdministrar: boolean 
   const [rascunho, definirRascunho] = useState<string | null>(null);
   const buscaDigitada = rascunho ?? buscaNaUrl;
 
+  // A URL mudou por fora (menu, "voltar" do navegador) e não foi esta tela que a publicou: o
+  // que estava digitado deixa de valer, senão o debounce desfaria a navegação. Ajuste de estado
+  // durante o render, o padrão do React para reiniciar estado derivado de outro valor.
+  const [buscaPublicada, definirBuscaPublicada] = useState(buscaNaUrl);
+  const [buscaVistaNaUrl, definirBuscaVistaNaUrl] = useState(buscaNaUrl);
+
+  if (buscaNaUrl !== buscaVistaNaUrl) {
+    definirBuscaVistaNaUrl(buscaNaUrl);
+
+    if (buscaNaUrl !== buscaPublicada) {
+      definirRascunho(null);
+    }
+  }
+
+  // O debounce dispara com a `publicar` do render em que foi agendado: ela precisa enxergar a
+  // URL de agora, e não a daquele render, para não apagar um filtro escolhido nesse intervalo.
+  const parametrosDeAgora = useRef(parametros);
+
+  useEffect(() => {
+    parametrosDeAgora.current = parametros;
+  });
+
   const publicar = (ajustar: (proximos: URLSearchParams) => void): void => {
-    const proximos = new URLSearchParams(parametros.toString());
+    const proximos = new URLSearchParams(parametrosDeAgora.current.toString());
 
     ajustar(proximos);
     // Qualquer mudança de filtro volta à primeira página: manter a página 4 de um
@@ -167,6 +189,7 @@ export const ListaDeUsuarios = ({ podeAdministrar }: { podeAdministrar: boolean 
     }
 
     const temporizador = setTimeout(() => {
+      definirBuscaPublicada(rascunho);
       publicar((proximos) => {
         if (rascunho.length > 0) {
           proximos.set('busca', rascunho);

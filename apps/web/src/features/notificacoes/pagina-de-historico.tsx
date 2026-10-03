@@ -29,6 +29,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
+import { SemCarteira } from '@/components/ui/sem-carteira';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 
@@ -108,6 +109,8 @@ export const PaginaDeHistorico = () => {
 
       {isPending ? (
         <EsqueletoDaLista />
+      ) : data.escopoDeEmpresas === 'NENHUMA' ? (
+        <SemCarteira descricao="Quando houver empresas na sua carteira, os avisos delas aparecem aqui." />
       ) : data.notificacoes.length === 0 ? (
         <EmptyState
           nivel={2}

@@ -47,7 +47,7 @@ export class NotificacoesController {
   @ExigeAcao('NOTIFICACOES', 'consultar')
   async consultarPainel(@Req() requisicao: RequisicaoAutenticada) {
     if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { notificacoes: [], naoLidas: 0 };
+      return { notificacoes: [], naoLidas: 0, escopoDeEmpresas: 'NENHUMA' as const };
     }
 
     return this.notificacoes.consultarPainel(tenantDa(requisicao));
@@ -59,7 +59,7 @@ export class NotificacoesController {
     const filtro = analisar(filtroDoHistoricoSchema, consulta);
 
     if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { notificacoes: [], total: 0 };
+      return { notificacoes: [], total: 0, escopoDeEmpresas: 'NENHUMA' as const };
     }
 
     return this.notificacoes.consultarHistorico(

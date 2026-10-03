@@ -43,7 +43,7 @@ export class PendenciasController {
   async consultarCentral(@Req() requisicao: RequisicaoAutenticada, @Query() consulta: unknown) {
     // A central cruza empresas: sem carteira, nenhuma pendência é visível.
     if (escopoDaSessao(requisicao) === 'NENHUMA') {
-      return { pendencias: [], total: 0 };
+      return { pendencias: [], total: 0, escopoDeEmpresas: 'NENHUMA' as const };
     }
 
     return this.pendencias.consultarCentral(

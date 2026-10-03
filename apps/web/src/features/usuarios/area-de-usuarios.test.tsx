@@ -427,6 +427,44 @@ describe('filtros na URL', () => {
     );
   });
 
+  it('o debounce publica sobre a URL de agora: um filtro escolhido enquanto digitava não se perde', async () => {
+    const { rerender } = renderizar();
+    await screen.findByRole('table');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: /Buscar/u }), 'ana');
+    // Antes de o debounce disparar, a URL ganha outro filtro (a pessoa trocou a situação).
+    parametrosAtuais = new URLSearchParams({ estado: 'SUSPENSO' });
+    rerender(<AreaDeUsuarios />);
+
+    await waitFor(() => expect(substituir).toHaveBeenCalled());
+
+    const destino = String(substituir.mock.calls.at(-1)?.[0]);
+
+    expect(destino).toContain('estado=SUSPENSO');
+    expect(destino).toContain('busca=ana');
+  });
+
+  it('navegar de fora para a lista limpa o que foi digitado e não republica a busca antiga', async () => {
+    const { rerender } = renderizar();
+    await screen.findByRole('table');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: /Buscar/u }), 'ana');
+    await waitFor(() => expect(substituir).toHaveBeenCalledTimes(1));
+
+    // A URL passa a refletir a busca publicada...
+    parametrosAtuais = new URLSearchParams({ busca: 'ana' });
+    rerender(<AreaDeUsuarios />);
+    // ...e depois muda por fora (clique no menu da própria página).
+    substituir.mockClear();
+    parametrosAtuais = new URLSearchParams();
+    rerender(<AreaDeUsuarios />);
+
+    await new Promise((resolver) => setTimeout(resolver, 450));
+
+    expect(screen.getByRole('searchbox', { name: /Buscar/u })).toHaveValue('');
+    expect(substituir).not.toHaveBeenCalled();
+  });
+
   it('situação e papel são enviados ao servidor e refletem na URL', async () => {
     parametrosAtuais = new URLSearchParams({ estado: 'SUSPENSO', papel: 'contador', busca: 'di' });
 

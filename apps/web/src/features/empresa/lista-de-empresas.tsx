@@ -11,7 +11,7 @@
  */
 'use client';
 
-import { Building2, Lock, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { Building2, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -22,6 +22,7 @@ import type { StatusDaEmpresa } from '@contaia/domain';
 import { Button } from '@/components/ui/button';
 import { Campo } from '@/components/ui/campo';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
+import { SemCarteira } from '@/components/ui/sem-carteira';
 import { Select } from '@/components/ui/select';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
@@ -359,12 +360,7 @@ export const ListaDeEmpresas = () => {
     return (
       <div className="flex flex-col gap-xl">
         <Cabecalho total={null} semAlcada />
-        <EmptyState
-          nivel={2}
-          icone={<Lock />}
-          titulo="Você ainda não tem empresas na sua carteira"
-          descricao="Quando houver empresas atribuídas à sua carteira, elas aparecem aqui. Enquanto isso, você acessa apenas as áreas que não dependem de uma empresa."
-        />
+        <SemCarteira />
       </div>
     );
   }

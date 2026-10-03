@@ -86,6 +86,8 @@ describe('Central de Pendências, Histórico e Notificações sem carteira', () 
     expect(await controller.consultarCentral(SEM_CARTEIRA, {})).toEqual({
       pendencias: [],
       total: 0,
+      // A tela distingue "sem alçada" de "nada pendente" por este campo (SPEC-007 §3.1).
+      escopoDeEmpresas: 'NENHUMA',
     });
     expect(servico.consultarCentral).not.toHaveBeenCalled();
   });
@@ -112,10 +114,12 @@ describe('Central de Pendências, Histórico e Notificações sem carteira', () 
     expect(await controller.consultarPainel(SEM_CARTEIRA)).toEqual({
       notificacoes: [],
       naoLidas: 0,
+      escopoDeEmpresas: 'NENHUMA',
     });
     expect(await controller.consultarHistorico(SEM_CARTEIRA, {})).toEqual({
       notificacoes: [],
       total: 0,
+      escopoDeEmpresas: 'NENHUMA',
     });
     expect(
       await codigoDe(() => controller.marcarComoLida(SEM_CARTEIRA, 'qualquer-id')),

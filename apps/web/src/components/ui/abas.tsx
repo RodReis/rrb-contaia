@@ -44,7 +44,11 @@ export const ConteudoDeAba = ({
   ...props
 }: ComponentPropsWithoutRef<typeof Tabs.Content>) => (
   <Tabs.Content
-    className={cn('flex flex-col gap-lg focus-visible:outline-none', className)}
+    // O Radix deixa o painel focável (tabIndex 0): sem anel o foco do teclado ficaria invisível.
+    className={cn(
+      'flex flex-col gap-lg rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+      className,
+    )}
     {...props}
   />
 );

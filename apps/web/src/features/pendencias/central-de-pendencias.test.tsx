@@ -150,6 +150,19 @@ describe('estado de erro', () => {
   });
 });
 
+describe('sem carteira', () => {
+  it('diz que falta alçada em vez de afirmar "Sem pendências"', async () => {
+    responderCom(respostaJson({ pendencias: [], total: 0, escopoDeEmpresas: 'NENHUMA' }));
+
+    renderizar();
+
+    expect(
+      await screen.findByText('Você ainda não tem empresas na sua carteira'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Sem pendências')).not.toBeInTheDocument();
+  });
+});
+
 describe('estado vazio', () => {
   it('sem nenhuma pendência aberta, o texto é positivo e não alarmante', async () => {
     responderCom(respostaJson(vazia));
