@@ -13,7 +13,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { formatarTelefone } from '@contaia/domain';
-import type { CodigoDeErro, PapelPadrao } from '@contaia/domain';
+import type { CodigoDeErro } from '@contaia/domain';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -27,6 +27,7 @@ import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { CamposDoUsuario } from './campos-do-usuario';
 import { ErroDaConsulta, SemPermissao } from './erro-da-consulta';
+import { ADMINISTRACAO_DE_USUARIOS, pode } from './permissoes';
 import { useConvidarUsuario, useSessao } from './queries';
 import { ROTULO_DO_PAPEL } from './rotulos';
 import {
@@ -34,8 +35,9 @@ import {
   erroDosPapeis,
   paraDadosDoConvite,
   type DadosDoUsuarioForm,
+  type PapeisEscolhidos,
 } from './schema';
-import { SeletorDePapeis } from './seletor-de-papeis';
+import { SeletorDePapeis, usePapeisAtivos } from './seletor-de-papeis';
 
 type Etapa = 'dados' | 'papeis';
 
@@ -131,14 +133,23 @@ const EtapaDePapeis = ({
   aoEnviar,
 }: {
   dados: DadosDoUsuarioForm;
-  papeis: readonly PapelPadrao[];
-  aoMudarPapeis: (papeis: readonly PapelPadrao[]) => void;
+  papeis: PapeisEscolhidos;
+  aoMudarPapeis: (papeis: PapeisEscolhidos) => void;
   erroDePapel: string | undefined;
   avisoDoServidor: string | null;
   enviando: boolean;
   aoVoltar: () => void;
   aoEnviar: () => void;
-}) => (
+}) => {
+  const ativos = usePapeisAtivos();
+  const nomes = [
+    ...papeis.padrao.map((papel) => ROTULO_DO_PAPEL[papel]),
+    ...papeis.personalizados.map(
+      (id) => ativos.data?.papeis.find((papel) => papel.id === id)?.nome ?? 'Papel personalizado',
+    ),
+  ];
+
+  return (
   <div className="flex flex-col gap-lg">
     <SeletorDePapeis valor={papeis} aoMudar={aoMudarPapeis} erro={erroDePapel} />
 
@@ -159,7 +170,9 @@ const EtapaDePapeis = ({
         <Linha rotulo="Registro no CRC" valor={dados.crc === '' ? '—' : dados.crc} />
         <Linha
           rotulo="Papéis"
-          valor={papeis.length === 0 ? '—' : papeis.map((papel) => ROTULO_DO_PAPEL[papel]).join(', ')}
+          valor={
+            nomes.length === 0 ? '—' : nomes.join(', ')
+          }
         />
       </dl>
     </section>
@@ -186,7 +199,8 @@ const EtapaDePapeis = ({
       </Button>
     </div>
   </div>
-);
+  );
+};
 
 export const WizardDeConvite = () => {
   const navegador = useRouter();
@@ -195,7 +209,7 @@ export const WizardDeConvite = () => {
 
   const [etapa, definirEtapa] = useState<Etapa>('dados');
   const [dados, definirDados] = useState<DadosDoUsuarioForm>(VAZIO);
-  const [papeis, definirPapeis] = useState<readonly PapelPadrao[]>([]);
+  const [papeis, definirPapeis] = useState<PapeisEscolhidos>({ padrao: [], personalizados: [] });
   const [erroDePapel, definirErroDePapel] = useState<string | undefined>(undefined);
   const [errosDoServidor, definirErrosDoServidor] = useState<ErrosDoServidor>({});
   const [avisoDoServidor, definirAvisoDoServidor] = useState<string | null>(null);
@@ -220,7 +234,7 @@ export const WizardDeConvite = () => {
     );
   }
 
-  if (!sessao.permissoes.USUARIOS.includes('administrar')) {
+  if (!pode(sessao, ADMINISTRACAO_DE_USUARIOS)) {
     return <SemPermissao />;
   }
 

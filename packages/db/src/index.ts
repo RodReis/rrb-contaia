@@ -84,10 +84,31 @@ export type {
   NovoUsuario,
   PaginaDeEventosDeUsuario,
   PaginaDeUsuarios,
+  PapelPersonalizadoDoUsuario,
   TipoDeEventoDeUsuario,
   UsuarioNaLista,
   UsuarioPersistido,
 } from './repositorios/usuarios.js';
+export {
+  carregarPapel,
+  carregarPapeisParaAtribuir,
+  contarVinculosDoPapel,
+  criarPapel,
+  gravarNovaRevisao,
+  listarPapeis,
+  listarUsuariosVinculados,
+  papelComNome,
+  substituirPapeisPersonalizados,
+} from './repositorios/papeis-personalizados.js';
+export type {
+  FiltroDePapeis,
+  NovaRevisaoDoPapel,
+  NovoPapel,
+  PaginaDePapeis,
+  PapelNaLista,
+  PapelPersistido,
+  UsuarioVinculadoAoPapel,
+} from './repositorios/papeis-personalizados.js';
 export { resolverIdentidade } from './repositorios/identidade.js';
 export type { IdentidadeResolvida } from './repositorios/identidade.js';
 export {

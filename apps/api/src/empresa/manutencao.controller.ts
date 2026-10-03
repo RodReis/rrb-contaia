@@ -22,7 +22,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { escopoDaSessao, GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
@@ -73,7 +73,7 @@ const autorDa = (requisicao: RequisicaoAutenticada): Autor => {
 @Controller('empresas/:empresaId/manutencao')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
 // Padrão da classe é a ação mais restrita; leitura e arquivamento a ajustam explicitamente.
-@ExigeAcao('EMPRESAS', 'editar')
+@ExigePermissao('empresas.cadastro.editar')
 export class ManutencaoDaEmpresaController {
   constructor(private readonly manutencao: ManutencaoDaEmpresaService) {}
 
@@ -111,7 +111,7 @@ export class ManutencaoDaEmpresaController {
   }
 
   @Get('enderecos')
-  @ExigeAcao('EMPRESAS', 'consultar')
+  @ExigePermissao('empresas.cadastro.consultar')
   async listarEnderecos(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -189,7 +189,7 @@ export class ManutencaoDaEmpresaController {
   }
 
   @Post('arquivar')
-  @ExigeAcao('EMPRESAS', 'arquivar')
+  @ExigePermissao('empresas.cadastro.arquivar')
   async arquivar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -206,7 +206,7 @@ export class ManutencaoDaEmpresaController {
   }
 
   @Post('reativar')
-  @ExigeAcao('EMPRESAS', 'arquivar')
+  @ExigePermissao('empresas.cadastro.reativar')
   async reativar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -224,7 +224,7 @@ export class ManutencaoDaEmpresaController {
 
   /** Consulta a CNPJá e devolve as diferenças; não aplica nada (§3.3). */
   @Get('fonte-externa')
-  @ExigeAcao('EMPRESAS', 'consultar')
+  @ExigePermissao('empresas.cadastro.consultar')
   async compararComAFonte(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -255,7 +255,8 @@ export class ManutencaoDaEmpresaController {
  */
 @Controller('historico')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
-@ExigeAcao('HISTORICO', 'consultar')
+// O menu global exibe o histórico cadastral das empresas: exige as duas permissões.
+@ExigePermissao('historico.global.consultar', 'empresas.historico.consultar')
 export class HistoricoController {
   constructor(private readonly manutencao: ManutencaoDaEmpresaService) {}
 

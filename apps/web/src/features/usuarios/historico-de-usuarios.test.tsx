@@ -10,6 +10,7 @@ import { axe } from 'jest-axe';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { catalogoDeTeste } from '../papeis/papeis.fixtures';
 import type { EventoDeUsuario, PaginaDeEventosDeUsuario } from './api';
 import { HistoricoDeUsuarios } from './historico-de-usuarios';
 
@@ -25,6 +26,9 @@ const evento = (sobrescritas: Partial<EventoDeUsuario> & Pick<EventoDeUsuario, '
   ocorridoEm: '2026-10-02T14:30:00.000Z',
   usuarioAfetadoId: 'ana',
   usuarioAfetadoNome: 'Ana Souza',
+  papelId: null,
+  papelNome: null,
+  revisao: null,
   autorId: 'admin',
   autorNome: 'Rodrigo Reis',
   antes: null,
@@ -60,8 +64,8 @@ const VAZIO: PaginaDeEventosDeUsuario = { eventos: [], total: 0 };
 
 const USUARIOS = {
   usuarios: [
-    { id: 'ana', nome: 'Ana Souza', email: 'ana@x.com', telefone: null, crc: null, papeis: ['contador'], estado: 'ATIVO', situacao: 'ATIVO', conviteExpiraEm: null, envioFalhou: false, versao: 0 },
-    { id: 'admin', nome: 'Rodrigo Reis', email: 'r@x.com', telefone: null, crc: null, papeis: ['admin_escritorio'], estado: 'ATIVO', situacao: 'ATIVO', conviteExpiraEm: null, envioFalhou: false, versao: 0 },
+    { id: 'ana', nome: 'Ana Souza', email: 'ana@x.com', telefone: null, crc: null, papeis: ['contador'], papeisPersonalizados: [], estado: 'ATIVO', situacao: 'ATIVO', conviteExpiraEm: null, envioFalhou: false, versao: 0 },
+    { id: 'admin', nome: 'Rodrigo Reis', email: 'r@x.com', telefone: null, crc: null, papeis: ['admin_escritorio'], papeisPersonalizados: [], estado: 'ATIVO', situacao: 'ATIVO', conviteExpiraEm: null, envioFalhou: false, versao: 0 },
   ],
   total: 2,
 };
@@ -95,6 +99,7 @@ beforeEach(() => {
       chamadas.push(String(url));
 
       if (String(url).includes('/historico/usuarios')) return historicoAtual();
+      if (String(url).endsWith('/papeis/catalogo')) return json(catalogoDeTeste());
       if (String(url).includes('/usuarios?')) return json(USUARIOS);
 
       throw new Error(`rota sem dublê: ${String(url)}`);
@@ -289,6 +294,168 @@ describe('filtros e página na URL', () => {
       scroll: false,
     });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled());
+  });
+});
+
+describe('eventos de papel e de papéis do usuário (SPEC-008 §3.6)', () => {
+  const doPapel = (sobrescritas: Partial<EventoDeUsuario> & Pick<EventoDeUsuario, 'id' | 'tipo'>) =>
+    evento({
+      usuarioAfetadoId: null,
+      usuarioAfetadoNome: null,
+      papelId: 'papel-1',
+      papelNome: 'Revisor fiscal',
+      revisao: 2,
+      ...sobrescritas,
+    });
+
+  const MATRIZ = doPapel({
+    id: 'p3',
+    tipo: 'PAPEL_MATRIZ_ALTERADA',
+    antes: { permissoes: ['empresas.cadastro.consultar', 'empresas.cadastro.criar'] },
+    depois: {
+      permissoes: ['empresas.cadastro.consultar', 'documentos.arquivos.baixar'],
+      adicionadas: ['documentos.arquivos.baixar'],
+      retiradas: ['empresas.cadastro.criar'],
+    },
+  });
+  const CRIACAO = doPapel({
+    id: 'p1',
+    tipo: 'PAPEL_CRIADO',
+    revisao: 1,
+    depois: {
+      nome: 'Revisor fiscal',
+      descricao: 'Confere guias',
+      origem: 'contador',
+      permissoes: ['empresas.cadastro.consultar', 'historico.global.consultar'],
+    },
+  });
+  const REATIVACAO = doPapel({
+    id: 'p4',
+    tipo: 'PAPEL_REATIVADO',
+    revisao: 4,
+    depois: { estado: 'ATIVO', incompatibilidadesRemovidas: ['empresas.cadastro.excluir'] },
+  });
+  const RENOMEADO = doPapel({
+    id: 'p2',
+    tipo: 'PAPEL_DADOS_ALTERADOS',
+    antes: { nome: 'Revisor' },
+    depois: { nome: 'Revisor fiscal' },
+  });
+  const PAPEL_NO_USUARIO = evento({
+    id: 'u1',
+    tipo: 'DADOS_E_PAPEIS_ALTERADOS',
+    antes: { papeisPersonalizados: [{ id: 'a', nome: 'Revisor' }] },
+    depois: { papeisPersonalizados: [{ id: 'b', nome: 'Conferente' }] },
+  });
+
+  beforeEach(() => {
+    historicoAtual = () =>
+      json({ eventos: [REATIVACAO, MATRIZ, RENOMEADO, CRIACAO, PAPEL_NO_USUARIO], total: 5 });
+  });
+
+  it('evento de papel nomeia o papel e a revisão, não um usuário', async () => {
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+    const [reativacao] = eventosDe(lista);
+
+    expect(within(reativacao!).getByText('Revisor fiscal')).toBeInTheDocument();
+    expect(within(reativacao!).getByText('revisão 4')).toBeInTheDocument();
+    expect(within(reativacao!).getByText('Papel reativado')).toBeInTheDocument();
+    expect(within(reativacao!).getByText(/Rodrigo Reis/u)).toBeInTheDocument();
+  });
+
+  it('matriz alterada mostra o que entrou e o que saiu, com os nomes do catálogo', async () => {
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+    const matriz = eventosDe(lista)[1]!;
+
+    expect(within(matriz).getByText('Permissões do papel alteradas')).toBeInTheDocument();
+    expect(
+      await within(matriz).findByText('Documentos da empresa › Arquivos e versões › Baixar'),
+    ).toBeInTheDocument();
+    expect(
+      within(matriz).getByText('Empresas › Cadastro e ciclo de vida › Criar'),
+    ).toBeInTheDocument();
+    expect(within(matriz).getByText('Permissões adicionadas (1)')).toBeInTheDocument();
+    expect(within(matriz).getByText('Permissões retiradas (1)')).toBeInTheDocument();
+  });
+
+  it('dados alterados mostram nome antes e depois; criação mostra a origem em PT-BR', async () => {
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+    const [, , renomeado, criacao] = eventosDe(lista);
+
+    expect(within(renomeado!).getByText('Revisor')).toBeInTheDocument();
+    expect(within(criacao!).getByText('Contador')).toBeInTheDocument();
+    expect(within(criacao!).getByText(/2 permissões na matriz inicial/u)).toBeInTheDocument();
+  });
+
+  it('reativação lista as incompatibilidades removidas', async () => {
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+    const reativacao = eventosDe(lista)[0]!;
+
+    expect(
+      within(reativacao).getByText('Incompatibilidades removidas na reativação (1)'),
+    ).toBeInTheDocument();
+    // Chave que já não existe no catálogo aparece como veio: a linha não some.
+    expect(await within(reativacao).findByText('empresas.cadastro.excluir')).toBeInTheDocument();
+  });
+
+  it('lista de papéis vazia aparece como travessão, não como espaço em branco', async () => {
+    historicoAtual = () =>
+      json({
+        eventos: [
+          evento({
+            id: 'v1',
+            tipo: 'DADOS_E_PAPEIS_ALTERADOS',
+            antes: { papeis: [], papeisPersonalizados: [{ id: 'a', nome: 'Revisor' }] },
+            depois: { papeis: ['auxiliar'], papeisPersonalizados: [] },
+          }),
+        ],
+        total: 1,
+      });
+
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+    const [item] = eventosDe(lista);
+
+    expect(within(item!).getAllByText('—')).toHaveLength(2);
+  });
+
+  it('papéis personalizados de um usuário aparecem pelo nome, antes e depois', async () => {
+    renderizar();
+
+    const lista = await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+    const doUsuario = eventosDe(lista)[4]!;
+
+    expect(within(doUsuario).getByText('Papéis personalizados')).toBeInTheDocument();
+    expect(within(doUsuario).getByText('Revisor')).toBeInTheDocument();
+    expect(within(doUsuario).getByText('Conferente')).toBeInTheDocument();
+  });
+
+  it('o filtro de tipo oferece os cinco tipos de papel', async () => {
+    renderizar();
+    await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+
+    screen.getByRole('combobox', { name: /Tipo/u }).focus();
+    await userEvent.keyboard('{Enter}');
+
+    for (const rotulo of ['Papel criado', 'Papel arquivado', 'Papel reativado']) {
+      expect(await screen.findByRole('option', { name: rotulo })).toBeInTheDocument();
+    }
+  });
+
+  it('não tem violação detectável pelo axe', async () => {
+    const { container } = renderizar();
+    await screen.findByRole('list', { name: 'Eventos de usuários e acessos' });
+
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 

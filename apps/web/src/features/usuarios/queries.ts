@@ -14,7 +14,6 @@ import {
   editarUsuario,
   iniciarNovoConvite,
   listarUsuarios,
-  obterPapeis,
   obterSessao,
   obterUsuario,
   reativarUsuario,
@@ -38,9 +37,6 @@ export const CHAVE_DA_SESSAO = ['sessao', 'eu'] as const;
 
 export const useSessao = () =>
   useQuery({ queryKey: CHAVE_DA_SESSAO, queryFn: obterSessao, staleTime: 60_000 });
-
-export const usePapeis = () =>
-  useQuery({ queryKey: [...CHAVE_DOS_USUARIOS, 'papeis'], queryFn: obterPapeis });
 
 export const useListaDeUsuarios = (filtro: FiltroDeUsuarios) =>
   useQuery({

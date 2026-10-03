@@ -11,7 +11,7 @@ import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import type { EmpresaNaLista } from '@contaia/db';
 
-import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { escopoDaSessao, exigirAlcada, GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
@@ -49,7 +49,7 @@ const tenantDa = (requisicao: RequisicaoAutenticada): string => {
 @Controller('empresas')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
 // Padrão da classe é a ação mais restrita; leitura e criação a relaxam explicitamente.
-@ExigeAcao('EMPRESAS', 'editar')
+@ExigePermissao('empresas.cadastro.editar')
 export class EmpresaController {
   constructor(
     private readonly empresaService: EmpresaService,
@@ -57,7 +57,7 @@ export class EmpresaController {
   ) {}
 
   @Get()
-  @ExigeAcao('EMPRESAS', 'consultar')
+  @ExigePermissao('empresas.cadastro.consultar')
   async listar(
     @Req() requisicao: RequisicaoAutenticada,
     @Query() consulta: unknown,
@@ -98,7 +98,7 @@ export class EmpresaController {
    * uma rota dinâmica declarada primeiro capturaria `consulta-cnpj` como id.
    */
   @Get('consulta-cnpj/:cnpj')
-  @ExigeAcao('EMPRESAS', 'criar')
+  @ExigePermissao('empresas.cadastro.criar')
   async consultarCnpj(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('cnpj') cnpj: string,
@@ -110,7 +110,7 @@ export class EmpresaController {
   }
 
   @Post()
-  @ExigeAcao('EMPRESAS', 'criar')
+  @ExigePermissao('empresas.cadastro.criar')
   async criar(
     @Req() requisicao: RequisicaoAutenticada,
     @Body() corpo: unknown,
@@ -124,7 +124,7 @@ export class EmpresaController {
   }
 
   @Get(':empresaId')
-  @ExigeAcao('EMPRESAS', 'consultar')
+  @ExigePermissao('empresas.cadastro.consultar')
   async obter(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -172,7 +172,7 @@ export class EmpresaController {
   }
 
   @Post(':empresaId/ativar')
-  @ExigeAcao('EMPRESAS', 'criar')
+  @ExigePermissao('empresas.cadastro.criar')
   async ativar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,

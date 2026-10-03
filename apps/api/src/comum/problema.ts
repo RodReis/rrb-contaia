@@ -87,6 +87,18 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   // SPEC-006. Notificação de outro tenant responde como inexistente — mesma
   // razão de empresa/exigência: 404 não revela dado alheio.
   [CODIGOS_DE_ERRO.NOTIFICACAO_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
+  // SPEC-008 §6. Papel de outro escritório responde como inexistente (404). Chave
+  // exclusiva é concessão proibida (403); chave livre e matriz vazia ficam no 422 padrão.
+  [CODIGOS_DE_ERRO.PAPEL_NAO_ENCONTRADO]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.PERMISSAO_EXCLUSIVA]: HttpStatus.FORBIDDEN,
+  // Nome duplicado, papel em uso, estado e revisão são conflitos de estado: a
+  // requisição está bem formada e o papel é que não aceita a operação agora.
+  [CODIGOS_DE_ERRO.PAPEL_NOME_DUPLICADO]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.PAPEL_EM_USO]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.PAPEL_ARQUIVADO]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.TRANSICAO_DE_PAPEL_INVALIDA]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.REDUCAO_NAO_CONFIRMADA]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.REVISAO_NAO_CONFIRMADA]: HttpStatus.CONFLICT,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>
@@ -136,6 +148,15 @@ const traduzirErroDoBanco = (erro: unknown): ErroDeDominio | null => {
     // E-mail é único entre escritórios (SPEC-007 §3.2): a mensagem não diz de quem é.
     if (constraint.includes('usuario_email_unico')) {
       return new ErroDeConflito(CODIGOS_DE_ERRO.EMAIL_JA_UTILIZADO, 'Este e-mail já está em uso.');
+    }
+
+    // Corrida entre dois papéis com o mesmo nome: o caso de uso já checa antes de
+    // gravar, e a constraint separa as duas requisições simultâneas (SPEC-008 §3.1).
+    if (constraint.includes('papel_personalizado_nome_unico')) {
+      return new ErroDeConflito(
+        CODIGOS_DE_ERRO.PAPEL_NOME_DUPLICADO,
+        'Já existe um papel com este nome neste escritório.',
+      );
     }
 
     // A unicidade da empresa cliente é por tenant (SPEC-002 §4.5), não global:

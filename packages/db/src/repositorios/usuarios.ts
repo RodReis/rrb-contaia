@@ -7,7 +7,7 @@
  */
 import type { PoolClient } from 'pg';
 
-import type { EstadoDoUsuario, PapelPadrao } from '@contaia/domain';
+import type { EstadoDoPapel, EstadoDoUsuario, PapelPadrao } from '@contaia/domain';
 
 export type TipoDeEventoDeUsuario =
   | 'CONVITE_CRIADO'
@@ -19,7 +19,19 @@ export type TipoDeEventoDeUsuario =
   | 'SUSPENSO'
   | 'REATIVADO'
   | 'ARQUIVADO'
-  | 'NOVO_CONVITE_INICIADO';
+  | 'NOVO_CONVITE_INICIADO'
+  // Eventos de papel personalizado (SPEC-008 §3.6): nomeiam o papel, não um usuário.
+  | 'PAPEL_CRIADO'
+  | 'PAPEL_DADOS_ALTERADOS'
+  | 'PAPEL_MATRIZ_ALTERADA'
+  | 'PAPEL_ARQUIVADO'
+  | 'PAPEL_REATIVADO';
+
+export type PapelPersonalizadoDoUsuario = Readonly<{
+  id: string;
+  nome: string;
+  estado: EstadoDoPapel;
+}>;
 
 export type UsuarioPersistido = Readonly<{
   id: string;
@@ -30,6 +42,7 @@ export type UsuarioPersistido = Readonly<{
   crc: string | null;
   estado: EstadoDoUsuario;
   papeis: readonly PapelPadrao[];
+  papeisPersonalizados: readonly PapelPersonalizadoDoUsuario[];
   versao: number;
 }>;
 
@@ -70,9 +83,15 @@ export type ConviteResolvido = Readonly<{
   invalidadoEm: Date | null;
 }>;
 
+/**
+ * Evento de usuário nomeia `usuarioAfetadoId`; evento de papel nomeia `papelId` e
+ * `revisao` e deixa o usuário nulo (a constraint do banco exige um ou outro).
+ */
 export type EventoDeUsuarioParaRegistrar = Readonly<{
   tipo: TipoDeEventoDeUsuario;
-  usuarioAfetadoId: string;
+  usuarioAfetadoId: string | null;
+  papelId?: string;
+  revisao?: number;
   autorId: string | null;
   antes: Readonly<Record<string, unknown>> | null;
   depois: Readonly<Record<string, unknown>> | null;
@@ -93,8 +112,11 @@ export type EventoDeUsuarioNaLista = Readonly<{
   id: string;
   ocorridoEm: Date;
   tipo: TipoDeEventoDeUsuario;
-  usuarioAfetadoId: string;
-  usuarioAfetadoNome: string;
+  usuarioAfetadoId: string | null;
+  usuarioAfetadoNome: string | null;
+  papelId: string | null;
+  papelNome: string | null;
+  revisao: number | null;
   autorId: string | null;
   autorNome: string | null;
   antes: Readonly<Record<string, unknown>> | null;
@@ -115,6 +137,7 @@ type LinhaDeUsuario = {
   crc: string | null;
   estado: EstadoDoUsuario;
   papeis: PapelPadrao[];
+  papeis_personalizados: PapelPersonalizadoDoUsuario[];
   versao: number;
 };
 
@@ -125,7 +148,15 @@ const COLUNAS_DO_USUARIO = `
        from app.usuario_papel p
       where p.usuario_id = u.id and p.tenant_id = u.tenant_id and p.removido_em is null),
     array[]::text[]
-  ) as papeis`;
+  ) as papeis,
+  coalesce(
+    (select json_agg(json_build_object('id', pp.id, 'nome', pp.nome, 'estado', pp.estado)
+                     order by lower(pp.nome), pp.id)
+       from app.usuario_papel_personalizado v
+       join app.papel_personalizado pp on pp.id = v.papel_id and pp.tenant_id = v.tenant_id
+      where v.usuario_id = u.id and v.tenant_id = u.tenant_id and v.removido_em is null),
+    '[]'::json
+  ) as papeis_personalizados`;
 
 const paraUsuario = (linha: LinhaDeUsuario): UsuarioPersistido => ({
   id: linha.id,
@@ -136,6 +167,7 @@ const paraUsuario = (linha: LinhaDeUsuario): UsuarioPersistido => ({
   crc: linha.crc,
   estado: linha.estado,
   papeis: linha.papeis,
+  papeisPersonalizados: linha.papeis_personalizados,
   versao: linha.versao,
 });
 
@@ -484,12 +516,15 @@ export const registrarEventoDeUsuario = async (
   evento: EventoDeUsuarioParaRegistrar,
 ): Promise<void> => {
   await cliente.query(
-    `insert into app.usuario_evento (tenant_id, tipo, usuario_afetado_id, autor_id, antes, depois)
-     values ($1, $2, $3, $4, $5::jsonb, $6::jsonb)`,
+    `insert into app.usuario_evento
+       (tenant_id, tipo, usuario_afetado_id, papel_id, revisao, autor_id, antes, depois)
+     values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
     [
       tenantId,
       evento.tipo,
       evento.usuarioAfetadoId,
+      evento.papelId ?? null,
+      evento.revisao ?? null,
       evento.autorId,
       evento.antes === null ? null : JSON.stringify(evento.antes),
       evento.depois === null ? null : JSON.stringify(evento.depois),
@@ -553,19 +588,24 @@ export const listarEventosDeUsuario = async (
     id: string;
     ocorrido_em: Date;
     tipo: TipoDeEventoDeUsuario;
-    usuario_afetado_id: string;
-    usuario_afetado_nome: string;
+    usuario_afetado_id: string | null;
+    usuario_afetado_nome: string | null;
+    papel_id: string | null;
+    papel_nome: string | null;
+    revisao: number | null;
     autor_id: string | null;
     autor_nome: string | null;
     antes: Record<string, unknown> | null;
     depois: Record<string, unknown> | null;
   }>(
     `select e.id, e.ocorrido_em, e.tipo, e.usuario_afetado_id,
-            afetado.nome as usuario_afetado_nome, e.autor_id, autor.nome as autor_nome,
-            e.antes, e.depois
+            afetado.nome as usuario_afetado_nome, e.papel_id, papel.nome as papel_nome,
+            e.revisao, e.autor_id, autor.nome as autor_nome, e.antes, e.depois
        from app.usuario_evento e
-       join app.usuario afetado
+       left join app.usuario afetado
          on afetado.id = e.usuario_afetado_id and afetado.tenant_id = e.tenant_id
+       left join app.papel_personalizado papel
+         on papel.id = e.papel_id and papel.tenant_id = e.tenant_id
        left join app.usuario autor
          on autor.id = e.autor_id and autor.tenant_id = e.tenant_id
       where ${onde}
@@ -582,6 +622,9 @@ export const listarEventosDeUsuario = async (
       tipo: linha.tipo,
       usuarioAfetadoId: linha.usuario_afetado_id,
       usuarioAfetadoNome: linha.usuario_afetado_nome,
+      papelId: linha.papel_id,
+      papelNome: linha.papel_nome,
+      revisao: linha.revisao,
       autorId: linha.autor_id,
       autorNome: linha.autor_nome,
       antes: linha.antes,

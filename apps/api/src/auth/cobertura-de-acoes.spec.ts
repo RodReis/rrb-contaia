@@ -1,7 +1,8 @@
 /**
- * Anti-drift da autorização (SPEC-007 §3.1): toda rota autenticada precisa
- * declarar a ação que exige. Rota nova sem `@ExigeAcao`/`@AcaoLivre` falha aqui
- * — e, se escapasse, o `GuardDeAcao` a negaria em runtime (falha fechada).
+ * Anti-drift da autorização (SPEC-007 §3.1, SPEC-008 §3.4): toda rota autenticada
+ * precisa declarar a permissão que exige. Rota nova sem `@ExigePermissao`/
+ * `@AcaoLivre` falha aqui — e, se escapasse, o `GuardDeAcao` a negaria em runtime
+ * (falha fechada).
  */
 import 'reflect-metadata';
 
@@ -9,7 +10,13 @@ import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 
-import { CODIGOS_DE_ERRO, ErroDeDominio, type PapelPadrao } from '@contaia/domain';
+import {
+  CODIGOS_DE_ERRO,
+  ErroDeDominio,
+  permissoesDosPapeisPadrao,
+  type ChaveDePermissao,
+  type PapelPadrao,
+} from '@contaia/domain';
 
 import { AppModule } from '../app.module';
 import { DocumentosDaEmpresaController } from '../empresa/documentos.controller';
@@ -17,6 +24,7 @@ import { EmpresaController } from '../empresa/empresa.controller';
 import { HistoricoController, ManutencaoDaEmpresaController } from '../empresa/manutencao.controller';
 import { EscritorioController } from '../escritorio/escritorio.controller';
 import { NotificacoesController } from '../notificacoes/notificacoes.controller';
+import { PapeisController } from '../papeis/papeis.controller';
 import {
   PendenciasController,
   PendenciasDaEmpresaController,
@@ -66,7 +74,7 @@ describe('cobertura de ações nas rotas autenticadas', () => {
     expect(semGuardDeAcao).toEqual([]);
   });
 
-  it('toda rota de controller com GuardDeAcao declara a ação exigida', () => {
+  it('toda rota de controller com GuardDeAcao declara a permissão exigida', () => {
     const semAcao: string[] = [];
 
     for (const controller of controllersDoModulo()) {
@@ -93,7 +101,7 @@ const guard = new GuardDeAcao(new Reflector());
 const decide = (
   controller: Classe,
   metodo: string,
-  papeis: readonly PapelPadrao[],
+  permissoes: readonly ChaveDePermissao[],
 ): 'permitido' | 'negado' => {
   const manipulador = (controller.prototype as Record<string, Metodo>)[metodo];
 
@@ -102,7 +110,7 @@ const decide = (
   }
 
   const contexto = {
-    switchToHttp: () => ({ getRequest: () => ({ sessao: { papeis } }) }),
+    switchToHttp: () => ({ getRequest: () => ({ sessao: { permissoes } }) }),
     getHandler: () => manipulador,
     getClass: () => controller,
   } as unknown as ExecutionContext;
@@ -118,9 +126,10 @@ const decide = (
   }
 };
 
-describe('matriz da SPEC-007 §3.1 nas rotas reais', () => {
+describe('matriz da SPEC-007 §3.1 nas rotas reais, agora por permissão do catálogo', () => {
   const TODOS: readonly PapelPadrao[] = ['admin_escritorio', 'contador', 'auxiliar', 'auditor_readonly'];
   const so = (...papeis: PapelPadrao[]): ReadonlyArray<PapelPadrao> => papeis;
+  const OPERADORES = so('admin_escritorio', 'contador', 'auxiliar');
 
   // [controller, método, quem pode]
   const ROTAS: ReadonlyArray<readonly [Classe, string, ReadonlyArray<PapelPadrao>]> = [
@@ -131,34 +140,53 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais', () => {
     // Empresas
     [EmpresaController, 'listar', TODOS],
     [EmpresaController, 'obter', TODOS],
-    [EmpresaController, 'criar', so('admin_escritorio', 'contador', 'auxiliar')],
-    [EmpresaController, 'salvarIdentificacao', so('admin_escritorio', 'contador', 'auxiliar')],
-    [ManutencaoDaEmpresaController, 'salvarIdentificacao', so('admin_escritorio', 'contador', 'auxiliar')],
+    [EmpresaController, 'criar', OPERADORES],
+    [EmpresaController, 'consultarCnpj', OPERADORES],
+    [EmpresaController, 'ativar', OPERADORES],
+    [EmpresaController, 'salvarIdentificacao', OPERADORES],
+    [ManutencaoDaEmpresaController, 'salvarIdentificacao', OPERADORES],
     [ManutencaoDaEmpresaController, 'arquivar', so('admin_escritorio', 'contador')],
     [ManutencaoDaEmpresaController, 'reativar', so('admin_escritorio', 'contador')],
     [ManutencaoDaEmpresaController, 'listarEnderecos', TODOS],
     // Documentos
     [DocumentosDaEmpresaController, 'consultar', TODOS],
-    [DocumentosDaEmpresaController, 'aprovar', so('admin_escritorio', 'contador', 'auxiliar')],
+    [DocumentosDaEmpresaController, 'consultarHistorico', TODOS],
+    [DocumentosDaEmpresaController, 'visualizar', TODOS],
+    [DocumentosDaEmpresaController, 'baixar', TODOS],
+    [DocumentosDaEmpresaController, 'criarExigencia', OPERADORES],
+    [DocumentosDaEmpresaController, 'enviarArquivo', OPERADORES],
+    [DocumentosDaEmpresaController, 'aprovar', OPERADORES],
+    [DocumentosDaEmpresaController, 'rejeitar', OPERADORES],
+    [DocumentosDaEmpresaController, 'dispensar', OPERADORES],
     // Central de Pendências
     [PendenciasController, 'consultarCentral', TODOS],
-    [PendenciasDaEmpresaController, 'dispensar', so('admin_escritorio', 'contador', 'auxiliar')],
+    [PendenciasDaEmpresaController, 'dispensar', OPERADORES],
     // Notificações
     [NotificacoesController, 'consultarPainel', TODOS],
-    [NotificacoesController, 'marcarComoLida', so('admin_escritorio', 'contador', 'auxiliar')],
-    // Histórico de Informações
+    [NotificacoesController, 'consultarHistorico', TODOS],
+    [NotificacoesController, 'marcarComoLida', OPERADORES],
+    [NotificacoesController, 'marcarVariasComoLidas', OPERADORES],
+    // Histórico de Informações (menu global + histórico cadastral)
     [HistoricoController, 'listar', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [HistoricoController, 'campos', so('admin_escritorio', 'contador', 'auditor_readonly')],
     // Aba "Usuários e acessos": exige ler o Histórico E ler usuários (contador só tem o primeiro).
     [HistoricoDeUsuariosController, 'listar', so('admin_escritorio', 'auditor_readonly')],
     // Usuários e papéis padrão
     [UsuariosController, 'listar', so('admin_escritorio', 'auditor_readonly')],
-    [UsuariosController, 'papeis', so('admin_escritorio', 'auditor_readonly')],
     [UsuariosController, 'eu', TODOS],
     [UsuariosController, 'convidar', so('admin_escritorio')],
     [UsuariosController, 'editar', so('admin_escritorio')],
     [UsuariosController, 'suspender', so('admin_escritorio')],
     [UsuariosController, 'arquivar', so('admin_escritorio')],
     [UsuariosController, 'novoConvite', so('admin_escritorio')],
+    // Papéis personalizados e catálogo: leitura para quem consulta usuários, mutação só do admin
+    [PapeisController, 'catalogo', so('admin_escritorio', 'auditor_readonly')],
+    [PapeisController, 'listar', so('admin_escritorio', 'auditor_readonly')],
+    [PapeisController, 'obter', so('admin_escritorio', 'auditor_readonly')],
+    [PapeisController, 'criar', so('admin_escritorio')],
+    [PapeisController, 'editar', so('admin_escritorio')],
+    [PapeisController, 'arquivar', so('admin_escritorio')],
+    [PapeisController, 'reativar', so('admin_escritorio')],
   ];
 
   for (const [controller, metodo, quemPode] of ROTAS) {
@@ -166,8 +194,66 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais', () => {
       const esperado = quemPode.includes(papel) ? 'permitido' : 'negado';
 
       it(`${controller.name}.${metodo}: ${papel} → ${esperado}`, () => {
-        expect(decide(controller, metodo, [papel])).toBe(esperado);
+        expect(decide(controller, metodo, permissoesDosPapeisPadrao([papel]))).toBe(esperado);
       });
     }
+  }
+});
+
+describe('papel personalizado nas rotas reais (SPEC-008 §3.4)', () => {
+  // [controller, método, matriz concedida, esperado]
+  const CASOS: ReadonlyArray<
+    readonly [Classe, string, readonly ChaveDePermissao[], 'permitido' | 'negado']
+  > = [
+    // Granularidade de documentos: baixar não é visualizar, enviar não é aprovar.
+    [DocumentosDaEmpresaController, 'baixar', ['documentos.arquivos.baixar'], 'permitido'],
+    [DocumentosDaEmpresaController, 'visualizar', ['documentos.arquivos.baixar'], 'negado'],
+    [DocumentosDaEmpresaController, 'enviarArquivo', ['documentos.arquivos.enviar'], 'permitido'],
+    [DocumentosDaEmpresaController, 'aprovar', ['documentos.arquivos.enviar'], 'negado'],
+    [DocumentosDaEmpresaController, 'aprovar', ['documentos.analise.aprovar'], 'permitido'],
+    [DocumentosDaEmpresaController, 'rejeitar', ['documentos.analise.aprovar'], 'negado'],
+    [DocumentosDaEmpresaController, 'dispensar', ['documentos.exigencias.dispensar'], 'permitido'],
+    [DocumentosDaEmpresaController, 'consultar', ['documentos.exigencias.consultar'], 'permitido'],
+    [DocumentosDaEmpresaController, 'consultarHistorico', ['documentos.exigencias.consultar'], 'negado'],
+    // Empresas: arquivar e reativar são permissões distintas.
+    [ManutencaoDaEmpresaController, 'arquivar', ['empresas.cadastro.arquivar'], 'permitido'],
+    [ManutencaoDaEmpresaController, 'reativar', ['empresas.cadastro.arquivar'], 'negado'],
+    [ManutencaoDaEmpresaController, 'reativar', ['empresas.cadastro.reativar'], 'permitido'],
+    // O menu global exibe o histórico cadastral: as duas permissões.
+    [HistoricoController, 'listar', ['historico.global.consultar'], 'negado'],
+    [HistoricoController, 'listar', ['empresas.historico.consultar'], 'negado'],
+    [
+      HistoricoController,
+      'listar',
+      ['historico.global.consultar', 'empresas.historico.consultar'],
+      'permitido',
+    ],
+    // Notificações e Central
+    [NotificacoesController, 'marcarComoLida', ['notificacoes.sino.consultar'], 'negado'],
+    [NotificacoesController, 'marcarComoLida', ['notificacoes.sino.marcar_lida'], 'permitido'],
+    [PendenciasController, 'consultarCentral', ['pendencias.pendencias.consultar'], 'permitido'],
+    // Dispensar pendência exige poder dispensar a exigência E enxergar a Central: uma chave só de
+    // documentos não apagaria alerta de origem cadastral.
+    [PendenciasDaEmpresaController, 'dispensar', ['documentos.exigencias.dispensar'], 'negado'],
+    [PendenciasDaEmpresaController, 'dispensar', ['pendencias.pendencias.consultar'], 'negado'],
+    [
+      PendenciasDaEmpresaController,
+      'dispensar',
+      ['documentos.exigencias.dispensar', 'pendencias.pendencias.consultar'],
+      'permitido',
+    ],
+    // Área exclusiva: nenhuma matriz de catálogo alcança usuários, papéis nem a aba de acessos.
+    [UsuariosController, 'listar', ['historico.global.consultar', 'empresas.cadastro.consultar'], 'negado'],
+    [PapeisController, 'criar', ['empresas.cadastro.criar', 'documentos.analise.aprovar'], 'negado'],
+    [HistoricoDeUsuariosController, 'listar', ['historico.global.consultar'], 'negado'],
+    // Sem permissão alguma, nada é aberto (exceto rota livre).
+    [EmpresaController, 'listar', [], 'negado'],
+    [UsuariosController, 'eu', [], 'permitido'],
+  ];
+
+  for (const [controller, metodo, matriz, esperado] of CASOS) {
+    it(`${controller.name}.${metodo} com [${matriz.join(', ')}] → ${esperado}`, () => {
+      expect(decide(controller, metodo, matriz)).toBe(esperado);
+    });
   }
 });

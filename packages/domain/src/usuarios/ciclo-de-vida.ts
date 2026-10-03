@@ -83,6 +83,33 @@ export const validarPapeis = (papeis: readonly string[]): readonly PapelPadrao[]
   return validos;
 };
 
+export type PapeisDoUsuario = Readonly<{
+  padrao: readonly PapelPadrao[];
+  /** Identificadores de papéis personalizados, sem repetição; a existência é conferida no caso de uso. */
+  personalizados: readonly string[];
+}>;
+
+/**
+ * O usuário recebe ao menos um papel, padrão ou personalizado, e os dois tipos
+ * se combinam (SPEC-008 §3.4). Os padrões seguem as regras de `validarPapeis`.
+ */
+export const validarPapeisDoUsuario = (
+  padrao: readonly string[],
+  personalizados: readonly string[],
+): PapeisDoUsuario => {
+  if (padrao.length === 0 && personalizados.length === 0) {
+    throw new ErroDeDominio(
+      CODIGOS_DE_ERRO.PAPEL_OBRIGATORIO,
+      'Selecione ao menos um papel para o usuário.',
+    );
+  }
+
+  return {
+    padrao: padrao.length === 0 ? [] : validarPapeis(padrao),
+    personalizados: [...new Set(personalizados)],
+  };
+};
+
 /** O escritório mantém ao menos um `admin_escritorio` ativo. */
 export const podePerderAdministracao = (adminsAtivosRestantes: number): boolean =>
   adminsAtivosRestantes >= 1;

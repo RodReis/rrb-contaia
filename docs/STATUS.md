@@ -20,7 +20,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
 | Fatias/SPECs | F1/SPEC-001 a F80/SPEC-080 aprovadas |
-| Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa), #4 F3 (manutenção da empresa e Histórico de Informações), #5 F4 (documentos da empresa), #6 F5 (Central de Pendências cadastrais), #7 F6 (Notificações de pendências) e #9 F7 (Gestão de usuários e papéis padrão) |
+| Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa), #4 F3 (manutenção da empresa e Histórico de Informações), #5 F4 (documentos da empresa), #6 F5 (Central de Pendências cadastrais), #7 F6 (Notificações de pendências) #9 F7 (Gestão de usuários e papéis padrão) e #10 F8 (Papéis personalizados e permissões) |
 
 ---
 
@@ -29,10 +29,10 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Coluna | Cards |
 |---|---|
 | `proplan:planejado` | — |
-| `proplan:backlog` | #47 `[FIX] app.uuid_v7()` · #10 F8/SPEC-008 · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 · #32 F28/SPEC-028 · #33 F29/SPEC-029 · #34 F30/SPEC-030 · #35 F31/SPEC-031 · #36 F32/SPEC-032 · #37 F33/SPEC-033 · #38 F34/SPEC-034 · #39 F35/SPEC-035 · #41 F36/SPEC-036 · #43 F37/SPEC-037 · #44 F38/SPEC-038 · #53 F39/SPEC-039 · #54 F40/SPEC-040 · #55 F41/SPEC-041 · #56 F42/SPEC-042 · #57 F43/SPEC-043 · #58 F44/SPEC-044 · #59 F45/SPEC-045 · #60 F46/SPEC-046 · #61 F47/SPEC-047 · #62 F48/SPEC-048 · #63 F49/SPEC-049 · #64 F50/SPEC-050 · #65 F51/SPEC-051 · #66 F52/SPEC-052 · #67 F53/SPEC-053 · #68 F54/SPEC-054 · #69 F55/SPEC-055 · #70 F56/SPEC-056 · #71 F57/SPEC-057 · #72 F58/SPEC-058 · #73 F59/SPEC-059 · #74 F60/SPEC-060 · #75 F61/SPEC-061 · #76 F62/SPEC-062 · #77 F63/SPEC-063 · #78 F64/SPEC-064 · #79 F65/SPEC-065 · #80 F66/SPEC-066 · #81 F67/SPEC-067 · #82 F68/SPEC-068 · #83 F69/SPEC-069 · #84 F70/SPEC-070 · #85 F71/SPEC-071 · #86 F72/SPEC-072 · #87 F73/SPEC-073 · #88 F74/SPEC-074 · #89 F75/SPEC-075 · #90 F76/SPEC-076 · #91 F77/SPEC-077 · #92 F78/SPEC-078 · #93 F79/SPEC-079 · #94 F80/SPEC-080 |
+| `proplan:backlog` | #47 `[FIX] app.uuid_v7()` · #11 F9/SPEC-009 · #12 F10/SPEC-010 · #13 F11/SPEC-011 · #14 F12/SPEC-012 · #15 F13/SPEC-013 · #16 F14/SPEC-014 · #17 F15/SPEC-015 · #18 F16/SPEC-016 · #19 F17/SPEC-017 · #20 F18/SPEC-018 · #21 F19/SPEC-019 · #22 F20/SPEC-020 · #23 F21/SPEC-021 · #24 F22/SPEC-022 · #25 F23/SPEC-023 · #26 F24/SPEC-024 · #27 F25/SPEC-025 · #28 F26/SPEC-026 · #29 F27/SPEC-027 · #32 F28/SPEC-028 · #33 F29/SPEC-029 · #34 F30/SPEC-030 · #35 F31/SPEC-031 · #36 F32/SPEC-032 · #37 F33/SPEC-033 · #38 F34/SPEC-034 · #39 F35/SPEC-035 · #41 F36/SPEC-036 · #43 F37/SPEC-037 · #44 F38/SPEC-038 · #53 F39/SPEC-039 · #54 F40/SPEC-040 · #55 F41/SPEC-041 · #56 F42/SPEC-042 · #57 F43/SPEC-043 · #58 F44/SPEC-044 · #59 F45/SPEC-045 · #60 F46/SPEC-046 · #61 F47/SPEC-047 · #62 F48/SPEC-048 · #63 F49/SPEC-049 · #64 F50/SPEC-050 · #65 F51/SPEC-051 · #66 F52/SPEC-052 · #67 F53/SPEC-053 · #68 F54/SPEC-054 · #69 F55/SPEC-055 · #70 F56/SPEC-056 · #71 F57/SPEC-057 · #72 F58/SPEC-058 · #73 F59/SPEC-059 · #74 F60/SPEC-060 · #75 F61/SPEC-061 · #76 F62/SPEC-062 · #77 F63/SPEC-063 · #78 F64/SPEC-064 · #79 F65/SPEC-065 · #80 F66/SPEC-066 · #81 F67/SPEC-067 · #82 F68/SPEC-068 · #83 F69/SPEC-069 · #84 F70/SPEC-070 · #85 F71/SPEC-071 · #86 F72/SPEC-072 · #87 F73/SPEC-073 · #88 F74/SPEC-074 · #89 F75/SPEC-075 · #90 F76/SPEC-076 · #91 F77/SPEC-077 · #92 F78/SPEC-078 · #93 F79/SPEC-079 · #94 F80/SPEC-080 |
 | `proplan:todo` | — |
 | `proplan:doing` | — |
-| `proplan:done` | #9 F7/SPEC-007 |
+| `proplan:done` | #9 F7/SPEC-007 · #10 F8/SPEC-008 |
 | `proplan:finalizado` | #1 `[INFRA] Bootstrap local do MVP-1` · #2 F1/SPEC-001 · #3 F2/SPEC-002 · #4 F3/SPEC-003 · #5 F4/SPEC-004 · #6 F5/SPEC-005 · #7 F6/SPEC-006 · #45 `[FIX] ambiente local` |
 
 Quem move o quê: `CLAUDE.md`, "Ciclo de vida do card".
@@ -52,7 +52,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-1 | F5 | SPEC-005 | PRD §§4.1 e 9.1 | Central de Pendências cadastrais | #6 | `proplan:finalizado` |
 | MVP-1 | F6 | SPEC-006 | PRD §§4.1 e 9.1 | Notificações de pendências | #7 | `proplan:finalizado` |
 | MVP-1 | F7 | SPEC-007 | PRD §§4.3, 4.4 e 15 | Gestão de usuários e papéis padrão | #9 | `proplan:done` |
-| MVP-1 | F8 | SPEC-008 | PRD §§4.3, 4.4 e 15 | Papéis personalizados e permissões | #10 | `proplan:backlog` |
+| MVP-1 | F8 | SPEC-008 | PRD §§4.3, 4.4 e 15 | Papéis personalizados e permissões | #10 | `proplan:done` |
 | MVP-1 | F9 | SPEC-009 | PRD §§4.3, 4.4, 4.6 e 15 | Carteira do colaborador e isolamento por empresa | #11 | `proplan:backlog` |
 | MVP-1 | F10 | SPEC-010 | PRD §§3, 4.4 e 4.6 | RLS de dois níveis e provas negativas | #12 | `proplan:backlog` |
 | MVP-1 | F11 | SPEC-011 | PRD §§4.5, 4.6, 15 e 16 | Cofre local de certificados A1 | #13 | `proplan:backlog` |
@@ -134,7 +134,7 @@ Próximo número livre: **F81 / SPEC-081**.
 
 | Fase | Entregas | Situação |
 |---|---|---|
-| **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#7, F1/SPEC-001 a F6/SPEC-006, `proplan:finalizado`; #9 F7/SPEC-007 `proplan:done` (aguarda aceite do PI); F8/SPEC-008 a F25/SPEC-025 em backlog; demais fatias pendentes |
+| **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#7, F1/SPEC-001 a F6/SPEC-006, `proplan:finalizado`; #9 F7/SPEC-007 `proplan:done` (aguarda aceite do PI); #10 F8/SPEC-008 `proplan:done` (aguarda aceite do PI); F9/SPEC-009 a F25/SPEC-025 em backlog; demais fatias pendentes |
 | **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F80/SPEC-080 aprovadas; demais fatias pendentes |
 | **[MVP-3](prd/mvp/MVP-3-dp-portal-e-comunicacao.md)** | RF-05 (DP/eSocial) · portal white-label · canal ativo · Copiloto · Coletor | macroescopo aprovado; fatias pendentes |
 | **[MVP-4](prd/mvp/MVP-4-administracao-e-evolucao.md)** | RF-08 completo · IBS/CBS completo · API pública · Marketplace · colaboração multiagente · preparação para certificações | macroescopo aprovado; API e Marketplace têm decisões pendentes |

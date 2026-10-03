@@ -29,6 +29,7 @@ import { mensagemDoCodigo } from '@/lib/mensagens';
 import type { EventoDoHistorico } from '../empresa/manutencao-api';
 import { useCamposDoHistorico, useHistorico } from '../empresa/manutencao-queries';
 import { ABA_DE_USUARIOS, HistoricoDeUsuarios } from '../usuarios/historico-de-usuarios';
+import { pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
 
 const POR_PAGINA = 25;
@@ -370,8 +371,7 @@ export const HistoricoDeInformacoes = () => {
   // qualquer jeito. Enquanto a sessão carrega, só as abas de empresa aparecem.
   const veUsuarios =
     sessao !== undefined &&
-    sessao.permissoes.HISTORICO.includes('consultar') &&
-    sessao.permissoes.USUARIOS.includes('consultar');
+    pode(sessao, 'historico.global.consultar', 'usuarios.usuarios_e_papeis.consultar');
 
   const abaNaUrl = parametros.get('aba');
   const aba: AbaDoHistorico = ehAba(abaNaUrl) ? abaNaUrl : 'DADOS_CADASTRAIS';

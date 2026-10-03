@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { CODIGOS_DE_ERRO, ErroDeDominio, type PapelPadrao } from '@contaia/domain';
+import {
+  CODIGOS_DE_ERRO,
+  ErroDeDominio,
+  permissoesDosPapeisPadrao,
+  type ChaveDePermissao,
+  type PapelPadrao,
+} from '@contaia/domain';
 
 import type { RequisicaoAutenticada } from '../auth/sessao.guard';
 import { UsuariosController } from './usuarios.controller';
@@ -8,9 +14,19 @@ import type { VisaoDeUsuario } from './usuarios.service';
 
 const ID = '01927b5c-8e1a-7c3d-9a1b-0123456789ab';
 
-const requisicao = (papeis: readonly PapelPadrao[]): RequisicaoAutenticada =>
+const requisicao = (
+  papeis: readonly PapelPadrao[],
+  permissoesExtras: readonly ChaveDePermissao[] = [],
+): RequisicaoAutenticada =>
   ({
-    sessao: { papeis, tenantId: 'tenant-1', usuarioId: 'autor-1', sub: 'sub-x', email: 'a@x.com' },
+    sessao: {
+      papeis,
+      permissoes: [...permissoesDosPapeisPadrao(papeis), ...permissoesExtras],
+      tenantId: 'tenant-1',
+      usuarioId: 'autor-1',
+      sub: 'sub-x',
+      email: 'a@x.com',
+    },
   }) as unknown as RequisicaoAutenticada;
 
 const ADMIN = requisicao(['admin_escritorio']);
@@ -23,6 +39,7 @@ const VISAO: VisaoDeUsuario = {
   telefone: null,
   crc: null,
   papeis: ['contador'],
+  papeisPersonalizados: [],
   estado: 'CONVIDADO',
   situacao: 'CONVIDADO',
   conviteExpiraEm: '2026-10-04T12:00:00.000Z',
@@ -54,27 +71,25 @@ const codigoDe = async (executar: () => Promise<unknown>): Promise<string | unde
 
 describe('UsuariosController', () => {
   describe('leitura', () => {
-    it('GET /usuarios/eu devolve papéis, permissões e escopo da própria sessão', () => {
+    it('GET /usuarios/eu devolve papéis, permissão efetiva e escopo da própria sessão', () => {
       const controller = new UsuariosController(servicoDeTeste() as never);
 
       const eu = controller.eu(requisicao(['contador', 'auxiliar']));
 
       expect(eu.papeis).toEqual(['contador', 'auxiliar']);
-      expect(eu.permissoes.EMPRESAS).toContain('arquivar');
-      expect(eu.permissoes.USUARIOS).toEqual([]);
+      expect(eu.permissoes).toContain('empresas.cadastro.arquivar');
+      expect(eu.permissoes).not.toContain('usuarios.usuarios_e_papeis.consultar');
       expect(eu.escopoDeEmpresas).toBe('NENHUMA');
       expect(controller.eu(ADMIN).escopoDeEmpresas).toBe('TODAS');
     });
 
-    it('GET /usuarios/papeis devolve o catálogo dos quatro papéis padrão', () => {
-      const catalogo = new UsuariosController(servicoDeTeste() as never).papeis();
+    it('a permissão efetiva inclui o que veio de papel personalizado', () => {
+      const controller = new UsuariosController(servicoDeTeste() as never);
 
-      expect(catalogo.map((item) => item.papel)).toEqual([
-        'admin_escritorio',
-        'contador',
-        'auxiliar',
-        'auditor_readonly',
-      ]);
+      const eu = controller.eu(requisicao(['auxiliar'], ['historico.global.consultar']));
+
+      expect(eu.permissoes).toContain('historico.global.consultar');
+      expect(eu.escopoDeEmpresas).toBe('NENHUMA');
     });
 
     it('administrador vê o estado técnico do convite; auditor não', async () => {
@@ -131,7 +146,14 @@ describe('UsuariosController', () => {
       expect(servico.convidar).toHaveBeenCalledWith(
         'tenant-1',
         { usuarioId: 'autor-1' },
-        { nome: 'Ana', email: 'ana@x.com', telefone: null, crc: null, papeis: ['contador'] },
+        {
+          nome: 'Ana',
+          email: 'ana@x.com',
+          telefone: null,
+          crc: null,
+          papeis: ['contador'],
+          papeisPersonalizados: [],
+        },
       );
     });
 
@@ -160,11 +182,19 @@ describe('UsuariosController', () => {
         'tenant-1',
         { usuarioId: 'autor-1' },
         ID,
-        { nome: 'Ana', papeis: ['auxiliar'], telefone: null, crc: null, email: 'n@x.com' },
+        {
+          nome: 'Ana',
+          papeis: ['auxiliar'],
+          papeisPersonalizados: [],
+          telefone: null,
+          crc: null,
+          email: 'n@x.com',
+        },
       );
       expect(servico.novoConvite).toHaveBeenCalledWith('tenant-1', { usuarioId: 'autor-1' }, ID, {
         nome: 'Ana',
         papeis: ['auxiliar'],
+        papeisPersonalizados: [],
         telefone: null,
         crc: null,
       });

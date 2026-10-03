@@ -70,6 +70,23 @@ const MENSAGENS: Readonly<Record<string, string>> = {
     'A senha não atende à política de segurança. Use ao menos 10 caracteres.',
   [CODIGOS_DE_ERRO.IDENTIDADE_INDISPONIVEL]:
     'O serviço de identidade está indisponível. Tente novamente em instantes.',
+  // Papéis personalizados e permissões (SPEC-008 §6).
+  [CODIGOS_DE_ERRO.PAPEL_NAO_ENCONTRADO]: 'Papel não encontrado neste escritório.',
+  [CODIGOS_DE_ERRO.PAPEL_NOME_DUPLICADO]: 'Já existe um papel com este nome neste escritório.',
+  [CODIGOS_DE_ERRO.PAPEL_EM_USO]:
+    'Este papel está atribuído a usuários. Remova ou substitua o papel neles antes de arquivar.',
+  [CODIGOS_DE_ERRO.PAPEL_ARQUIVADO]:
+    'Papel arquivado não pode ser editado nem atribuído. Reative-o para voltar a usá-lo.',
+  [CODIGOS_DE_ERRO.TRANSICAO_DE_PAPEL_INVALIDA]:
+    'Esta ação não é possível no estado atual do papel. Recarregue e veja como ele está.',
+  [CODIGOS_DE_ERRO.MATRIZ_INVALIDA]: 'Marque ao menos uma permissão.',
+  [CODIGOS_DE_ERRO.PERMISSAO_INEXISTENTE]:
+    'A matriz tem uma permissão que não existe no catálogo. Recarregue a página e tente de novo.',
+  [CODIGOS_DE_ERRO.PERMISSAO_EXCLUSIVA]:
+    'Usuários e papéis são exclusivos do administrador do escritório e não podem ser concedidos a um papel personalizado.',
+  [CODIGOS_DE_ERRO.REDUCAO_NAO_CONFIRMADA]:
+    'Confirme a redução de permissões para aplicar a alteração.',
+  [CODIGOS_DE_ERRO.REVISAO_NAO_CONFIRMADA]: 'Confirme a matriz revisada para reativar o papel.',
   [CODIGOS_DE_ERRO.SEM_ALCADA]: 'Você ainda não tem empresas na sua carteira.',
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: 'Você não tem permissão para esta ação.',
   FALHA_DE_REDE: 'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',

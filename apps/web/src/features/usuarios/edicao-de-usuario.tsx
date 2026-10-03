@@ -12,7 +12,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { CodigoDeErro, PapelPadrao } from '@contaia/domain';
+import type { CodigoDeErro } from '@contaia/domain';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -29,6 +29,7 @@ import { mensagemDoCodigo } from '@/lib/mensagens';
 import type { VisaoDeUsuario } from './api';
 import { CamposDoUsuario } from './campos-do-usuario';
 import { ErroDaConsulta, SemPermissao } from './erro-da-consulta';
+import { ADMINISTRACAO_DE_USUARIOS, CONSULTA_DE_USUARIOS, pode } from './permissoes';
 import { useEditarUsuario, useNovoConvite, useSessao, useUsuario } from './queries';
 import { SITUACAO } from './rotulos';
 import {
@@ -36,6 +37,7 @@ import {
   erroDosPapeis,
   paraDadosDeEdicao,
   type DadosDoUsuarioForm,
+  type PapeisEscolhidos,
 } from './schema';
 import { SeletorDePapeis } from './seletor-de-papeis';
 
@@ -132,7 +134,13 @@ const FormularioDeEdicao = ({
     defaultValues: valoresIniciais(usuario),
   });
 
-  const [papeis, definirPapeis] = useState<readonly PapelPadrao[]>(usuario.papeis);
+  const [papeis, definirPapeis] = useState<PapeisEscolhidos>({
+    padrao: usuario.papeis,
+    // Papel arquivado ainda vinculado (usuário arquivado) não é oferecido: precisa ser reescolhido.
+    personalizados: usuario.papeisPersonalizados
+      .filter((papel) => papel.estado === 'ATIVO')
+      .map((papel) => papel.id),
+  });
   const [erroDePapel, definirErroDePapel] = useState<string | undefined>(undefined);
   const [bloqueio, definirBloqueio] = useState<string | null>(null);
 
@@ -290,7 +298,7 @@ export const EdicaoDeUsuario = ({ usuarioId }: { usuarioId: string }) => {
     );
   }
 
-  if (!sessao.data.permissoes.USUARIOS.includes('consultar')) {
+  if (!pode(sessao.data, CONSULTA_DE_USUARIOS)) {
     return <SemPermissao />;
   }
 
@@ -322,7 +330,7 @@ export const EdicaoDeUsuario = ({ usuarioId }: { usuarioId: string }) => {
     );
   }
 
-  const administra = sessao.data.permissoes.USUARIOS.includes('administrar');
+  const administra = pode(sessao.data, ADMINISTRACAO_DE_USUARIOS);
 
   return (
     <div className="flex flex-col gap-xl">

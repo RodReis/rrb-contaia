@@ -8,6 +8,7 @@ import {
   paraDadosDoConvite,
 } from './schema';
 
+const ESCOLHA = { padrao: ['contador'], personalizados: [] } as const;
 const VALIDO = { nome: 'Ana Souza', email: 'ana@escritorio.com', telefone: '', crc: '' };
 
 const mensagens = (entrada: unknown): Record<string, string> => {
@@ -52,10 +53,11 @@ describe('dadosDoUsuarioFormSchema (SPEC-007 §3.2)', () => {
 });
 
 describe('erroDosPapeis', () => {
-  it('exige ao menos um papel', () => {
-    expect(erroDosPapeis([])).toBe(ERRO_DE_PAPEL);
-    expect(erroDosPapeis(['contador'])).toBeUndefined();
-    expect(erroDosPapeis(['contador', 'auxiliar'])).toBeUndefined();
+  it('exige ao menos um papel, padrão ou personalizado', () => {
+    expect(erroDosPapeis({ padrao: [], personalizados: [] })).toBe(ERRO_DE_PAPEL);
+    expect(erroDosPapeis({ padrao: ['contador'], personalizados: [] })).toBeUndefined();
+    expect(erroDosPapeis({ padrao: ['contador', 'auxiliar'], personalizados: [] })).toBeUndefined();
+    expect(erroDosPapeis({ padrao: [], personalizados: ['papel-1'] })).toBeUndefined();
   });
 });
 
@@ -64,7 +66,7 @@ describe('conversão para o contrato da API', () => {
     expect(
       paraDadosDoConvite(
         { nome: ' Ana Souza ', email: ' Ana@Escritorio.com ', telefone: '(11) 98765-4321', crc: ' SP-1 ' },
-        ['contador'],
+        { padrao: ['contador'], personalizados: ['papel-1'] },
       ),
     ).toEqual({
       nome: 'Ana Souza',
@@ -72,13 +74,14 @@ describe('conversão para o contrato da API', () => {
       telefone: '11987654321',
       crc: 'SP-1',
       papeis: ['contador'],
+      papeisPersonalizados: ['papel-1'],
     });
 
-    expect(paraDadosDoConvite(VALIDO, ['auxiliar'])).toMatchObject({ telefone: null, crc: null });
+    expect(paraDadosDoConvite(VALIDO, { padrao: ['auxiliar'], personalizados: [] })).toMatchObject({ telefone: null, crc: null });
   });
 
   it('edição: só envia o e-mail quando ele é editável, senão o campo nem vai', () => {
-    expect(paraDadosDeEdicao(VALIDO, ['contador'], true)).toHaveProperty('email', 'ana@escritorio.com');
-    expect(paraDadosDeEdicao(VALIDO, ['contador'], false)).not.toHaveProperty('email');
+    expect(paraDadosDeEdicao(VALIDO, ESCOLHA, true)).toHaveProperty('email', 'ana@escritorio.com');
+    expect(paraDadosDeEdicao(VALIDO, ESCOLHA, false)).not.toHaveProperty('email');
   });
 });

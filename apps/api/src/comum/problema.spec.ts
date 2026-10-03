@@ -138,3 +138,31 @@ describe('status dos códigos de usuários e convite (SPEC-007 §6)', () => {
     expect(statusDoErro(new ErroDeDominio(CODIGOS_DE_ERRO[codigo], 'x'))).toBe(esperado);
   });
 });
+
+describe('status dos códigos de papéis personalizados (SPEC-008 §6)', () => {
+  const casos: ReadonlyArray<readonly [keyof typeof CODIGOS_DE_ERRO, number]> = [
+    ['PAPEL_NAO_ENCONTRADO', HttpStatus.NOT_FOUND],
+    ['PERMISSAO_EXCLUSIVA', HttpStatus.FORBIDDEN],
+    ['PAPEL_NOME_DUPLICADO', HttpStatus.CONFLICT],
+    ['PAPEL_EM_USO', HttpStatus.CONFLICT],
+    ['PAPEL_ARQUIVADO', HttpStatus.CONFLICT],
+    ['TRANSICAO_DE_PAPEL_INVALIDA', HttpStatus.CONFLICT],
+    ['REDUCAO_NAO_CONFIRMADA', HttpStatus.CONFLICT],
+    ['REVISAO_NAO_CONFIRMADA', HttpStatus.CONFLICT],
+    ['CONFLITO_DE_VERSAO', HttpStatus.CONFLICT],
+    ['MATRIZ_INVALIDA', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['PERMISSAO_INEXISTENTE', HttpStatus.UNPROCESSABLE_ENTITY],
+  ];
+
+  it.each(casos)('%s responde %i', (codigo, esperado) => {
+    expect(statusDoErro(new ErroDeDominio(CODIGOS_DE_ERRO[codigo], 'x'))).toBe(esperado);
+  });
+
+  it('nome de papel duplicado sob concorrência vira 409 PAPEL_NOME_DUPLICADO, não 500', () => {
+    const { status, corpo } = capturar(erroDoBanco('23505', 'papel_personalizado_nome_unico'));
+
+    expect(status).toBe(HttpStatus.CONFLICT);
+    expect(corpo.code).toBe(CODIGOS_DE_ERRO.PAPEL_NOME_DUPLICADO);
+    expect(JSON.stringify(corpo)).not.toContain('papel_personalizado_nome_unico');
+  });
+});

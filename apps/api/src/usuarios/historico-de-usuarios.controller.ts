@@ -5,7 +5,7 @@
  */
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 
-import { ExigeAcoes, GuardDeAcao } from '../auth/acao.guard';
+import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { tenantDa } from '../auth/contexto-da-sessao';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
@@ -14,7 +14,7 @@ import { type PaginaDeEventosVisao, UsuariosService } from './usuarios.service';
 
 @Controller('historico/usuarios')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
-@ExigeAcoes(['HISTORICO', 'consultar'], ['USUARIOS', 'consultar'])
+@ExigePermissao('historico.global.consultar', 'usuarios.usuarios_e_papeis.consultar')
 export class HistoricoDeUsuariosController {
   constructor(private readonly usuarios: UsuariosService) {}
 

@@ -9,19 +9,35 @@
  */
 'use client';
 
-import type { Capacidade } from '@contaia/domain';
+import type { ChaveDePermissao } from '@contaia/domain';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { useSessao } from '@/features/usuarios/queries';
 
-const ITENS: ReadonlyArray<Readonly<{ href: string; rotulo: string; capacidade: Capacidade }>> = [
-  { href: '/empresas', rotulo: 'Empresas', capacidade: 'EMPRESAS' },
+type ItemDoMenu = Readonly<{
+  href: string;
+  rotulo: string;
+  /** O item aparece para quem tem todas estas permissões: as mesmas que a API exige da rota. */
+  consultas: readonly ChaveDePermissao[];
+}>;
+
+const ITENS: readonly ItemDoMenu[] = [
+  { href: '/empresas', rotulo: 'Empresas', consultas: ['empresas.cadastro.consultar'] },
   // O Histórico de Informações é área global do escritório, não de uma empresa
-  // (SPEC-003 §3.6): o acesso é de menu, não de tela.
-  { href: '/historico', rotulo: 'Histórico de Informações', capacidade: 'HISTORICO' },
-  { href: '/configuracoes/usuarios', rotulo: 'Usuários e permissões', capacidade: 'USUARIOS' },
+  // (SPEC-003 §3.6): o acesso é de menu, não de tela. A API exige o histórico global e o
+  // cadastral (SPEC-008 §3.2); oferecer o item só com um deles abriria uma tela negada.
+  {
+    href: '/historico',
+    rotulo: 'Histórico de Informações',
+    consultas: ['historico.global.consultar', 'empresas.historico.consultar'],
+  },
+  {
+    href: '/configuracoes/usuarios',
+    rotulo: 'Usuários e permissões',
+    consultas: ['usuarios.usuarios_e_papeis.consultar'],
+  },
 ];
 
 export const NavegacaoPrincipal = () => {
@@ -30,8 +46,8 @@ export const NavegacaoPrincipal = () => {
 
   const visiveis = ITENS.filter((item) =>
     sessao === undefined
-      ? item.capacidade === 'EMPRESAS'
-      : sessao.permissoes[item.capacidade].includes('consultar'),
+      ? item.href === '/empresas'
+      : item.consultas.every((chave) => sessao.permissoes.includes(chave)),
   );
 
   return (

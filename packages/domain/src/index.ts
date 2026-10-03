@@ -7,22 +7,67 @@ export type EmpresaId = Brand<string, 'EmpresaId'>;
 export { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, ErroDeValidacao } from './erros.js';
 export type { CampoInvalido, CodigoDeErro } from './erros.js';
 
+export { PAPEIS_PADRAO, ehPapelPadrao, escopoDeEmpresas } from './usuarios/papeis.js';
+export type { PapelPadrao } from './usuarios/papeis.js';
 export {
-  MATRIZ,
-  PAPEIS_PADRAO,
-  ehPapelPadrao,
-  escopoDeEmpresas,
-  podeExecutar,
-} from './usuarios/papeis.js';
-export type { Acao, Capacidade, PapelPadrao } from './usuarios/papeis.js';
+  AREA_EXCLUSIVA,
+  CATALOGO,
+  CHAVES_DO_CATALOGO,
+  CHAVES_EXCLUSIVAS,
+  ROTULO_DA_ACAO,
+  chavesDoModulo,
+  consultaImplicada,
+  dependentesDeConsulta,
+  ehChaveDoCatalogo,
+  ehChaveExclusiva,
+  moduloDa,
+} from './papeis/catalogo.js';
+export type {
+  AcaoDoCatalogo,
+  ChaveDePermissao,
+  ChaveDoCatalogo,
+  ChaveExclusiva,
+} from './papeis/catalogo.js';
+export {
+  concederPermissao,
+  diferencaDeMatriz,
+  ehReducao,
+  matrizParaRevisao,
+  moduloVisivel,
+  normalizarMatriz,
+  ocultarModulo,
+  revogarPermissao,
+} from './papeis/matriz.js';
+export type {
+  DiferencaDeMatriz,
+  MatrizParaRevisao,
+  ResultadoDeOcultacao,
+} from './papeis/matriz.js';
+export {
+  moldeDoPapelPadrao,
+  permissoesDoPapelPadrao,
+  permissoesDosPapeisPadrao,
+  uniaoDePermissoes,
+} from './papeis/papeis-padrao.js';
+export {
+  TAMANHO_MAXIMO_DA_DESCRICAO,
+  TAMANHO_MAXIMO_DO_NOME,
+  garantirPapelSemVinculos,
+  normalizarNomeDoPapel,
+  transicionarPapel,
+  validarDadosDoPapel,
+} from './papeis/papel-personalizado.js';
+export type { DadosDoPapel, EstadoDoPapel, TransicaoDoPapel } from './papeis/papel-personalizado.js';
 export {
   podePerderAdministracao,
   situacaoApresentada,
   transicionar,
   validarPapeis,
+  validarPapeisDoUsuario,
 } from './usuarios/ciclo-de-vida.js';
 export type {
   EstadoDoUsuario,
+  PapeisDoUsuario,
   SituacaoApresentada,
   Transicao,
 } from './usuarios/ciclo-de-vida.js';

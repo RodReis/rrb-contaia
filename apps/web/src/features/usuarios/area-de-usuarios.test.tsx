@@ -12,6 +12,7 @@ import { axe } from 'jest-axe';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { catalogoDeTeste, papelDeTeste, sessaoDe } from '../papeis/papeis.fixtures';
 import { AreaDeUsuarios } from './area-de-usuarios';
 import type { Sessao, VisaoDeUsuario } from './api';
 
@@ -24,39 +25,16 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/configuracoes/usuarios',
 }));
 
-const SEM = {
-  CADASTRO_ESCRITORIO: [],
-  EMPRESAS: [],
-  DOCUMENTOS: [],
-  PENDENCIAS: [],
-  NOTIFICACOES: [],
-  HISTORICO: [],
-  USUARIOS: [],
-} as const;
-
-const ADMIN: Sessao = {
-  papeis: ['admin_escritorio'],
-  permissoes: { ...SEM, USUARIOS: ['consultar', 'criar', 'editar', 'arquivar', 'administrar'] },
-  escopoDeEmpresas: 'TODAS',
-};
-
-const AUDITOR: Sessao = {
-  papeis: ['auditor_readonly'],
-  permissoes: { ...SEM, USUARIOS: ['consultar'] },
-  escopoDeEmpresas: 'NENHUMA',
-};
-
-const CONTADOR: Sessao = {
-  papeis: ['contador'],
-  permissoes: { ...SEM },
-  escopoDeEmpresas: 'NENHUMA',
-};
+const ADMIN: Sessao = sessaoDe(['admin_escritorio']);
+const AUDITOR: Sessao = sessaoDe(['auditor_readonly']);
+const CONTADOR: Sessao = sessaoDe(['contador']);
 
 const usuario = (sobrescritas: Partial<VisaoDeUsuario> & Pick<VisaoDeUsuario, 'id' | 'nome'>): VisaoDeUsuario => ({
   email: `${sobrescritas.id}@escritorio.com`,
   telefone: null,
   crc: null,
   papeis: ['contador'],
+  papeisPersonalizados: [],
   estado: 'ATIVO',
   situacao: 'ATIVO',
   conviteExpiraEm: null,
@@ -86,12 +64,6 @@ const ELISA = usuario({ id: 'elisa', nome: 'Elisa Prado', estado: 'ARQUIVADO', s
 
 const TODOS = [ANA, BRUNO, CARLA, DIEGO, ELISA];
 
-const CATALOGO = [
-  { papel: 'admin_escritorio', permissoes: { ...SEM, USUARIOS: ['consultar', 'administrar'], EMPRESAS: ['consultar'] } },
-  { papel: 'contador', permissoes: { ...SEM, EMPRESAS: ['consultar', 'criar', 'editar', 'arquivar'] } },
-  { papel: 'auxiliar', permissoes: { ...SEM, EMPRESAS: ['consultar', 'criar', 'editar'] } },
-  { papel: 'auditor_readonly', permissoes: { ...SEM, EMPRESAS: ['consultar'], USUARIOS: ['consultar'] } },
-];
 
 const json = (corpo: unknown, status = 200): Response =>
   new Response(JSON.stringify(corpo), {
@@ -105,6 +77,7 @@ const problema = (status: number, code: string, correlationId = 'corr-123') =>
 type Roteador = (url: string, init?: RequestInit) => Response | Promise<Response> | undefined;
 
 let sessaoAtual: Sessao = ADMIN;
+let papeisAtuais: ReturnType<typeof papelDeTeste>[] = [];
 let listaAtual: () => Response | Promise<Response> = () => json({ usuarios: TODOS, total: TODOS.length });
 let acaoAtual: (url: string) => Response | Promise<Response> = () => json(ANA);
 const chamadas: Array<{ url: string; metodo: string }> = [];
@@ -115,7 +88,8 @@ const roteador: Roteador = (url, init) => {
   chamadas.push({ url, metodo });
 
   if (url.endsWith('/usuarios/eu')) return json(sessaoAtual);
-  if (url.endsWith('/usuarios/papeis')) return json(CATALOGO);
+  if (url.endsWith('/papeis/catalogo')) return json(catalogoDeTeste());
+  if (url.includes('/papeis?')) return json({ papeis: papeisAtuais, total: papeisAtuais.length });
   if (url.includes('/usuarios?')) return listaAtual();
   if (metodo === 'POST') return acaoAtual(url);
 
@@ -139,6 +113,7 @@ const chamadasA = (trecho: string, metodo = 'POST') =>
 beforeEach(() => {
   parametrosAtuais = new URLSearchParams();
   sessaoAtual = ADMIN;
+  papeisAtuais = [];
   listaAtual = () => json({ usuarios: TODOS, total: TODOS.length });
   acaoAtual = () => json(ANA);
   chamadas.length = 0;
@@ -525,15 +500,49 @@ describe('aba Papéis e permissões', () => {
 
     renderizar();
 
-    expect(await screen.findByText('Auxiliar')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Auxiliar' })).toBeInTheDocument();
 
     for (const papel of ['Administrador do escritório', 'Contador', 'Auxiliar', 'Auditor (somente leitura)']) {
-      expect(screen.getAllByText(papel).length).toBeGreaterThan(0);
+      expect(screen.getByRole('heading', { name: papel })).toBeInTheDocument();
     }
 
-    expect(screen.getAllByText(/Arquivar e reativar/u).length).toBeGreaterThan(0);
-    // Somente leitura: nenhum controle de edição.
-    expect(screen.queryByRole('button', { name: /Salvar|Editar|Remover/u })).not.toBeInTheDocument();
+    // O que cada papel concede fica numa região recolhida, com os nomes do catálogo.
+    expect(screen.getAllByText('Ver o que concede')).toHaveLength(4);
+    expect(screen.getAllByText(/Cadastro e ciclo de vida:/u).length).toBeGreaterThan(0);
+    // Somente leitura: nenhum controle de edição nos papéis padrão.
+    expect(screen.queryByRole('button', { name: /Salvar|Remover/u })).not.toBeInTheDocument();
+  });
+
+  it('o administrador vê Criar papel no cabeçalho, apontando para o wizard', async () => {
+    parametrosAtuais = new URLSearchParams({ aba: 'papeis' });
+
+    renderizar();
+
+    expect(await screen.findByRole('link', { name: /Criar papel/u })).toHaveAttribute(
+      'href',
+      '/configuracoes/usuarios/papeis/novo',
+    );
+    // Uma ação primária por página: aqui não há "Convidar usuário".
+    expect(screen.queryByRole('link', { name: /Convidar usuário/u })).not.toBeInTheDocument();
+  });
+
+  it('o auditor consulta os papéis, mas não vê Criar papel', async () => {
+    sessaoAtual = AUDITOR;
+    parametrosAtuais = new URLSearchParams({ aba: 'papeis' });
+
+    renderizar();
+    await screen.findByRole('heading', { name: 'Auxiliar' });
+
+    expect(screen.queryByRole('link', { name: /Criar papel/u })).not.toBeInTheDocument();
+  });
+
+  it('sem papel personalizado o vazio convida a criar o primeiro', async () => {
+    parametrosAtuais = new URLSearchParams({ aba: 'papeis' });
+
+    renderizar();
+
+    expect(await screen.findByText('Nenhum papel personalizado')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Criar papel/u }).length).toBeGreaterThan(0);
   });
 
   it('avisa que permissões de papéis acumulados se somam', async () => {
@@ -602,7 +611,7 @@ describe('teclado e acessibilidade', () => {
     parametrosAtuais = new URLSearchParams({ aba: 'papeis' });
 
     const { container } = renderizar();
-    await screen.findByText('Auxiliar');
+    await screen.findByRole('heading', { name: 'Auxiliar' });
 
     expect(await axe(container)).toHaveNoViolations();
   });

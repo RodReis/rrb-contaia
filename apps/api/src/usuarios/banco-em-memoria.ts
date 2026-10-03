@@ -39,16 +39,49 @@ export type ConviteEmMemoria = {
 export type EventoEmMemoria = {
   tenantId: string;
   tipo: string;
-  usuarioAfetadoId: string;
+  usuarioAfetadoId: string | null;
+  papelId?: string;
+  revisao?: number;
   autorId: string | null;
   antes: unknown;
   depois: unknown;
+};
+
+export type PapelEmMemoria = {
+  id: string;
+  tenantId: string;
+  nome: string;
+  descricao: string | null;
+  papelBase: string;
+  estado: string;
+  revisao: number;
+  /** Matriz da revisão vigente; as revisões antigas ficam em `revisoes`. */
+  permissoes: string[];
+  criadoEm: Date;
+  atualizadoEm: Date;
+};
+
+export type RevisaoEmMemoria = {
+  papelId: string;
+  revisao: number;
+  permissoes: string[];
+  autorId: string;
+};
+
+export type VinculoEmMemoria = {
+  tenantId: string;
+  usuarioId: string;
+  papelId: string;
+  removido: boolean;
 };
 
 export const estado = {
   usuarios: [] as UsuarioEmMemoria[],
   convites: [] as ConviteEmMemoria[],
   eventos: [] as EventoEmMemoria[],
+  papeis: [] as PapelEmMemoria[],
+  revisoes: [] as RevisaoEmMemoria[],
+  vinculos: [] as VinculoEmMemoria[],
   sequencia: 0,
   falharAoRegistrarEvento: false,
 };
@@ -57,6 +90,9 @@ export const reiniciar = (): void => {
   estado.usuarios.length = 0;
   estado.convites.length = 0;
   estado.eventos.length = 0;
+  estado.papeis.length = 0;
+  estado.revisoes.length = 0;
+  estado.vinculos.length = 0;
   estado.sequencia = 0;
   estado.falharAoRegistrarEvento = false;
 };
@@ -65,6 +101,32 @@ const novoId = (prefixo: string): string => `${prefixo}-${++estado.sequencia}`;
 
 const doTenant = (tenantId: string, id: string): UsuarioEmMemoria | undefined =>
   estado.usuarios.find((u) => u.tenantId === tenantId && u.id === id);
+
+const papelDoTenant = (tenantId: string, id: string): PapelEmMemoria | undefined =>
+  estado.papeis.find((p) => p.tenantId === tenantId && p.id === id);
+
+const chaveDoNome = (nome: string): string => nome.trim().replace(/\s+/g, ' ').toLowerCase();
+
+const nomeEmUso = (tenantId: string, nome: string, exceto: string | null): boolean =>
+  estado.papeis.some(
+    (p) => p.tenantId === tenantId && p.id !== exceto && chaveDoNome(p.nome) === chaveDoNome(nome),
+  );
+
+const violacaoDeNome = (): Error =>
+  Object.assign(new Error('duplicate key'), {
+    code: '23505',
+    constraint: 'papel_personalizado_nome_unico',
+  });
+
+/** Vínculo vigente de usuário que ainda conta: o arquivado não tem acesso nem segura o papel. */
+const vinculosVigentesDoPapel = (tenantId: string, papelId: string): VinculoEmMemoria[] =>
+  estado.vinculos.filter(
+    (v) =>
+      v.tenantId === tenantId &&
+      v.papelId === papelId &&
+      !v.removido &&
+      doTenant(tenantId, v.usuarioId)?.estado !== 'ARQUIVADO',
+  );
 
 const visao = (u: UsuarioEmMemoria) => ({
   id: u.id,
@@ -75,7 +137,27 @@ const visao = (u: UsuarioEmMemoria) => ({
   crc: u.crc,
   estado: u.estado,
   papeis: [...u.papeis],
+  papeisPersonalizados: estado.vinculos
+    .filter((v) => v.tenantId === u.tenantId && v.usuarioId === u.id && !v.removido)
+    .flatMap((v) => {
+      const papel = papelDoTenant(u.tenantId, v.papelId);
+
+      return papel === undefined ? [] : [{ id: papel.id, nome: papel.nome, estado: papel.estado }];
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome)),
   versao: u.versao,
+});
+
+const visaoDoPapel = (p: PapelEmMemoria) => ({
+  id: p.id,
+  nome: p.nome,
+  descricao: p.descricao,
+  papelBase: p.papelBase,
+  estado: p.estado,
+  revisao: p.revisao,
+  permissoes: [...p.permissoes],
+  criadoEm: p.criadoEm,
+  atualizadoEm: p.atualizadoEm,
 });
 
 const vigente = (usuarioId: string): ConviteEmMemoria | undefined =>
@@ -91,6 +173,9 @@ export const funcoesDoBanco = {
         usuarios: estado.usuarios,
         convites: estado.convites,
         eventos: estado.eventos,
+        papeis: estado.papeis,
+        revisoes: estado.revisoes,
+        vinculos: estado.vinculos,
       });
 
       try {
@@ -99,6 +184,9 @@ export const funcoesDoBanco = {
         estado.usuarios.splice(0, estado.usuarios.length, ...antes.usuarios);
         estado.convites.splice(0, estado.convites.length, ...antes.convites);
         estado.eventos.splice(0, estado.eventos.length, ...antes.eventos);
+        estado.papeis.splice(0, estado.papeis.length, ...antes.papeis);
+        estado.revisoes.splice(0, estado.revisoes.length, ...antes.revisoes);
+        estado.vinculos.splice(0, estado.vinculos.length, ...antes.vinculos);
         throw erro;
       }
     },
@@ -329,7 +417,11 @@ export const funcoesDoBanco = {
           ocorridoEm: new Date('2026-10-02T12:00:00Z'),
           tipo: e.tipo,
           usuarioAfetadoId: e.usuarioAfetadoId,
-          usuarioAfetadoNome: doTenant(tenantId, e.usuarioAfetadoId)?.nome ?? '?',
+          usuarioAfetadoNome:
+            e.usuarioAfetadoId === null ? null : (doTenant(tenantId, e.usuarioAfetadoId)?.nome ?? '?'),
+          papelId: e.papelId ?? null,
+          papelNome: e.papelId === undefined ? null : (papelDoTenant(tenantId, e.papelId)?.nome ?? '?'),
+          revisao: e.revisao ?? null,
           autorId: e.autorId,
           autorNome: e.autorId === null ? null : (doTenant(tenantId, e.autorId)?.nome ?? '?'),
           antes: e.antes,
@@ -337,6 +429,165 @@ export const funcoesDoBanco = {
         }));
 
       return { eventos, total: eventos.length };
+    },
+  ),
+
+  // -- Papéis personalizados (SPEC-008) ---------------------------------------
+  criarPapel: vi.fn(
+    async (
+      _c: unknown,
+      tenantId: string,
+      novo: {
+        nome: string;
+        descricao: string | null;
+        papelBase: string;
+        permissoes: string[];
+        autorId: string;
+      },
+    ) => {
+      if (nomeEmUso(tenantId, novo.nome, null)) {
+        throw violacaoDeNome();
+      }
+
+      const id = novoId('papel');
+      const agora = new Date();
+
+      estado.papeis.push({
+        id,
+        tenantId,
+        nome: novo.nome,
+        descricao: novo.descricao,
+        papelBase: novo.papelBase,
+        estado: 'ATIVO',
+        revisao: 1,
+        permissoes: [...novo.permissoes],
+        criadoEm: agora,
+        atualizadoEm: agora,
+      });
+      estado.revisoes.push({
+        papelId: id,
+        revisao: 1,
+        permissoes: [...novo.permissoes],
+        autorId: novo.autorId,
+      });
+
+      return id;
+    },
+  ),
+  carregarPapel: vi.fn(async (_c: unknown, tenantId: string, id: string) => {
+    const p = papelDoTenant(tenantId, id);
+
+    return p === undefined ? null : visaoDoPapel(p);
+  }),
+  papelComNome: vi.fn(async (_c: unknown, tenantId: string, nome: string) => {
+    const p = estado.papeis.find(
+      (x) => x.tenantId === tenantId && chaveDoNome(x.nome) === chaveDoNome(nome),
+    );
+
+    return p?.id ?? null;
+  }),
+  gravarNovaRevisao: vi.fn(
+    async (
+      _c: unknown,
+      tenantId: string,
+      id: string,
+      dados: {
+        nome: string;
+        descricao: string | null;
+        estado: string;
+        permissoes: string[];
+        autorId: string;
+      },
+    ) => {
+      const p = papelDoTenant(tenantId, id);
+
+      if (p === undefined) {
+        throw new Error('Falha ao gravar a revisão do papel.');
+      }
+
+      if (nomeEmUso(tenantId, dados.nome, id)) {
+        throw violacaoDeNome();
+      }
+
+      p.nome = dados.nome;
+      p.descricao = dados.descricao;
+      p.estado = dados.estado;
+      p.revisao += 1;
+      p.permissoes = [...dados.permissoes];
+      p.atualizadoEm = new Date();
+      estado.revisoes.push({
+        papelId: id,
+        revisao: p.revisao,
+        permissoes: [...dados.permissoes],
+        autorId: dados.autorId,
+      });
+
+      return p.revisao;
+    },
+  ),
+  listarPapeis: vi.fn(
+    async (
+      _c: unknown,
+      tenantId: string,
+      filtro: { busca?: string; estado?: string; limite: number; deslocamento: number },
+    ) => {
+      const papeis = estado.papeis
+        .filter((p) => p.tenantId === tenantId)
+        .filter((p) => filtro.estado === undefined || p.estado === filtro.estado)
+        .filter(
+          (p) =>
+            filtro.busca === undefined || p.nome.toLowerCase().includes(filtro.busca.toLowerCase()),
+        )
+        .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      return {
+        total: papeis.length,
+        papeis: papeis
+          .slice(filtro.deslocamento, filtro.deslocamento + filtro.limite)
+          .map((p) => ({
+            ...visaoDoPapel(p),
+            usuariosVinculados: vinculosVigentesDoPapel(tenantId, p.id).length,
+          })),
+      };
+    },
+  ),
+  contarVinculosDoPapel: vi.fn(
+    async (_c: unknown, tenantId: string, id: string) =>
+      vinculosVigentesDoPapel(tenantId, id).length,
+  ),
+  listarUsuariosVinculados: vi.fn(async (_c: unknown, tenantId: string, id: string) =>
+    vinculosVigentesDoPapel(tenantId, id).map((v) => ({
+      id: v.usuarioId,
+      nome: doTenant(tenantId, v.usuarioId)?.nome ?? '?',
+    })),
+  ),
+  carregarPapeisParaAtribuir: vi.fn(async (_c: unknown, tenantId: string, ids: string[]) =>
+    estado.papeis
+      .filter((p) => p.tenantId === tenantId && ids.includes(p.id))
+      .map((p) => ({ id: p.id, nome: p.nome, estado: p.estado })),
+  ),
+  substituirPapeisPersonalizados: vi.fn(
+    async (_c: unknown, tenantId: string, usuarioId: string, papelIds: string[]) => {
+      for (const v of estado.vinculos) {
+        if (
+          v.tenantId === tenantId &&
+          v.usuarioId === usuarioId &&
+          !v.removido &&
+          !papelIds.includes(v.papelId)
+        ) {
+          v.removido = true;
+        }
+      }
+
+      for (const papelId of papelIds) {
+        const jaVigente = estado.vinculos.some(
+          (v) => v.tenantId === tenantId && v.usuarioId === usuarioId && v.papelId === papelId && !v.removido,
+        );
+
+        if (!jaVigente) {
+          estado.vinculos.push({ tenantId, usuarioId, papelId, removido: false });
+        }
+      }
     },
   ),
 };

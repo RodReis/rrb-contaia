@@ -78,27 +78,21 @@ const Envolvido = ({ children }: { children: ReactNode }) => (
 
 const renderizar = () => render(<HistoricoDeInformacoes />, { wrapper: Envolvido });
 
-const SEM_PERMISSAO = {
-  CADASTRO_ESCRITORIO: [],
-  EMPRESAS: [],
-  DOCUMENTOS: [],
-  PENDENCIAS: [],
-  NOTIFICACOES: [],
-  HISTORICO: [],
-  USUARIOS: [],
-} as const;
-
 /** Quem lê o Histórico, mas não os usuários (ex.: contador): são as quatro abas de empresa. */
 const SESSAO_DO_CONTADOR = {
   papeis: ['contador'],
-  permissoes: { ...SEM_PERMISSAO, HISTORICO: ['consultar'] },
+  permissoes: ['historico.global.consultar'],
   escopoDeEmpresas: 'NENHUMA',
 };
 
 /** Quem lê o Histórico e os usuários (ex.: administrador): ganha a aba "Usuários e acessos". */
 const SESSAO_DO_ADMINISTRADOR = {
   papeis: ['admin_escritorio'],
-  permissoes: { ...SEM_PERMISSAO, HISTORICO: ['consultar'], USUARIOS: ['consultar', 'administrar'] },
+  permissoes: [
+    'historico.global.consultar',
+    'usuarios.usuarios_e_papeis.consultar',
+    'usuarios.usuarios_e_papeis.administrar',
+  ],
   escopoDeEmpresas: 'TODAS',
 };
 
