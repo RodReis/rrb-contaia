@@ -19,6 +19,7 @@ import {
 } from '@contaia/domain';
 
 import { AppModule } from '../app.module';
+import { CarteirasController, HistoricoDeCarteirasController } from '../carteira/carteira.controller';
 import { DocumentosDaEmpresaController } from '../empresa/documentos.controller';
 import { EmpresaController } from '../empresa/empresa.controller';
 import { HistoricoController, ManutencaoDaEmpresaController } from '../empresa/manutencao.controller';
@@ -179,6 +180,14 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais, agora por permissão do cat�
     [UsuariosController, 'suspender', so('admin_escritorio')],
     [UsuariosController, 'arquivar', so('admin_escritorio')],
     [UsuariosController, 'novoConvite', so('admin_escritorio')],
+    // Carteira (SPEC-009): só o admin administra; `minha` devolve só os vínculos da própria sessão.
+    [CarteirasController, 'minha', TODOS],
+    [CarteirasController, 'colaboradores', so('admin_escritorio')],
+    [CarteirasController, 'colaborador', so('admin_escritorio')],
+    [CarteirasController, 'empresas', so('admin_escritorio')],
+    [CarteirasController, 'colaboradoresDaEmpresa', so('admin_escritorio')],
+    [CarteirasController, 'alterar', so('admin_escritorio')],
+    [HistoricoDeCarteirasController, 'listar', so('admin_escritorio', 'auditor_readonly')],
     // Papéis personalizados e catálogo: leitura para quem consulta usuários, mutação só do admin
     [PapeisController, 'catalogo', so('admin_escritorio', 'auditor_readonly')],
     [PapeisController, 'listar', so('admin_escritorio', 'auditor_readonly')],
@@ -246,6 +255,12 @@ describe('papel personalizado nas rotas reais (SPEC-008 §3.4)', () => {
     [UsuariosController, 'listar', ['historico.global.consultar', 'empresas.cadastro.consultar'], 'negado'],
     [PapeisController, 'criar', ['empresas.cadastro.criar', 'documentos.analise.aprovar'], 'negado'],
     [HistoricoDeUsuariosController, 'listar', ['historico.global.consultar'], 'negado'],
+    // Carteira: nenhuma matriz de catálogo alcança a administração; consultar usuários não altera carteira.
+    [CarteirasController, 'alterar', ['usuarios.usuarios_e_papeis.consultar'], 'negado'],
+    [CarteirasController, 'alterar', ['usuarios.usuarios_e_papeis.administrar'], 'permitido'],
+    [CarteirasController, 'colaboradores', ['empresas.cadastro.consultar'], 'negado'],
+    [CarteirasController, 'minha', [], 'permitido'],
+    [HistoricoDeCarteirasController, 'listar', ['historico.global.consultar'], 'negado'],
     // Sem permissão alguma, nada é aberto (exceto rota livre).
     [EmpresaController, 'listar', [], 'negado'],
     [UsuariosController, 'eu', [], 'permitido'],
