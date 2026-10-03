@@ -210,3 +210,18 @@ export type {
 } from './pendencias/pendencias.js';
 export { tipoDeNotificacaoParaCausa } from './notificacoes/notificacoes.js';
 export type { CausaParaNotificar, TipoDeNotificacao } from './notificacoes/notificacoes.js';
+
+export {
+  decidirAcessoEmpresarial,
+  empresaAceitaVinculo,
+  planejarOperacao,
+  usuarioPodeReceberCarteira,
+} from './carteira/carteira.js';
+export type {
+  DecisaoDeAcesso,
+  EfeitoNoUsuario,
+  EmpresaParaCarteira,
+  OperacaoDeCarteira,
+  PlanoDeCarteira,
+  UsuarioParaCarteira,
+} from './carteira/carteira.js';
