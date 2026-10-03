@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CODIGOS_DE_ERRO, ErroDeDominio, type PapelPadrao } from '@contaia/domain';
 
-import { AcaoLivre, ExigeAcao, GuardDeAcao } from './acao.guard';
+import { AcaoLivre, ExigeAcao, ExigeAcoes, GuardDeAcao } from './acao.guard';
 import type { RequisicaoAutenticada } from './sessao.guard';
 
 const contextoDe = (
@@ -31,6 +31,10 @@ class ControllerDeTeste {
 
   @AcaoLivre()
   livre(): void {}
+
+  // Quem lê a aba de usuários no Histórico precisa das duas capacidades.
+  @ExigeAcoes(['HISTORICO', 'consultar'], ['USUARIOS', 'consultar'])
+  historicoDeUsuarios(): void {}
 
   semAnotacao(): void {}
 }
@@ -97,6 +101,22 @@ describe('GuardDeAcao', () => {
     expect(
       codigoDe(() => guard.canActivate(contextoDe(['admin_escritorio'], alvo('semAnotacao')))),
     ).toBe(CODIGOS_DE_ERRO.SEM_AUTORIZACAO);
+  });
+
+  it('ExigeAcoes exige todas as capacidades: contador lê o Histórico mas não os usuários', () => {
+    const lerAba = (papeis: readonly PapelPadrao[]) =>
+      codigoDe(() => guard.canActivate(contextoDe(papeis, alvo('historicoDeUsuarios'))));
+
+    expect(lerAba(['admin_escritorio'])).toBeUndefined();
+    expect(lerAba(['auditor_readonly'])).toBeUndefined();
+    expect(lerAba(['contador'])).toBe(CODIGOS_DE_ERRO.SEM_AUTORIZACAO);
+    expect(lerAba(['auxiliar'])).toBe(CODIGOS_DE_ERRO.SEM_AUTORIZACAO);
+  });
+
+  it('ExigeAcoes soma papéis: contador + auditor satisfaz as duas capacidades', () => {
+    expect(
+      guard.canActivate(contextoDe(['contador', 'auditor_readonly'], alvo('historicoDeUsuarios'))),
+    ).toBe(true);
   });
 
   it('o método sobrescreve o padrão da classe', () => {

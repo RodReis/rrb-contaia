@@ -21,6 +21,7 @@ import {
   criarConvite,
   criarUsuario,
   invalidarConvitesVigentes,
+  listarEventosDeUsuario,
   listarUsuarios,
   marcarEnvioFalhou,
   reconciliarConvitesExpirados,
@@ -31,6 +32,8 @@ import {
 } from '@contaia/db';
 import type {
   ConviteVigente,
+  EventoDeUsuarioNaLista,
+  FiltroDeEventosDeUsuario,
   FiltroDeUsuarios,
   TipoDeEventoDeUsuario,
   UsuarioNaLista,
@@ -94,6 +97,27 @@ export type PaginaDeUsuariosVisao = Readonly<{
   usuarios: readonly VisaoDeUsuario[];
   total: number;
 }>;
+
+export type EventoDeUsuarioVisao = Readonly<
+  Omit<EventoDeUsuarioNaLista, 'ocorridoEm'> & { ocorridoEm: string }
+>;
+
+export type PaginaDeEventosVisao = Readonly<{
+  eventos: readonly EventoDeUsuarioVisao[];
+  total: number;
+}>;
+
+/** Eventos cujo único conteúdo é técnico (prazo e identificador do convite): o tipo basta. */
+const TIPOS_SEM_VALORES: ReadonlySet<TipoDeEventoDeUsuario> = new Set([
+  'CONVITE_REENVIADO',
+  'CONVITE_EXPIRADO',
+]);
+
+const paraEventoVisivel = (evento: EventoDeUsuarioNaLista): EventoDeUsuarioVisao => ({
+  ...evento,
+  ocorridoEm: evento.ocorridoEm.toISOString(),
+  ...(TIPOS_SEM_VALORES.has(evento.tipo) ? { antes: null, depois: null } : {}),
+});
 
 type Compensacao = () => Promise<void>;
 type RegistrarCompensacao = (compensacao: Compensacao) => void;
@@ -164,6 +188,22 @@ export class UsuariosService {
         total: pagina.total,
         usuarios: pagina.usuarios.map((usuario) => paraVisaoDaLista(usuario, agora)),
       };
+    });
+  }
+
+  /** Aba "Usuários e acessos" do Histórico: somente leitura, só do escritório da sessão. */
+  async consultarHistorico(
+    tenantId: string,
+    filtro: FiltroDeEventosDeUsuario,
+  ): Promise<PaginaDeEventosVisao> {
+    const agora = new Date();
+
+    return comContextoDeTenant(this.pool.instancia, tenantId, async (cliente) => {
+      await reconciliarConvitesExpirados(cliente, tenantId, agora);
+
+      const pagina = await listarEventosDeUsuario(cliente, tenantId, filtro);
+
+      return { total: pagina.total, eventos: pagina.eventos.map(paraEventoVisivel) };
     });
   }
 

@@ -19,7 +19,11 @@ import { EscritorioController } from './escritorio/escritorio.controller';
 import { EscritorioService } from './escritorio/escritorio.service';
 import { PainelController } from './escritorio/painel.controller';
 import { StorageService } from './comum/storage.service';
+import { GuardDeLimiteDeTentativas, LimitadorDeTentativas } from './auth/limite-de-tentativas';
 import { ConviteMailer } from './usuarios/convite.mailer';
+import { ConvitesController } from './usuarios/convites.controller';
+import { ConvitesService } from './usuarios/convites.service';
+import { HistoricoDeUsuariosController } from './usuarios/historico-de-usuarios.controller';
 import { KeycloakAdminClient } from './usuarios/keycloak-admin.client';
 import { UsuariosController } from './usuarios/usuarios.controller';
 import { UsuariosService } from './usuarios/usuarios.service';
@@ -42,6 +46,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     HealthController,
     EscritorioController,
     PainelController,
+    HistoricoDeUsuariosController,
     HistoricoController,
     ManutencaoDaEmpresaController,
     PendenciasDaEmpresaController,
@@ -50,6 +55,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     PendenciasController,
     NotificacoesController,
     UsuariosController,
+    ConvitesController,
   ],
   providers: [
     PoolDoBanco,
@@ -62,8 +68,12 @@ import { PendenciasService } from './pendencias/pendencias.service';
     PendenciasService,
     NotificacoesService,
     UsuariosService,
+    ConvitesService,
     KeycloakAdminClient,
     ConviteMailer,
+    // 10 tentativas por minuto por cliente e rota nas rotas públicas do convite.
+    { provide: LimitadorDeTentativas, useValue: new LimitadorDeTentativas(10, 60_000) },
+    GuardDeLimiteDeTentativas,
     ConsultaDeCnpjNaCnpja,
     GuardDeSessao,
     GuardDeCadastro,

@@ -16,6 +16,7 @@ import {
 import type { PapelPadrao } from '@contaia/domain';
 
 import { AcaoLivre, ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
 import {
   GuardDeCadastro,
   GuardDeSessao,
@@ -31,32 +32,7 @@ import {
   filtroDeUsuariosSchema,
   novoConviteSchema,
 } from './usuarios.dto';
-import {
-  type Autor,
-  type PaginaDeUsuariosVisao,
-  type VisaoDeUsuario,
-  UsuariosService,
-} from './usuarios.service';
-
-const tenantDa = (requisicao: RequisicaoAutenticada): string => {
-  const tenantId = requisicao.sessao?.tenantId;
-
-  if (tenantId === undefined) {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.TENANT_DIVERGENTE, 'Sessão sem escritório associado.');
-  }
-
-  return tenantId;
-};
-
-const autorDa = (requisicao: RequisicaoAutenticada): Autor => {
-  const usuarioId = requisicao.sessao?.usuarioId;
-
-  if (usuarioId === undefined) {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.TENANT_DIVERGENTE, 'Sessão sem usuário associado.');
-  }
-
-  return { usuarioId };
-};
+import { type PaginaDeUsuariosVisao, type VisaoDeUsuario, UsuariosService } from './usuarios.service';
 
 /** Id malformado responde como inexistente: o banco daria erro de cast (500) e vazaria o formato. */
 const usuarioDe = (parametro: string): string => {

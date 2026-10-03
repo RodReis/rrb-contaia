@@ -21,6 +21,7 @@ import {
   PendenciasController,
   PendenciasDaEmpresaController,
 } from '../pendencias/pendencias.controller';
+import { HistoricoDeUsuariosController } from '../usuarios/historico-de-usuarios.controller';
 import { UsuariosController } from '../usuarios/usuarios.controller';
 import { ACAO_EXIGIDA, GuardDeAcao } from './acao.guard';
 import { GuardDeSessao } from './sessao.guard';
@@ -43,7 +44,19 @@ const manipuladoresDe = (controller: Classe): ReadonlyArray<readonly [string, Me
         typeof par[1] === 'function' && Reflect.hasMetadata('path', par[1]),
     );
 
+// Controllers sem sessão são decisão explícita: qualquer um novo precisa entrar aqui de propósito.
+const PUBLICOS = new Set(['HealthController', 'ConvitesController']);
+
 describe('cobertura de ações nas rotas autenticadas', () => {
+  it('só os controllers públicos conhecidos dispensam GuardDeSessao', () => {
+    const semSessao = controllersDoModulo()
+      .filter((controller) => !guardsDe(controller).includes(GuardDeSessao))
+      .map((controller) => controller.name)
+      .filter((nome) => !PUBLICOS.has(nome));
+
+    expect(semSessao).toEqual([]);
+  });
+
   it('todo controller com GuardDeSessao também usa GuardDeAcao', () => {
     const semGuardDeAcao = controllersDoModulo()
       .filter((controller) => guardsDe(controller).includes(GuardDeSessao))
@@ -135,6 +148,8 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais', () => {
     [NotificacoesController, 'marcarComoLida', so('admin_escritorio', 'contador', 'auxiliar')],
     // Histórico de Informações
     [HistoricoController, 'listar', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    // Aba "Usuários e acessos": exige ler o Histórico E ler usuários (contador só tem o primeiro).
+    [HistoricoDeUsuariosController, 'listar', so('admin_escritorio', 'auditor_readonly')],
     // Usuários e papéis padrão
     [UsuariosController, 'listar', so('admin_escritorio', 'auditor_readonly')],
     [UsuariosController, 'papeis', so('admin_escritorio', 'auditor_readonly')],

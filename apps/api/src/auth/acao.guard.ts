@@ -22,10 +22,20 @@ import type { RequisicaoAutenticada } from './sessao.guard';
 
 export const ACAO_EXIGIDA = 'acaoExigida';
 
-type AcaoExigida = Readonly<{ capacidade: Capacidade; acao: Acao }> | 'LIVRE';
+type Exigencia = Readonly<{ capacidade: Capacidade; acao: Acao }>;
+type AcaoExigida = readonly Exigencia[] | 'LIVRE';
+
+/** Exige todas as ações listadas: cada uma precisa ser concedida por algum papel do usuário. */
+export const ExigeAcoes = (
+  ...exigencias: ReadonlyArray<readonly [Capacidade, Acao]>
+): ClassDecorator & MethodDecorator =>
+  SetMetadata<string, AcaoExigida>(
+    ACAO_EXIGIDA,
+    exigencias.map(([capacidade, acao]) => ({ capacidade, acao })),
+  );
 
 export const ExigeAcao = (capacidade: Capacidade, acao: Acao): ClassDecorator & MethodDecorator =>
-  SetMetadata<string, AcaoExigida>(ACAO_EXIGIDA, { capacidade, acao });
+  ExigeAcoes([capacidade, acao]);
 
 /** Qualquer sessão autenticada acessa; reservado a rotas que não dependem de papel. */
 export const AcaoLivre = (): ClassDecorator & MethodDecorator =>
@@ -48,7 +58,13 @@ export class GuardDeAcao implements CanActivate {
     const requisicao = contexto.switchToHttp().getRequest<RequisicaoAutenticada>();
     const papeis = requisicao.sessao?.papeis;
 
-    if (exigida === undefined || papeis === undefined || !podeExecutar(papeis, exigida.capacidade, exigida.acao)) {
+    const autorizado =
+      exigida !== undefined &&
+      exigida.length > 0 &&
+      papeis !== undefined &&
+      exigida.every(({ capacidade, acao }) => podeExecutar(papeis, capacidade, acao));
+
+    if (!autorizado) {
       throw new ErroDeDominio(
         CODIGOS_DE_ERRO.SEM_AUTORIZACAO,
         'Sem autorização para este recurso.',

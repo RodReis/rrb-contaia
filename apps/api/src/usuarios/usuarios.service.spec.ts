@@ -10,288 +10,14 @@
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { estado, reiniciar } = vi.hoisted(() => {
-  type Usuario = {
-    id: string;
-    tenantId: string;
-    subOidc: string;
-    email: string;
-    nome: string;
-    telefone: string | null;
-    crc: string | null;
-    estado: string;
-    papeis: string[];
-    versao: number;
-    criadoEm: Date;
-  };
-  type Convite = {
-    id: string;
-    tenantId: string;
-    usuarioId: string;
-    tokenHash: string;
-    expiraEm: Date;
-    usadoEm: Date | null;
-    invalidadoEm: Date | null;
-    envioFalhou: boolean;
-  };
-  type Evento = {
-    tenantId: string;
-    tipo: string;
-    usuarioAfetadoId: string;
-    autorId: string | null;
-    antes: unknown;
-    depois: unknown;
-  };
-
-  const estado = {
-    usuarios: [] as Usuario[],
-    convites: [] as Convite[],
-    eventos: [] as Evento[],
-    sequencia: 0,
-    falharAoRegistrarEvento: false,
-  };
-
-  const reiniciar = (): void => {
-    estado.usuarios.length = 0;
-    estado.convites.length = 0;
-    estado.eventos.length = 0;
-    estado.sequencia = 0;
-    estado.falharAoRegistrarEvento = false;
-  };
-
-  return { estado, reiniciar };
-});
-
 vi.mock('@contaia/db', async () => {
   const real = await vi.importActual<typeof import('@contaia/db')>('@contaia/db');
-  const novoId = (prefixo: string): string => `${prefixo}-${++estado.sequencia}`;
-  const doTenant = (tenantId: string, id: string) =>
-    estado.usuarios.find((u) => u.tenantId === tenantId && u.id === id);
-  const visao = (u: (typeof estado.usuarios)[number]) => ({
-    id: u.id,
-    subOidc: u.subOidc,
-    email: u.email,
-    nome: u.nome,
-    telefone: u.telefone,
-    crc: u.crc,
-    estado: u.estado,
-    papeis: [...u.papeis],
-    versao: u.versao,
-  });
-  const vigente = (usuarioId: string) =>
-    estado.convites.find(
-      (c) => c.usuarioId === usuarioId && c.usadoEm === null && c.invalidadoEm === null,
-    );
+  const { funcoesDoBanco } = await import('./banco-em-memoria.js');
 
-  return {
-    ...real,
-    // A transação do dublê desfaz tudo se o caso de uso lançar: é o que prova "nada parcial".
-    comContextoDeTenant: vi.fn(
-      async (_pool: unknown, _tenantId: string, executar: (cliente: never) => Promise<unknown>) => {
-        const antes = structuredClone({
-          usuarios: estado.usuarios,
-          convites: estado.convites,
-          eventos: estado.eventos,
-        });
-
-        try {
-          return await executar({} as never);
-        } catch (erro) {
-          estado.usuarios.splice(0, estado.usuarios.length, ...antes.usuarios);
-          estado.convites.splice(0, estado.convites.length, ...antes.convites);
-          estado.eventos.splice(0, estado.eventos.length, ...antes.eventos);
-          throw erro;
-        }
-      },
-    ),
-    criarUsuario: vi.fn(async (_c: unknown, tenantId: string, novo: Record<string, string | null>) => {
-      if (estado.usuarios.some((u) => u.email.toLowerCase() === String(novo['email']).toLowerCase())) {
-        throw Object.assign(new Error('duplicate key'), {
-          code: '23505',
-          constraint: 'usuario_email_unico',
-        });
-      }
-
-      const id = novoId('usuario');
-
-      estado.usuarios.push({
-        id,
-        tenantId,
-        subOidc: String(novo['subOidc']),
-        email: String(novo['email']),
-        nome: String(novo['nome']),
-        telefone: novo['telefone'] ?? null,
-        crc: novo['crc'] ?? null,
-        estado: 'CONVIDADO',
-        papeis: [],
-        versao: 0,
-        criadoEm: new Date(),
-      });
-
-      return id;
-    }),
-    substituirPapeis: vi.fn(async (_c: unknown, tenantId: string, id: string, papeis: string[]) => {
-      const u = doTenant(tenantId, id);
-
-      if (u !== undefined) u.papeis = [...papeis];
-    }),
-    carregarUsuario: vi.fn(async (_c: unknown, tenantId: string, id: string) => {
-      const u = doTenant(tenantId, id);
-
-      return u === undefined ? null : visao(u);
-    }),
-    usuarioComEmailNoTenant: vi.fn(async (_c: unknown, tenantId: string, email: string) => {
-      const u = estado.usuarios.find(
-        (x) => x.tenantId === tenantId && x.email.toLowerCase() === email.toLowerCase(),
-      );
-
-      return u === undefined ? null : { id: u.id, estado: u.estado };
-    }),
-    atualizarDadosDoUsuario: vi.fn(
-      async (_c: unknown, tenantId: string, id: string, dados: Record<string, string | null>) => {
-        const u = doTenant(tenantId, id);
-
-        if (u === undefined) return;
-        u.nome = String(dados['nome']);
-        u.telefone = dados['telefone'] ?? null;
-        u.crc = dados['crc'] ?? null;
-        if (dados['email'] !== undefined && dados['email'] !== null) u.email = dados['email'];
-        u.versao += 1;
-      },
-    ),
-    atualizarEstadoDoUsuario: vi.fn(
-      async (_c: unknown, tenantId: string, id: string, novo: string) => {
-        const u = doTenant(tenantId, id);
-
-        if (u !== undefined) {
-          u.estado = novo;
-          u.versao += 1;
-        }
-      },
-    ),
-    travarAdminsAtivos: vi.fn(async (_c: unknown, tenantId: string) =>
-      estado.usuarios
-        .filter(
-          (u) =>
-            u.tenantId === tenantId && u.estado === 'ATIVO' && u.papeis.includes('admin_escritorio'),
-        )
-        .map((u) => u.id),
-    ),
-    criarConvite: vi.fn(
-      async (
-        _c: unknown,
-        tenantId: string,
-        usuarioId: string,
-        convite: { tokenHash: string; expiraEm: Date },
-      ) => {
-        if (vigente(usuarioId) !== undefined) {
-          throw Object.assign(new Error('duplicate key'), {
-            code: '23505',
-            constraint: 'usuario_convite_vigente_unico',
-          });
-        }
-
-        const id = novoId('convite');
-
-        estado.convites.push({
-          id,
-          tenantId,
-          usuarioId,
-          tokenHash: convite.tokenHash,
-          expiraEm: convite.expiraEm,
-          usadoEm: null,
-          invalidadoEm: null,
-          envioFalhou: false,
-        });
-
-        return id;
-      },
-    ),
-    invalidarConvitesVigentes: vi.fn(async (_c: unknown, _tenantId: string, usuarioId: string) => {
-      const pendente = vigente(usuarioId);
-
-      if (pendente === undefined) return 0;
-      pendente.invalidadoEm = new Date();
-
-      return 1;
-    }),
-    marcarEnvioFalhou: vi.fn(
-      async (_c: unknown, _tenantId: string, conviteId: string, falhou: boolean) => {
-        const c = estado.convites.find((x) => x.id === conviteId);
-
-        if (c !== undefined) c.envioFalhou = falhou;
-      },
-    ),
-    conviteVigenteDoUsuario: vi.fn(async (_c: unknown, _tenantId: string, usuarioId: string) => {
-      const c = vigente(usuarioId);
-
-      return c === undefined ? null : { id: c.id, expiraEm: c.expiraEm, envioFalhou: c.envioFalhou };
-    }),
-    registrarEventoDeUsuario: vi.fn(
-      async (
-        _c: unknown,
-        tenantId: string,
-        evento: {
-          tipo: string;
-          usuarioAfetadoId: string;
-          autorId: string | null;
-          antes: unknown;
-          depois: unknown;
-        },
-      ) => {
-        if (estado.falharAoRegistrarEvento) {
-          throw new Error('falha na auditoria');
-        }
-
-        estado.eventos.push({ tenantId, ...evento });
-      },
-    ),
-    listarUsuarios: vi.fn(async (_c: unknown, tenantId: string) => {
-      const usuarios = estado.usuarios
-        .filter((u) => u.tenantId === tenantId)
-        .map((u) => ({
-          ...visao(u),
-          conviteExpiraEm: vigente(u.id)?.expiraEm ?? null,
-          envioFalhou: vigente(u.id)?.envioFalhou ?? false,
-          criadoEm: u.criadoEm,
-        }));
-
-      return { usuarios, total: usuarios.length };
-    }),
-    reconciliarConvitesExpirados: vi.fn(async (_c: unknown, tenantId: string, agora: Date) => {
-      let novos = 0;
-
-      for (const c of estado.convites) {
-        const jaRegistrado = estado.eventos.some(
-          (e) =>
-            e.tipo === 'CONVITE_EXPIRADO' &&
-            (e.depois as { conviteId?: string } | null)?.conviteId === c.id,
-        );
-
-        if (
-          c.tenantId === tenantId &&
-          c.expiraEm.getTime() <= agora.getTime() &&
-          c.usadoEm === null &&
-          c.invalidadoEm === null &&
-          !jaRegistrado
-        ) {
-          estado.eventos.push({
-            tenantId,
-            tipo: 'CONVITE_EXPIRADO',
-            usuarioAfetadoId: c.usuarioId,
-            autorId: null,
-            antes: null,
-            depois: { conviteId: c.id },
-          });
-          novos += 1;
-        }
-      }
-
-      return novos;
-    }),
-  };
+  return { ...real, ...funcoesDoBanco };
 });
 
+import { estado, reiniciar } from './banco-em-memoria';
 import { UsuariosService } from './usuarios.service';
 
 const T1 = 'tenant-1';
@@ -890,6 +616,85 @@ describe('UsuariosService', () => {
       const pagina = await service.listar(T1, { limite: 25, deslocamento: 0 });
 
       expect(semAnotacoes(pagina)).not.toMatch(/token|link|hash|subOidc|sub-/i);
+    });
+  });
+
+  describe('consultarHistorico (aba "Usuários e acessos")', () => {
+    const FILTRO = { limite: 25, deslocamento: 0 };
+
+    beforeEach(() => semear(T1, 'ativo-1', 'ativo@escritorio.com', ['contador']));
+
+    it('devolve os eventos do escritório, do mais recente ao mais antigo, com autor e afetado nomeados', async () => {
+      await service.suspender(T1, AUTOR, 'ativo-1');
+      await service.reativar(T1, AUTOR, 'ativo-1');
+
+      const pagina = await service.consultarHistorico(T1, FILTRO);
+
+      expect(pagina.total).toBe(2);
+      expect(pagina.eventos.map((e) => e.tipo)).toEqual(['REATIVADO', 'SUSPENSO']);
+      expect(pagina.eventos[0]).toMatchObject({
+        usuarioAfetadoId: 'ativo-1',
+        usuarioAfetadoNome: 'Nome ativo-1',
+        autorId: 'admin-1',
+        autorNome: 'Nome admin-1',
+        antes: { estado: 'SUSPENSO' },
+        depois: { estado: 'ATIVO' },
+      });
+      expect(typeof pagina.eventos[0]?.ocorridoEm).toBe('string');
+    });
+
+    it('eventos puramente técnicos do convite (reenvio, expiração) não expõem seus valores; o de criação mostra papéis', async () => {
+      const convidado = await service.convidar(T1, AUTOR, DADOS);
+
+      await service.reenviarConvite(T1, AUTOR, convidado.id);
+
+      const pagina = await service.consultarHistorico(T1, FILTRO);
+      const criado = pagina.eventos.find((e) => e.tipo === 'CONVITE_CRIADO');
+      const reenviado = pagina.eventos.find((e) => e.tipo === 'CONVITE_REENVIADO');
+
+      expect(criado?.depois).toMatchObject({ papeis: ['contador'], estado: 'CONVIDADO' });
+      expect(reenviado).toBeDefined();
+      expect(reenviado?.antes).toBeNull();
+      expect(reenviado?.depois).toBeNull();
+      expect(semAnotacoes(pagina)).not.toMatch(/token|link|hash|conviteId/i);
+    });
+
+    it('registra a expiração do convite uma única vez e mostra o autor como sistema', async () => {
+      await service.convidar(T1, AUTOR, DADOS);
+
+      vi.setSystemTime(new Date(AGORA.getTime() + 49 * 3_600_000));
+
+      await service.consultarHistorico(T1, FILTRO);
+      const pagina = await service.consultarHistorico(T1, FILTRO);
+      const expirados = pagina.eventos.filter((e) => e.tipo === 'CONVITE_EXPIRADO');
+
+      expect(expirados).toHaveLength(1);
+      expect(expirados[0]?.autorId).toBeNull();
+      expect(expirados[0]?.autorNome).toBeNull();
+    });
+
+    it('repassa os filtros e nunca mostra evento de outro escritório', async () => {
+      await service.suspender(T1, AUTOR, 'ativo-1');
+      estado.eventos.push({
+        tenantId: T2,
+        tipo: 'SUSPENSO',
+        usuarioAfetadoId: 'outro-1',
+        autorId: null,
+        antes: null,
+        depois: null,
+      });
+
+      const doAfetado = await service.consultarHistorico(T1, {
+        ...FILTRO,
+        usuarioAfetadoId: 'ativo-1',
+      });
+      const outroTenant = await service.consultarHistorico(T1, {
+        ...FILTRO,
+        usuarioAfetadoId: 'outro-1',
+      });
+
+      expect(doAfetado.eventos).toHaveLength(1);
+      expect(outroTenant.eventos).toHaveLength(0);
     });
   });
 });
