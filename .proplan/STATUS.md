@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-09-22
+updated: 2026-10-03
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -9,6 +9,48 @@ updated: 2026-09-22
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-080][F80] Validação de folha BB com modalidades de conta no mesmo lote (#94)
+- [MVP2][SPEC-079][F79] Validação de folha BB com modalidades de conta mistas por CNAB 240 (#93)
+- [MVP2][SPEC-078][F78] Validação de folha mensal em conta salário BB por CNAB 240 (#92)
+- [MVP2][SPEC-077][F77] Validação de folha mensal em poupança BB por CNAB 240 (#91)
+- [MVP2][SPEC-076][F76] Validação de folha mensal BB por CNAB 240 (#90)
+- [MVP2][SPEC-075][F75] Validação de DARF numerado e integração com pagamentos BB (#89)
+- [MVP2][SPEC-074][F74] Pagamentos tributários BB sem código de barras por CNAB 240 (#88)
+- [MVP2][SPEC-073][F73] Manutenção de pagamentos BB por CNAB 240 (#87)
+- [MVP2][SPEC-072][F72] Pagamentos locais BB por CNAB 240 (#86)
+- [MVP2][SPEC-071][F71] Ciclo CNAB avançado de cobrança do Banco do Brasil (#85)
+- [MVP2][SPEC-070][F70] Núcleo CNAB de cobrança do Banco do Brasil (#84)
+- [MVP2][SPEC-069][F69] Importação de boletos por PDF e linha digitável (#83)
+- [MVP2][SPEC-068][F68] Núcleo de contas a pagar e receber (#82)
+- [MVP2][SPEC-067][F67] Malha fiscal preventiva contínua (#81)
+- [MVP2][SPEC-066][F66] Sucessão tributária versionada de obrigações (#80)
+- [MVP2][SPEC-065][F65] Dependências rígidas e sequência de entrega de obrigações (#79)
+- [MVP2][SPEC-064][F64] Penalidades, juros e prioridade de risco (#78)
+- [MVP2][SPEC-063][F63] Catálogo fiscal e exigibilidade de obrigações (#77)
+- [MVP2][SPEC-062][F62] Produção conjunta efetuada por terceiros no Bloco K completo (#76)
+- [MVP2][SPEC-061][F61] Produção conjunta própria no Bloco K completo (#75)
+- [MVP2][SPEC-060][F60] Correções de desmontagem e movimentação interna no Bloco K (#74)
+- [MVP2][SPEC-059][F59] Reprocessamento e reparo no Bloco K completo (#73)
+- [MVP2][SPEC-058][F58] Industrialização efetuada por terceiros no Bloco K completo (#72)
+- [MVP2][SPEC-057][F57] Desmontagem e movimentação interna no Bloco K completo (#71)
+- [MVP2][SPEC-056][F56] Produção própria e consumo no Bloco K completo (#70)
+- [MVP2][SPEC-055][F55] Bloco K de saldos e leiaute simplificado (#69)
+- [MVP2][SPEC-054][F54] Motor de estoque, inventário físico e Bloco H (#68)
+- [MVP2][SPEC-053][F53] Geração completa da EFD-Contribuições (#67)
+- [MVP2][SPEC-052][F52] Geração completa da EFD ICMS/IPI (#66)
+- [MVP2][SPEC-051][F51] Livros e fechamento fiscal (#65)
+- [MVP2][SPEC-050][F50] Geração completa da ECF (#64)
+- [MVP2][SPEC-049][F49] Geração completa da ECD (#63)
+- [MVP2][SPEC-048][F48] Livros contábeis formais por empresa (#62)
+- [MVP2][SPEC-047][F47] Plano referencial contábil por empresa (#61)
+- [MVP2][SPEC-046][F46] Modelos de DRE do escritório (#60)
+- [MVP2][SPEC-045][F45] DRE gerencial por empresa (#59)
+- [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58)
+- [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57)
+- [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56)
+- [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55)
+- [MVP2][SPEC-040][F40] Lançamentos contábeis manuais balanceados (#54)
+- [MVP2][SPEC-039][F39] Catálogo contábil operacional (#53)
 - [MVP2][SPEC-038][F38] Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido (#44)
 - [MVP2][SPEC-037][F37] Apuração mensal de PIS e Cofins para autopeças no Lucro Presumido (#43)
 - [MVP2][SPEC-036][F36] Apuração mensal e guias prévias para comércio de autopeças em Goiás (#41)
@@ -41,9 +83,6 @@ updated: 2026-09-22
 - [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14)
 - [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13)
 - [MVP1][SPEC-010][F10] RLS de dois níveis e provas negativas (#12)
-- [MVP1][SPEC-009][F9] Carteira do colaborador e isolamento por empresa (#11)
-- [MVP1][SPEC-008][F8] Papéis personalizados e permissões (#10)
-- [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9)
 
 ### Sem épico
 
@@ -59,12 +98,20 @@ _(vazio)_
 
 ## Feito
 
-_(vazio)_
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9)
+
+### Sem épico
+
+- [MVP1][SPEC-002][FIX] E2E da F2 compara o total global de empresas e falha sob paralelismo (#96)
 
 ## Finalizado
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-008][F8] Papéis personalizados e permissões (#10, finalizado em: 2026-10-03)
+- [MVP1][SPEC-009][F9] Carteira do colaborador e isolamento por empresa (#11, finalizado em: 2026-10-03)
 - [MVP1][SPEC-006][F6] Notificações de pendências (#7, finalizado em: 2026-09-22)
 - [MVP1][SPEC-005][F5] Central de Pendências cadastrais (#6, finalizado em: 2026-09-21)
 - [MVP1][SPEC-004][F4] Documentos da empresa (#5, finalizado em: 2026-09-21)
