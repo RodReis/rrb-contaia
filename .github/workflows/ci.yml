@@ -203,7 +203,10 @@ jobs:
           # O Mailpit captura o e-mail do convite (SPEC-007) para a prova E2E.
           docker run -d --name contaia-mailpit -p 127.0.0.1:11025:1025 -p 127.0.0.1:18025:8025 axllent/mailpit:v1.31.3
 
-          docker run -d --name contaia-minio             -p 127.0.0.1:19000:9000             -e MINIO_ROOT_USER=contaia_local             -e MINIO_ROOT_PASSWORD=contaia_local_secret             quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z             server /data
+          # A imagem oficial saiu do quay.io e do Docker Hub (a tag fixada deixou de existir e
+          # o `pull` responde `unauthorized`). A do Bitnami legado é o mesmo MinIO, congelada e
+          # fixada por digest; entra pelo binário `minio`, como root, com o mesmo `/data`.
+          docker run -d --name contaia-minio             -p 127.0.0.1:19000:9000             -e MINIO_ROOT_USER=contaia_local             -e MINIO_ROOT_PASSWORD=contaia_local_secret             --user 0:0 --entrypoint minio             bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c             server /data
 
           docker run -d --name contaia-keycloak             -p 127.0.0.1:18080:8080             -e KC_BOOTSTRAP_ADMIN_USERNAME=admin             -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin_local             -v "$PWD/infra/keycloak:/opt/keycloak/data/import:ro"             quay.io/keycloak/keycloak:26.5.2             start-dev --import-realm
           for tentativa in $(seq 1 40); do

@@ -66,9 +66,14 @@ services:
     networks: [contaia]
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # A imagem oficial saiu do quay.io e do Docker Hub. A do Bitnami legado é o mesmo MinIO,
+    # congelada e fixada por digest; entra pelo binário `minio`, como root, com o mesmo
+    # `/data` (volumes antigos, criados como root, continuam legíveis).
+    image: bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c
     container_name: contaia-minio
     restart: unless-stopped
+    user: '0:0'
+    entrypoint: ['minio']
     command: ['server', '/data', '--console-address', ':9001']
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -79,7 +84,12 @@ services:
     volumes:
       - contaia_minio:/data
     healthcheck:
-      test: ['CMD-SHELL', 'mc ready local || exit 1']
+      # `mc ready local` dependia do alias que a imagem oficial trazia pronto.
+      test:
+        - CMD
+        - bash
+        - -c
+        - "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /minio/health/live HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"
       interval: 10s
       timeout: 5s
       retries: 12
