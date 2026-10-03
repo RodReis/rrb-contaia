@@ -326,9 +326,13 @@ const corposRecebidos: string[] = [];
 
 const abrirCofre = async (page: Page, query = ''): Promise<void> => {
   await page.goto(`/configuracoes/cofre${query}`);
-  await expect(page.getByRole('heading', { level: 1, name: 'Cofre de certificados A1' })).toBeVisible({
-    timeout: 20_000,
-  });
+  // Com `?empresa=` o painel de detalhe abre como modal e marca o resto da página como
+  // aria-hidden: o h1 sai da árvore de acessibilidade, então a prova de carga é o painel.
+  const pronto = query.includes('empresa=')
+    ? page.getByRole('dialog', { name: 'Certificado da empresa' })
+    : page.getByRole('heading', { level: 1, name: 'Cofre de certificados A1' });
+
+  await expect(pronto).toBeVisible({ timeout: 20_000 });
 };
 
 const pfx = (nome: string): string => join(PASTA_PFX, `${nome}.pfx`);
@@ -632,7 +636,7 @@ test('reiniciar o Vault preserva o certificado, as políticas e os metadados na 
   expect((await lerSegredo('cofre-ingestao', alfaId, vigente?.referencia_segredo ?? '')).status).toBe(403);
   expect((await lerSegredo('api-principal', alfaId, vigente?.referencia_segredo ?? '')).status).toBe(403);
 
-  await abrirCofre(admin, `?empresa=${alfaId}`);
+  await abrirCofre(admin);
   // Tabela e cartões coexistem no DOM (o CSS esconde um): a prova é na tabela, visível no desktop.
   const linhaDaAlfa = admin.getByRole('row').filter({ hasText: NOME_ALFA });
 
