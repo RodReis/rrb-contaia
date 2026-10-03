@@ -68,7 +68,7 @@ const exigirRevisoesAtuais = (
   const desatualizado = usuarios.some((u) => esperadas[u.id] !== u.revisao);
   if (desatualizado) {
     throw new ErroDeConflito(
-      CODIGOS_DE_ERRO.REVISAO_NAO_CONFIRMADA,
+      CODIGOS_DE_ERRO.CARTEIRA_DESATUALIZADA,
       'A carteira mudou desde que você a abriu. Recarregue e revise antes de salvar.',
     );
   }
@@ -106,7 +106,7 @@ const problemasDoLote = ({
           codigo:
             empresa.situacao === 'arquivado'
               ? CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA
-              : CODIGOS_DE_ERRO.ETAPA_INCOMPLETA,
+              : CODIGOS_DE_ERRO.EMPRESA_NAO_ATIVA,
         });
       }
     }
@@ -161,6 +161,12 @@ export type DecisaoDeAcesso =
  * Decisão de acesso empresarial (SPEC-009 §3.5), na ordem da SPEC: tenant,
  * usuário ativo, vínculo na carteira, permissão do papel. Empresa de outro
  * tenant é indistinguível de inexistente — nada vaza.
+ *
+ * Única exceção, decidida pelo PI: o arquivamento encerra os vínculos de todos,
+ * então ninguém teria como abrir a empresa para reativá-la. O `admin_escritorio`
+ * alcança empresa ARQUIVADA do tenant sem vínculo (consulta e reativação — a
+ * própria empresa arquivada recusa qualquer edição). Empresa ativa segue
+ * exigindo vínculo, para o administrador também.
  */
 export const decidirAcessoEmpresarial = (
   entrada: Readonly<{
@@ -168,11 +174,14 @@ export const decidirAcessoEmpresarial = (
     usuarioAtivo: boolean;
     vinculoAtivo: boolean;
     permissaoConcedida: boolean;
+    empresaArquivada: boolean;
+    administrador: boolean;
   }>,
 ): DecisaoDeAcesso => {
   if (!entrada.empresaDoTenant) return 'EMPRESA_INEXISTENTE';
   if (!entrada.usuarioAtivo) return 'USUARIO_INATIVO';
-  if (!entrada.vinculoAtivo) return 'FORA_DA_CARTEIRA';
+  const alcancaArquivada = entrada.empresaArquivada && entrada.administrador;
+  if (!entrada.vinculoAtivo && !alcancaArquivada) return 'FORA_DA_CARTEIRA';
   if (!entrada.permissaoConcedida) return 'SEM_PERMISSAO';
   return 'PERMITIDO';
 };

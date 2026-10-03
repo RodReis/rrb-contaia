@@ -28,7 +28,7 @@ describe('GuardDeEscopoDeEmpresa', () => {
     await expect(guard.canActivate(contexto(requisicaoCom({ empresaId: 'e-1' })))).resolves.toBe(
       true,
     );
-    expect(carteira.exigirAcessoAEmpresa).toHaveBeenCalledWith('tenant-1', 'usuario-1', 'e-1');
+    expect(carteira.exigirAcessoAEmpresa).toHaveBeenCalledWith('tenant-1', 'usuario-1', 'e-1', true);
   });
 
   it('empresa fora da carteira nega a rota, mesmo para o administrador', async () => {

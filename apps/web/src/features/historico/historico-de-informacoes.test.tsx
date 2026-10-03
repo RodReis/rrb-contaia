@@ -93,7 +93,7 @@ const SESSAO_DO_ADMINISTRADOR = {
     'usuarios.usuarios_e_papeis.consultar',
     'usuarios.usuarios_e_papeis.administrar',
   ],
-  escopoDeEmpresas: 'TODAS',
+  escopoDeEmpresas: 'CARTEIRA',
 };
 
 let sessaoAtual: typeof SESSAO_DO_CONTADOR | typeof SESSAO_DO_ADMINISTRADOR = SESSAO_DO_CONTADOR;

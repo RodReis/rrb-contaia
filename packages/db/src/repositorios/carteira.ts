@@ -464,7 +464,12 @@ export const resumoDaEmpresa = async (
   return rows[0] ?? null;
 };
 
-export type AcessoAEmpresa = Readonly<{ nome: string; cnpj: string; vinculado: boolean }>;
+export type AcessoAEmpresa = Readonly<{
+  nome: string;
+  cnpj: string;
+  vinculado: boolean;
+  arquivada: boolean;
+}>;
 
 /**
  * Uma ida ao banco por requisição empresarial: nome e CNPJ da empresa do tenant
@@ -478,7 +483,7 @@ export const acessoAEmpresa = async (
   empresaId: string,
 ): Promise<AcessoAEmpresa | null> => {
   const { rows } = await cliente.query<AcessoAEmpresa>(
-    `select ${NOME_DA_EMPRESA} as nome, e.cnpj,
+    `select ${NOME_DA_EMPRESA} as nome, e.cnpj, (e.situacao = 'arquivado') as arquivada,
             exists (select 1 from app.carteira_vinculo v
                      where v.tenant_id = e.tenant_id and v.empresa_id = e.id
                        and v.usuario_id = $2 and v.encerrado_em is null) as vinculado

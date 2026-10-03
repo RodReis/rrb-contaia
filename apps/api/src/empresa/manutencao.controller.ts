@@ -269,6 +269,7 @@ export class HistoricoController {
     return this.manutencao.consultarHistorico(tenantDa(requisicao), {
       ...analisar(filtroDoHistoricoSchema, consulta),
       carteiraDoUsuarioId: autorDa(requisicao).usuarioId,
+      veArquivadasDoTenant: (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
     });
   }
 

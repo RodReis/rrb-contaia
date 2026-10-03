@@ -94,6 +94,10 @@ export const CODIGOS_DE_ERRO = {
   // Carteira do colaborador (SPEC-009 §6): empresa do próprio tenant fora da
   // carteira do usuário. Responde 403 nomeando empresa e CNPJ, nada além.
   EMPRESA_FORA_DA_CARTEIRA: 'EMPRESA_FORA_DA_CARTEIRA',
+  // Conflito de revisão da carteira (409): a tela foi montada sobre um estado velho.
+  CARTEIRA_DESATUALIZADA: 'CARTEIRA_DESATUALIZADA',
+  // Empresa ainda em cadastro: só empresa ativa recebe vínculo de carteira (SPEC-009 §3.4).
+  EMPRESA_NAO_ATIVA: 'EMPRESA_NAO_ATIVA',
 } as const;
 
 export type CodigoDeErro = (typeof CODIGOS_DE_ERRO)[keyof typeof CODIGOS_DE_ERRO];

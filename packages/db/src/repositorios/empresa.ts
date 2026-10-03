@@ -84,6 +84,8 @@ export type FiltroDaLista = Readonly<{
   status: FiltroDeStatus | null;
   /** Só as empresas da carteira deste usuário (SPEC-009): nunca a base inteira. */
   carteiraDoUsuarioId: string;
+  /** Admin também vê as ARQUIVADAS do tenant, sem vínculo: é como ele chega a reativá-las. */
+  veArquivadasDoTenant: boolean;
   limite: number;
   deslocamento: number;
 }>;
@@ -188,23 +190,34 @@ export const listarEmpresas = async (
         when $3::text is null then situacao = 'ativo'
         else situacao = 'ativo' and status = $3
       end
-      and exists (
-        select 1 from app.carteira_vinculo cv
-         where cv.tenant_id = app.empresa.tenant_id and cv.empresa_id = app.empresa.id
-           and cv.usuario_id = $4 and cv.encerrado_em is null
+      and (
+        ($5::boolean and situacao = 'arquivado')
+        or exists (
+          select 1 from app.carteira_vinculo cv
+           where cv.tenant_id = app.empresa.tenant_id and cv.empresa_id = app.empresa.id
+             and cv.usuario_id = $4 and cv.encerrado_em is null
+        )
       )`;
 
   const { rows } = await cliente.query<LinhaDaEmpresa>(
     `select ${COLUNAS} from app.empresa
       where ${condicoes}
       order by coalesce(nome_fantasia, razao_social, cnpj)
-      limit $5 offset $6`,
-    [tenantId, termo, filtro.status, filtro.carteiraDoUsuarioId, filtro.limite, filtro.deslocamento],
+      limit $6 offset $7`,
+    [
+      tenantId,
+      termo,
+      filtro.status,
+      filtro.carteiraDoUsuarioId,
+      filtro.veArquivadasDoTenant,
+      filtro.limite,
+      filtro.deslocamento,
+    ],
   );
 
   const contagem = await cliente.query<{ total: string }>(
     `select count(*)::text as total from app.empresa where ${condicoes}`,
-    [tenantId, termo, filtro.status, filtro.carteiraDoUsuarioId],
+    [tenantId, termo, filtro.status, filtro.carteiraDoUsuarioId, filtro.veArquivadasDoTenant],
   );
 
   return {

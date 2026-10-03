@@ -242,6 +242,8 @@ describe('decidirAcessoEmpresarial', () => {
     usuarioAtivo: true,
     vinculoAtivo: true,
     permissaoConcedida: true,
+    empresaArquivada: false,
+    administrador: false,
   } as const;
 
   it('libera só com vínculo e permissão ao mesmo tempo', () => {
@@ -260,6 +262,38 @@ describe('decidirAcessoEmpresarial', () => {
 
   it('papel autorizado não substitui o vínculo de carteira', () => {
     expect(decidirAcessoEmpresarial({ ...base, vinculoAtivo: false })).toBe('FORA_DA_CARTEIRA');
+  });
+
+  it('admin alcança empresa arquivada sem vínculo: é a única porta para reativá-la', () => {
+    expect(
+      decidirAcessoEmpresarial({
+        ...base,
+        vinculoAtivo: false,
+        empresaArquivada: true,
+        administrador: true,
+      }),
+    ).toBe('PERMITIDO');
+  });
+
+  it('a exceção do admin não vale para empresa ativa nem para quem não é admin', () => {
+    expect(
+      decidirAcessoEmpresarial({ ...base, vinculoAtivo: false, administrador: true }),
+    ).toBe('FORA_DA_CARTEIRA');
+    expect(
+      decidirAcessoEmpresarial({ ...base, vinculoAtivo: false, empresaArquivada: true }),
+    ).toBe('FORA_DA_CARTEIRA');
+  });
+
+  it('a exceção do admin não dispensa a permissão do papel', () => {
+    expect(
+      decidirAcessoEmpresarial({
+        ...base,
+        vinculoAtivo: false,
+        empresaArquivada: true,
+        administrador: true,
+        permissaoConcedida: false,
+      }),
+    ).toBe('SEM_PERMISSAO');
   });
 
   it('vínculo não substitui a permissão do papel', () => {

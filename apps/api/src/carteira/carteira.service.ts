@@ -208,11 +208,14 @@ export class CarteiraService {
    * papel já foi conferida pelo `GuardDeAcao`; aqui valem tenant, usuário ativo
    * (a sessão só resolve usuário `ATIVO`) e o vínculo de carteira. A empresa do
    * mesmo tenant fora da carteira responde 403 com nome e CNPJ, e nada além.
+   * Exceção decidida pelo PI: o administrador alcança empresa ARQUIVADA sem vínculo
+   * (o arquivamento encerra todos os vínculos; sem isso ninguém reativaria a empresa).
    */
   async exigirAcessoAEmpresa(
     tenantId: string,
     usuarioId: string,
     empresaId: string,
+    administrador: boolean,
   ): Promise<void> {
     // Id que nem tem forma de identificador não existe — e não chega ao banco.
     if (!IDENTIFICADOR.test(empresaId)) {
@@ -228,6 +231,8 @@ export class CarteiraService {
       usuarioAtivo: true,
       vinculoAtivo: acesso?.vinculado ?? false,
       permissaoConcedida: true,
+      empresaArquivada: acesso?.arquivada ?? false,
+      administrador,
     });
 
     if (decisao === 'PERMITIDO') {

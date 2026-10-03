@@ -64,6 +64,7 @@ export class EmpresaController {
     const resultado = await this.empresaService.listar(tenantId, {
       ...analisar(filtroDaListaSchema, consulta),
       carteiraDoUsuarioId: usuarioId,
+      veArquivadasDoTenant: (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
     });
 
     if (resultado.total === 0 && !(await this.carteira.possuiCarteira(tenantId, usuarioId))) {

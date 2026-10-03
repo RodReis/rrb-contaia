@@ -9,7 +9,9 @@
  * limitado à própria carteira, e a Central de Carteiras é a área administrativa.
  *
  * Empresa do mesmo tenant fora da carteira responde 403 com nome e CNPJ; empresa
- * de outro tenant ou inexistente responde 404, sem revelar que existe.
+ * de outro tenant ou inexistente responde 404, sem revelar que existe. A única
+ * exceção é o administrador diante de empresa ARQUIVADA, que ele alcança sem vínculo
+ * para poder reativá-la (o arquivamento encerra os vínculos de todos).
  */
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 
@@ -33,6 +35,7 @@ export class GuardDeEscopoDeEmpresa implements CanActivate {
       tenantDa(requisicao),
       autorDa(requisicao).usuarioId,
       String(empresaId),
+      (requisicao.sessao?.papeis ?? []).includes('admin_escritorio'),
     );
 
     return true;

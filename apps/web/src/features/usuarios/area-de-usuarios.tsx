@@ -16,6 +16,7 @@ import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Abas, ConteudoDeAba, GatilhoDeAba, ListaDeAbas } from '@/components/ui/abas';
 import { Skeleton } from '@/components/ui/estados';
+import { CentralDeCarteiras } from '../carteira/central-de-carteiras';
 import { ListaDePapeis } from '../papeis/lista-de-papeis';
 import { ErroDaConsulta, SemPermissao } from './erro-da-consulta';
 import { ListaDeUsuarios } from './lista-de-usuarios';
@@ -24,7 +25,7 @@ import { useSessao } from './queries';
 
 const BASE = '/configuracoes/usuarios';
 
-type NomeDaAba = 'usuarios' | 'papeis';
+type NomeDaAba = 'usuarios' | 'papeis' | 'carteiras';
 
 const Cabecalho = ({
   podeAdministrar = false,
@@ -45,14 +46,15 @@ const Cabecalho = ({
       <div className="flex flex-col gap-xs">
         <h1 className="font-display text-headline-lg text-foreground">Usuários e permissões</h1>
         <p className="max-w-prose text-body-md text-muted-foreground">
-          Quem acessa o escritório e o que cada pessoa pode fazer. Cada usuário recebe um convite
-          por e-mail para definir a senha, e as mudanças de papel ou de permissões valem na
-          próxima requisição, sem a pessoa precisar entrar de novo.
+          Quem acessa o escritório, o que cada pessoa pode fazer e em quais empresas ela atua. Cada
+          usuário recebe um convite por e-mail para definir a senha, e as mudanças de papel,
+          permissões ou carteira valem na próxima requisição, sem a pessoa precisar entrar de novo.
         </p>
       </div>
 
-      {/* Uma ação primária por página (PATTERNS.md §2), a da aba aberta; só quem administra a vê. */}
-      {podeAdministrar ? (
+      {/* Uma ação primária por página (PATTERNS.md §2), a da aba aberta; só quem administra a vê.
+          A Central de Carteiras não tem ação de página: as operações em lote surgem com a seleção. */}
+      {podeAdministrar && aba !== 'carteiras' ? (
         <Button asChild>
           {aba === 'papeis' ? (
             <Link href={`${BASE}/papeis/novo`}>
@@ -76,7 +78,7 @@ export const AreaDeUsuarios = () => {
   const parametros = useSearchParams();
   const { data: sessao, isPending, isError, error, refetch } = useSessao();
 
-  const aba: NomeDaAba = parametros.get('aba') === 'papeis' ? 'papeis' : 'usuarios';
+  const abaNaUrl = parametros.get('aba');
 
   if (isPending) {
     return (
@@ -111,6 +113,9 @@ export const AreaDeUsuarios = () => {
   }
 
   const podeAdministrar = pode(sessao, ADMINISTRACAO_DE_USUARIOS);
+  // A Central de Carteiras é área do administrador: para quem só consulta, a aba não existe.
+  const aba: NomeDaAba =
+    abaNaUrl === 'papeis' ? 'papeis' : abaNaUrl === 'carteiras' && podeAdministrar ? 'carteiras' : 'usuarios';
 
   return (
     <div className="flex flex-col gap-xl">
@@ -121,13 +126,14 @@ export const AreaDeUsuarios = () => {
         onValueChange={(valor) =>
           // A aba de usuários é o padrão e sai da URL; trocar de aba zera os filtros
           // da lista, que não existem na outra.
-          navegador.replace(valor === 'papeis' ? `${BASE}?aba=papeis` : BASE, { scroll: false })
+          navegador.replace(valor === 'usuarios' ? BASE : `${BASE}?aba=${valor}`, { scroll: false })
         }
         className="flex flex-col gap-lg"
       >
         <ListaDeAbas aria-label="Áreas de usuários e permissões">
           <GatilhoDeAba value="usuarios">Usuários</GatilhoDeAba>
           <GatilhoDeAba value="papeis">Papéis e permissões</GatilhoDeAba>
+          {podeAdministrar ? <GatilhoDeAba value="carteiras">Central de Carteiras</GatilhoDeAba> : null}
         </ListaDeAbas>
 
         <ConteudoDeAba value="usuarios">
@@ -136,6 +142,11 @@ export const AreaDeUsuarios = () => {
         <ConteudoDeAba value="papeis">
           <ListaDePapeis podeAdministrar={podeAdministrar} />
         </ConteudoDeAba>
+        {podeAdministrar ? (
+          <ConteudoDeAba value="carteiras">
+            <CentralDeCarteiras />
+          </ConteudoDeAba>
+        ) : null}
       </Abas>
     </div>
   );

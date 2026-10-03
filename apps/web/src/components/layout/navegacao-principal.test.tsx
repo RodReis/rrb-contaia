@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/empresas' }));
 
 const sessao = (papeis: string[], permissoes: string[]) =>
   new Response(
-    JSON.stringify({ papeis, permissoes, escopoDeEmpresas: 'TODAS' }),
+    JSON.stringify({ papeis, permissoes, escopoDeEmpresas: 'CARTEIRA' }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 

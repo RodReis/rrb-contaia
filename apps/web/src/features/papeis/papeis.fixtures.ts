@@ -54,7 +54,7 @@ export const sessaoDe = (
 ): Sessao => ({
   papeis,
   permissoes: [...permissoesDosPapeisPadrao(papeis), ...permissoesExtras],
-  escopoDeEmpresas: papeis.includes('admin_escritorio') ? 'TODAS' : 'NENHUMA',
+  escopoDeEmpresas: 'CARTEIRA',
 });
 
 export const papelDeTeste = (

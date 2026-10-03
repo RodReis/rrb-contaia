@@ -48,6 +48,29 @@ describe('EmpresaController', () => {
     );
   });
 
+  it('só o administrador vê também as empresas arquivadas do tenant, sem vínculo', async () => {
+    servico.listar.mockResolvedValue({ empresas: [], total: 0 });
+    const controller = new EmpresaController(
+      servico as never,
+      pendencias as never,
+      comCarteira(true) as never,
+    );
+
+    await controller.listar(ADMIN, {});
+    await controller.listar(CONTADOR, {});
+
+    expect(servico.listar).toHaveBeenNthCalledWith(
+      1,
+      'tenant-1',
+      expect.objectContaining({ veArquivadasDoTenant: true }),
+    );
+    expect(servico.listar).toHaveBeenNthCalledWith(
+      2,
+      'tenant-1',
+      expect.objectContaining({ veArquivadasDoTenant: false }),
+    );
+  });
+
   it('carteira vazia devolve o marcador de ausência de alçada, para qualquer papel', async () => {
     servico.listar.mockResolvedValue({ empresas: [], total: 0 });
     const controller = new EmpresaController(

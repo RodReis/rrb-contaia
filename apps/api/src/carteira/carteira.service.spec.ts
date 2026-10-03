@@ -176,7 +176,7 @@ describe('alterar', () => {
     const erro = await falha(() => servico().alterar(TENANT, ADMIN, entrada));
 
     expect(erro).toBeInstanceOf(ErroDeConflito);
-    expect((erro as ErroDeConflito).codigo).toBe(CODIGOS_DE_ERRO.REVISAO_NAO_CONFIRMADA);
+    expect((erro as ErroDeConflito).codigo).toBe(CODIGOS_DE_ERRO.CARTEIRA_DESATUALIZADA);
     expect(db.aplicarEfeitos).not.toHaveBeenCalled();
   });
 
@@ -236,15 +236,25 @@ describe('alterar', () => {
 
 describe('exigirAcessoAEmpresa', () => {
   it('permite quando há vínculo ativo', async () => {
-    db.acessoAEmpresa.mockResolvedValue({ nome: 'Alfa', cnpj: '11222333000181', vinculado: true });
+    db.acessoAEmpresa.mockResolvedValue({
+      nome: 'Alfa',
+      cnpj: '11222333000181',
+      vinculado: true,
+      arquivada: false,
+    });
 
-    await expect(servico().exigirAcessoAEmpresa(TENANT, U1, E1)).resolves.toBeUndefined();
+    await expect(servico().exigirAcessoAEmpresa(TENANT, U1, E1, false)).resolves.toBeUndefined();
   });
 
   it('empresa do tenant fora da carteira responde 403 com nome e CNPJ, e nada além', async () => {
-    db.acessoAEmpresa.mockResolvedValue({ nome: 'Alfa', cnpj: '11222333000181', vinculado: false });
+    db.acessoAEmpresa.mockResolvedValue({
+      nome: 'Alfa',
+      cnpj: '11222333000181',
+      vinculado: false,
+      arquivada: false,
+    });
 
-    const erro = (await falha(() => servico().exigirAcessoAEmpresa(TENANT, U1, E1))) as ErroDeDominio;
+    const erro = (await falha(() => servico().exigirAcessoAEmpresa(TENANT, U1, E1, false))) as ErroDeDominio;
 
     expect(erro.codigo).toBe(CODIGOS_DE_ERRO.EMPRESA_FORA_DA_CARTEIRA);
     expect(erro.message).toContain('Alfa');
@@ -252,10 +262,37 @@ describe('exigirAcessoAEmpresa', () => {
     expect(erro.detalhes).toEqual({ empresa: { nome: 'Alfa', cnpj: '11.222.333/0001-81' } });
   });
 
+  it('admin alcança empresa ARQUIVADA sem vínculo; empresa ativa continua exigindo vínculo', async () => {
+    db.acessoAEmpresa.mockResolvedValue({
+      nome: 'Alfa',
+      cnpj: '11222333000181',
+      vinculado: false,
+      arquivada: true,
+    });
+
+    await expect(servico().exigirAcessoAEmpresa(TENANT, U1, E1, true)).resolves.toBeUndefined();
+
+    const semExcecao = (await falha(() =>
+      servico().exigirAcessoAEmpresa(TENANT, U1, E1, false),
+    )) as ErroDeDominio;
+    expect(semExcecao.codigo).toBe(CODIGOS_DE_ERRO.EMPRESA_FORA_DA_CARTEIRA);
+
+    db.acessoAEmpresa.mockResolvedValue({
+      nome: 'Alfa',
+      cnpj: '11222333000181',
+      vinculado: false,
+      arquivada: false,
+    });
+    const ativa = (await falha(() =>
+      servico().exigirAcessoAEmpresa(TENANT, U1, E1, true),
+    )) as ErroDeDominio;
+    expect(ativa.codigo).toBe(CODIGOS_DE_ERRO.EMPRESA_FORA_DA_CARTEIRA);
+  });
+
   it('empresa de outro tenant ou inexistente responde como não encontrada', async () => {
     db.acessoAEmpresa.mockResolvedValue(null);
 
-    const erro = (await falha(() => servico().exigirAcessoAEmpresa(TENANT, U1, E1))) as ErroDeDominio;
+    const erro = (await falha(() => servico().exigirAcessoAEmpresa(TENANT, U1, E1, false))) as ErroDeDominio;
 
     expect(erro.codigo).toBe(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA);
     expect(erro.detalhes).toEqual({});
@@ -263,7 +300,7 @@ describe('exigirAcessoAEmpresa', () => {
 
   it('id sem forma de identificador nem chega ao banco', async () => {
     const erro = (await falha(() =>
-      servico().exigirAcessoAEmpresa(TENANT, U1, "x'; drop table app.empresa;--"),
+      servico().exigirAcessoAEmpresa(TENANT, U1, "x'; drop table app.empresa;--", false),
     )) as ErroDeDominio;
 
     expect(erro.codigo).toBe(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA);

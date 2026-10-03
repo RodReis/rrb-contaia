@@ -39,11 +39,12 @@ import {
   type DadosDoUsuarioForm,
   type PapeisEscolhidos,
 } from './schema';
+import { GestaoDaCarteira } from '../carteira/gestao-da-carteira';
 import { SeletorDePapeis } from './seletor-de-papeis';
 
 const LISTA = '/configuracoes/usuarios';
 
-type NomeDaAba = 'dados' | 'papeis';
+type NomeDaAba = 'dados' | 'papeis' | 'carteira';
 
 /** Data e hora em `America/Sao_Paulo` (I-11). */
 const formatarInstante = (iso: string): string =>
@@ -219,6 +220,8 @@ const FormularioDeEdicao = ({
         <ListaDeAbas aria-label="Seções do usuário">
           <GatilhoDeAba value="dados">Dados</GatilhoDeAba>
           <GatilhoDeAba value="papeis">Papéis</GatilhoDeAba>
+          {/* Só quem administra gere carteira (SPEC-009 §3.1): a aba não existe para quem só consulta. */}
+          {administra ? <GatilhoDeAba value="carteira">Carteira</GatilhoDeAba> : null}
         </ListaDeAbas>
 
         <ConteudoDeAba value="dados">
@@ -244,9 +247,16 @@ const FormularioDeEdicao = ({
             somenteLeitura={!administra}
           />
         </ConteudoDeAba>
+
+        {administra ? (
+          <ConteudoDeAba value="carteira">
+            {/* A carteira salva por conta própria: o "Salvar alterações" abaixo é só de dados e papéis. */}
+            <GestaoDaCarteira usuarioId={usuario.id} />
+          </ConteudoDeAba>
+        ) : null}
       </Abas>
 
-      {administra ? (
+      {administra && aba !== 'carteira' ? (
         <div className="flex flex-wrap justify-between gap-sm">
           <Button asChild variante="fantasma">
             <Link href={LISTA}>Cancelar</Link>
