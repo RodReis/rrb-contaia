@@ -735,14 +735,6 @@ export class ManutencaoDaEmpresaService {
 
       await definirSituacaoDaEmpresa(cliente, tenantId, empresaId, nova);
 
-      // A visão sai agora, ainda dentro do recorte de quem operou: arquivar tira a empresa
-      // da carteira dele, e uma segunda transação já não a enxergaria.
-      const atualizada = await carregarEmpresa(cliente, tenantId, empresaId);
-
-      if (atualizada === null) {
-        return empresaNaoEncontrada();
-      }
-
       // Arquivar encerra os vínculos de carteira na mesma transação e avisa cada
       // colaborador afetado; reativar não restaura nada — exige nova atribuição (SPEC-009 §3.4).
       // Encerrar vínculo de OUTROS colaboradores é gestão de acesso, não leitura da empresa.
@@ -765,7 +757,14 @@ export class ManutencaoDaEmpresaService {
         });
       }
 
-      return this.empresas.paraVisao(atualizada.id, atualizada.cadastro, atualizada.situacao);
+      // A visão sai da própria transação, sem reler: a UPDATE só troca situação e versão, e depois
+      // dela o recorte de quem operou já não alcança a empresa (arquivar encerra a carteira dele;
+      // reativar devolve uma empresa ativa que o administrador sem vínculo não lê).
+      return this.empresas.paraVisao(
+        persistida.id,
+        { ...persistida.cadastro, versao: persistida.cadastro.versao + 1 },
+        nova,
+      );
     });
   }
 
