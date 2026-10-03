@@ -34,6 +34,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, Skeleton } from '@/components/ui/estados';
+import { SemCarteira } from '@/components/ui/sem-carteira';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { useMarcarComoLida, useMarcarVariasComoLidas, usePainelDeNotificacoes } from './queries';
@@ -157,6 +158,11 @@ export const SinoDeNotificacoes = () => {
           <p role="alert" className="p-md text-body-sm text-danger-foreground">
             Não foi possível carregar as notificações.
           </p>
+        ) : painel?.escopoDeEmpresas === 'NENHUMA' ? (
+          <SemCarteira
+            nivel={3}
+            descricao="Quando houver empresas na sua carteira, os avisos delas aparecem aqui."
+          />
         ) : notificacoes.length === 0 ? (
           <EmptyState
             nivel={3}

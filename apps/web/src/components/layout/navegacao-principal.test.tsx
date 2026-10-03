@@ -1,0 +1,98 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
+import { axe } from 'jest-axe';
+import type { ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { NavegacaoPrincipal } from './navegacao-principal';
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/empresas' }));
+
+const SEM = {
+  CADASTRO_ESCRITORIO: [],
+  EMPRESAS: [],
+  DOCUMENTOS: [],
+  PENDENCIAS: [],
+  NOTIFICACOES: [],
+  HISTORICO: [],
+  USUARIOS: [],
+};
+
+const sessao = (papeis: string[], permissoes: Record<string, string[]>) =>
+  new Response(
+    JSON.stringify({ papeis, permissoes: { ...SEM, ...permissoes }, escopoDeEmpresas: 'TODAS' }),
+    { status: 200, headers: { 'content-type': 'application/json' } },
+  );
+
+const Envolvido = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    {children}
+  </QueryClientProvider>
+);
+
+const links = (): string[] =>
+  screen.getAllByRole('link').map((elemento) => elemento.textContent ?? '');
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('NavegacaoPrincipal', () => {
+  it('administrador vê Empresas, Histórico e Usuários e permissões', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['admin_escritorio'], {
+        EMPRESAS: ['consultar'],
+        HISTORICO: ['consultar'],
+        USUARIOS: ['consultar', 'administrar'],
+      }),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(links()).toContain('Usuários e permissões'));
+    expect(links()).toEqual(['Empresas', 'Histórico de Informações', 'Usuários e permissões']);
+  });
+
+  it('auxiliar não vê Histórico nem Usuários e permissões', async () => {
+    vi.mocked(fetch).mockResolvedValue(sessao(['auxiliar'], { EMPRESAS: ['consultar'] }));
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await waitFor(() => expect(links()).toEqual(['Empresas']));
+  });
+
+  it('contador vê o Histórico, mas não Usuários e permissões', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['contador'], { EMPRESAS: ['consultar'], HISTORICO: ['consultar'] }),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(links()).toContain('Histórico de Informações'));
+    expect(links()).not.toContain('Usuários e permissões');
+  });
+
+  it('enquanto a sessão carrega ou se falhar, só o item seguro (Empresas) aparece', async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError('fetch failed'));
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    expect(links()).toEqual(['Empresas']);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(links()).toEqual(['Empresas']);
+  });
+
+  it('marca a página atual com aria-current e passa no axe', async () => {
+    vi.mocked(fetch).mockResolvedValue(sessao(['auxiliar'], { EMPRESAS: ['consultar'] }));
+
+    const { container } = render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    expect(screen.getByRole('link', { name: 'Empresas' })).toHaveAttribute('aria-current', 'page');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});

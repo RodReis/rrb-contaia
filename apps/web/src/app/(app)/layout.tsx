@@ -1,11 +1,11 @@
 import { LogOut } from 'lucide-react';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
 import { AlternarTema } from '@/components/layout/alternar-tema';
 import { Button } from '@/components/ui/button';
 import { MarcaContaia } from '@/components/layout/marca';
+import { NavegacaoPrincipal } from '@/components/layout/navegacao-principal';
 import { Provedores } from '@/components/layout/provedores';
 import { SinoDeNotificacoes } from '@/features/notificacoes/sino-de-notificacoes';
 import { COOKIE_DE_SESSAO } from '@/lib/oidc';
@@ -35,25 +35,7 @@ export default async function LayoutDaAplicacao({
         <header className="flex flex-wrap items-center justify-between gap-sm border-b border-border bg-card px-lg py-md">
           <div className="flex flex-1 flex-wrap items-center gap-sm tablet:gap-lg">
             <MarcaContaia descricao="Escritório contábil" />
-            {/* O Histórico de Informações é área global do escritório, não de
-                uma empresa (SPEC-003 §3.6): o acesso é de menu, não de tela. */}
-            <nav aria-label="Navegação principal">
-              <ul className="flex flex-wrap items-center gap-xs">
-                {[
-                  { href: '/empresas', rotulo: 'Empresas' },
-                  { href: '/historico', rotulo: 'Histórico de Informações' },
-                ].map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="block whitespace-nowrap rounded-md px-sm py-xs text-label-md text-muted-foreground transition-colors duration-fast ease-out hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {item.rotulo}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+            <NavegacaoPrincipal />
           </div>
           <div className="flex shrink-0 items-center gap-xs">
             <AlternarTema />

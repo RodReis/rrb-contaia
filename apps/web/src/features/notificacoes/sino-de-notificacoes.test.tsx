@@ -43,6 +43,26 @@ describe('SinoDeNotificacoes', () => {
     vi.clearAllMocks();
   });
 
+  it('sem carteira, o painel diz que falta alçada em vez de "Sem notificações"', async () => {
+    vi.mocked(requisitar).mockResolvedValue({
+      notificacoes: [],
+      naoLidas: 0,
+      escopoDeEmpresas: 'NENHUMA',
+    });
+    const usuario = userEvent.setup();
+
+    renderizar();
+    await waitFor(() => expect(requisitar).toHaveBeenCalled());
+    await usuario.click(await screen.findByRole('button', { name: /notifica/iu }));
+
+    const painel = await screen.findByRole('dialog');
+
+    expect(
+      within(painel).getByText('Você ainda não tem empresas na sua carteira'),
+    ).toBeInTheDocument();
+    expect(within(painel).queryByText('Sem notificações')).not.toBeInTheDocument();
+  });
+
   it('exibe badge com o número de não lidas', async () => {
     vi.mocked(requisitar).mockResolvedValue(PAINEL_COM_NAO_LIDAS);
 

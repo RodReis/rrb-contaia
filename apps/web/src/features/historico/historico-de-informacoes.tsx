@@ -28,6 +28,8 @@ import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import type { EventoDoHistorico } from '../empresa/manutencao-api';
 import { useCamposDoHistorico, useHistorico } from '../empresa/manutencao-queries';
+import { ABA_DE_USUARIOS, HistoricoDeUsuarios } from '../usuarios/historico-de-usuarios';
+import { useSessao } from '../usuarios/queries';
 
 const POR_PAGINA = 25;
 
@@ -141,12 +143,11 @@ const LinhaDoEvento = ({ evento }: { evento: EventoDoHistorico }) => {
   );
 };
 
-export const HistoricoDeInformacoes = () => {
+/** Conteúdo de uma das abas de empresa: filtros e lista dos eventos daquela aba. */
+const HistoricoDeEmpresas = ({ aba }: { aba: AbaDoHistorico }) => {
   const navegador = useRouter();
   const parametros = useSearchParams();
 
-  const abaNaUrl = parametros.get('aba');
-  const aba: AbaDoHistorico = ehAba(abaNaUrl) ? abaNaUrl : 'DADOS_CADASTRAIS';
   const empresaId = parametros.get('empresaId');
   const inicio = parametros.get('inicio');
   const fim = parametros.get('fim');
@@ -352,20 +353,45 @@ export const HistoricoDeInformacoes = () => {
   };
 
   return (
+    <div className="flex flex-col gap-lg">
+      {barraDeFiltro}
+      {conteudo()}
+    </div>
+  );
+};
+
+export const HistoricoDeInformacoes = () => {
+  const navegador = useRouter();
+  const parametros = useSearchParams();
+  const { data: sessao } = useSessao();
+
+  // A aba de usuários exige as duas capacidades: ler o Histórico e ler usuários
+  // (SPEC-007 §3.1). Esconder a aba não é controle de acesso: a API recusa de
+  // qualquer jeito. Enquanto a sessão carrega, só as abas de empresa aparecem.
+  const veUsuarios =
+    sessao !== undefined &&
+    sessao.permissoes.HISTORICO.includes('consultar') &&
+    sessao.permissoes.USUARIOS.includes('consultar');
+
+  const abaNaUrl = parametros.get('aba');
+  const aba: AbaDoHistorico = ehAba(abaNaUrl) ? abaNaUrl : 'DADOS_CADASTRAIS';
+  const naAbaDeUsuarios = abaNaUrl === ABA_DE_USUARIOS && veUsuarios;
+  const abaAtiva = naAbaDeUsuarios ? ABA_DE_USUARIOS : aba;
+
+  return (
     <div className="flex flex-col gap-xl">
       <header className="flex flex-col gap-xs">
         <h1 className="font-display text-headline-lg text-foreground">
           Histórico de Informações
         </h1>
         <p className="max-w-prose text-body-md text-muted-foreground">
-          Todas as mudanças auditáveis das empresas deste escritório, da mais recente para a
-          mais antiga. O histórico é somente leitura: nenhum evento pode ser alterado ou
-          excluído.
+          Todas as mudanças auditáveis do escritório, da mais recente para a mais antiga. O
+          histórico é somente leitura: nenhum evento pode ser alterado ou excluído.
         </p>
       </header>
 
       <Tabs.Root
-        value={aba}
+        value={abaAtiva}
         onValueChange={(valor) =>
           // Trocar de aba zera os filtros de campo: o campo escolhido pertence
           // à aba anterior e não existiria na nova.
@@ -382,11 +408,18 @@ export const HistoricoDeInformacoes = () => {
               {ROTULO_DA_ABA[item]}
             </Tabs.Trigger>
           ))}
+          {veUsuarios ? (
+            <Tabs.Trigger value={ABA_DE_USUARIOS} className={cn(CLASSES_DA_ABA)}>
+              Usuários e acessos
+            </Tabs.Trigger>
+          ) : null}
         </Tabs.List>
 
-        <Tabs.Content value={aba} className="flex flex-col gap-lg focus-visible:outline-none">
-          {barraDeFiltro}
-          {conteudo()}
+        <Tabs.Content
+          value={abaAtiva}
+          className="flex flex-col gap-lg rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {naAbaDeUsuarios ? <HistoricoDeUsuarios /> : <HistoricoDeEmpresas aba={aba} />}
         </Tabs.Content>
       </Tabs.Root>
     </div>

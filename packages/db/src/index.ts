@@ -55,6 +55,39 @@ export type {
   FiltroDoHistorico,
   PaginaDoHistorico,
 } from './repositorios/manutencao-empresa.js';
+export {
+  atualizarDados as atualizarDadosDoUsuario,
+  atualizarEstado as atualizarEstadoDoUsuario,
+  carregarUsuario,
+  consumirConvite,
+  conviteVigenteDoUsuario,
+  criarConvite,
+  criarUsuario,
+  invalidarConvitesVigentes,
+  listarEventosDeUsuario,
+  listarUsuarios,
+  marcarEnvioFalhou,
+  reconciliarConvitesExpirados,
+  registrarEventoDeUsuario,
+  resolverConvite,
+  substituirPapeis,
+  travarAdminsAtivos,
+  usuarioComEmailNoTenant,
+} from './repositorios/usuarios.js';
+export type {
+  ConviteResolvido,
+  ConviteVigente,
+  EventoDeUsuarioNaLista,
+  EventoDeUsuarioParaRegistrar,
+  FiltroDeEventosDeUsuario,
+  FiltroDeUsuarios,
+  NovoUsuario,
+  PaginaDeEventosDeUsuario,
+  PaginaDeUsuarios,
+  TipoDeEventoDeUsuario,
+  UsuarioNaLista,
+  UsuarioPersistido,
+} from './repositorios/usuarios.js';
 export { resolverIdentidade } from './repositorios/identidade.js';
 export type { IdentidadeResolvida } from './repositorios/identidade.js';
 export {

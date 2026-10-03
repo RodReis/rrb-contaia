@@ -87,6 +87,27 @@ const semearBanco = async (sub) => {
         return;
       }
 
+      // Keycloak recriado sem reset do Postgres: o e-mail é único globalmente
+      // (SPEC-007), então em vez de criar um segundo tenant o seed reassocia o
+      // usuário existente à identidade nova.
+      const mesmoEmail = await cliente.query(
+        'select id, tenant_id from app.usuario where lower(email) = lower($1)',
+        [EMAIL_SEED],
+      );
+
+      if (mesmoEmail.rows.length > 0) {
+        await cliente.query('update app.usuario set sub_oidc = $1 where id = $2', [
+          sub,
+          mesmoEmail.rows[0].id,
+        ]);
+        await cliente.query('commit');
+        console.warn(
+          `[seed] usuário ${EMAIL_SEED} do tenant ${mesmoEmail.rows[0].tenant_id} reassociado à identidade ${sub}`,
+        );
+
+        return;
+      }
+
       const tenant = await cliente.query(
         `insert into app.tenant (razao_social, status)
          values ($1, 'CADASTRO_INCOMPLETO')
@@ -96,10 +117,17 @@ const semearBanco = async (sub) => {
 
       const tenantId = tenant.rows[0].id;
 
-      await cliente.query(
-        `insert into app.usuario (tenant_id, sub_oidc, email, nome, papel)
-         values ($1, $2, $3, $4, 'admin_escritorio')`,
+      const usuario = await cliente.query(
+        `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+         values ($1, $2, $3, $4, 'ATIVO')
+         returning id`,
         [tenantId, sub, EMAIL_SEED, 'Rodrigo Administrador'],
+      );
+
+      await cliente.query(
+        `insert into app.usuario_papel (tenant_id, usuario_id, papel)
+         values ($1, $2, 'admin_escritorio')`,
+        [tenantId, usuario.rows[0].id],
       );
 
       await cliente.query('commit');

@@ -22,6 +22,7 @@ import type { StatusDaEmpresa } from '@contaia/domain';
 import { Button } from '@/components/ui/button';
 import { Campo } from '@/components/ui/campo';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
+import { SemCarteira } from '@/components/ui/sem-carteira';
 import { Select } from '@/components/ui/select';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
@@ -61,7 +62,14 @@ const OPCOES_DE_STATUS = [
 const ehStatus = (valor: string | null): valor is FiltroDeStatus =>
   valor === 'ATIVA' || valor === 'CADASTRO_INCOMPLETO' || valor === 'ARQUIVADA';
 
-const Cabecalho = ({ total }: { total: number | null }) => (
+const Cabecalho = ({
+  total,
+  semAlcada = false,
+}: {
+  total: number | null;
+  /** Sem carteira a API recusa o cadastro: o botão não é oferecido (SPEC-007 §3.1). */
+  semAlcada?: boolean;
+}) => (
   <header className="flex flex-col gap-md tablet:flex-row tablet:items-end tablet:justify-between">
     <div className="flex flex-col gap-xs">
       <h1 className="font-display text-headline-lg text-foreground">Empresas</h1>
@@ -76,12 +84,14 @@ const Cabecalho = ({ total }: { total: number | null }) => (
       </p>
     </div>
 
-    <Button asChild>
-      <Link href="/empresas/nova">
-        <Plus aria-hidden="true" />
-        Cadastrar empresa
-      </Link>
-    </Button>
+    {semAlcada ? null : (
+      <Button asChild>
+        <Link href="/empresas/nova">
+          <Plus aria-hidden="true" />
+          Cadastrar empresa
+        </Link>
+      </Button>
+    )}
   </header>
 );
 
@@ -337,6 +347,20 @@ export const ListaDeEmpresas = () => {
             </Button>
           }
         />
+      </div>
+    );
+  }
+
+  const semAlcada = data.escopoDeEmpresas === 'NENHUMA';
+
+  if (semAlcada) {
+    // Quarto vazio, distinto dos três de PATTERNS.md §5: não é filtro nem carteira
+    // vazia, é falta de alçada — e quem não tem alçada não deve nem ser convidado
+    // a cadastrar (a API recusaria) nem receber a base inteira.
+    return (
+      <div className="flex flex-col gap-xl">
+        <Cabecalho total={null} semAlcada />
+        <SemCarteira />
       </div>
     );
   }

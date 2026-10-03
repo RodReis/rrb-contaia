@@ -112,6 +112,13 @@ const dublarConsulta = async (
  * avançar pelo fluxo, e não forçar a navegação.
  */
 const abrirEtapa = async (page: Page, etapa: string): Promise<boolean> => {
+  // `isVisible` não espera: sem isto, uma página que renderiza o stepper um instante depois
+  // (máquina ocupada, outra suíte em paralelo) faz o helper concluir que a etapa não existe.
+  await page
+    .getByRole('navigation', { name: 'Etapas do cadastro' })
+    .waitFor()
+    .catch(() => undefined);
+
   const titulo = page.getByRole('heading', { name: etapa, level: 2 });
 
   if (await titulo.isVisible().catch(() => false)) {

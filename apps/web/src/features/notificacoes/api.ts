@@ -23,11 +23,13 @@ export type Notificacao = Readonly<{
 export type PainelDeNotificacoes = Readonly<{
   notificacoes: readonly Notificacao[];
   naoLidas: number;
+  escopoDeEmpresas?: 'NENHUMA';
 }>;
 
 export type PaginaDeNotificacoes = Readonly<{
   notificacoes: readonly Notificacao[];
   total: number;
+  escopoDeEmpresas?: 'NENHUMA';
 }>;
 
 const comJson = (corpo: unknown): RequestInit => ({

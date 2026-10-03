@@ -22,6 +22,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { escopoDaSessao, GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
 import {
@@ -69,7 +71,9 @@ const autorDa = (requisicao: RequisicaoAutenticada): Autor => {
 };
 
 @Controller('empresas/:empresaId/manutencao')
-@UseGuards(GuardDeSessao, GuardDeCadastro)
+@UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
+// Padrão da classe é a ação mais restrita; leitura e arquivamento a ajustam explicitamente.
+@ExigeAcao('EMPRESAS', 'editar')
 export class ManutencaoDaEmpresaController {
   constructor(private readonly manutencao: ManutencaoDaEmpresaService) {}
 
@@ -107,6 +111,7 @@ export class ManutencaoDaEmpresaController {
   }
 
   @Get('enderecos')
+  @ExigeAcao('EMPRESAS', 'consultar')
   async listarEnderecos(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -184,6 +189,7 @@ export class ManutencaoDaEmpresaController {
   }
 
   @Post('arquivar')
+  @ExigeAcao('EMPRESAS', 'arquivar')
   async arquivar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -200,6 +206,7 @@ export class ManutencaoDaEmpresaController {
   }
 
   @Post('reativar')
+  @ExigeAcao('EMPRESAS', 'arquivar')
   async reativar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -217,6 +224,7 @@ export class ManutencaoDaEmpresaController {
 
   /** Consulta a CNPJá e devolve as diferenças; não aplica nada (§3.3). */
   @Get('fonte-externa')
+  @ExigeAcao('EMPRESAS', 'consultar')
   async compararComAFonte(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -246,7 +254,8 @@ export class ManutencaoDaEmpresaController {
  * (§3.6). Por isso vive fora do controller acima, em rota própria.
  */
 @Controller('historico')
-@UseGuards(GuardDeSessao, GuardDeCadastro)
+@UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao)
+@ExigeAcao('HISTORICO', 'consultar')
 export class HistoricoController {
   constructor(private readonly manutencao: ManutencaoDaEmpresaService) {}
 
@@ -255,6 +264,11 @@ export class HistoricoController {
     @Req() requisicao: RequisicaoAutenticada,
     @Query() consulta: unknown,
   ): Promise<PaginaDoHistorico> {
+    // O histórico de empresas só mostra o que a carteira alcança: sem carteira, vazio.
+    if (escopoDaSessao(requisicao) === 'NENHUMA') {
+      return { eventos: [], total: 0 };
+    }
+
     return this.manutencao.consultarHistorico(
       tenantDa(requisicao),
       analisar(filtroDoHistoricoSchema, consulta),
@@ -268,6 +282,10 @@ export class HistoricoController {
     @Query() consulta: unknown,
   ): Promise<readonly string[]> {
     const { aba } = analisar(filtroDoHistoricoSchema, consulta);
+
+    if (escopoDaSessao(requisicao) === 'NENHUMA') {
+      return [];
+    }
 
     return this.manutencao.camposDoHistorico(tenantDa(requisicao), aba);
   }

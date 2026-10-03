@@ -34,6 +34,22 @@ describe('PaginaDeHistorico', () => {
     expect(await screen.findByText(/nenhuma notifica/iu)).toBeInTheDocument();
   });
 
+  it('sem carteira, diz que falta alçada em vez de "Nenhuma notificação"', async () => {
+    vi.mocked(requisitar).mockReset();
+    vi.mocked(requisitar).mockResolvedValue({
+      notificacoes: [],
+      total: 0,
+      escopoDeEmpresas: 'NENHUMA',
+    });
+
+    renderizar();
+
+    expect(
+      await screen.findByText('Você ainda não tem empresas na sua carteira'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/nenhuma notifica/iu)).not.toBeInTheDocument();
+  });
+
   it('lista notificações, incluindo lidas (histórico preservado)', async () => {
     vi.mocked(requisitar).mockReset();
     vi.mocked(requisitar).mockResolvedValue({

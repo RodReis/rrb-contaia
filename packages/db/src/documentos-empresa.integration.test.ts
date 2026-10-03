@@ -141,9 +141,9 @@ beforeAll(async () => {
   tenantB = rows[1]?.id ?? '';
 
   const usuarios = await poolAdmin.query<{ id: string }>(
-    `insert into app.usuario (tenant_id, sub_oidc, email, nome, papel)
-     values ($1, $3, 'docs-a@local', 'Admin Docs A', 'admin_escritorio'),
-            ($2, $4, 'docs-b@local', 'Admin Docs B', 'admin_escritorio')
+    `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+     values ($1, $3, 'docs-a@local', 'Admin Docs A', 'ATIVO'),
+            ($2, $4, 'docs-b@local', 'Admin Docs B', 'ATIVO')
      returning id`,
     [tenantA, tenantB, `sub-documentos-a-${SUFIXO}`, `sub-documentos-b-${SUFIXO}`],
   );

@@ -48,6 +48,19 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.TENANT_DIVERGENTE]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.CADASTRO_INCOMPLETO]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: HttpStatus.FORBIDDEN,
+  // SPEC-007: o papel permite a ação, mas ainda não há carteira que a alcance.
+  [CODIGOS_DE_ERRO.SEM_ALCADA]: HttpStatus.FORBIDDEN,
+  // Usuário de outro escritório e convite inexistente, usado, invalidado ou
+  // vencido respondem como inexistentes: 404 não revela dado alheio nem o motivo.
+  [CODIGOS_DE_ERRO.USUARIO_NAO_ENCONTRADO]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.CONVITE_INVALIDO]: HttpStatus.NOT_FOUND,
+  // Conflito de estado: a requisição está bem formada e o usuário é que não aceita a operação.
+  [CODIGOS_DE_ERRO.EMAIL_JA_UTILIZADO]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.ULTIMO_ADMIN]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.USUARIO_ARQUIVADO_USE_NOVO_CONVITE]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.TRANSICAO_DE_USUARIO_INVALIDA]: HttpStatus.CONFLICT,
+  // Keycloak fora do ar é falha de dependência, não entrada inválida: 503 com `correlationId`.
+  [CODIGOS_DE_ERRO.IDENTIDADE_INDISPONIVEL]: HttpStatus.SERVICE_UNAVAILABLE,
   // SPEC-003. Endereço inexistente responde como a empresa inexistente.
   // Finalidade duplicada, empresa arquivada e CNPJ imutável são conflito de
   // estado, não entrada malformada: a requisição está bem formada e o recurso
@@ -120,6 +133,11 @@ const traduzirErroDoBanco = (erro: unknown): ErroDeDominio | null => {
   const constraint = typeof erro.constraint === 'string' ? erro.constraint : '';
 
   if (erro.code === PG_VIOLACAO_DE_UNICIDADE) {
+    // E-mail é único entre escritórios (SPEC-007 §3.2): a mensagem não diz de quem é.
+    if (constraint.includes('usuario_email_unico')) {
+      return new ErroDeConflito(CODIGOS_DE_ERRO.EMAIL_JA_UTILIZADO, 'Este e-mail já está em uso.');
+    }
+
     // A unicidade da empresa cliente é por tenant (SPEC-002 §4.5), não global:
     // a mensagem do escritório diria "outro escritório" e mentiria — aqui a
     // colisão é dentro do próprio escritório, com empresa que o usuário pode ver.

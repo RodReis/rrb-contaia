@@ -26,6 +26,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 
+import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
 import {
@@ -87,11 +89,14 @@ const exigirArquivo = (arquivo: ArquivoMultipart | undefined) => {
 };
 
 @Controller('empresas/:empresaId/documentos')
-@UseGuards(GuardDeSessao, GuardDeCadastro)
+@UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
+// Padrão da classe é a ação mais restrita; a leitura a relaxa explicitamente.
+@ExigeAcao('DOCUMENTOS', 'administrar')
 export class DocumentosDaEmpresaController {
   constructor(private readonly documentos: DocumentosDaEmpresaService) {}
 
   @Get()
+  @ExigeAcao('DOCUMENTOS', 'consultar')
   async consultar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -210,6 +215,7 @@ export class DocumentosDaEmpresaController {
    * executar o que deveria apenas exibir.
    */
   @Get('exigencias/:exigenciaId/versoes/:versaoId/conteudo')
+  @ExigeAcao('DOCUMENTOS', 'consultar')
   @Header('X-Content-Type-Options', 'nosniff')
   async visualizar(
     @Req() requisicao: RequisicaoAutenticada,
@@ -236,6 +242,7 @@ export class DocumentosDaEmpresaController {
 
   /** Download no formato original (§2.3). */
   @Get('exigencias/:exigenciaId/versoes/:versaoId/download')
+  @ExigeAcao('DOCUMENTOS', 'consultar')
   @Header('X-Content-Type-Options', 'nosniff')
   async baixar(
     @Req() requisicao: RequisicaoAutenticada,
@@ -264,6 +271,7 @@ export class DocumentosDaEmpresaController {
   }
 
   @Get('historico')
+  @ExigeAcao('DOCUMENTOS', 'consultar')
   async consultarHistorico(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,

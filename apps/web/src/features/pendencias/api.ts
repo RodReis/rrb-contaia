@@ -32,6 +32,8 @@ export type Pendencia = Readonly<{
 export type PaginaDePendencias = Readonly<{
   pendencias: readonly Pendencia[];
   total: number;
+  /** Só vem preenchido quando o usuário não tem empresa na carteira (SPEC-007 §3.1). */
+  escopoDeEmpresas?: 'NENHUMA';
 }>;
 
 export type FiltroDePendencias = Readonly<{

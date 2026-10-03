@@ -11,6 +11,8 @@ import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import type { EmpresaNaLista } from '@contaia/db';
 
+import { ExigeAcao, GuardDeAcao } from '../auth/acao.guard';
+import { escopoDaSessao, exigirAlcada, GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
 import { PendenciasService } from '../pendencias/pendencias.service';
@@ -45,7 +47,9 @@ const tenantDa = (requisicao: RequisicaoAutenticada): string => {
 };
 
 @Controller('empresas')
-@UseGuards(GuardDeSessao, GuardDeCadastro)
+@UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
+// Padrão da classe é a ação mais restrita; leitura e criação a relaxam explicitamente.
+@ExigeAcao('EMPRESAS', 'editar')
 export class EmpresaController {
   constructor(
     private readonly empresaService: EmpresaService,
@@ -53,10 +57,23 @@ export class EmpresaController {
   ) {}
 
   @Get()
+  @ExigeAcao('EMPRESAS', 'consultar')
   async listar(
     @Req() requisicao: RequisicaoAutenticada,
     @Query() consulta: unknown,
-  ): Promise<Readonly<{ empresas: readonly EmpresaNaListaComPendencias[]; total: number }>> {
+  ): Promise<
+    Readonly<{
+      empresas: readonly EmpresaNaListaComPendencias[];
+      total: number;
+      /** Presente só quando a lista é vazia por falta de carteira, não por carteira vazia. */
+      escopoDeEmpresas?: 'NENHUMA';
+    }>
+  > {
+    // Sem carteira não há empresa visível: lista vazia, nunca a base inteira.
+    if (escopoDaSessao(requisicao) === 'NENHUMA') {
+      return { empresas: [], total: 0, escopoDeEmpresas: 'NENHUMA' };
+    }
+
     const tenantId = tenantDa(requisicao);
     const resultado = await this.empresaService.listar(
       tenantId,
@@ -81,24 +98,33 @@ export class EmpresaController {
    * uma rota dinâmica declarada primeiro capturaria `consulta-cnpj` como id.
    */
   @Get('consulta-cnpj/:cnpj')
+  @ExigeAcao('EMPRESAS', 'criar')
   async consultarCnpj(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('cnpj') cnpj: string,
   ): Promise<ResultadoDaConsultaDeCnpj> {
+    // A consulta revela se a empresa já existe no escritório: exige alçada.
+    exigirAlcada(requisicao);
+
     return this.empresaService.consultarCnpj(tenantDa(requisicao), cnpj);
   }
 
   @Post()
+  @ExigeAcao('EMPRESAS', 'criar')
   async criar(
     @Req() requisicao: RequisicaoAutenticada,
     @Body() corpo: unknown,
   ): Promise<VisaoDaEmpresa> {
+    // Sem carteira a empresa criada ficaria órfã: toda etapa seguinte é por empresaId.
+    exigirAlcada(requisicao);
+
     const { cnpj } = analisar(criacaoSchema, corpo);
 
     return this.empresaService.criar(tenantDa(requisicao), cnpj);
   }
 
   @Get(':empresaId')
+  @ExigeAcao('EMPRESAS', 'consultar')
   async obter(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -146,6 +172,7 @@ export class EmpresaController {
   }
 
   @Post(':empresaId/ativar')
+  @ExigeAcao('EMPRESAS', 'criar')
   async ativar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,

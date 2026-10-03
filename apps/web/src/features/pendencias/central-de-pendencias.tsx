@@ -36,6 +36,7 @@ import { dataCivilEmSaoPaulo } from '@contaia/domain';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
+import { SemCarteira } from '@/components/ui/sem-carteira';
 import { Select } from '@/components/ui/select';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
@@ -364,7 +365,9 @@ export const CentralDePendencias = () => {
       <Cabecalho total={data.total} />
       {barraDeFiltro}
 
-      {data.pendencias.length === 0 ? (
+      {data.escopoDeEmpresas === 'NENHUMA' ? (
+        <SemCarteira descricao="Quando houver empresas atribuídas à sua carteira, as pendências delas aparecem aqui. Enquanto isso, você acessa apenas as áreas que não dependem de uma empresa." />
+      ) : data.pendencias.length === 0 ? (
         temFiltroAtivo ? (
           <EmptyState
             nivel={2}

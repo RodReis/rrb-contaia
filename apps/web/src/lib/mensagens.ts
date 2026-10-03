@@ -51,9 +51,31 @@ const MENSAGENS: Readonly<Record<string, string>> = {
     'O arquivo não está disponível agora. Tente de novo em instantes.',
   [CODIGOS_DE_ERRO.VALIDADE_INVALIDA]: 'Informe a validade no formato DD/MM/AAAA.',
   [CODIGOS_DE_ERRO.JUSTIFICATIVA_OBRIGATORIA]: 'Informe a justificativa.',
+  // Usuários e convite (SPEC-007 §6). O e-mail repetido não diz de quem é.
+  [CODIGOS_DE_ERRO.EMAIL_JA_UTILIZADO]: 'Este e-mail já está em uso.',
+  [CODIGOS_DE_ERRO.EMAIL_IMUTAVEL]:
+    'O e-mail só pode ser corrigido enquanto o convite não foi aceito.',
+  [CODIGOS_DE_ERRO.PAPEL_OBRIGATORIO]: 'Selecione ao menos um papel para o usuário.',
+  [CODIGOS_DE_ERRO.PAPEL_INVALIDO]: 'Papel inválido. Escolha um dos papéis padrão.',
+  [CODIGOS_DE_ERRO.ULTIMO_ADMIN]: 'O escritório precisa manter ao menos um administrador ativo.',
+  [CODIGOS_DE_ERRO.USUARIO_NAO_ENCONTRADO]: 'Usuário não encontrado neste escritório.',
+  [CODIGOS_DE_ERRO.USUARIO_ARQUIVADO_USE_NOVO_CONVITE]:
+    'Este usuário está arquivado. Inicie um novo convite para ele voltar.',
+  [CODIGOS_DE_ERRO.TRANSICAO_DE_USUARIO_INVALIDA]:
+    'Esta ação não é possível no estado atual do usuário. Recarregue e veja como ele está.',
+  // Um texto só para todo motivo de recusa: o link não pode virar oráculo.
+  [CODIGOS_DE_ERRO.CONVITE_INVALIDO]:
+    'Este convite não é válido. Peça um novo link ao administrador do escritório.',
+  [CODIGOS_DE_ERRO.SENHA_FRACA]:
+    'A senha não atende à política de segurança. Use ao menos 10 caracteres.',
+  [CODIGOS_DE_ERRO.IDENTIDADE_INDISPONIVEL]:
+    'O serviço de identidade está indisponível. Tente novamente em instantes.',
+  [CODIGOS_DE_ERRO.SEM_ALCADA]: 'Você ainda não tem empresas na sua carteira.',
+  [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: 'Você não tem permissão para esta ação.',
   FALHA_DE_REDE: 'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',
   HTTP_401: 'Sua sessão expirou. Entre novamente para continuar.',
   HTTP_403: 'Você não tem alçada para esta ação.',
+  HTTP_429: 'Muitas tentativas. Aguarde um instante e tente de novo.',
 };
 
 export const mensagemDoCodigo = (codigo: string): string =>

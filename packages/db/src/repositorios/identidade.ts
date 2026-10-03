@@ -1,16 +1,20 @@
 /**
  * Resolução da identidade OIDC. Único caminho que lê `app.usuario` antes de
  * existir contexto de tenant — por isso passa pela função dedicada do banco,
- * que devolve só o par do próprio `sub` (migration 0002).
+ * que devolve só o par do próprio `sub` (migrations 0002 e 0009).
+ *
+ * A função lê estado e papéis vivos a cada chamada: mudança de papel,
+ * suspensão ou arquivamento valem na próxima requisição, mesmo com o token
+ * ainda dentro da validade.
  */
 import type { PoolClient } from 'pg';
 
-import type { StatusDoTenant } from '@contaia/domain';
+import type { PapelPadrao, StatusDoTenant } from '@contaia/domain';
 
 export type IdentidadeResolvida = Readonly<{
   usuarioId: string;
   tenantId: string;
-  papel: string;
+  papeis: readonly PapelPadrao[];
   statusDoTenant: StatusDoTenant;
 }>;
 
@@ -21,7 +25,7 @@ export const resolverIdentidade = async (
   const { rows } = await cliente.query<{
     usuario_id: string;
     tenant_id: string;
-    papel: string;
+    papeis: PapelPadrao[];
     tenant_status: StatusDoTenant;
   }>('select * from app.resolver_identidade($1)', [sub]);
 
@@ -34,7 +38,7 @@ export const resolverIdentidade = async (
   return {
     usuarioId: linha.usuario_id,
     tenantId: linha.tenant_id,
-    papel: linha.papel,
+    papeis: linha.papeis,
     statusDoTenant: linha.tenant_status,
   };
 };

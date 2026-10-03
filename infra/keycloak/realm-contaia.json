@@ -5,8 +5,10 @@
   "sslRequired": "none",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
+  "editUsernameAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
+  "passwordPolicy": "length(10)",
   "accessTokenLifespan": 900,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
@@ -68,9 +70,32 @@
       "attributes": {
         "post.logout.redirect.uris": "http://127.0.0.1:15100/*"
       }
+    },
+    {
+      "clientId": "contaia-api-admin",
+      "name": "ContaIA API - administracao de identidade (local)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "contaia-api-admin-local-secret"
     }
   ],
   "users": [
+    {
+      "username": "service-account-contaia-api-admin",
+      "enabled": true,
+      "serviceAccountClientId": "contaia-api-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users"
+        ]
+      }
+    },
     {
       "username": "admin.escritorio",
       "email": "admin@escritorio.cnt.br",
