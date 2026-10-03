@@ -10,6 +10,7 @@ import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { CarteiraService } from '../carteira/carteira.service';
+import { restringirPendencia } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import { dispensaDePendenciaSchema, filtroDaCentralSchema } from './pendencias.dto';
 import { type Autor, PendenciasService } from './pendencias.service';
@@ -53,12 +54,19 @@ export class PendenciasController {
       analisar(filtroDaCentralSchema, consulta),
     );
 
+    // A referência da origem só sai com `pendencias.pendencias.abrir_origem`.
+    const permissoes = requisicao.sessao?.permissoes ?? [];
+    const visivel = {
+      ...pagina,
+      pendencias: pagina.pendencias.map((pendencia) => restringirPendencia(permissoes, pendencia)),
+    };
+
     // Vazia por falta de carteira (não por filtro): a tela orienta a ausência de alçada.
     if (pagina.total > 0 || (await this.carteira.possuiCarteira(tenantId, usuarioId))) {
-      return pagina;
+      return visivel;
     }
 
-    return { ...pagina, escopoDeEmpresas: 'NENHUMA' as const };
+    return { ...visivel, escopoDeEmpresas: 'NENHUMA' as const };
   }
 }
 
@@ -80,12 +88,15 @@ export class PendenciasDaEmpresaController {
   ) {
     const entrada = analisar(dispensaDePendenciaSchema, corpo);
 
-    return this.pendencias.dispensar(
-      tenantDa(requisicao),
-      empresaId,
-      pendenciaId,
-      autorDa(requisicao),
-      entrada.justificativa,
+    return restringirPendencia(
+      requisicao.sessao?.permissoes ?? [],
+      await this.pendencias.dispensar(
+        tenantDa(requisicao),
+        empresaId,
+        pendenciaId,
+        autorDa(requisicao),
+        entrada.justificativa,
+      ),
     );
   }
 }
