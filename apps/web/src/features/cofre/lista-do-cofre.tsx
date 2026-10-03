@@ -33,10 +33,10 @@ type Consulta = ReturnType<typeof useCofre>;
 
 /** Larguras em %: a tabela é `table-fixed` para a coluna de ações nunca ser cortada. */
 const COLUNAS = [
-  { titulo: 'Empresa', largura: 'w-[22%]' },
-  { titulo: 'Certificado', largura: 'w-[20%]' },
+  { titulo: 'Empresa', largura: 'w-[21%]' },
+  { titulo: 'Certificado', largura: 'w-[19%]' },
   { titulo: 'Situação e validade', largura: 'w-[22%]' },
-  { titulo: 'Responsável', largura: 'w-[15%]' },
+  { titulo: 'Responsável', largura: 'w-[17%]' },
 ] as const;
 
 const OPCOES_DO_FILTRO = [

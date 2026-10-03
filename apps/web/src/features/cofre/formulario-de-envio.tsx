@@ -27,6 +27,7 @@ import { CampoDeSenha } from '@/components/ui/campo-de-senha';
 import { ErroDeTela } from '@/components/ui/estados';
 import { ErroDaApi } from '@/lib/http';
 import { cnpjFormatado } from '../carteira/rotulos';
+import { rotuloDoRegime } from '../empresa/rotulos';
 import { solicitarTicketDeIngestao } from './api';
 import {
   campoDaRecusa,
@@ -359,7 +360,8 @@ export const FormularioDeEnvio = ({
             {empresa === null ? null : (
               <p className="text-body-sm text-muted-foreground">
                 <span className="font-mono text-code-sm tabular-nums">{cnpjFormatado(empresa.cnpj)}</span>
-                {empresa.regime === null ? '' : ` · ${empresa.regime}`}. {avisoDaEmpresa(empresa)}
+                {empresa.regime === null ? '' : ` · ${rotuloDoRegime(empresa.regime)}`}.{' '}
+                {avisoDaEmpresa(empresa)}
                 {podeEnviar(empresa) ? '' : ' Você não tem permissão para enviar certificado desta empresa.'}
               </p>
             )}

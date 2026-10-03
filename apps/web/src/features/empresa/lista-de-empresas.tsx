@@ -29,15 +29,10 @@ import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import type { EmpresaNaLista, FiltroDeStatus } from './api';
 import { useListaDeEmpresas } from './queries';
+import { rotuloDoRegime } from './rotulos';
 
 const POR_PAGINA = 25;
 const ATRASO_DA_BUSCA_MS = 300;
-
-const ROTULO_DO_REGIME: Readonly<Record<string, string>> = {
-  SIMPLES_NACIONAL: 'Simples Nacional',
-  LUCRO_PRESUMIDO: 'Lucro Presumido',
-  LUCRO_REAL: 'Lucro Real',
-};
 
 const STATUS: Readonly<Record<StatusDaEmpresa, { rotulo: string; tom: TomDoStatus }>> = {
   ATIVA: { rotulo: 'Ativa', tom: 'conforme' },
@@ -121,9 +116,7 @@ const LinhaDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
         </span>
       </td>
       <td className="px-md py-sm text-body-sm text-muted-foreground">
-        {empresa.regimeTributario === null
-          ? '—'
-          : (ROTULO_DO_REGIME[empresa.regimeTributario] ?? empresa.regimeTributario)}
+        {empresa.regimeTributario === null ? '—' : rotuloDoRegime(empresa.regimeTributario)}
       </td>
       <td className="px-md py-sm text-body-md">
         <div className="flex flex-wrap items-center gap-xs">
@@ -167,7 +160,7 @@ const CartaoDaEmpresa = ({ empresa }: { empresa: EmpresaNaLista }) => {
       </span>
       {empresa.regimeTributario !== null ? (
         <span className="text-body-sm text-muted-foreground">
-          {ROTULO_DO_REGIME[empresa.regimeTributario] ?? empresa.regimeTributario}
+          {rotuloDoRegime(empresa.regimeTributario)}
         </span>
       ) : null}
       <Button asChild variante="contorno" tamanho="compacto">

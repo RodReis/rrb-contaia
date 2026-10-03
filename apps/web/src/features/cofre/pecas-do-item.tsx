@@ -13,6 +13,7 @@ import { KeyRound } from 'lucide-react';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { juntar } from './estilos';
 import { cnpjFormatado } from '../carteira/rotulos';
+import { rotuloDoRegime } from '../empresa/rotulos';
 import {
   APRESENTACAO_DA_SITUACAO_DO_RESPONSAVEL,
   APRESENTACAO_DO_ESTADO,
@@ -32,6 +33,13 @@ const COR_DO_PRAZO: Readonly<Record<TomDoStatus, string>> = {
   neutro: 'text-muted-foreground',
 };
 
+/**
+ * A linha que vence ou venceu é tingida com o mesmo token do badge de estado: no tema claro
+ * o fundo do badge sumia na linha e sobrava só o texto. O contorno na cor do próprio rótulo
+ * mantém o selo legível sobre qualquer fundo, nos dois temas, sem trocar a cor do estado.
+ */
+const CONTORNO_DO_ESTADO = 'ring-1 ring-inset ring-current/25';
+
 const Vazio = ({ texto = '—' }: { texto?: string }) => (
   <span className="text-body-sm text-muted-foreground">{texto}</span>
 );
@@ -45,7 +53,7 @@ const EstadoDoItem = ({ item }: { item: ItemDoCofre }) => {
 
   return (
     <div className="flex flex-col items-start gap-xs">
-      <StatusBadge tom={estado.tom} rotulo={estado.rotulo} />
+      <StatusBadge tom={estado.tom} rotulo={estado.rotulo} className={CONTORNO_DO_ESTADO} />
       {desde === null || desde === undefined ? null : (
         <span className="text-body-sm text-muted-foreground">desde {formatarDiaDoInstante(desde)}</span>
       )}
@@ -78,7 +86,7 @@ export const EmpresaDoItem = ({
       </span>
       {item.regime === null ? null : (
         <span className="rounded-sm bg-muted px-sm py-xs text-label-sm text-muted-foreground">
-          {item.regime}
+          {rotuloDoRegime(item.regime)}
         </span>
       )}
     </span>
@@ -177,7 +185,7 @@ export const ResponsavelDoItem = ({ item }: { item: ItemDoCofre }) => {
       >
         {iniciaisDe(responsavel.nome)}
       </span>
-      <span className="text-body-sm text-foreground [overflow-wrap:anywhere]">{responsavel.nome}</span>
+      <span className="min-w-0 text-body-sm text-foreground break-words hyphens-auto">{responsavel.nome}</span>
     </div>
   );
 };

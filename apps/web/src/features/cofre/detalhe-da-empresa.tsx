@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cnpjFormatado, formatarQuando } from '../carteira/rotulos';
+import { rotuloDoRegime } from '../empresa/rotulos';
 import { AcoesDoItem } from './acoes-do-item';
 import {
   APRESENTACAO_DA_SITUACAO_DO_RESPONSAVEL,
@@ -294,7 +295,9 @@ export const DetalheDaEmpresa = ({
                     <span className="font-mono text-code-sm tabular-nums text-muted-foreground">
                       {cnpjFormatado(item.cnpj)}
                     </span>
-                    {item.regime === null ? null : <StatusBadge tom="neutro" rotulo={item.regime} />}
+                    {item.regime === null ? null : (
+                      <StatusBadge tom="neutro" rotulo={rotuloDoRegime(item.regime)} />
+                    )}
                   </span>
                 </p>
               )}
