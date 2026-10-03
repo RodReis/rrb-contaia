@@ -98,9 +98,7 @@ _(vazio)_
 
 ## Feito
 
-### Sem épico
-
-- [MVP1][SPEC-002][FIX] E2E da F2 compara o total global de empresas e falha sob paralelismo (#96)
+_(vazio)_
 
 ## Finalizado
 
@@ -119,6 +117,7 @@ _(vazio)_
 
 ### Sem épico
 
+- [MVP1][SPEC-002][FIX] E2E da F2 compara o total global de empresas e falha sob paralelismo (#96, finalizado em: 2026-10-03)
 - [MVP1][SPEC-002][FIX] ambiente local nao subia a Web/API e desalinhamentos no wizard/listagem (#45, finalizado em: 2026-09-22)
 - [INFRA] Bootstrap local do MVP-1 (#1, finalizado em: 2026-09-18)
 
