@@ -335,6 +335,40 @@ describe('DialogoDeLote', () => {
     expect(screen.getByRole('checkbox', { name: 'Beta Comércio' })).toBeChecked();
   });
 
+  it('carteira desatualizada (409) renova a revisão da seleção e o novo envio usa a revisão atual', async () => {
+    let revisaoDoBruno = 5; // o servidor já está na 5; a seleção guarda a 4
+    const renovar = vi.fn(async () => {
+      revisaoDoBruno = 9;
+    });
+    aoAlterar = (corpo) => {
+      const enviada = (corpo['usuarios'] as Array<{ id: string; revisao: number }>).find((u) => u.id === 'bruno');
+
+      return enviada?.revisao === revisaoDoBruno
+        ? json({ aplicado: true, afetados: [] })
+        : problema(409, 'CARTEIRA_DESATUALIZADA');
+    };
+    const usuario = userEvent.setup();
+    render(
+      <DialogoDeLote
+        operacao="ADICIONAR"
+        colaboradores={[ANA, BRUNO]}
+        aoConcluir={aoConcluir}
+        aoDesatualizar={renovar}
+        gatilho={<Button>Abrir lote</Button>}
+      />,
+      { wrapper: Envolvido },
+    );
+
+    await usuario.click(screen.getByRole('button', { name: 'Abrir lote' }));
+    await usuario.click(await screen.findByRole('checkbox', { name: 'Beta Comércio' }));
+    await usuario.click(screen.getByRole('button', { name: 'Revisar' }));
+    await usuario.click(screen.getByRole('button', { name: 'Adicionar e salvar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/mudou depois da seleção/);
+    expect(renovar).toHaveBeenCalledTimes(1);
+    expect(aoConcluir).not.toHaveBeenCalled();
+  });
+
   it('reabrir começa do zero: a seleção anterior não vaza', async () => {
     const usuario = userEvent.setup();
     renderizarLote();

@@ -97,8 +97,12 @@ export class CarteiraService {
       const idsDosUsuarios = unicos(entrada.usuarios.map((u) => u.id));
       const idsDasEmpresas = unicos([...entrada.adicionar, ...entrada.remover]);
 
-      // Trava em ordem estável de id: operações simultâneas sobre os mesmos
-      // colaboradores se enfileiram e a segunda planeja contra o que a primeira gravou.
+      // Ordem de locks fixa: empresas (em modo compartilhado, para um arquivamento simultâneo
+      // esperar ou ser esperado em vez de deixar vínculo ativo em empresa arquivada) e só depois
+      // os colaboradores (`for update`, em ordem de id: operações sobre os mesmos colaboradores
+      // se enfileiram e a segunda planeja contra o que a primeira gravou). O arquivamento de
+      // empresa segue a mesma ordem: a empresa primeiro, os colaboradores depois.
+      const empresas = await carregarEmpresasDaOperacao(cliente, tenantId, idsDasEmpresas);
       const usuarios = await carregarUsuariosDaOperacao(cliente, tenantId, idsDosUsuarios);
       const encontrados = new Set(usuarios.map((u) => u.id));
       const ausentes = idsDosUsuarios.filter((id) => !encontrados.has(id));
@@ -112,8 +116,6 @@ export class CarteiraService {
           })),
         );
       }
-
-      const empresas = await carregarEmpresasDaOperacao(cliente, tenantId, idsDasEmpresas);
 
       const plano = planejarAlteracao({
         usuarios,

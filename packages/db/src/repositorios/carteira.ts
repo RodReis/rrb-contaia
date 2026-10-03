@@ -205,7 +205,8 @@ export const carregarEmpresasDaOperacao = async (
     `select e.id, ${NOME_DA_EMPRESA} as nome, e.cnpj, e.status, e.situacao
        from app.empresa e
       where e.tenant_id = $1 and e.id = any($2::uuid[])
-      order by e.id`,
+      order by e.id
+        for share of e`,
     [tenantId, ids],
   );
 
@@ -264,6 +265,13 @@ export const autoatribuirEmpresa = async (
   usuarioId: string,
   empresaId: string,
 ): Promise<Readonly<{ usuarioNome: string; revisaoAnterior: number; revisaoNova: number }>> => {
+  // Trava o usuário ANTES do insert: o insert pega `FOR KEY SHARE` na linha dele (FK), e duas
+  // criações simultâneas do mesmo admin esperariam uma a outra pelo `FOR UPDATE` (deadlock).
+  await cliente.query(`select 1 from app.usuario where tenant_id = $1 and id = $2 for update`, [
+    tenantId,
+    usuarioId,
+  ]);
+
   await cliente.query(
     `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id, criado_por)
      values ($1, $2, $3, $2)`,
@@ -273,10 +281,8 @@ export const autoatribuirEmpresa = async (
   const { rows } = await cliente.query<{ nome: string; anterior: string; nova: string }>(
     `update app.usuario u
         set revisao_carteira = u.revisao_carteira + 1
-       from (select id, revisao_carteira from app.usuario
-              where tenant_id = $1 and id = $2 for update) antes
-      where u.id = antes.id
-      returning u.nome, antes.revisao_carteira::text as anterior, u.revisao_carteira::text as nova`,
+      where u.tenant_id = $1 and u.id = $2
+      returning u.nome, (u.revisao_carteira - 1)::text as anterior, u.revisao_carteira::text as nova`,
     [tenantId, usuarioId],
   );
 

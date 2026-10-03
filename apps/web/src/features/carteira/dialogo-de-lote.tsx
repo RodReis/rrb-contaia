@@ -13,6 +13,7 @@ import { X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ErroDaApi } from '@/lib/http';
 import type { ColaboradorNaCentral, EmpresaParaAtribuicao } from './api';
 import { useAlterarCarteira } from './queries';
 import { ProblemasDoLote, descreverProblemasDoLote } from './problemas-do-lote';
@@ -42,11 +43,14 @@ export const DialogoDeLote = ({
   colaboradores,
   gatilho,
   aoConcluir,
+  aoDesatualizar,
 }: {
   operacao: OperacaoDeLote;
   colaboradores: readonly ColaboradorNaCentral[];
   gatilho: ReactNode;
   aoConcluir: () => void;
+  /** Carteira mudou depois da seleção: quem chama renova a revisão dos colaboradores escolhidos. */
+  aoDesatualizar?: () => Promise<void>;
 }) => {
   const alterar = useAlterarCarteira();
   const [aberto, definirAberto] = useState(false);
@@ -109,7 +113,15 @@ export const DialogoDeLote = ({
         ...empresas.map((e) => [e.id, e.nome] as const),
         ...colaboradores.map((c) => [c.id, c.nome] as const),
       ]);
-      definirProblemas(descreverProblemasDoLote(erro, nomes));
+      if (erro instanceof ErroDaApi && erro.problema.code === 'CARTEIRA_DESATUALIZADA') {
+        // Sem renovar a revisão o novo envio levaria o mesmo 409 para sempre.
+        await aoDesatualizar?.().catch(() => undefined);
+        definirProblemas([
+          'A carteira de algum colaborador mudou depois da seleção. Os dados foram atualizados: revise e salve de novo.',
+        ]);
+      } else {
+        definirProblemas(descreverProblemasDoLote(erro, nomes));
+      }
       definirEtapa('escolha');
     }
   };

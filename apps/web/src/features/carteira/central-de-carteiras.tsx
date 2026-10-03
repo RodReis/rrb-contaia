@@ -26,6 +26,7 @@ import { ErroDaConsulta } from '../usuarios/erro-da-consulta';
 import { ROTULO_DO_PAPEL } from '../usuarios/rotulos';
 import type { ColaboradorNaCentral, SituacaoDaCarteira } from './api';
 import { DialogoDeLote } from './dialogo-de-lote';
+import { obterColaborador } from './api';
 import { useColaboradores } from './queries';
 import { ROTULO_DA_SITUACAO, ROTULO_DO_ESTADO, plural } from './rotulos';
 
@@ -222,6 +223,14 @@ export const CentralDeCarteiras = () => {
     [marcados, data],
   );
 
+  // Depois de um 409 a revisão guardada na seleção está velha, inclusive a de quem está em outra
+  // página: renova todos os selecionados direto no servidor.
+  const renovarSelecao = async (): Promise<void> => {
+    const frescos = await Promise.all([...marcados.keys()].map((id) => obterColaborador(id)));
+
+    definirMarcados(new Map(frescos.map((colaborador) => [colaborador.id, colaborador])));
+  };
+
   const alternar = (colaborador: ColaboradorNaCentral): void =>
     definirMarcados((anteriores) => {
       const proximos = new Map(anteriores);
@@ -393,6 +402,7 @@ export const CentralDeCarteiras = () => {
               operacao="ADICIONAR"
               colaboradores={selecionados}
               aoConcluir={() => definirMarcados(new Map())}
+              aoDesatualizar={renovarSelecao}
               gatilho={
                 <Button tamanho="compacto" disabled={temArquivado}>
                   <Plus aria-hidden="true" />
@@ -404,6 +414,7 @@ export const CentralDeCarteiras = () => {
               operacao="REMOVER"
               colaboradores={selecionados}
               aoConcluir={() => definirMarcados(new Map())}
+              aoDesatualizar={renovarSelecao}
               gatilho={
                 <Button tamanho="compacto" variante="contorno" disabled={temArquivado}>
                   <Minus aria-hidden="true" />

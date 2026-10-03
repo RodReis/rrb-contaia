@@ -161,53 +161,33 @@ const limpar = async (): Promise<void> => {
     return;
   }
 
-  // A trigger append-only recusa DELETE até para o dono da tabela: limpar
-  // fixture é a única exceção legítima e desliga a trigger de forma explícita.
-  await poolAdmin.query('alter table app.carteira_evento disable trigger carteira_evento_append_only');
-  await poolAdmin.query('alter table app.usuario_evento disable trigger usuario_evento_append_only');
-  await poolAdmin.query(
-    'alter table app.empresa_evento_de_historico disable trigger empresa_evento_de_historico_append_only',
-  );
-  await poolAdmin.query(
-    'alter table app.empresa_evento_de_pendencia disable trigger empresa_evento_de_pendencia_append_only',
-  );
-  await poolAdmin.query(
-    'alter table app.empresa_evento_de_notificacao disable trigger empresa_evento_de_notificacao_append_only',
-  );
+  // As triggers append-only recusam DELETE até para o dono da tabela, e `ALTER TABLE ... DISABLE
+  // TRIGGER` valeria para as suítes paralelas que provam justamente essa recusa. Por isso a limpeza
+  // usa `session_replication_role = replica` só nesta conexão (o papel do Compose é superusuário):
+  // limpar fixture é a única exceção legítima, e ela não enfraquece a trigger para mais ninguém.
+  const cliente = await poolAdmin.connect();
 
   try {
-    for (const tabela of [
-      'empresa_evento_de_notificacao',
-      'empresa_notificacao',
-      'empresa_evento_de_pendencia',
-      'empresa_pendencia',
-      'empresa_evento_de_historico',
-    ]) {
-      await poolAdmin.query(`delete from app.${tabela} where tenant_id = any($1)`, [ids]);
+    await cliente.query("set session_replication_role = 'replica'");
+
+    const tabelas = await cliente.query<{ table_name: string }>(
+      `select c.table_name
+         from information_schema.columns c
+         join information_schema.tables t
+           on t.table_schema = c.table_schema and t.table_name = c.table_name
+        where c.table_schema = 'app' and c.column_name = 'tenant_id'
+          and t.table_type = 'BASE TABLE' and c.table_name <> 'tenant'`,
+    );
+
+    for (const { table_name: tabela } of tabelas.rows) {
+      await cliente.query(`delete from app.${tabela} where tenant_id = any($1)`, [ids]);
     }
 
-    await poolAdmin.query('delete from app.carteira_notificacao where tenant_id = any($1)', [ids]);
-    await poolAdmin.query('delete from app.carteira_evento where tenant_id = any($1)', [ids]);
-    await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
-    await poolAdmin.query('delete from app.usuario_evento where tenant_id = any($1)', [ids]);
+    await cliente.query('delete from app.tenant where id = any($1)', [ids]);
   } finally {
-    await poolAdmin.query('alter table app.carteira_evento enable trigger carteira_evento_append_only');
-    await poolAdmin.query('alter table app.usuario_evento enable trigger usuario_evento_append_only');
-    await poolAdmin.query(
-      'alter table app.empresa_evento_de_historico enable trigger empresa_evento_de_historico_append_only',
-    );
-    await poolAdmin.query(
-      'alter table app.empresa_evento_de_pendencia enable trigger empresa_evento_de_pendencia_append_only',
-    );
-    await poolAdmin.query(
-      'alter table app.empresa_evento_de_notificacao enable trigger empresa_evento_de_notificacao_append_only',
-    );
+    await cliente.query('reset session_replication_role');
+    cliente.release();
   }
-
-  await poolAdmin.query('delete from app.usuario_papel where tenant_id = any($1)', [ids]);
-  await poolAdmin.query('delete from app.empresa where tenant_id = any($1)', [ids]);
-  await poolAdmin.query('delete from app.usuario where tenant_id = any($1)', [ids]);
-  await poolAdmin.query('delete from app.tenant where id = any($1)', [ids]);
 };
 
 beforeAll(async () => {

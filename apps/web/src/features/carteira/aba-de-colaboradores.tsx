@@ -18,9 +18,10 @@ import { ConfirmacaoDeAcao } from '@/components/ui/confirmacao-de-acao';
 import { EmptyState, Skeleton } from '@/components/ui/estados';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { ErroDaApi } from '@/lib/http';
 import { ErroDaConsulta } from '../usuarios/erro-da-consulta';
 import { ROTULO_DO_PAPEL } from '../usuarios/rotulos';
-import type { ColaboradorDaEmpresa, ColaboradorNaCentral } from './api';
+import { obterColaborador, type ColaboradorDaEmpresa, type ColaboradorNaCentral } from './api';
 import { CAMINHO_DA_GESTAO } from './central-de-carteiras';
 import { ProblemasDoLote, descreverProblemasDoLote } from './problemas-do-lote';
 import { useAlterarCarteira, useColaboradores, useColaboradoresDaEmpresa } from './queries';
@@ -160,6 +161,22 @@ const Adicionar = ({
       definirMarcados(new Map());
       definirAberto(false);
     } catch (erro) {
+      if (erro instanceof ErroDaApi && erro.problema.code === 'CARTEIRA_DESATUALIZADA') {
+        // A revisão guardada na seleção está velha: renova, ou o novo envio levaria o mesmo 409.
+        const frescos = await Promise.all([...marcados.keys()].map((id) => obterColaborador(id))).catch(
+          () => null,
+        );
+
+        if (frescos !== null) {
+          definirMarcados(new Map(frescos.map((c) => [c.id, c])));
+        }
+
+        definirProblemas([
+          'A carteira de algum colaborador mudou depois da seleção. Os dados foram atualizados: revise e adicione de novo.',
+        ]);
+        return;
+      }
+
       definirProblemas(
         descreverProblemasDoLote(erro, new Map([...marcados.values()].map((c) => [c.id, c.nome]))),
       );
