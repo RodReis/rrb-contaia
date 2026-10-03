@@ -25,6 +25,7 @@ import {
   COLUNAS_DA_VERSAO,
   linhaParaVersao,
   registrarEventoDeCertificado,
+  travarCofreDaEmpresa,
   type VersaoDoCertificado,
 } from './certificados.js';
 
@@ -404,7 +405,11 @@ const administradoresDasEmpresas = (
 
 type MarcoDeAlerta = MarcoDeVencimento | 'RESPONSAVEL_INCONSISTENTE';
 
-/** `true` quando o alerta nasceu agora; `false` quando o marco já havia sido emitido. */
+/**
+ * `true` quando o alerta nasceu agora; `false` quando já havia sido emitido. Os marcos de
+ * vencimento valem uma vez por certificado e destinatário; o de responsável inconsistente vale
+ * uma vez por PERDA (`pendenciaId`: a pendência aberta por ela), como a SPEC-011 §3.5 pede.
+ */
 export const registrarAlerta = async (
   cliente: PoolClient,
   alerta: Readonly<{
@@ -413,15 +418,23 @@ export const registrarAlerta = async (
     certificadoId: string;
     usuarioId: string;
     marco: MarcoDeAlerta;
+    pendenciaId?: string | null;
   }>,
 ): Promise<boolean> => {
   const { rows } = await cliente.query(
     `insert into app.empresa_certificado_notificacao
-       (tenant_id, empresa_id, certificado_id, usuario_id, marco)
-     values ($1, $2, $3, $4, $5)
-     on conflict (certificado_id, usuario_id, marco) do nothing
+       (tenant_id, empresa_id, certificado_id, usuario_id, marco, pendencia_id)
+     values ($1, $2, $3, $4, $5, $6)
+     on conflict (certificado_id, usuario_id, marco, pendencia_id) do nothing
      returning id`,
-    [alerta.tenantId, alerta.empresaId, alerta.certificadoId, alerta.usuarioId, alerta.marco],
+    [
+      alerta.tenantId,
+      alerta.empresaId,
+      alerta.certificadoId,
+      alerta.usuarioId,
+      alerta.marco,
+      alerta.pendenciaId ?? null,
+    ],
   );
 
   return rows.length > 0;
@@ -447,12 +460,19 @@ export type ResultadoDaReconciliacao = Readonly<{
   responsaveisPerdidos: number;
 }>;
 
-type EmpresaParaReconciliar = Readonly<{ id: string; vigente: VersaoDoCertificado | null }>;
+/** Tudo o que a decisão de uma empresa precisa, lido de uma vez. */
+type Fotografia = Readonly<{
+  empresaId: string;
+  vigente: VersaoDoCertificado | null;
+  responsavelInconsistente: boolean;
+  abertas: readonly Readonly<{ chave: string }>[];
+  administradores: readonly string[];
+}>;
 
-const empresasParaReconciliar = async (
+const empresasDaCarteira = async (
   cliente: PoolClient,
   entrada: EntradaDaReconciliacao,
-): Promise<readonly EmpresaParaReconciliar[]> => {
+): Promise<readonly string[]> => {
   const { rows } = await cliente.query<{ id: string }>(
     `select e.id from app.empresa e
       where e.tenant_id = $1 and e.status = 'ATIVA' and e.situacao = 'ativo'
@@ -463,20 +483,22 @@ const empresasParaReconciliar = async (
       order by e.id`,
     [entrada.tenantId, entrada.usuarioId, entrada.empresaIds],
   );
-  const ids = rows.map((linha) => linha.id);
 
-  if (ids.length === 0) {
-    return [];
-  }
+  return rows.map((linha) => linha.id);
+};
 
-  const vigentes = await cliente.query<Parameters<typeof linhaParaVersao>[0]>(
+const vigentesPorEmpresa = async (
+  cliente: PoolClient,
+  tenantId: string,
+  empresaIds: readonly string[],
+): Promise<ReadonlyMap<string, VersaoDoCertificado>> => {
+  const { rows } = await cliente.query<Parameters<typeof linhaParaVersao>[0]>(
     `select ${COLUNAS_DA_VERSAO} from app.empresa_certificado c
       where c.tenant_id = $1 and c.empresa_id = any($2) and c.estado = 'VIGENTE'`,
-    [entrada.tenantId, ids],
+    [tenantId, empresaIds],
   );
-  const porEmpresa = new Map(vigentes.rows.map((linha) => [linha.empresa_id, linhaParaVersao(linha)]));
 
-  return ids.map((id) => ({ id, vigente: porEmpresa.get(id) ?? null }));
+  return new Map(rows.map((linha) => [linha.empresa_id, linhaParaVersao(linha)]));
 };
 
 const abertasDeCertificado = async (
@@ -497,133 +519,211 @@ const abertasDeCertificado = async (
   return porEmpresa;
 };
 
+/** Fotografia das empresas pedidas: uma ida ao banco por tipo de dado, não por empresa. */
+const fotografar = async (
+  cliente: PoolClient,
+  tenantId: string,
+  empresaIds: readonly string[],
+): Promise<readonly Fotografia[]> => {
+  if (empresaIds.length === 0) {
+    return [];
+  }
+
+  const vigentes = await vigentesPorEmpresa(cliente, tenantId, empresaIds);
+  const abertas = await abertasDeCertificado(cliente, empresaIds);
+  const situacoes = await situacoesDeResponsaveis(
+    cliente,
+    tenantId,
+    empresaIds.flatMap((empresaId) => {
+      const vigente = vigentes.get(empresaId);
+
+      return vigente === undefined ? [] : [{ responsavelId: vigente.responsavelId, empresaId }];
+    }),
+  );
+  const inconsistente = (empresaId: string): boolean => {
+    const vigente = vigentes.get(empresaId);
+
+    return (
+      vigente !== undefined &&
+      situacoes.get(chaveDoPar({ responsavelId: vigente.responsavelId, empresaId })) !== 'ATIVO'
+    );
+  };
+  const administradores = await administradoresDasEmpresas(
+    cliente,
+    tenantId,
+    empresaIds.filter(inconsistente),
+  );
+
+  return empresaIds.map((empresaId) => ({
+    empresaId,
+    vigente: vigentes.get(empresaId) ?? null,
+    responsavelInconsistente: inconsistente(empresaId),
+    abertas: abertas.get(empresaId) ?? [],
+    administradores: administradores.get(empresaId) ?? [],
+  }));
+};
+
+const planejar = (foto: Fotografia, hoje: string) =>
+  reconciliarPendencias(
+    causasDeCertificado(
+      {
+        vigente: foto.vigente === null ? null : { validoAte: foto.vigente.validoAte },
+        responsavelInconsistente: foto.responsavelInconsistente,
+      },
+      hoje,
+    ),
+    foto.abertas,
+  );
+
+type Plano = ReturnType<typeof planejar>;
+
+const haDiferenca = (plano: Plano): boolean =>
+  plano.paraAbrir.length > 0 || plano.paraResolver.length > 0;
+
+/**
+ * Aplica o plano de pendências e devolve a pendência de responsável criada AGORA (id), se foi
+ * esta chamada que a criou: só quem a cria registra a perda e alerta — reprocessar não repete.
+ */
+const aplicarPendencias = async (
+  cliente: PoolClient,
+  entrada: EntradaDaReconciliacao,
+  foto: Fotografia,
+  plano: Plano,
+): Promise<string | null> => {
+  if (!haDiferenca(plano)) {
+    return null;
+  }
+
+  // Reconciliação automática: o evento de pendência não tem autor humano (como F4/F5).
+  const criadas = await reconciliar(
+    cliente,
+    entrada.tenantId,
+    foto.empresaId,
+    plano.paraAbrir,
+    plano.paraResolver,
+    null,
+  );
+
+  return criadas.get(CHAVES_DE_PENDENCIA_DO_CERTIFICADO.responsavel) ?? null;
+};
+
+const registrarPerdaDoResponsavel = async (
+  cliente: PoolClient,
+  entrada: EntradaDaReconciliacao,
+  foto: Fotografia,
+  vigente: VersaoDoCertificado,
+  pendenciaId: string,
+): Promise<void> => {
+  await registrarEventoDeCertificado(cliente, {
+    tenantId: entrada.tenantId,
+    empresaId: foto.empresaId,
+    certificadoId: vigente.id,
+    acao: 'RESPONSAVEL_PERDIDO',
+    usuarioId: vigente.responsavelId,
+    identidadeTecnica: 'verificacao-de-responsavel',
+    correlationId: entrada.correlationId,
+  });
+
+  for (const administradorId of foto.administradores) {
+    await registrarAlerta(cliente, {
+      tenantId: entrada.tenantId,
+      empresaId: foto.empresaId,
+      certificadoId: vigente.id,
+      usuarioId: administradorId,
+      marco: 'RESPONSAVEL_INCONSISTENTE',
+      pendenciaId,
+    });
+  }
+};
+
+/**
+ * Alerta do marco atual, só para um responsável que ainda pode agir (o inconsistente já gera o
+ * alerta aos administradores). `true` quando nasceu agora.
+ */
+const emitirAlertaDeVencimento = async (
+  cliente: PoolClient,
+  entrada: EntradaDaReconciliacao,
+  foto: Fotografia,
+  vigente: VersaoDoCertificado,
+): Promise<boolean> => {
+  const marco = marcoDeVencimentoAtual(vigente.validoAte, entrada.hoje);
+
+  if (marco === null || foto.responsavelInconsistente) {
+    return false;
+  }
+
+  const nasceu = await registrarAlerta(cliente, {
+    tenantId: entrada.tenantId,
+    empresaId: foto.empresaId,
+    certificadoId: vigente.id,
+    usuarioId: vigente.responsavelId,
+    marco,
+  });
+
+  if (nasceu) {
+    await registrarEventoDeCertificado(cliente, {
+      tenantId: entrada.tenantId,
+      empresaId: foto.empresaId,
+      certificadoId: vigente.id,
+      acao: 'ALERTA_EMITIDO',
+      codigo: marco,
+      usuarioId: vigente.responsavelId,
+      identidadeTecnica: 'alertas-de-vencimento',
+      correlationId: entrada.correlationId,
+    });
+  }
+
+  return nasceu;
+};
+
 /**
  * Mantém as pendências do certificado (ausente, vencido, sem responsável) e os alertas
- * individuais (D-30/15/7/vencido ao responsável; responsável inconsistente aos
- * administradores) em dia, para as empresas ATIVAS da carteira de quem dispara. Não gera
- * `empresa_notificacao`: os avisos do cofre são os individuais (decisão a confirmar).
+ * individuais (D-30/15/7/vencido ao responsável; responsável inconsistente aos administradores)
+ * em dia, para as empresas ATIVAS da carteira de quem dispara. Não gera `empresa_notificacao`:
+ * os avisos do cofre são os individuais (decisão a confirmar).
+ *
+ * Duas reconciliações simultâneas da mesma empresa não duplicam efeito: a leitura em lote é só
+ * para decidir se HÁ diferença; havendo, a empresa é travada (mesmo lock das mutações do cofre)
+ * e a decisão é refeita sobre o estado já confirmado pela outra transação.
  */
 export const reconciliarCofre = async (
   cliente: PoolClient,
   entrada: EntradaDaReconciliacao,
 ): Promise<ResultadoDaReconciliacao> => {
-  const empresas = await empresasParaReconciliar(cliente, entrada);
   const resultado = {
     pendenciasAbertas: 0,
     pendenciasResolvidas: 0,
     alertasEmitidos: 0,
     responsaveisPerdidos: 0,
   };
+  const empresaIds = await empresasDaCarteira(cliente, entrada);
 
-  if (empresas.length === 0) {
-    return resultado;
-  }
+  for (const inicial of await fotografar(cliente, entrada.tenantId, empresaIds)) {
+    let foto = inicial;
+    let plano = planejar(foto, entrada.hoje);
 
-  const situacoes = await situacoesDeResponsaveis(
-    cliente,
-    entrada.tenantId,
-    empresas.flatMap((empresa) =>
-      empresa.vigente === null
-        ? []
-        : [{ responsavelId: empresa.vigente.responsavelId, empresaId: empresa.id }],
-    ),
-  );
-  const abertas = await abertasDeCertificado(
-    cliente,
-    empresas.map((empresa) => empresa.id),
-  );
-  const inconsistente = (empresa: EmpresaParaReconciliar): boolean =>
-    empresa.vigente !== null &&
-    situacoes.get(
-      chaveDoPar({ responsavelId: empresa.vigente.responsavelId, empresaId: empresa.id }),
-    ) !== 'ATIVO';
-  const administradores = await administradoresDasEmpresas(
-    cliente,
-    entrada.tenantId,
-    empresas.filter(inconsistente).map((empresa) => empresa.id),
-  );
-
-  for (const empresa of empresas) {
-    const causas = causasDeCertificado(
-      {
-        vigente: empresa.vigente === null ? null : { validoAte: empresa.vigente.validoAte },
-        responsavelInconsistente: inconsistente(empresa),
-      },
-      entrada.hoje,
-    );
-    const { paraAbrir, paraResolver } = reconciliarPendencias(causas, abertas.get(empresa.id) ?? []);
-
-    if (paraAbrir.length > 0 || paraResolver.length > 0) {
-      await reconciliar(
-        cliente,
-        entrada.tenantId,
-        empresa.id,
-        paraAbrir,
-        paraResolver,
-        // Reconciliação automática: o evento de pendência não tem autor humano (como F4/F5).
-        null,
-      );
-      resultado.pendenciasAbertas += paraAbrir.length;
-      resultado.pendenciasResolvidas += paraResolver.length;
+    if (haDiferenca(plano)) {
+      await travarCofreDaEmpresa(cliente, foto.empresaId);
+      foto = (await fotografar(cliente, entrada.tenantId, [foto.empresaId]))[0] ?? foto;
+      plano = planejar(foto, entrada.hoje);
     }
 
-    if (empresa.vigente === null) {
+    const pendenciaDoResponsavel = await aplicarPendencias(cliente, entrada, foto, plano);
+
+    resultado.pendenciasAbertas += plano.paraAbrir.length;
+    resultado.pendenciasResolvidas += plano.paraResolver.length;
+
+    if (foto.vigente === null) {
       continue;
     }
 
-    const perdeuOResponsavel = paraAbrir.some(
-      (causa) => causa.chave === CHAVES_DE_PENDENCIA_DO_CERTIFICADO.responsavel,
-    );
-
-    if (perdeuOResponsavel) {
+    if (pendenciaDoResponsavel !== null) {
       resultado.responsaveisPerdidos += 1;
-      await registrarEventoDeCertificado(cliente, {
-        tenantId: entrada.tenantId,
-        empresaId: empresa.id,
-        certificadoId: empresa.vigente.id,
-        acao: 'RESPONSAVEL_PERDIDO',
-        usuarioId: empresa.vigente.responsavelId,
-        identidadeTecnica: 'verificacao-de-responsavel',
-        correlationId: entrada.correlationId,
-      });
-
-      for (const administradorId of administradores.get(empresa.id) ?? []) {
-        await registrarAlerta(cliente, {
-          tenantId: entrada.tenantId,
-          empresaId: empresa.id,
-          certificadoId: empresa.vigente.id,
-          usuarioId: administradorId,
-          marco: 'RESPONSAVEL_INCONSISTENTE',
-        });
-      }
+      await registrarPerdaDoResponsavel(cliente, entrada, foto, foto.vigente, pendenciaDoResponsavel);
     }
 
-    // Só o marco atual, e só para um responsável que ainda pode agir: o inconsistente
-    // já gera o alerta aos administradores.
-    const marco = marcoDeVencimentoAtual(empresa.vigente.validoAte, entrada.hoje);
-
-    if (marco !== null && !inconsistente(empresa)) {
-      const nasceu = await registrarAlerta(cliente, {
-        tenantId: entrada.tenantId,
-        empresaId: empresa.id,
-        certificadoId: empresa.vigente.id,
-        usuarioId: empresa.vigente.responsavelId,
-        marco,
-      });
-
-      if (nasceu) {
-        resultado.alertasEmitidos += 1;
-        await registrarEventoDeCertificado(cliente, {
-          tenantId: entrada.tenantId,
-          empresaId: empresa.id,
-          certificadoId: empresa.vigente.id,
-          acao: 'ALERTA_EMITIDO',
-          codigo: marco,
-          usuarioId: empresa.vigente.responsavelId,
-          identidadeTecnica: 'alertas-de-vencimento',
-          correlationId: entrada.correlationId,
-        });
-      }
+    if (await emitirAlertaDeVencimento(cliente, entrada, foto, foto.vigente)) {
+      resultado.alertasEmitidos += 1;
     }
   }
 

@@ -8,7 +8,8 @@
     "start": "node dist/main",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:regras": "vitest run --config vitest.config.mts"
+    "test:regras": "vitest run --config vitest.config.mts",
+    "test:banco": "vitest run --config vitest.banco.config.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1136.0",

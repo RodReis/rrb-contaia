@@ -1,8 +1,8 @@
 /**
  * Cliente do cofre (SPEC-011 §6.2): a API principal só pede ao cofre para inutilizar ou
  * restaurar a versão de um segredo — nunca lê, lista nem recebe conteúdo. Não existe
- * método de leitura aqui, de propósito. A autenticação é o Bearer de serviço
- * `COFRE_SERVICE_TOKEN`; o token do Vault jamais chega a este processo.
+ * método de leitura aqui, de propósito. A autenticação é o Bearer
+ * `COFRE_ADMIN_TOKEN` (distinto do `COFRE_SERVICE_TOKEN`, que autentica o cofre perante a API); o token do Vault jamais chega a este processo.
  *
  * Vault ou cofre fora do ar é erro estável (`COFRE_INDISPONIVEL`): sem fallback para banco,
  * disco ou log. Nem o corpo da resposta entra em mensagem de erro ou log.
@@ -18,7 +18,10 @@ export type EscopoDoSegredo = Readonly<{ tenantId: string; empresaId: string }>;
 
 export const configuracaoDoCofre = (): Readonly<{
   ticketSecret: string;
+  /** Bearer cofre → API (`/interno/cofre/*`). */
   serviceToken: string;
+  /** Bearer API → cofre (`/segredos/*`): outra credencial, para um vazamento não valer nas duas mãos. */
+  adminToken: string;
   cofreUrl: string;
   publicUrl: string;
 }> => {
@@ -27,6 +30,7 @@ export const configuracaoDoCofre = (): Readonly<{
   return {
     ticketSecret: env['COFRE_TICKET_SECRET'] ?? '',
     serviceToken: env['COFRE_SERVICE_TOKEN'] ?? '',
+    adminToken: env['COFRE_ADMIN_TOKEN'] ?? '',
     cofreUrl: (env['COFRE_URL'] ?? '').replace(/\/+$/u, ''),
     publicUrl: (env['COFRE_PUBLIC_URL'] ?? '').replace(/\/+$/u, ''),
   };
@@ -58,9 +62,9 @@ export class CofreClient {
     escopo: EscopoDoSegredo,
     correlationId: string,
   ): Promise<void> {
-    const { cofreUrl, serviceToken } = configuracaoDoCofre();
+    const { cofreUrl, adminToken } = configuracaoDoCofre();
 
-    if (cofreUrl.length === 0 || serviceToken.length < TAMANHO_MINIMO_DO_SEGREDO) {
+    if (cofreUrl.length === 0 || adminToken.length < TAMANHO_MINIMO_DO_SEGREDO) {
       this.logger.error(`cofre não configurado [${correlationId}]`);
       throw cofreIndisponivel();
     }
@@ -71,7 +75,7 @@ export class CofreClient {
         {
           method: 'POST',
           headers: {
-            authorization: `Bearer ${serviceToken}`,
+            authorization: `Bearer ${adminToken}`,
             'content-type': 'application/json',
             'x-correlation-id': correlationId,
           },

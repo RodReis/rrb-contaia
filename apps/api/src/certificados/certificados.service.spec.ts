@@ -14,7 +14,9 @@ vi.mock('@contaia/db', async () => {
   return {
     ...real,
     comContextoHumano: vi.fn(async (_pool, _entrada, executar) => executar({} as never)),
+    ativacaoDoTicket: vi.fn(),
     ativarVersao: vi.fn(),
+    vincularTicketAoCertificado: vi.fn(),
     carregarItemDoCofre: vi.fn(),
     carregarVigente: vi.fn(),
     consumirTicketDeIngestao: vi.fn(),
@@ -34,7 +36,10 @@ vi.mock('@contaia/db', async () => {
 });
 
 import {
+  ativacaoDoTicket,
   ativarVersao,
+  vincularTicketAoCertificado,
+  travarCofreDaEmpresa,
   carregarItemDoCofre,
   carregarVigente,
   comContextoHumano,
@@ -493,7 +498,7 @@ describe('troca de responsável', () => {
   });
 });
 
-describe('desativação em duas fases', () => {
+describe('desativação (cofre inutilizado sob o lock da empresa)', () => {
   beforeEach(() => {
     vi.mocked(carregarVigente).mockResolvedValue(versao());
     vi.mocked(desativarVigente).mockResolvedValue(
@@ -530,33 +535,92 @@ describe('desativação em duas fases', () => {
     expect(desativarVigente).not.toHaveBeenCalled();
   });
 
-  it('cofre indisponível: erro estável e nada é alterado no banco', async () => {
+  it('o lock do cofre da empresa vem ANTES de ler o vigente e de falar com o cofre', async () => {
+    const ordem: string[] = [];
+    vi.mocked(travarCofreDaEmpresa).mockImplementation(async () => void ordem.push('lock'));
+    vi.mocked(carregarVigente).mockImplementation(async () => {
+      ordem.push('vigente');
+
+      return versao();
+    });
+    cofre.inutilizar.mockImplementation(async () => void ordem.push('inutilizar'));
+
+    await servico().desativar(sessao(), EMPRESA, 'motivo', 'c');
+
+    expect(ordem.slice(0, 3)).toEqual(['lock', 'vigente', 'inutilizar']);
+  });
+
+  it('inutilizar com erro ambíguo (timeout): tenta restaurar, responde o erro e não toca no banco', async () => {
     cofre.inutilizar.mockRejectedValue(new ErroDeDominio(CODIGOS_DE_ERRO.COFRE_INDISPONIVEL, 'fora'));
 
-    expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'c'))).toBe(
+    expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'corr'))).toBe(
       CODIGOS_DE_ERRO.COFRE_INDISPONIVEL,
     );
+    // O Vault pode ter aplicado antes de o cliente desistir: devolver é idempotente e seguro,
+    // porque sob o lock a versão continua vigente. Sem isso sobraria vigente com segredo deletado.
+    expect(cofre.restaurar).toHaveBeenCalledWith(REFERENCIA_ATUAL, { tenantId: TENANT, empresaId: EMPRESA }, 'corr');
     expect(desativarVigente).not.toHaveBeenCalled();
-    expect(cofre.restaurar).not.toHaveBeenCalled();
   });
 
   it('falha na transação devolve o segredo ao cofre (compensação) e propaga o erro', async () => {
     vi.mocked(desativarVigente).mockRejectedValue(new Error('banco caiu'));
 
     expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'corr'))).toMatch(/^OUTRO/u);
-    expect(cofre.restaurar).toHaveBeenCalledWith(REFERENCIA_ATUAL, { tenantId: TENANT, empresaId: EMPRESA }, 'corr');
+    expect(cofre.restaurar).toHaveBeenCalledTimes(1);
   });
 
-  it('vigente trocado entre as fases: não desativa o outro e restaura o segredo inutilizado', async () => {
-    vi.mocked(carregarVigente)
-      .mockResolvedValueOnce(versao())
-      .mockResolvedValueOnce(versao({ id: ID(11), versao: 2 }));
+  it('o segredo é devolvido uma única vez, mesmo que a falha venha depois (commit)', async () => {
+    vi.mocked(desativarVigente).mockRejectedValue(new Error('banco caiu'));
+
+    await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'c'));
+
+    expect(cofre.restaurar).toHaveBeenCalledTimes(1);
+    expect(carregarVigente).toHaveBeenCalledTimes(1);
+  });
+
+  it('falha SÓ no commit com a versão ainda vigente: devolve o segredo', async () => {
+    let chamadas = 0;
+    vi.mocked(comContextoHumano).mockImplementation(async (_pool, _entrada, executar) => {
+      chamadas += 1;
+      const resultado = await executar({} as never);
+
+      if (chamadas === 1) {
+        throw new Error('conexão perdida no commit');
+      }
+
+      return resultado;
+    });
+
+    expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'corr'))).toMatch(/^OUTRO/u);
+    expect(cofre.restaurar).toHaveBeenCalledTimes(1);
+  });
+
+  it('falha SÓ no commit mas a versão já foi desativada (commit chegou): NUNCA devolve o segredo', async () => {
+    let chamadas = 0;
+    vi.mocked(comContextoHumano).mockImplementation(async (_pool, _entrada, executar) => {
+      chamadas += 1;
+
+      if (chamadas === 1) {
+        await executar({} as never);
+        vi.mocked(carregarVigente).mockResolvedValue(null);
+        throw new Error('conexão perdida no commit');
+      }
+
+      return executar({} as never);
+    });
+
+    expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'c'))).toMatch(/^OUTRO/u);
+    expect(cofre.restaurar).not.toHaveBeenCalled();
+  });
+
+  it('segunda desativação da mesma versão (vigente já desativado sob o lock): 409, sem inutilizar nem restaurar', async () => {
+    vi.mocked(carregarVigente).mockResolvedValue(null);
 
     expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'c'))).toBe(
-      CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,
+      CODIGOS_DE_ERRO.CERTIFICADO_VIGENTE_INEXISTENTE,
     );
-    expect(desativarVigente).not.toHaveBeenCalled();
-    expect(cofre.restaurar).toHaveBeenCalledTimes(1);
+    expect(cofre.inutilizar).not.toHaveBeenCalled();
+    expect(cofre.restaurar).not.toHaveBeenCalled();
   });
 
   it('falha ao restaurar não mascara o erro original', async () => {
@@ -566,15 +630,6 @@ describe('desativação em duas fases', () => {
     expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'c'))).toBe(
       CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO,
     );
-  });
-
-  it('empresa sem vigente não tem o que desativar', async () => {
-    vi.mocked(carregarVigente).mockResolvedValue(null);
-
-    expect(await codigoDe(() => servico().desativar(sessao(), EMPRESA, 'motivo', 'c'))).toBe(
-      CODIGOS_DE_ERRO.CERTIFICADO_VIGENTE_INEXISTENTE,
-    );
-    expect(cofre.inutilizar).not.toHaveBeenCalled();
   });
 
   it.each(['auxiliar', 'auditor_readonly'] as const)('%s não desativa', async (papel) => {
@@ -690,18 +745,110 @@ describe('ativação pelo cofre (rota interna)', () => {
     );
   });
 
-  it('ticket forjado, de outro segredo ou vencido: recusado antes de qualquer acesso ao banco', async () => {
+  it('ticket forjado ou de outro segredo: recusado antes de qualquer acesso ao banco', async () => {
     const forjado = { ...pedido(), ticket: assinarTicket(carga(), 'z'.repeat(40)) };
-    const vencido = pedido(carga({ exp: Math.floor(AGORA.getTime() / 1000) - 1 }));
 
     expect(await codigoDe(() => servico().ativar(forjado, 'c'))).toBe(CODIGOS_DE_ERRO.CERTIFICADO_TICKET_INVALIDO);
-    expect(await codigoDe(() => servico().ativar(vencido, 'c'))).toBe(CODIGOS_DE_ERRO.CERTIFICADO_TICKET_INVALIDO);
     expect(comContextoHumano).not.toHaveBeenCalled();
     expect(ativarVersao).not.toHaveBeenCalled();
   });
 
+  it('ticket vencido: não consome nem ativa; só a repetição de uma ativação já feita responde', async () => {
+    const vencido = pedido(carga({ exp: Math.floor(AGORA.getTime() / 1000) - 1 }));
+    vi.mocked(ativacaoDoTicket).mockResolvedValue(null);
+
+    expect(await codigoDe(() => servico().ativar(vencido, 'c'))).toBe(CODIGOS_DE_ERRO.CERTIFICADO_TICKET_INVALIDO);
+    expect(consumirTicketDeIngestao).not.toHaveBeenCalled();
+    expect(ativarVersao).not.toHaveBeenCalled();
+  });
+
+  it('vincula o ticket à versão ativada na MESMA transação, antes do evento', async () => {
+    const ordem: string[] = [];
+    vi.mocked(vincularTicketAoCertificado).mockImplementation(async () => void ordem.push('vincular'));
+    vi.mocked(registrarEventoDeCertificado).mockImplementation(async () => void ordem.push('evento'));
+
+    await servico().ativar(pedido(), 'c');
+
+    expect(vincularTicketAoCertificado).toHaveBeenCalledWith(expect.anything(), {
+      tenantId: TENANT,
+      ticketId: ID(50),
+      certificadoId: ID(60),
+    });
+    expect(ordem).toEqual(['vincular', 'evento']);
+  });
+
+  describe('idempotência por ticket (o cofre repete depois de um timeout em que a API comitou)', () => {
+    beforeEach(() => {
+      vi.mocked(consumirTicketDeIngestao).mockResolvedValue(false);
+    });
+
+    it('ticket consumido com a MESMA referência: 200 com a mesma versão, sem troca nem evento novo', async () => {
+      vi.mocked(ativacaoDoTicket).mockResolvedValue(nova);
+
+      const resposta = await servico().ativar(pedido(), 'c');
+
+      expect(resposta.certificado.id).toBe(ID(60));
+      expect(ativacaoDoTicket).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ id: ID(50), usuarioId: USUARIO, empresaId: EMPRESA }),
+      );
+      expect(ativarVersao).not.toHaveBeenCalled();
+      expect(vincularTicketAoCertificado).not.toHaveBeenCalled();
+      expect(registrarEventoDeCertificado).not.toHaveBeenCalled();
+      expect(JSON.stringify(resposta)).not.toContain(NOVA_REFERENCIA);
+    });
+
+    it('a repetição também vale com o ticket já vencido (o prazo era da primeira tentativa)', async () => {
+      vi.mocked(ativacaoDoTicket).mockResolvedValue(nova);
+
+      const vencido = pedido(carga({ exp: Math.floor(AGORA.getTime() / 1000) - 60 }));
+
+      expect((await servico().ativar(vencido, 'c')).certificado.id).toBe(ID(60));
+    });
+
+    it('ticket consumido com OUTRA referência: 403 CERTIFICADO_TICKET_INVALIDO (nada é devolvido)', async () => {
+      vi.mocked(ativacaoDoTicket).mockResolvedValue(nova);
+
+      const outra = { ...pedido(), referenciaDoSegredo: ID(99) };
+
+      expect(await codigoDe(() => servico().ativar(outra, 'c'))).toBe(CODIGOS_DE_ERRO.CERTIFICADO_TICKET_INVALIDO);
+      expect(ativarVersao).not.toHaveBeenCalled();
+    });
+
+    it('ticket consumido que não ativou nada (primeira tentativa recusada): 403', async () => {
+      vi.mocked(ativacaoDoTicket).mockResolvedValue(null);
+
+      expect(await codigoDe(() => servico().ativar(pedido(), 'c'))).toBe(
+        CODIGOS_DE_ERRO.CERTIFICADO_TICKET_INVALIDO,
+      );
+    });
+  });
+
+  it('certificado com vários CNPJs: o que casa com a empresa é o gravado', async () => {
+    const lista = ['99888777000166', '11.222.333/0001-81'];
+
+    await servico().ativar(pedido(carga(), { cnpjTitular: lista[0], cnpjsDoTitular: lista }), 'c');
+
+    expect(ativarVersao).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ dados: expect.objectContaining({ cnpjTitular: '11.222.333/0001-81' }) }),
+    );
+  });
+
+  it('nenhum dos CNPJs é o da empresa: divergente', async () => {
+    expect(
+      await codigoDe(() =>
+        servico().ativar(
+          pedido(carga(), { cnpjTitular: '99888777000166', cnpjsDoTitular: ['99888777000166', '55666777000122'] }),
+          'c',
+        ),
+      ),
+    ).toBe(CODIGOS_DE_ERRO.CERTIFICADO_CNPJ_DIVERGENTE);
+  });
+
   it('ticket já consumido (uso único): recusado e nada é ativado', async () => {
     vi.mocked(consumirTicketDeIngestao).mockResolvedValue(false);
+    vi.mocked(ativacaoDoTicket).mockResolvedValue(null);
 
     expect(await codigoDe(() => servico().ativar(pedido(), 'c'))).toBe(CODIGOS_DE_ERRO.CERTIFICADO_TICKET_INVALIDO);
     expect(ativarVersao).not.toHaveBeenCalled();

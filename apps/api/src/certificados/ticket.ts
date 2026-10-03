@@ -48,7 +48,8 @@ export const assinarTicket = (carga: CargaDoTicket, segredo: string): string => 
 };
 
 /**
- * Confere assinatura (tempo constante) e formato; a validade é conferida à parte. Qualquer
+ * Confere assinatura (tempo constante) e formato. A validade NÃO é conferida aqui: quem consome
+ * o ticket a confere (`expira_em`, no banco), e só a repetição de uma ativação já feita ignora o prazo. Qualquer
  * defeito responde o mesmo código: ticket forjado, adulterado ou ilegível não distingue motivo.
  */
 export const lerTicketAssinado = (ticket: string, segredo: string): CargaDoTicket => {
@@ -81,15 +82,4 @@ export const lerTicketAssinado = (ticket: string, segredo: string): CargaDoTicke
   }
 
   return carga.data;
-};
-
-/** Assinatura válida e dentro da validade (`exp` em segundos desde a época). */
-export const verificarTicket = (ticket: string, segredo: string, agora: Date): CargaDoTicket => {
-  const carga = lerTicketAssinado(ticket, segredo);
-
-  if (carga.exp * 1000 <= agora.getTime()) {
-    throw ticketInvalido();
-  }
-
-  return carga;
 };

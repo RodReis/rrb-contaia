@@ -9,6 +9,7 @@ import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { CofreClient } from './cofre.client';
 
 const TOKEN = 'k'.repeat(48);
+const TOKEN_DE_SERVICO = 's'.repeat(48);
 const REFERENCIA = '01927b5c-8e1a-7c3d-9a1b-0123456789ab';
 const ESCOPO = { tenantId: 'tenant-1', empresaId: 'empresa-1' };
 const ambiente = { ...process.env };
@@ -28,13 +29,15 @@ const falhaCom = async (acao: () => Promise<unknown>): Promise<ErroDeDominio> =>
 
 beforeEach(() => {
   process.env['COFRE_URL'] = 'http://cofre.local:15104/';
-  process.env['COFRE_SERVICE_TOKEN'] = TOKEN;
+  process.env['COFRE_ADMIN_TOKEN'] = TOKEN;
+  process.env['COFRE_SERVICE_TOKEN'] = TOKEN_DE_SERVICO;
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   process.env['COFRE_URL'] = ambiente['COFRE_URL'];
   process.env['COFRE_SERVICE_TOKEN'] = ambiente['COFRE_SERVICE_TOKEN'];
+  process.env['COFRE_ADMIN_TOKEN'] = ambiente['COFRE_ADMIN_TOKEN'];
 });
 
 describe('CofreClient', () => {
@@ -46,6 +49,8 @@ describe('CofreClient', () => {
 
     const chamada = (fetchFalso.mock.calls[0] as unknown as [string, RequestInit]) ?? [];
     expect(chamada[0]).toBe(`http://cofre.local:15104/segredos/${REFERENCIA}/inutilizar`);
+    // O Bearer é o ADMIN; o de serviço (cofre → API) nunca sai nesta direção.
+    expect(JSON.stringify(chamada[1])).not.toContain(TOKEN_DE_SERVICO);
     expect(chamada[1]).toMatchObject({
       method: 'POST',
       headers: {
@@ -99,7 +104,7 @@ describe('CofreClient', () => {
     );
 
     process.env['COFRE_URL'] = 'http://cofre.local';
-    process.env['COFRE_SERVICE_TOKEN'] = 'curto';
+    process.env['COFRE_ADMIN_TOKEN'] = 'curto';
 
     expect((await falhaCom(() => new CofreClient().restaurar(REFERENCIA, ESCOPO, 'c'))).codigo).toBe(
       CODIGOS_DE_ERRO.COFRE_INDISPONIVEL,

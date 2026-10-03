@@ -140,12 +140,15 @@ export const planejarTrocaDeResponsavel = (
  * Reavaliação, na API, do que o cofre já conferiu no arquivo: o CNPJ do titular e a
  * vigência. O que depende do conteúdo do PKCS#12 (tipo, cadeia, chave) só o cofre vê
  * e é decidido por `avaliarCertificado`; aqui valem só os metadados que cruzam a fronteira.
+ * O certificado pode listar vários CNPJs: basta UM coincidir com o da empresa.
  */
 export const avaliarMetadadosDoCertificado = (
-  metadados: Readonly<{ cnpjTitular: string; naoAntes: Date; naoDepois: Date }>,
+  metadados: Readonly<{ cnpjsDoTitular: readonly string[]; naoAntes: Date; naoDepois: Date }>,
   contexto: Readonly<{ cnpjDaEmpresa: string; agora: Date }>,
 ): ResultadoDaAvaliacao => {
-  if (normalizarCnpj(metadados.cnpjTitular) !== normalizarCnpj(contexto.cnpjDaEmpresa)) {
+  const alvo = normalizarCnpj(contexto.cnpjDaEmpresa);
+
+  if (!metadados.cnpjsDoTitular.some((cnpj) => normalizarCnpj(cnpj) === alvo)) {
     return { ok: false, codigo: 'CERTIFICADO_CNPJ_DIVERGENTE' };
   }
 

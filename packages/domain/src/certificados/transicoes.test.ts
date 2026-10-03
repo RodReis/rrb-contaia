@@ -143,7 +143,7 @@ describe('avaliarMetadadosDoCertificado', () => {
   const agora = new Date('2026-10-15T15:00:00Z');
   const contexto = { cnpjDaEmpresa: '12.345.678/0001-95', agora };
   const metadados = {
-    cnpjTitular: '12345678000195',
+    cnpjsDoTitular: ['12345678000195'],
     naoAntes: new Date('2026-01-01T03:00:00Z'),
     naoDepois: new Date('2027-01-01T02:59:59Z'),
   };
@@ -159,10 +159,28 @@ describe('avaliarMetadadosDoCertificado', () => {
   it('recusa CNPJ divergente antes de olhar a validade', () => {
     expect(
       avaliarMetadadosDoCertificado(
-        { ...metadados, cnpjTitular: '11222333000181', naoDepois: new Date('2020-01-01T00:00:00Z') },
+        { ...metadados, cnpjsDoTitular: ['11222333000181'], naoDepois: new Date('2020-01-01T00:00:00Z') },
         contexto,
       ),
     ).toEqual({ ok: false, codigo: 'CERTIFICADO_CNPJ_DIVERGENTE' });
+  });
+
+  it('certificado com vários CNPJs vale se QUALQUER um é o da empresa, em qualquer posição', () => {
+    for (const lista of [
+      ['11222333000181', '12.345.678/0001-95'],
+      ['12345678000195', '11222333000181'],
+    ]) {
+      expect(avaliarMetadadosDoCertificado({ ...metadados, cnpjsDoTitular: lista }, contexto).ok).toBe(true);
+    }
+  });
+
+  it('lista vazia ou sem o CNPJ da empresa é divergente', () => {
+    for (const lista of [[], ['11222333000181', '99888777000166']]) {
+      expect(avaliarMetadadosDoCertificado({ ...metadados, cnpjsDoTitular: lista }, contexto)).toEqual({
+        ok: false,
+        codigo: 'CERTIFICADO_CNPJ_DIVERGENTE',
+      });
+    }
   });
 
   it('o último dia de validade ainda vale; o dia seguinte não', () => {

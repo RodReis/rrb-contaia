@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import type { CargaDoTicket } from '@contaia/shared';
 
-import { assinarTicket, lerTicketAssinado, verificarTicket } from './ticket';
+import { assinarTicket, lerTicketAssinado } from './ticket';
 
 const SEGREDO = 's'.repeat(40);
 const ID = '01927b5c-8e1a-7c3d-9a1b-0123456789ab';
@@ -43,7 +43,7 @@ describe('ticket de ingestão', () => {
   it('ida e volta preserva a carga', () => {
     const ticket = assinarTicket(carga(), SEGREDO);
 
-    expect(verificarTicket(ticket, SEGREDO, AGORA)).toEqual(carga());
+    expect(lerTicketAssinado(ticket, SEGREDO)).toEqual(carga());
   });
 
   it('tem o formato base64url(JSON).base64url(HMAC-SHA256) que o cofre confere', () => {
@@ -63,7 +63,7 @@ describe('ticket de ingestão', () => {
   it('assinatura de outro segredo é recusada', () => {
     const ticket = assinarTicket(carga(), 'outro-segredo-com-mais-de-32-caracteres!');
 
-    expect(codigoDe(() => verificarTicket(ticket, SEGREDO, AGORA))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(ticket, SEGREDO))).toBe(INVALIDO);
   });
 
   it('carga adulterada com a assinatura original é recusada', () => {
@@ -72,18 +72,10 @@ describe('ticket de ingestão', () => {
       'base64url',
     );
 
-    expect(codigoDe(() => verificarTicket(`${forjada}.${assinatura}`, SEGREDO, AGORA))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(`${forjada}.${assinatura}`, SEGREDO))).toBe(INVALIDO);
   });
 
-  it('ticket vencido é recusado; o último segundo ainda vale', () => {
-    const vencendo = assinarTicket(carga({ exp: Math.floor(AGORA.getTime() / 1000) }), SEGREDO);
-    const valido = assinarTicket(carga({ exp: Math.floor(AGORA.getTime() / 1000) + 1 }), SEGREDO);
-
-    expect(codigoDe(() => verificarTicket(vencendo, SEGREDO, AGORA))).toBe(INVALIDO);
-    expect(codigoDe(() => verificarTicket(valido, SEGREDO, AGORA))).toBe('nao_lancou');
-  });
-
-  it('a leitura sem validade aceita ticket vencido com assinatura boa (registro da recusa)', () => {
+  it('a leitura não confere a validade: ticket vencido com assinatura boa passa (a conferência é do consumo, no banco)', () => {
     const vencido = assinarTicket(carga({ exp: 1 }), SEGREDO);
 
     expect(lerTicketAssinado(vencido, SEGREDO).jti).toBe(ID);
@@ -95,7 +87,7 @@ describe('ticket de ingestão', () => {
     ['três partes', 'a.b.c'],
     ['lixo', '!!!.???'],
   ])('formato inválido (%s) é recusado', (_nome, ticket) => {
-    expect(codigoDe(() => verificarTicket(ticket, SEGREDO, AGORA))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(ticket, SEGREDO))).toBe(INVALIDO);
   });
 
   it('carga com formato inválido, mesmo bem assinada, é recusada', () => {
@@ -105,22 +97,22 @@ describe('ticket de ingestão', () => {
       return `${parteUm}.${createHmac('sha256', SEGREDO).update(parteUm).digest().toString('base64url')}`;
     };
 
-    expect(codigoDe(() => verificarTicket(assinar({ jti: 'x' }), SEGREDO, AGORA))).toBe(INVALIDO);
-    expect(codigoDe(() => verificarTicket(assinar(carga({ operacao: 'OUTRA' as never })), SEGREDO, AGORA))).toBe(INVALIDO);
-    expect(codigoDe(() => verificarTicket(assinar('texto'), SEGREDO, AGORA))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(assinar({ jti: 'x' }), SEGREDO))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(assinar(carga({ operacao: 'OUTRA' as never })), SEGREDO))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(assinar('texto'), SEGREDO))).toBe(INVALIDO);
   });
 
   it('JSON ilegível, mesmo bem assinado, é recusado', () => {
     const parteUm = Buffer.from('{não é json').toString('base64url');
     const ticket = `${parteUm}.${createHmac('sha256', SEGREDO).update(parteUm).digest().toString('base64url')}`;
 
-    expect(codigoDe(() => verificarTicket(ticket, SEGREDO, AGORA))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(ticket, SEGREDO))).toBe(INVALIDO);
   });
 
   it('segredo ausente ou curto nunca valida: falha fechado', () => {
     const ticket = assinarTicket(carga(), 'curto');
 
-    expect(codigoDe(() => verificarTicket(ticket, 'curto', AGORA))).toBe(INVALIDO);
-    expect(codigoDe(() => verificarTicket(ticket, '', AGORA))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(ticket, 'curto'))).toBe(INVALIDO);
+    expect(codigoDe(() => lerTicketAssinado(ticket, ''))).toBe(INVALIDO);
   });
 });

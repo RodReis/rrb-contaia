@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio } from '@contaia/domain';
 
-import { FiltroDeProblema, montarProblema, statusDoErro } from './problema';
+import { FiltroDeProblema, montarProblema, obterCorrelationId, statusDoErro } from './problema';
 import type { CorpoDoProblema } from './problema';
 import type { CorrelationId } from '@contaia/domain';
 
@@ -37,11 +37,46 @@ const capturar = (excecao: unknown): { status: number; corpo: CorpoDoProblema } 
   };
 };
 
+describe('correlationId vindo de fora', () => {
+  const com = (valor: string | undefined): string =>
+    obterCorrelationId({ header: () => valor } as never);
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+  it('aceita UUID e o formato [A-Za-z0-9-]{8,64}', () => {
+    const uuid = '01927b5c-8e1a-7c3d-9a1b-0123456789ab';
+
+    expect(com(uuid)).toBe(uuid);
+    expect(com('corr-de-teste')).toBe('corr-de-teste');
+    expect(com('a'.repeat(64))).toBe('a'.repeat(64));
+  });
+
+  it.each([
+    ['ausente', undefined],
+    ['vazio', ''],
+    ['curto demais', 'abc-123'],
+    ['longo demais', 'a'.repeat(65)],
+    ['com espaço', 'corr com espaco'],
+    ['com quebra de linha (injeção de log)', 'corr-1234\nINFO falsa'],
+    ['com símbolos', 'corr_1234;drop'],
+  ])('%s é descartado e vira um UUID novo', (_nome, valor) => {
+    const gerado = com(valor);
+
+    expect(gerado).toMatch(UUID);
+    expect(gerado).not.toBe(valor);
+  });
+});
+
 describe('status por código de erro', () => {
   it('conflito de CNPJ é 409', () => {
     expect(
       statusDoErro(new ErroDeConflito(CODIGOS_DE_ERRO.CNPJ_JA_UTILIZADO, 'em uso')),
     ).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('dispensar pendência do cofre é conflito (409)', () => {
+    expect(statusDoErro(new ErroDeDominio(CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL, 'x'))).toBe(
+      HttpStatus.CONFLICT,
+    );
   });
 
   it('cadastro incompleto é 403', () => {

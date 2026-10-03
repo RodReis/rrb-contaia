@@ -46,7 +46,6 @@ describe('Central de Pendências — origem Certificado', () => {
   it.each([
     ['CERTIFICADO_AUSENTE', 'Certificado ausente'],
     ['CERTIFICADO_VENCIDO', 'Certificado vencido'],
-    ['CERTIFICADO_DESATIVADO', 'Certificado desativado'],
     ['CERTIFICADO_SEM_RESPONSAVEL', 'Certificado sem responsável'],
   ])('%s aparece com rótulo e leva ao cofre, sem oferecer dispensa', async (tipo, rotulo) => {
     pendencias = [doCofre(tipo)];

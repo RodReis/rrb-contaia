@@ -30,11 +30,18 @@ export type CorpoDoProblema = Readonly<{
 
 const TIPO_BASE = 'https://contaia.local/erros';
 
-/** O `correlationId` acompanha a requisição inteira e é o que o suporte pede. */
+/**
+ * O `correlationId` acompanha a requisição inteira e é o que o suporte pede. Vem de fora (web,
+ * cofre) e vai parar em log, evento de auditoria e resposta: só se aceita UUID ou o formato
+ * `[A-Za-z0-9-]{8,64}`; qualquer outra coisa (tamanho, espaço, quebra de linha, símbolo)
+ * é descartada e substituída por um UUID novo.
+ */
+const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
+
 export const obterCorrelationId = (requisicao: Request): CorrelationId => {
   const cabecalho = requisicao.header('x-correlation-id');
 
-  return (cabecalho !== undefined && cabecalho.length > 0
+  return (cabecalho !== undefined && CORRELATION_ID_VALIDO.test(cabecalho)
     ? cabecalho
     : randomUUID()) as CorrelationId;
 };
@@ -112,6 +119,7 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   // Estado do cofre da empresa que não aceita a operação: a requisição está bem formada.
   [CODIGOS_DE_ERRO.CERTIFICADO_JA_VIGENTE]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.CERTIFICADO_VIGENTE_INEXISTENTE]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL]: HttpStatus.CONFLICT,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>

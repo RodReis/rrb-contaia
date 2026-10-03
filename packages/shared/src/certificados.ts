@@ -160,7 +160,14 @@ export type CargaDoTicket = Readonly<{
 /** Metadados que o cofre extrai do PKCS#12 e entrega à API principal (nunca o conteúdo). */
 export type MetadadosExtraidos = Readonly<{
   titular: string;
+  /** CNPJ que casou com o da empresa (ou o primeiro do certificado, se nenhum casou). */
   cnpjTitular: string;
+  /**
+   * TODOS os CNPJs do titular no SubjectAltName (`2.16.76.1.3.3`). Opcional por compatibilidade:
+   * ausente, a API usa só `cnpjTitular`. A API aceita o certificado se QUALQUER um coincidir
+   * com o CNPJ da empresa — conferir só o primeiro recusaria certificado válido.
+   */
+  cnpjsDoTitular?: readonly string[];
   autoridadeCertificadora: string;
   /** Cadeia validada até a raiz ICP-Brasil configurada, do titular para a raiz (CNs). */
   cadeia: readonly string[];

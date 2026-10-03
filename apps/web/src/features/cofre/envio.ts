@@ -44,6 +44,37 @@ export const validarArquivoDoCertificado = (
     : null;
 };
 
+/**
+ * A URL do cofre vem da API junto com o ticket. Se a API (ou algo no caminho) fosse
+ * comprometida, apontar o navegador para outro host levaria senha e arquivo embora.
+ * Com `NEXT_PUBLIC_COFRE_URL` definida (build), só a mesma ORIGEM passa; sem ela (dev)
+ * basta ser uma URL http(s) válida. O Next só embute a variável se o acesso for literal.
+ */
+const origemConfigurada = (): string | undefined =>
+  // O acesso por ponto é obrigatório: o Next só substitui `process.env.NEXT_PUBLIC_*` literal
+  // no bundle do navegador (por colchetes ficaria `undefined` e a trava sumiria em silêncio).
+  // @ts-expect-error TS4111: o tsconfig exige colchetes em assinatura de índice.
+  process.env.NEXT_PUBLIC_COFRE_URL;
+
+export const origemDoCofreEhAceita = (
+  cofreUrl: string,
+  permitida: string | undefined = origemConfigurada(),
+): boolean => {
+  try {
+    const recebida = new URL(cofreUrl);
+
+    if (recebida.protocol !== 'http:' && recebida.protocol !== 'https:') {
+      return false;
+    }
+
+    return permitida === undefined || permitida.trim() === ''
+      ? true
+      : recebida.origin === new URL(permitida).origin;
+  } catch {
+    return false;
+  }
+};
+
 export type EntradaDoEnvio = Readonly<{
   /** Origem do cofre, devolvida pela API junto com o ticket. */
   cofreUrl: string;
@@ -92,6 +123,12 @@ const problemaDe = (xhr: XMLHttpRequest, corpo: unknown): Problema =>
 
 export const enviarAoCofre = (entrada: EntradaDoEnvio): Promise<RespostaDaIngestao> =>
   new Promise((resolver, rejeitar) => {
+    if (!origemDoCofreEhAceita(entrada.cofreUrl)) {
+      rejeitar(indisponivel());
+
+      return;
+    }
+
     // O ticket vai primeiro: o cofre o confere antes de ler o arquivo.
     const corpo = new FormData();
 

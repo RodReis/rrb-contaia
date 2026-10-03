@@ -26,7 +26,7 @@ const SENTINELA = 'SENHA-SENTINELA-123';
 
 const requisicao = (): RequisicaoAutenticada =>
   ({
-    header: () => 'corr-1',
+    header: () => 'corr-0001',
     sessao: {
       tenantId: ID(1),
       usuarioId: ID(2),
@@ -66,7 +66,7 @@ describe('CertificadosController (sessão)', () => {
     expect(servico.consultar).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: ID(1), usuarioId: ID(2), papeis: ['contador'] }),
       { busca: 'ac', estado: 'VENCE_D7', ordem: 'EMPRESA', pagina: 1, limite: 25 },
-      'corr-1',
+      'corr-0001',
     );
   });
 
@@ -97,7 +97,7 @@ describe('CertificadosDaEmpresaController (sessão)', () => {
       expect.objectContaining({ tenantId: ID(1), usuarioId: ID(2) }),
       ID(3),
       ID(4),
-      'corr-1',
+      'corr-0001',
     );
   });
 
@@ -128,7 +128,7 @@ describe('CertificadosDaEmpresaController (sessão)', () => {
     expect(servico.desativar).not.toHaveBeenCalled();
 
     await controller.desativar(requisicao(), ID(3), { motivo: '  Troca  ' });
-    expect(servico.desativar).toHaveBeenCalledWith(expect.anything(), ID(3), 'Troca', 'corr-1');
+    expect(servico.desativar).toHaveBeenCalledWith(expect.anything(), ID(3), 'Troca', 'corr-0001');
   });
 
   it('detalhe, responsáveis e troca delegam com a empresa da rota', async () => {
@@ -139,9 +139,9 @@ describe('CertificadosDaEmpresaController (sessão)', () => {
     await controller.responsaveis(requisicao(), ID(3));
     await controller.trocarResponsavel(requisicao(), ID(3), { responsavelId: ID(4) });
 
-    expect(servico.consultarEmpresa).toHaveBeenCalledWith(expect.anything(), ID(3), 'corr-1');
-    expect(servico.listarResponsaveis).toHaveBeenCalledWith(expect.anything(), ID(3), 'corr-1');
-    expect(servico.trocarResponsavel).toHaveBeenCalledWith(expect.anything(), ID(3), ID(4), 'corr-1');
+    expect(servico.consultarEmpresa).toHaveBeenCalledWith(expect.anything(), ID(3), 'corr-0001');
+    expect(servico.listarResponsaveis).toHaveBeenCalledWith(expect.anything(), ID(3), 'corr-0001');
+    expect(servico.trocarResponsavel).toHaveBeenCalledWith(expect.anything(), ID(3), ID(4), 'corr-0001');
   });
 
   it('não existe rota de download nem de leitura do segredo', () => {
@@ -165,7 +165,7 @@ describe('HistoricoDeCertificadosController', () => {
     expect(servico.consultarHistorico).toHaveBeenCalledWith(
       expect.objectContaining({ usuarioId: ID(2) }),
       { empresaId: ID(3), acao: 'RECUSA', resultado: null, limite: 25, deslocamento: 0 },
-      'corr-1',
+      'corr-0001',
     );
     expect(await codigoDe(() => controller.listar(requisicao(), { acao: 'OUTRA' }))).toBe(
       CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO,
@@ -287,6 +287,29 @@ describe('rotas internas do cofre por HTTP', () => {
     expect(resposta.headers['content-type']).toMatch(/application\/problem\+json/u);
     expect(resposta.body).toMatchObject({ status: 422, code: CODIGOS_DE_ERRO.CAMPO_OBRIGATORIO });
     expect(servico.ativar).not.toHaveBeenCalled();
+  });
+
+  it('aceita a lista de CNPJs do titular e repassa ao caso de uso', async () => {
+    await request(app.getHttpServer())
+      .post('/interno/cofre/ativacao')
+      .set('authorization', `Bearer ${TOKEN}`)
+      .send({ ...pedido, metadados: { ...pedido.metadados, cnpjsDoTitular: ['11222333000181', '99888777000166'] } })
+      .expect(200);
+
+    const [recebido] = servico.ativar.mock.calls[0] as unknown as [{ metadados: { cnpjsDoTitular: string[] } }];
+    expect(recebido.metadados.cnpjsDoTitular).toEqual(['11222333000181', '99888777000166']);
+  });
+
+  it('correlationId malformado do cofre é trocado por um UUID novo antes de chegar ao caso de uso', async () => {
+    await request(app.getHttpServer())
+      .post('/interno/cofre/ativacao')
+      .set('authorization', `Bearer ${TOKEN}`)
+      .set('x-correlation-id', 'curto')
+      .send(pedido)
+      .expect(200);
+
+    const [, correlationId] = servico.ativar.mock.calls[0] as unknown as [object, string];
+    expect(correlationId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/u);
   });
 
   it('recusa de negócio vira problem+json com código estável, título e correlationId, sem material sensível', async () => {

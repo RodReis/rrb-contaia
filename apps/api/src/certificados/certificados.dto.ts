@@ -80,6 +80,8 @@ export const pedidoDeAtivacaoSchema = z.object({
   metadados: z.object({
     titular: texto(500),
     cnpjTitular: texto(20),
+    // Todos os CNPJs do SubjectAltName; opcional por compatibilidade (ausente = só `cnpjTitular`).
+    cnpjsDoTitular: z.array(texto(20)).min(1).max(20).optional(),
     autoridadeCertificadora: texto(500),
     cadeia: z.array(texto(500)).min(1).max(20),
     numeroSerie: texto(200),

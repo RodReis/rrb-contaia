@@ -24,7 +24,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { criarPool, obterUrlDaAplicacao } from './client.js';
 import { comContextoHumano } from './contexto.js';
 import {
+  ativacaoDoTicket,
   ativarVersao,
+  vincularTicketAoCertificado,
   consumirTicketDeIngestao,
   desativarVigente,
   emitirTicketDeIngestao,
@@ -44,7 +46,7 @@ import {
 } from './repositorios/certificados-cofre.js';
 import { identidadeDoUsuario } from './repositorios/identidade.js';
 import { contarNaoLidas, listarPainel, marcarComoLida } from './repositorios/notificacoes.js';
-import { listarCentral } from './repositorios/pendencias.js';
+import { dispensar, listarCentral } from './repositorios/pendencias.js';
 import { limparCenario, montarCenario, type Cenario } from './testes/cenario-rls.js';
 
 const admin = criarPool();
@@ -995,6 +997,251 @@ describe('histórico de certificados (aba do Histórico de Informações)', () =
     expect((await listar({ acao: 'RECUSA' })).total).toBe(1);
     // Fora da carteira: nada.
     expect((await listar({}, c.usuarios.fora)).eventos).toEqual([]);
+  });
+});
+
+/** Colaborador contador ativo, para ser responsável e depois sair. */
+const novoContador = async (rotulo: string): Promise<string> => {
+  const { rows } = await admin.query<{ id: string }>(
+    `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+     values ($1, $2, $3, $4, 'ATIVO') returning id`,
+    [c.tenantA, `sub-${rotulo}-${c.sufixo}`, `${rotulo}.${c.sufixo}@cofre.local`, `Contador ${rotulo}`],
+  );
+  const id = rows[0]?.id ?? '';
+  await admin.query(`insert into app.usuario_papel (tenant_id, usuario_id, papel) values ($1, $2, 'contador')`, [
+    c.tenantA,
+    id,
+  ]);
+
+  return id;
+};
+
+describe('responsável inconsistente: uma vez por PERDA (SPEC-011 §3.5)', () => {
+  const alertasDeResponsavel = async (empresa: string) =>
+    (
+      await admin.query<{ usuario_id: string; pendencia_id: string }>(
+        `select usuario_id, pendencia_id from app.empresa_certificado_notificacao
+          where empresa_id = $1 and marco = 'RESPONSAVEL_INCONSISTENTE' order by criado_em, sequencia`,
+        [empresa],
+      )
+    ).rows;
+  const eventosDePerda = async (empresa: string): Promise<number | null> =>
+    (
+      await admin.query(
+        `select 1 from app.empresa_certificado_evento where empresa_id = $1 and acao = 'RESPONSAVEL_PERDIDO'`,
+        [empresa],
+      )
+    ).rowCount;
+
+  it('A perde → alerta; troca para B; B perde → NOVO alerta; reprocessar não repete nenhum', async () => {
+    const a = await novoContador('perdaA');
+    const b = await novoContador('perdaB');
+    const empresa = await novaEmpresa('Perda1', a, b, administrador);
+    await cadastrar(empresa, administrador, a);
+
+    await admin.query(`update app.usuario set estado = 'SUSPENSO' where id = $1`, [a]);
+    await reconciliar([empresa], administrador);
+    await reconciliar([empresa], administrador);
+    const primeiro = await alertasDeResponsavel(empresa);
+    expect(primeiro).toHaveLength(1);
+    expect(primeiro[0]?.usuario_id).toBe(administrador);
+
+    await como(administrador, (cliente) =>
+      trocarResponsavel(cliente, { tenantId: c.tenantA, empresaId: empresa, novoResponsavelId: b, novoElegivel: true }),
+    );
+    await reconciliar([empresa], administrador);
+    expect(await pendenciasAbertas(empresa)).toEqual([]);
+
+    await admin.query(`update app.usuario set estado = 'SUSPENSO' where id = $1`, [b]);
+    await reconciliar([empresa], administrador);
+    await reconciliar([empresa], administrador);
+
+    const todos = await alertasDeResponsavel(empresa);
+    expect(todos).toHaveLength(2);
+    expect(todos[1]?.pendencia_id).not.toBe(todos[0]?.pendencia_id);
+    expect(await eventosDePerda(empresa)).toBe(2);
+  });
+
+  it('o mesmo responsável que perde de novo depois de voltar também gera novo alerta', async () => {
+    const a = await novoContador('perdaC');
+    const empresa = await novaEmpresa('Perda2', a, administrador);
+    await cadastrar(empresa, administrador, a);
+
+    for (let volta = 0; volta < 2; volta += 1) {
+      await admin.query(`update app.usuario set estado = 'SUSPENSO' where id = $1`, [a]);
+      await reconciliar([empresa], administrador);
+      await admin.query(`update app.usuario set estado = 'ATIVO' where id = $1`, [a]);
+      await reconciliar([empresa], administrador);
+    }
+
+    expect(await alertasDeResponsavel(empresa)).toHaveLength(2);
+  });
+
+  it('reconciliações SIMULTÂNEAS da mesma empresa: uma perda, um evento, um alerta', async () => {
+    const a = await novoContador('perdaD');
+    const empresa = await novaEmpresa('Perda3', a, administrador, contador);
+    await cadastrar(empresa, administrador, a);
+    await admin.query(`update app.usuario set estado = 'SUSPENSO' where id = $1`, [a]);
+
+    const resultados = await Promise.all(
+      Array.from({ length: 6 }, (_, i) => reconciliar([empresa], i % 2 === 0 ? administrador : contador)),
+    );
+
+    expect(resultados.reduce((total, r) => total + r.responsaveisPerdidos, 0)).toBe(1);
+    expect(await pendenciasAbertas(empresa)).toEqual(['certificado:responsavel']);
+    expect(await alertasDeResponsavel(empresa)).toHaveLength(1);
+    expect(await eventosDePerda(empresa)).toBe(1);
+  });
+
+  it('o alerta de perda exige a pendência; o de vencimento não a aceita e segue uma vez por marco', async () => {
+    const empresa = await novaEmpresa('Perda4', contador);
+    const { nova } = await cadastrar(empresa, contador, contador);
+    const inserir = (marco: string, pendencia: string | null) =>
+      admin.query(
+        `insert into app.empresa_certificado_notificacao (tenant_id, empresa_id, certificado_id, usuario_id, marco, pendencia_id)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [c.tenantA, empresa, nova.id, contador, marco, pendencia],
+      );
+
+    expect(await codigoPg(() => inserir('RESPONSAVEL_INCONSISTENTE', null))).toBe('23514');
+    expect(await codigoPg(() => inserir('D30', randomUUID()))).toBe('23514');
+    expect(await codigoPg(() => inserir('D30', null))).toBe('nao_lancou');
+    expect(await codigoPg(() => inserir('D30', null))).toBe('23505');
+  });
+});
+
+describe('pendência do cofre não se dispensa (SPEC-011 §3.6)', () => {
+  it('dispensar pendência de origem CERTIFICADO é recusado e ela continua aberta', async () => {
+    const empresa = await novaEmpresa('Disp1', contador);
+    await reconciliar([empresa], contador);
+    const { rows } = await admin.query<{ id: string }>(
+      `select id from app.empresa_pendencia where empresa_id = $1 and origem = 'CERTIFICADO' and estado = 'ABERTA'`,
+      [empresa],
+    );
+    const pendenciaId = rows[0]?.id ?? '';
+
+    expect(
+      await codigoDe(() =>
+        como(contador, (cliente) => dispensar(cliente, c.tenantA, empresa, pendenciaId, contador, 'quero esconder')),
+      ),
+    ).toBe(CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL);
+    expect(await pendenciasAbertas(empresa)).toEqual(['certificado:ausente']);
+  });
+
+  it('as pendências de outras origens continuam dispensáveis', async () => {
+    const empresa = await novaEmpresa('Disp2', contador);
+    const { rows } = await admin.query<{ id: string }>(
+      `insert into app.empresa_pendencia (tenant_id, empresa_id, origem, tipo, chave)
+       values ($1, $2, 'CADASTRAL', 'CAMPO_AUSENTE', 'campo:cnae') returning id`,
+      [c.tenantA, empresa],
+    );
+
+    const resolvida = await como(contador, (cliente) =>
+      dispensar(cliente, c.tenantA, empresa, rows[0]?.id ?? '', contador, 'não se aplica'),
+    );
+
+    expect(resolvida?.estado).toBe('RESOLVIDA');
+  });
+});
+
+describe('ativação idempotente por ticket (o cofre repete depois de um timeout)', () => {
+  const emitirEConsumir = async (empresa: string) => {
+    const ticket = await como(contador, (cliente) =>
+      emitirTicketDeIngestao(cliente, {
+        tenantId: c.tenantA,
+        empresaId: empresa,
+        usuarioId: contador,
+        operacao: 'CADASTRO',
+        responsavelId: contador,
+        correlationId: 'corr-idem-1',
+        validadeEmSegundos: 300,
+      }),
+    );
+    const referencia = { id: ticket.id, tenantId: c.tenantA, empresaId: empresa, usuarioId: contador };
+    await como(contador, (cliente) =>
+      consumirTicketDeIngestao(cliente, { ...referencia, operacao: 'CADASTRO', responsavelId: contador }, 'CONSUMIDO'),
+    );
+
+    return referencia;
+  };
+
+  it('depois do vínculo, a repetição acha a MESMA versão; sem vínculo não acha nada', async () => {
+    const empresa = await novaEmpresa('Idem1', contador);
+    const ticket = await emitirEConsumir(empresa);
+
+    expect(await como(contador, (cliente) => ativacaoDoTicket(cliente, ticket))).toBeNull();
+
+    const nova = await como(contador, async (cliente) => {
+      const { nova: criada } = await ativarVersao(cliente, {
+        tenantId: c.tenantA,
+        empresaId: empresa,
+        operacao: 'CADASTRO',
+        dados: dadosDe(dias(200)),
+        responsavelId: contador,
+        autorId: contador,
+      });
+      await vincularTicketAoCertificado(cliente, { tenantId: c.tenantA, ticketId: ticket.id, certificadoId: criada.id });
+
+      return criada;
+    });
+
+    const repetida = await como(contador, (cliente) => ativacaoDoTicket(cliente, ticket));
+    expect(repetida?.id).toBe(nova.id);
+    expect(repetida?.referenciaSegredo).toBe(nova.referenciaSegredo);
+    // Repetir a leitura não cria versão nem evento.
+    expect(await como(contador, (cliente) => ativacaoDoTicket(cliente, ticket))).toMatchObject({ id: nova.id });
+    expect(await como(contador, (cliente) => listarVersoesDoCertificado(cliente, c.tenantA, empresa))).toHaveLength(1);
+  });
+
+  it('o vínculo é gravado uma única vez e nem o dono da tabela troca a versão', async () => {
+    const empresa = await novaEmpresa('Idem2', contador);
+    const { nova } = await cadastrar(empresa, contador, contador);
+    const outra = (await cadastrar(await novaEmpresa('Idem2b', contador), contador, contador)).nova;
+    const ticket = await emitirEConsumir(empresa);
+    const vincular = () =>
+      como(contador, (cliente) =>
+        vincularTicketAoCertificado(cliente, { tenantId: c.tenantA, ticketId: ticket.id, certificadoId: nova.id }),
+      );
+
+    await vincular();
+
+    await expect(vincular()).rejects.toThrow();
+    expect(
+      await codigoPg(() =>
+        admin.query(`update app.empresa_certificado_ingestao set certificado_id = $2 where id = $1`, [ticket.id, outra.id]),
+      ),
+    ).toMatch(/^23/u);
+  });
+
+  it('ticket só EMITIDO não aceita vínculo (certificado_id exige CONSUMIDO)', async () => {
+    const empresa = await novaEmpresa('Idem3', contador);
+    const { nova } = await cadastrar(empresa, contador, contador);
+    const ticket = await como(contador, (cliente) =>
+      emitirTicketDeIngestao(cliente, {
+        tenantId: c.tenantA,
+        empresaId: empresa,
+        usuarioId: contador,
+        operacao: 'CADASTRO',
+        responsavelId: contador,
+        correlationId: 'corr-idem-3',
+        validadeEmSegundos: 300,
+      }),
+    );
+
+    expect(
+      await codigoPg(() =>
+        admin.query(`update app.empresa_certificado_ingestao set certificado_id = $2 where id = $1`, [ticket.id, nova.id]),
+      ),
+    ).toMatch(/^23/u);
+  });
+
+  it('outro usuário não enxerga a ativação do ticket', async () => {
+    const empresa = await novaEmpresa('Idem4', contador, administrador);
+    const ticket = await emitirEConsumir(empresa);
+
+    expect(
+      await como(administrador, (cliente) => ativacaoDoTicket(cliente, { ...ticket, usuarioId: administrador })),
+    ).toBeNull();
   });
 });
 

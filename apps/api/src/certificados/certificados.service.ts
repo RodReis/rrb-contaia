@@ -17,12 +17,14 @@ import {
   ErroDeDominio,
   avaliarMetadadosDoCertificado,
   dataCivilEmSaoPaulo,
+  normalizarCnpj,
   planejarDesativacao,
   podeMutarCofre,
   type ChaveDePermissao,
   type OperacaoDeIngestao,
 } from '@contaia/domain';
 import {
+  ativacaoDoTicket,
   ativarVersao,
   carregarItemDoCofre,
   carregarVigente,
@@ -40,6 +42,7 @@ import {
   situacoesDeResponsaveis,
   travarCofreDaEmpresa,
   trocarResponsavel,
+  vincularTicketAoCertificado,
   type ItemDoCofreBruto,
 } from '@contaia/db';
 import {
@@ -65,7 +68,7 @@ import type {
   PedidoDeRecusaDto,
 } from './certificados.dto';
 import { CofreClient, configuracaoDoCofre } from './cofre.client';
-import { assinarTicket, lerTicketAssinado, verificarTicket } from './ticket';
+import { assinarTicket, lerTicketAssinado } from './ticket';
 import { paraItem, paraMetadados, type SessaoDoCofre } from './visoes';
 
 const IDENTIDADE_DO_COFRE = 'cofre';
@@ -393,64 +396,98 @@ export class CertificadosService {
   ): Promise<DetalheDoCofre> {
     exigirPoderDeMutar(sessao, 'certificados.cofre.desativar');
 
-    const vigente = await this.comoUsuario(sessao, correlationId, async (cliente) => {
-      await this.empresaMutavel(cliente, sessao.tenantId, empresaId);
-
-      const atual = await carregarVigente(cliente, sessao.tenantId, empresaId);
-
-      // Motivo e vigente são validados antes de tocar no cofre.
-      planejarDesativacao(
-        atual === null ? null : { id: atual.id, versao: atual.versao, responsavelId: atual.responsavelId },
-        motivo,
-      );
-
-      return atual;
-    });
-
-    if (vigente === null) {
-      throw semVigente();
-    }
-
     const escopo = { tenantId: sessao.tenantId, empresaId };
-
-    await this.cofre.inutilizar(vigente.referenciaSegredo, escopo, correlationId);
+    const segredo: { referencia: string | null; versaoId: string | null; devolvido: boolean } = {
+      referencia: null,
+      versaoId: null,
+      devolvido: false,
+    };
 
     try {
       return await this.comoUsuario(sessao, correlationId, async (cliente) => {
+        // O lock do cofre da empresa vale DA LEITURA DO VIGENTE ATÉ O COMMIT, chamada ao cofre
+        // incluída: duas desativações da mesma versão se enfileiram, e a segunda já nasce sem
+        // vigente (409) sem nunca tocar no segredo. Com as fases separadas, as duas inutilizavam
+        // e a perdedora restaurava o segredo de um certificado já desativado.
         await travarCofreDaEmpresa(cliente, empresaId);
+        await this.empresaMutavel(cliente, sessao.tenantId, empresaId);
 
-        // Outra operação pode ter trocado o vigente entre as fases: nunca desativar outro.
-        const atual = await carregarVigente(cliente, sessao.tenantId, empresaId);
+        const vigente = await carregarVigente(cliente, sessao.tenantId, empresaId);
 
-        if (atual?.id !== vigente.id) {
-          throw new ErroDeDominio(
-            CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,
-            'O certificado da empresa foi alterado por outra operação. Recarregue e tente de novo.',
-          );
+        // Motivo e vigente são validados antes de tocar no cofre.
+        planejarDesativacao(
+          vigente === null ? null : { id: vigente.id, versao: vigente.versao, responsavelId: vigente.responsavelId },
+          motivo,
+        );
+
+        if (vigente === null) {
+          throw semVigente();
         }
 
-        const desativada = await desativarVigente(cliente, {
-          tenantId: sessao.tenantId,
-          empresaId,
-          motivo,
-          autorId: sessao.usuarioId,
-        });
+        segredo.referencia = vigente.referenciaSegredo;
+        segredo.versaoId = vigente.id;
 
-        await registrarEventoDeCertificado(cliente, {
-          tenantId: sessao.tenantId,
-          empresaId,
-          certificadoId: desativada.id,
-          acao: 'DESATIVACAO',
-          motivo: desativada.justificativa,
-          usuarioId: sessao.usuarioId,
-          correlationId,
-        });
+        try {
+          // Timeout ou erro de rede é ambíguo: o Vault pode ter aplicado. Qualquer falha aqui
+          // cai no `catch` abaixo, que devolve o segredo (undelete é idempotente) e propaga.
+          await this.cofre.inutilizar(vigente.referenciaSegredo, escopo, correlationId);
 
-        return this.detalhar(cliente, sessao, empresaId, correlationId, true);
+          const desativada = await desativarVigente(cliente, {
+            tenantId: sessao.tenantId,
+            empresaId,
+            motivo,
+            autorId: sessao.usuarioId,
+          });
+
+          await registrarEventoDeCertificado(cliente, {
+            tenantId: sessao.tenantId,
+            empresaId,
+            certificadoId: desativada.id,
+            acao: 'DESATIVACAO',
+            motivo: desativada.justificativa,
+            usuarioId: sessao.usuarioId,
+            correlationId,
+          });
+
+          return await this.detalhar(cliente, sessao, empresaId, correlationId, true);
+        } catch (erro) {
+          // A transação vai desfazer; sob o lock o vigente continua sendo esta versão, então
+          // devolver o segredo é seguro e ninguém mais o desativou.
+          segredo.devolvido = true;
+          await this.compensarInutilizacao(vigente.referenciaSegredo, escopo, correlationId);
+          throw erro;
+        }
       });
     } catch (erro) {
-      await this.compensarInutilizacao(vigente.referenciaSegredo, escopo, correlationId);
+      // Falha SÓ no commit (conexão perdida): a transação pode ter confirmado ou não. Devolve o
+      // segredo apenas se a versão continua vigente; desativada ou substituída, jamais.
+      if (segredo.referencia !== null && segredo.versaoId !== null && !segredo.devolvido) {
+        await this.devolverSeAindaVigente(sessao, empresaId, segredo.versaoId, segredo.referencia, correlationId);
+      }
+
       throw erro;
+    }
+  }
+
+  private async devolverSeAindaVigente(
+    sessao: SessaoDoCofre,
+    empresaId: string,
+    versaoId: string,
+    referencia: string,
+    correlationId: string,
+  ): Promise<void> {
+    try {
+      const vigente = await this.comoUsuario(sessao, correlationId, (cliente) =>
+        carregarVigente(cliente, sessao.tenantId, empresaId),
+      );
+
+      if (vigente?.id === versaoId) {
+        await this.compensarInutilizacao(referencia, { tenantId: sessao.tenantId, empresaId }, correlationId);
+      }
+    } catch (falha) {
+      this.logger.error(
+        `não foi possível conferir o vigente para devolver o segredo [${correlationId}]: ${falha instanceof Error ? falha.name : 'erro'}`,
+      );
     }
   }
 
@@ -460,15 +497,24 @@ export class CertificadosService {
    * Ativa o certificado que o cofre acabou de gravar no Vault. Qualquer erro devolvido aqui faz
    * o cofre compensar (destruir a referência) — o vigente anterior segue intacto porque a troca
    * só existe dentro da transação abaixo.
+   *
+   * Idempotente por ticket: repetir a MESMA ativação (mesmo ticket e mesma referência do segredo —
+   * o cofre que deu timeout depois de a API confirmar) devolve a mesma versão, sem nova troca nem
+   * novo evento. Ticket consumido com outra referência continua sendo ticket inválido.
    */
   async ativar(
     pedido: PedidoDeAtivacaoDto,
     correlationId: string,
   ): Promise<RespostaDaIngestao> {
-    const carga = verificarTicket(pedido.ticket, configuracaoDoCofre().ticketSecret, this.agora());
+    // Só a assinatura aqui: a validade é conferida no consumo (DB) e, vencido, só a repetição
+    // de uma ativação já feita ainda responde.
+    const carga = lerTicketAssinado(pedido.ticket, configuracaoDoCofre().ticketSecret);
     const quem = { tenantId: carga.tenantId, usuarioId: carga.usuarioId };
+    const vencido = carga.exp * 1000 <= this.agora().getTime();
 
-    await this.consumirTicket(carga, 'CONSUMIDO', correlationId);
+    if (vencido || !(await this.consumirTicket(carga, 'CONSUMIDO', correlationId))) {
+      return this.repetirAtivacao(carga, pedido.referenciaDoSegredo, correlationId);
+    }
 
     try {
       return await this.comoUsuario(quem, correlationId, async (cliente) => {
@@ -484,9 +530,11 @@ export class CertificadosService {
         await this.exigirPermissaoDoTicket(cliente, carga);
         await this.exigirResponsavelElegivel(cliente, carga.tenantId, carga.empresaId, carga.responsavelId);
 
+        // Certificado com vários CNPJs no SAN: vale se QUALQUER um é o da empresa.
+        const cnpjs = pedido.metadados.cnpjsDoTitular ?? [pedido.metadados.cnpjTitular];
         const avaliacao = avaliarMetadadosDoCertificado(
           {
-            cnpjTitular: pedido.metadados.cnpjTitular,
+            cnpjsDoTitular: cnpjs,
             naoAntes: new Date(pedido.metadados.naoAntes),
             naoDepois: new Date(pedido.metadados.naoDepois),
           },
@@ -503,7 +551,9 @@ export class CertificadosService {
           operacao: carga.operacao,
           dados: {
             titular: pedido.metadados.titular,
-            cnpjTitular: pedido.metadados.cnpjTitular,
+            cnpjTitular:
+              cnpjs.find((cnpj) => normalizarCnpj(cnpj) === normalizarCnpj(item.cnpj)) ??
+              pedido.metadados.cnpjTitular,
             autoridadeCertificadora: pedido.metadados.autoridadeCertificadora,
             cadeia: pedido.metadados.cadeia,
             numeroSerie: pedido.metadados.numeroSerie,
@@ -516,6 +566,11 @@ export class CertificadosService {
           autorId: carga.usuarioId,
         });
 
+        await vincularTicketAoCertificado(cliente, {
+          tenantId: carga.tenantId,
+          ticketId: carga.jti,
+          certificadoId: nova.id,
+        });
         await registrarEventoDeCertificado(cliente, {
           tenantId: carga.tenantId,
           empresaId: carga.empresaId,
@@ -544,23 +599,52 @@ export class CertificadosService {
     }
   }
 
+  /** Repetição de uma ativação: só a MESMA referência de uma ativação que de fato aconteceu. */
+  private async repetirAtivacao(
+    carga: CargaDoTicket,
+    referenciaDoSegredo: string,
+    correlationId: string,
+  ): Promise<RespostaDaIngestao> {
+    const feita = await this.comoUsuario(
+      { tenantId: carga.tenantId, usuarioId: carga.usuarioId },
+      correlationId,
+      (cliente) =>
+        ativacaoDoTicket(cliente, {
+          id: carga.jti,
+          tenantId: carga.tenantId,
+          empresaId: carga.empresaId,
+          usuarioId: carga.usuarioId,
+        }),
+    );
+
+    if (feita === null || feita.referenciaSegredo.toLowerCase() !== referenciaDoSegredo.toLowerCase()) {
+      throw ticketInvalido();
+    }
+
+    return { certificado: paraMetadados(feita) };
+  }
+
   /** O cofre recusou o arquivo antes de gravar: consome o ticket e registra a tentativa recusada. */
   async recusar(pedido: PedidoDeRecusaDto, correlationId: string): Promise<void> {
     // Ticket vencido ainda registra a recusa (a tentativa existiu), mas assinatura é obrigatória.
     const carga = lerTicketAssinado(pedido.ticket, configuracaoDoCofre().ticketSecret);
 
-    await this.consumirTicket(carga, 'RECUSADO', correlationId);
+    if (!(await this.consumirTicket(carga, 'RECUSADO', correlationId))) {
+      throw ticketInvalido();
+    }
+
     await this.registrarRecusa(carga, pedido.codigo, correlationId);
   }
 
   // -- Peças -----------------------------------------------------------------------------
 
-  private async consumirTicket(
+  /** `true` quando ESTA chamada consumiu o ticket (uso único). */
+  private consumirTicket(
     carga: CargaDoTicket,
     destino: 'CONSUMIDO' | 'RECUSADO',
     correlationId: string,
-  ): Promise<void> {
-    const consumido = await this.comoUsuario(
+  ): Promise<boolean> {
+    return this.comoUsuario(
       { tenantId: carga.tenantId, usuarioId: carga.usuarioId },
       correlationId,
       (cliente) =>
@@ -577,10 +661,6 @@ export class CertificadosService {
           destino,
         ),
     );
-
-    if (!consumido) {
-      throw ticketInvalido();
-    }
   }
 
   /**

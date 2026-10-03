@@ -219,6 +219,7 @@ export type {
   UsuarioDaOperacao,
 } from './repositorios/carteira.js';
 export {
+  ativacaoDoTicket,
   ativarVersao,
   carregarVersaoDoCertificado,
   carregarVigente,
@@ -230,6 +231,7 @@ export {
   registrarEventoDeCertificado,
   travarCofreDaEmpresa,
   trocarResponsavel,
+  vincularTicketAoCertificado,
 } from './repositorios/certificados.js';
 export type {
   AcaoDoEventoDeCertificado,
@@ -250,6 +252,7 @@ export {
   listarCofre,
   listarResponsaveisElegiveis,
   reconciliarCofre,
+  registrarAlerta,
   situacoesDeResponsaveis,
 } from './repositorios/certificados-cofre.js';
 export type {

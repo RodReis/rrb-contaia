@@ -8,7 +8,7 @@
  * filtram por `empresa_id`/`id`, não por `tenant_id`). A cobertura de
  * isolamento entre tenants está nos testes de concorrência/RLS (Task 3/7).
  */
-import type { OrigemDaPendencia } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeDominio, type OrigemDaPendencia } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 
 export type PendenciaPersistida = Readonly<{
@@ -128,7 +128,9 @@ export const reconciliar = async (
   paraAbrir: readonly CausaParaReconciliar[],
   paraResolverChaves: readonly string[],
   usuarioId: string | null,
-): Promise<void> => {
+): Promise<ReadonlyMap<string, string>> => {
+  const abertas = new Map<string, string>();
+
   for (const causa of paraAbrir) {
     const inserida = await cliente.query<{ id: string }>(
       `insert into app.empresa_pendencia
@@ -141,6 +143,7 @@ export const reconciliar = async (
 
     const pendenciaId = inserida.rows[0]?.id;
     if (pendenciaId !== undefined) {
+      abertas.set(causa.chave, pendenciaId);
       await cliente.query(
         `insert into app.empresa_evento_de_pendencia
            (tenant_id, empresa_id, pendencia_id, acao, usuario_id)
@@ -169,6 +172,10 @@ export const reconciliar = async (
       );
     }
   }
+
+  // Só as pendências criadas AGORA por esta chamada (chave → id): quem precisa agir apenas
+  // quando criou (ex.: alertar uma vez) não depende de uma leitura que pode estar velha.
+  return abertas;
 };
 
 /**
@@ -253,10 +260,25 @@ export const dispensar = async (
   usuarioId: string,
   justificativa: string,
 ): Promise<PendenciaPersistida | null> => {
+  // A pendência do cofre some quando a causa some (cadastrar, trocar responsável) — dispensá-la
+  // esconderia um certificado ausente ou vencido, e a reconciliação a reabriria. O servidor recusa,
+  // não a interface (SPEC-011 §3.6).
+  const origem = await cliente.query<{ origem: string }>(
+    `select origem from app.empresa_pendencia where id = $1 and empresa_id = $2 and estado = 'ABERTA'`,
+    [pendenciaId, empresaId],
+  );
+
+  if (origem.rows[0]?.origem === 'CERTIFICADO') {
+    throw new ErroDeDominio(
+      CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL,
+      'Pendência do cofre de certificados não se dispensa: ela se resolve no próprio cofre.',
+    );
+  }
+
   const resultado = await cliente.query<LinhaDaPendencia>(
     `update app.empresa_pendencia
      set estado = 'RESOLVIDA', resolvido_em = now()
-     where id = $1 and empresa_id = $2 and estado = 'ABERTA'
+     where id = $1 and empresa_id = $2 and estado = 'ABERTA' and origem <> 'CERTIFICADO'
        -- Empresa arquivada é só consulta (o admin a alcança sem vínculo, SPEC-009): sem dispensa.
        and exists (select 1 from app.empresa e where e.id = $2 and e.situacao = 'ativo')
      returning *`,

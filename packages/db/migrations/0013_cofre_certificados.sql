@@ -206,7 +206,13 @@ CREATE TABLE app.empresa_certificado_ingestao (
   emitido_em timestamptz NOT NULL DEFAULT now(),
   expira_em timestamptz NOT NULL,
   consumido_em timestamptz,
+  -- Versao que ESTE ticket ativou. Torna a ativacao idempotente: o cofre que repete a chamada
+  -- (timeout depois do commit) recebe a mesma versao em vez de destruir um segredo ja ativo.
+  certificado_id uuid,
 
+  CONSTRAINT empresa_certificado_ingestao_ativacao_condizente CHECK (
+    certificado_id IS NULL OR estado = 'CONSUMIDO'
+  ),
   CONSTRAINT empresa_certificado_ingestao_expiracao_condizente CHECK (expira_em > emitido_em),
   CONSTRAINT empresa_certificado_ingestao_consumo_condizente CHECK (
     (estado = 'EMITIDO' AND consumido_em IS NULL) OR (estado <> 'EMITIDO' AND consumido_em IS NOT NULL)
@@ -216,13 +222,17 @@ CREATE TABLE app.empresa_certificado_ingestao (
   CONSTRAINT empresa_certificado_ingestao_autor_do_tenant
     FOREIGN KEY (usuario_id, tenant_id) REFERENCES app.usuario (id, tenant_id),
   CONSTRAINT empresa_certificado_ingestao_responsavel_do_tenant
-    FOREIGN KEY (responsavel_id, tenant_id) REFERENCES app.usuario (id, tenant_id)
+    FOREIGN KEY (responsavel_id, tenant_id) REFERENCES app.usuario (id, tenant_id),
+  CONSTRAINT empresa_certificado_ingestao_certificado_da_empresa
+    FOREIGN KEY (certificado_id, empresa_id, tenant_id)
+    REFERENCES app.empresa_certificado (id, empresa_id, tenant_id)
 );
 
 CREATE INDEX empresa_certificado_ingestao_tenant_id_idx ON app.empresa_certificado_ingestao (tenant_id);
 CREATE INDEX empresa_certificado_ingestao_empresa_id_idx ON app.empresa_certificado_ingestao (empresa_id);
 
--- O ticket so sai de EMITIDO, uma vez, e nada mais nele muda. O consumo atomico
+-- O ticket so sai de EMITIDO, uma vez, e nada mais nele muda — salvo vincular, uma unica vez,
+-- a versao que ele ativou (CONSUMIDO com `certificado_id` nulo -> preenchido). O consumo atomico
 -- (`update ... where estado = 'EMITIDO'`) e quem serializa tentativas simultaneas.
 CREATE OR REPLACE FUNCTION app.proteger_ingestao_de_certificado() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -231,8 +241,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF OLD.estado <> 'EMITIDO'
-     OR NEW.id IS DISTINCT FROM OLD.id
+  IF NEW.id IS DISTINCT FROM OLD.id
      OR NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
      OR NEW.empresa_id IS DISTINCT FROM OLD.empresa_id
      OR NEW.usuario_id IS DISTINCT FROM OLD.usuario_id
@@ -245,7 +254,17 @@ BEGIN
       USING ERRCODE = 'restrict_violation';
   END IF;
 
-  RETURN NEW;
+  IF OLD.estado = 'EMITIDO' AND NEW.certificado_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.estado = 'CONSUMIDO' AND NEW.estado = 'CONSUMIDO' AND OLD.certificado_id IS NULL
+     AND NEW.certificado_id IS NOT NULL AND NEW.consumido_em IS NOT DISTINCT FROM OLD.consumido_em THEN
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'ticket de ingestao so muda de EMITIDO para um estado final'
+    USING ERRCODE = 'restrict_violation';
 END;
 $$;
 
@@ -263,13 +282,21 @@ CREATE TABLE app.empresa_certificado_notificacao (
   usuario_id uuid NOT NULL,
 
   marco text NOT NULL CHECK (marco IN ('D30', 'D15', 'D7', 'VENCIDO', 'RESPONSAVEL_INCONSISTENTE')),
+  -- So no alerta de responsavel inconsistente: a pendencia aberta por ESTA perda. A SPEC-011 §3.5
+  -- pede alerta a cada perda, entao a unicidade inclui a perda; nos marcos de vencimento fica nulo
+  -- e continua valendo "uma vez por marco" (NULLS NOT DISTINCT).
+  pendencia_id uuid REFERENCES app.empresa_pendencia(id),
   lida boolean NOT NULL DEFAULT false,
   lida_em timestamptz,
   criado_em timestamptz NOT NULL DEFAULT now(),
   sequencia bigint NOT NULL GENERATED ALWAYS AS IDENTITY,
 
   -- Uma vez por marco, por certificado e destinatario: reprocessar nao duplica (SPEC-011 §3.6).
-  CONSTRAINT empresa_certificado_notificacao_marco_unico UNIQUE (certificado_id, usuario_id, marco),
+  CONSTRAINT empresa_certificado_notificacao_marco_unico
+    UNIQUE NULLS NOT DISTINCT (certificado_id, usuario_id, marco, pendencia_id),
+  CONSTRAINT empresa_certificado_notificacao_perda_condizente CHECK (
+    (marco = 'RESPONSAVEL_INCONSISTENTE') = (pendencia_id IS NOT NULL)
+  ),
   CONSTRAINT empresa_certificado_notificacao_lida_condizente CHECK (
     (lida = false AND lida_em IS NULL) OR (lida = true AND lida_em IS NOT NULL)
   ),
@@ -387,9 +414,9 @@ GRANT UPDATE (
   substituido_por
 ) ON app.empresa_certificado TO contaia_app;
 
--- Ticket: so o estado e o instante do consumo.
+-- Ticket: o estado, o instante do consumo e a versao ativada.
 REVOKE UPDATE ON app.empresa_certificado_ingestao FROM contaia_app;
-GRANT UPDATE (estado, consumido_em) ON app.empresa_certificado_ingestao TO contaia_app;
+GRANT UPDATE (estado, consumido_em, certificado_id) ON app.empresa_certificado_ingestao TO contaia_app;
 
 -- Alerta: so a leitura.
 REVOKE UPDATE ON app.empresa_certificado_notificacao FROM contaia_app;

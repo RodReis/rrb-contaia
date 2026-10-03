@@ -600,3 +600,46 @@ export const consumirTicketDeIngestao = async (
 
   return false;
 };
+
+/**
+ * Registra, na mesma transação da ativação, QUAL versão este ticket ativou. É o que permite
+ * repetir a ativação sem efeito (`ativacaoDoTicket`).
+ */
+export const vincularTicketAoCertificado = async (
+  cliente: PoolClient,
+  entrada: Readonly<{ tenantId: string; ticketId: string; certificadoId: string }>,
+): Promise<void> => {
+  const { rowCount } = await cliente.query(
+    `update app.empresa_certificado_ingestao set certificado_id = $3
+      where tenant_id = $1 and id = $2 and estado = 'CONSUMIDO' and certificado_id is null`,
+    [entrada.tenantId, entrada.ticketId, entrada.certificadoId],
+  );
+
+  if (rowCount !== 1) {
+    throw new Error('O ticket de ingestão não pôde ser vinculado à versão ativada.');
+  }
+};
+
+/**
+ * A versão que um ticket JÁ consumido ativou, para quem repete a ativação (o cofre, depois de
+ * um timeout em que a API comitou). Trava o cofre da empresa antes de ler: uma ativação ainda
+ * em curso termina — e vincula — antes desta leitura. `null` quando o ticket não ativou nada.
+ */
+export const ativacaoDoTicket = async (
+  cliente: PoolClient,
+  ticket: Readonly<{ id: string; tenantId: string; empresaId: string; usuarioId: string }>,
+): Promise<VersaoDoCertificado | null> => {
+  await travarCofreDaEmpresa(cliente, ticket.empresaId);
+
+  const { rows } = await cliente.query<LinhaDaVersao>(
+    `select ${COLUNAS_DA_VERSAO}
+       from app.empresa_certificado_ingestao i
+       join app.empresa_certificado c
+         on c.id = i.certificado_id and c.empresa_id = i.empresa_id and c.tenant_id = i.tenant_id
+      where i.tenant_id = $1 and i.id = $2 and i.empresa_id = $3 and i.usuario_id = $4
+        and i.estado = 'CONSUMIDO'`,
+    [ticket.tenantId, ticket.id, ticket.empresaId, ticket.usuarioId],
+  );
+
+  return rows[0] === undefined ? null : linhaParaVersao(rows[0]);
+};

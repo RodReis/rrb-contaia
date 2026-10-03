@@ -15,10 +15,13 @@ import {
   certificado,
   instalarXhr,
 } from './cofre.fixtures';
-import { enviarAoCofre, validarArquivoDoCertificado } from './envio';
+import { enviarAoCofre, origemDoCofreEhAceita, validarArquivoDoCertificado } from './envio';
 
 beforeEach(() => instalarXhr());
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe('validarArquivoDoCertificado', () => {
   it('aceita .pfx e .p12, em qualquer caixa', () => {
@@ -132,5 +135,63 @@ describe('enviarAoCofre', () => {
     const erro: unknown = await promessa.catch((falha: unknown) => falha);
 
     expect((erro as ErroDaApi).problema.code).toBe('COFRE_INDISPONIVEL');
+  });
+});
+
+describe('origem do cofre aceita pelo navegador', () => {
+  it('sem NEXT_PUBLIC_COFRE_URL (dev) aceita qualquer URL http(s) válida', () => {
+    expect(origemDoCofreEhAceita('http://127.0.0.1:15104', undefined)).toBe(true);
+    expect(origemDoCofreEhAceita('https://cofre.exemplo.com.br', '')).toBe(true);
+  });
+
+  it('com a variável definida só a mesma origem passa (caminho e barra final não importam)', () => {
+    const permitida = 'http://127.0.0.1:15104';
+
+    expect(origemDoCofreEhAceita('http://127.0.0.1:15104/', permitida)).toBe(true);
+    expect(origemDoCofreEhAceita('http://127.0.0.1:15104/qualquer', permitida)).toBe(true);
+    expect(origemDoCofreEhAceita('http://127.0.0.1:15105', permitida)).toBe(false);
+    expect(origemDoCofreEhAceita('https://127.0.0.1:15104', permitida)).toBe(false);
+    expect(origemDoCofreEhAceita('http://evil.example.com', permitida)).toBe(false);
+    expect(origemDoCofreEhAceita('http://127.0.0.1:15104.evil.example.com', permitida)).toBe(false);
+    expect(origemDoCofreEhAceita('http://127.0.0.1:15104@evil.example.com', permitida)).toBe(false);
+  });
+
+  it('esquema que não é http(s) e texto que não é URL são sempre recusados', () => {
+    expect(origemDoCofreEhAceita('javascript:alert(1)', undefined)).toBe(false);
+    expect(origemDoCofreEhAceita('ftp://127.0.0.1:15104', undefined)).toBe(false);
+    expect(origemDoCofreEhAceita('nao-e-url', undefined)).toBe(false);
+    expect(origemDoCofreEhAceita('', undefined)).toBe(false);
+  });
+
+  it('enviarAoCofre recusa cofreUrl de outra origem SEM abrir requisição (senha e arquivo não saem)', async () => {
+    vi.stubEnv('NEXT_PUBLIC_COFRE_URL', COFRE_URL);
+    XhrDublado.ultimo = null;
+
+    const erro: unknown = await enviarAoCofre({
+      cofreUrl: 'http://evil.example.com',
+      ticket: 'ticket.assinado',
+      senha: SENHA_SENTINELA,
+      arquivo: arquivoDeCertificado(),
+      aoProgredir: vi.fn(),
+    }).catch((falha: unknown) => falha);
+
+    expect(erro).toBeInstanceOf(ErroDaApi);
+    expect((erro as ErroDaApi).problema.code).toBe('COFRE_INDISPONIVEL');
+    expect(XhrDublado.ultimo).toBeNull();
+  });
+
+  it('enviarAoCofre aceita a origem configurada', async () => {
+    vi.stubEnv('NEXT_PUBLIC_COFRE_URL', COFRE_URL);
+
+    const promessa = enviarAoCofre({
+      cofreUrl: `${COFRE_URL}/`,
+      ticket: 'ticket.assinado',
+      senha: SENHA_SENTINELA,
+      arquivo: arquivoDeCertificado(),
+      aoProgredir: vi.fn(),
+    });
+
+    XhrDublado.ultimo?.responder(200, { certificado: certificado() });
+    await expect(promessa).resolves.toEqual({ certificado: certificado() });
   });
 });

@@ -70,7 +70,6 @@ const ROTULO_DO_TIPO: Readonly<Record<TipoDaPendencia, string>> = {
   EXIGENCIA_ESPECIFICA: 'Exigência específica',
   CERTIFICADO_AUSENTE: 'Certificado ausente',
   CERTIFICADO_VENCIDO: 'Certificado vencido',
-  CERTIFICADO_DESATIVADO: 'Certificado desativado',
   CERTIFICADO_SEM_RESPONSAVEL: 'Certificado sem responsável',
 };
 
