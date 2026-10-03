@@ -98,6 +98,9 @@ export const CODIGOS_DE_ERRO = {
   CARTEIRA_DESATUALIZADA: 'CARTEIRA_DESATUALIZADA',
   // Empresa ainda em cadastro: só empresa ativa recebe vínculo de carteira (SPEC-009 §3.4).
   EMPRESA_NAO_ATIVA: 'EMPRESA_NAO_ATIVA',
+  // RLS de dois níveis (SPEC-010 §3): contexto de banco incompleto ou incoerente.
+  // Falha fechada antes de qualquer consulta; nunca vira acesso ampliado.
+  CONTEXTO_DE_ACESSO_INVALIDO: 'CONTEXTO_DE_ACESSO_INVALIDO',
 } as const;
 
 export type CodigoDeErro = (typeof CODIGOS_DE_ERRO)[keyof typeof CODIGOS_DE_ERRO];

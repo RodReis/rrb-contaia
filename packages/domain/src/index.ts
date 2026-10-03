@@ -226,3 +226,24 @@ export type {
   PlanoDeCarteira,
   UsuarioParaCarteira,
 } from './carteira/carteira.js';
+
+export {
+  FINALIDADES_ADMINISTRATIVAS,
+  FINALIDADES_HUMANAS,
+  FINALIDADES_TECNICAS,
+  contextoHumano,
+  contextoTecnico,
+  parametrosDeSessao,
+  trocarFinalidade,
+} from './acesso/contexto-de-acesso.js';
+export type {
+  ContextoDeAcesso,
+  ContextoHumano,
+  ContextoTecnico,
+  EntradaDoContextoHumano,
+  EntradaDoContextoTecnico,
+  FinalidadeAdministrativa,
+  FinalidadeHumana,
+  FinalidadeTecnica,
+  ParametrosDeSessao,
+} from './acesso/contexto-de-acesso.js';

@@ -1,8 +1,15 @@
-export { criarDb, criarPool, obterUrlDoBanco } from './client.js';
+export {
+  criarDb,
+  criarPool,
+  criarPoolDaAplicacao,
+  obterUrlDaAplicacao,
+  obterUrlDoBanco,
+} from './client.js';
 export { aplicarMigrations, listarMigrations } from './migrate.js';
 export { verificarRoleDaAplicacao, verificarSaudeDoBanco } from './health.js';
 export type { RoleDaAplicacao, SaudeDoBanco } from './health.js';
-export { comContextoDeTenant, semContexto } from './contexto.js';
+export { comContexto, comContextoHumano, comFinalidade, semContexto } from './contexto.js';
+export type { ExecutarNaTransacao } from './contexto.js';
 export {
   arquivarArquivo,
   carregarCadastro,

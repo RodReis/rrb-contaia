@@ -1,113 +1,222 @@
 /**
- * Anti-drift de schema (TESTING.md §3.1, CI-PR.md §4).
+ * Anti-drift de RLS (SPEC-010 §3.5, TESTING.md §3.1, CI-PR.md §4).
  *
- * Varre `app` e falha se uma tabela nova escapar de `tenant_id`, do índice ou
- * da RLS por esquecimento. Este teste não pode ser removido: é o que impede
- * que a próxima fatia crie tabela sem isolamento.
+ * Inspeciona o catálogo REAL do PostgreSQL e falha, com tabela e requisito, se
+ * uma tabela escapar de tenant_id, empresa_id, índice, RLS forçada, política por
+ * operação, classificação ou privilégio. Este teste não pode ser removido: é o
+ * que impede que a próxima fatia crie tabela sem isolamento.
+ *
+ * As migrations são aplicadas antes da suíte (`pnpm db:migrate`, passo próprio da
+ * CI). Aplicá-las aqui faria as suítes de banco, que rodam em paralelo,
+ * disputarem a mesma tabela de controle.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { criarPool } from './client.js';
+import {
+  auditarCatalogo,
+  lerCatalogo,
+  type FotografiaDoCatalogo,
+  type TabelaDoCatalogo,
+} from './rls/anti-drift.js';
+import { CLASSIFICACAO, type EntradaDeClassificacao } from './rls/classificacao.js';
 
 const pool = criarPool();
 
-/**
- * `app.tenant` é a raiz do isolamento: a própria linha é o tenant, então o
- * isolamento vem da PK e não de uma coluna `tenant_id`. Toda outra tabela do
- * schema precisa da coluna.
- */
-const TABELAS_RAIZ = new Set(['tenant']);
+const SCHEMAS = ['app', 'public'] as const;
+const PAPEL = 'contaia_app';
 
-const tabelasDoSchema = async (): Promise<string[]> => {
-  const { rows } = await pool.query<{ tablename: string }>(
-    `select tablename from pg_tables where schemaname = 'app' order by tablename`,
-  );
+const requisitos = (violacoes: ReturnType<typeof auditarCatalogo>): string[] =>
+  violacoes.map((v) => `${v.tabela}: ${v.requisito}`);
 
-  return rows.map((linha) => linha.tablename);
-};
-
-describe('anti-drift do schema app', () => {
-  // As migrations são aplicadas antes da suíte (`pnpm db:migrate`, passo próprio
-  // da CI). Aplicá-las aqui faria as suítes de banco, que rodam em paralelo,
-  // disputarem a mesma tabela de controle.
+describe('anti-drift sobre o catálogo real', () => {
   it('há tabelas para varrer', async () => {
-    expect((await tabelasDoSchema()).length).toBeGreaterThan(0);
+    const fotografia = await lerCatalogo(pool, { schemas: SCHEMAS, papel: PAPEL });
+
+    expect(fotografia.tabelas.length).toBeGreaterThan(0);
   });
 
-  it('toda tabela tem RLS habilitada e forçada', async () => {
-    const { rows } = await pool.query<{
-      tablename: string;
-      rowsecurity: boolean;
-      forcerowsecurity: boolean;
-    }>(
-      `select c.relname as tablename, c.relrowsecurity as rowsecurity,
-              c.relforcerowsecurity as forcerowsecurity
-         from pg_class c
-         join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = 'app' and c.relkind = 'r'`,
-    );
+  it('nenhuma tabela escapa da classificação nem dos requisitos de RLS', async () => {
+    const fotografia = await lerCatalogo(pool, { schemas: SCHEMAS, papel: PAPEL });
 
-    const semRls = rows.filter((linha) => !linha.rowsecurity || !linha.forcerowsecurity);
-
-    expect(semRls.map((linha) => linha.tablename)).toEqual([]);
+    expect(requisitos(auditarCatalogo(fotografia, CLASSIFICACAO))).toEqual([]);
   });
 
-  it('toda tabela tem ao menos uma política de RLS', async () => {
-    const tabelas = await tabelasDoSchema();
-    const { rows } = await pool.query<{ tablename: string }>(
-      `select distinct tablename from pg_policies where schemaname = 'app'`,
-    );
+  it('o papel da aplicação não tem BYPASSRLS nem SUPERUSER', async () => {
+    const { papel } = await lerCatalogo(pool, { schemas: SCHEMAS, papel: PAPEL });
 
-    const comPolitica = new Set(rows.map((linha) => linha.tablename));
-    const semPolitica = tabelas.filter((tabela) => !comPolitica.has(tabela));
-
-    expect(semPolitica).toEqual([]);
+    expect(papel).toEqual({ existe: true, bypassRls: false, superusuario: false });
   });
 
-  it('toda tabela não-raiz tem tenant_id NOT NULL', async () => {
-    const tabelas = await tabelasDoSchema();
-    const { rows } = await pool.query<{ table_name: string; is_nullable: string }>(
-      `select table_name, is_nullable
-         from information_schema.columns
-        where table_schema = 'app' and column_name = 'tenant_id'`,
-    );
+  it('tabela criada sem proteção reprova a prova, apontando cada requisito', async () => {
+    const cliente = await pool.connect();
 
-    const porTabela = new Map(rows.map((linha) => [linha.table_name, linha.is_nullable]));
-
-    const irregulares = tabelas
-      .filter((tabela) => !TABELAS_RAIZ.has(tabela))
-      .filter((tabela) => porTabela.get(tabela) !== 'NO');
-
-    expect(irregulares).toEqual([]);
-  });
-
-  it('toda tabela não-raiz tem índice sobre tenant_id', async () => {
-    const tabelas = await tabelasDoSchema();
-    const { rows } = await pool.query<{ tablename: string; indexdef: string }>(
-      `select tablename, indexdef from pg_indexes where schemaname = 'app'`,
-    );
-
-    const semIndice = tabelas
-      .filter((tabela) => !TABELAS_RAIZ.has(tabela))
-      .filter(
-        (tabela) =>
-          !rows.some(
-            (indice) => indice.tablename === tabela && indice.indexdef.includes('tenant_id'),
-          ),
+    try {
+      await cliente.query('begin');
+      await cliente.query('create schema rls_sonda');
+      await cliente.query(
+        'create table rls_sonda.insegura (id uuid primary key, tenant_id uuid, empresa_id uuid)',
+      );
+      await cliente.query('grant usage on schema rls_sonda to contaia_app');
+      await cliente.query(
+        'grant select, insert, update, delete on rls_sonda.insegura to contaia_app',
       );
 
-    expect(semIndice).toEqual([]);
+      const fotografia = await lerCatalogo(cliente, { schemas: ['rls_sonda'], papel: PAPEL });
+      const classificada: EntradaDeClassificacao = {
+        tabela: 'rls_sonda.insegura',
+        classe: 'empresa',
+        origem: 'sonda do anti-drift',
+      };
+
+      const semClasse = requisitos(auditarCatalogo(fotografia, []));
+      const comClasse = requisitos(auditarCatalogo(fotografia, [classificada]));
+
+      expect(semClasse).toEqual(['rls_sonda.insegura: tabela classificada']);
+      expect(comClasse).toEqual(
+        expect.arrayContaining([
+          'rls_sonda.insegura: RLS habilitada',
+          'rls_sonda.insegura: RLS forçada',
+          'rls_sonda.insegura: tenant_id NOT NULL',
+          'rls_sonda.insegura: índice por tenant_id',
+          'rls_sonda.insegura: empresa_id NOT NULL',
+          'rls_sonda.insegura: índice por empresa_id',
+          'rls_sonda.insegura: política de SELECT',
+          'rls_sonda.insegura: política de INSERT',
+          'rls_sonda.insegura: política de UPDATE',
+          'rls_sonda.insegura: sem DELETE para a aplicação',
+        ]),
+      );
+    } finally {
+      await cliente.query('rollback');
+      cliente.release();
+    }
+  });
+});
+
+const tabelaSegura = (sobre: Partial<TabelaDoCatalogo> = {}): TabelaDoCatalogo => ({
+  nome: 'app.exemplo',
+  rlsHabilitada: true,
+  rlsForcada: true,
+  colunas: { tenant_id: false, empresa_id: false },
+  indices: [
+    { nome: 'a', colunas: ['tenant_id'], parcial: false },
+    { nome: 'b', colunas: ['tenant_id', 'empresa_id'], parcial: false },
+  ],
+  politicas: [
+    {
+      nome: 'p_select',
+      comando: 'SELECT',
+      permissiva: true,
+      usando: '((tenant_id = app.tenant_atual()) AND app.empresa_autorizada(empresa_id))',
+      comCheck: null,
+    },
+    {
+      nome: 'p_insert',
+      comando: 'INSERT',
+      permissiva: true,
+      usando: null,
+      comCheck: '((tenant_id = app.tenant_atual()) AND app.empresa_autorizada(empresa_id))',
+    },
+  ],
+  privilegiosDaAplicacao: ['SELECT', 'INSERT'],
+  ...sobre,
+});
+
+const classeEmpresa: EntradaDeClassificacao = {
+  tabela: 'app.exemplo',
+  classe: 'empresa',
+  origem: 'teste',
+};
+
+const fotografiaCom = (tabela: TabelaDoCatalogo): FotografiaDoCatalogo => ({
+  tabelas: [tabela],
+  papel: { existe: true, bypassRls: false, superusuario: false },
+});
+
+describe('auditoria pura do catálogo', () => {
+  it('aceita a tabela segura de referência', () => {
+    expect(auditarCatalogo(fotografiaCom(tabelaSegura()), [classeEmpresa])).toEqual([]);
   });
 
-  it('a role da aplicação não tem DELETE nas tabelas desta fatia', async () => {
-    // I-7: registro fiscal não se apaga, arquiva-se. Sem GRANT de DELETE o
-    // arquivamento é o único caminho possível pela aplicação.
-    const { rows } = await pool.query<{ table_name: string }>(
-      `select table_name from information_schema.role_table_grants
-        where grantee = 'contaia_app' and table_schema = 'app' and privilege_type = 'DELETE'`,
+  it.each([
+    [
+      'política que libera tudo',
+      {
+        politicas: [
+          {
+            nome: 'liberada',
+            comando: 'ALL' as const,
+            permissiva: true,
+            usando: 'true',
+            comCheck: 'true',
+          },
+        ],
+      },
+      'política de SELECT com contexto',
+    ],
+    ['empresa_id anulável', { colunas: { tenant_id: false, empresa_id: true } }, 'empresa_id NOT NULL'],
+    [
+      'índice parcial não conta',
+      {
+        indices: [
+          { nome: 'a', colunas: ['tenant_id'], parcial: false },
+          { nome: 'b', colunas: ['tenant_id', 'empresa_id'], parcial: true },
+        ],
+      },
+      'índice por empresa_id',
+    ],
+    [
+      'UPDATE sem política',
+      { privilegiosDaAplicacao: ['SELECT', 'INSERT', 'UPDATE'] },
+      'política de UPDATE',
+    ],
+    [
+      'TRUNCATE concedido',
+      { privilegiosDaAplicacao: ['SELECT', 'INSERT', 'TRUNCATE'] },
+      'sem TRUNCATE para a aplicação',
+    ],
+  ])('reprova: %s', (_nome, troca, requisito) => {
+    const achados = requisitos(
+      auditarCatalogo(fotografiaCom(tabelaSegura(troca)), [classeEmpresa]),
     );
 
-    expect(rows.map((linha) => linha.table_name)).toEqual([]);
+    expect(achados.join('\n')).toContain(requisito);
+  });
+
+  it('reprova tabela append-only com UPDATE', () => {
+    const achados = requisitos(
+      auditarCatalogo(
+        fotografiaCom(tabelaSegura({ privilegiosDaAplicacao: ['SELECT', 'INSERT', 'UPDATE'] })),
+        [{ ...classeEmpresa, appendOnly: true }],
+      ),
+    );
+
+    expect(achados).toContain('app.exemplo: append-only (I-6)');
+  });
+
+  it('reprova papel com BYPASSRLS e classificação órfã', () => {
+    const achados = requisitos(
+      auditarCatalogo(
+        { tabelas: [], papel: { existe: true, bypassRls: true, superusuario: false } },
+        [classeEmpresa],
+      ),
+    );
+
+    expect(achados).toEqual([
+      '(papel contaia_app): sem BYPASSRLS',
+      'app.exemplo: classificação órfã',
+    ]);
+  });
+
+  it('exige justificativa na allowlist sem empresa_id', () => {
+    const achados = requisitos(
+      auditarCatalogo(fotografiaCom(tabelaSegura()), [
+        { tabela: 'app.exemplo', classe: 'tenant', origem: 'teste' },
+      ]),
+    );
+
+    expect(achados).toContain('app.exemplo: allowlist justificada');
   });
 });
 
