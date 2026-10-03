@@ -92,9 +92,7 @@ _(vazio)_
 
 ## Em Andamento
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13)
+_(vazio)_
 
 ## Feito
 
@@ -104,6 +102,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13, finalizado em: 2026-10-03)
 - [MVP1][SPEC-010][F10] RLS de dois níveis e provas negativas (#12, finalizado em: 2026-10-03)
 - [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9, finalizado em: 2026-10-03)
 - [MVP1][SPEC-008][F8] Papéis personalizados e permissões (#10, finalizado em: 2026-10-03)
