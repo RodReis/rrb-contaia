@@ -81,8 +81,6 @@ updated: 2026-10-03
 - [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16)
 - [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15)
 - [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14)
-- [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13)
-- [MVP1][SPEC-010][F10] RLS de dois níveis e provas negativas (#12)
 
 ### Sem épico
 
@@ -94,7 +92,9 @@ _(vazio)_
 
 ## Em Andamento
 
-_(vazio)_
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13)
 
 ## Feito
 
@@ -106,6 +106,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-010][F10] RLS de dois níveis e provas negativas (#12, finalizado em: 2026-10-03)
 - [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9, finalizado em: 2026-10-03)
 - [MVP1][SPEC-008][F8] Papéis personalizados e permissões (#10, finalizado em: 2026-10-03)
 - [MVP1][SPEC-009][F9] Carteira do colaborador e isolamento por empresa (#11, finalizado em: 2026-10-03)
