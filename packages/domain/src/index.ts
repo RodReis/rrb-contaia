@@ -15,6 +15,18 @@ export {
   podeExecutar,
 } from './usuarios/papeis.js';
 export type { Acao, Capacidade, PapelPadrao } from './usuarios/papeis.js';
+export {
+  podePerderAdministracao,
+  situacaoApresentada,
+  transicionar,
+  validarPapeis,
+} from './usuarios/ciclo-de-vida.js';
+export type {
+  EstadoDoUsuario,
+  SituacaoApresentada,
+  Transicao,
+} from './usuarios/ciclo-de-vida.js';
+export { VALIDADE_DO_CONVITE_HORAS, conviteVigente, expiraEm } from './usuarios/convite.js';
 
 export { ehCnpjValido, formatarCnpj, normalizarCnpj } from './validadores/cnpj.js';
 export { ehCpfValido, formatarCpf, normalizarCpf } from './validadores/cpf.js';
