@@ -260,6 +260,40 @@
   }
 }
 
+/* Entrada das sobreposições do cofre (SPEC-011): só opacidade e transform, que a GPU
+   compõe sem recalcular layout. O bloco de movimento reduzido abaixo as zera. */
+@keyframes sobreposicao-entra {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialogo-entra {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+}
+
+@keyframes painel-entra {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+.sobreposicao-entra {
+  animation: sobreposicao-entra var(--duration-fast) var(--ease-out);
+}
+
+.dialogo-entra {
+  animation: dialogo-entra var(--duration-normal) var(--ease-out);
+}
+
+.painel-entra {
+  animation: painel-entra var(--duration-normal) var(--ease-out);
+}
+
 /* Obrigatório, não opcional (TOKENS.md §9). */
 @media (prefers-reduced-motion: reduce) {
   *,

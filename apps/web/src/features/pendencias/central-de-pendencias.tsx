@@ -29,6 +29,7 @@
 'use client';
 
 import { ClipboardCheck, Search } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 
@@ -57,6 +58,7 @@ const ESTADO_PADRAO: EstadoDaPendencia = 'ABERTA';
 const ROTULO_DA_ORIGEM: Readonly<Record<OrigemDaPendencia, string>> = {
   CADASTRAL: 'Cadastral',
   DOCUMENTAL: 'Documental',
+  CERTIFICADO: 'Certificado',
 };
 
 const ROTULO_DO_TIPO: Readonly<Record<TipoDaPendencia, string>> = {
@@ -66,11 +68,16 @@ const ROTULO_DO_TIPO: Readonly<Record<TipoDaPendencia, string>> = {
   DOCUMENTO_REJEITADO: 'Documento rejeitado',
   DOCUMENTO_VENCIDO: 'Documento vencido',
   EXIGENCIA_ESPECIFICA: 'Exigência específica',
+  CERTIFICADO_AUSENTE: 'Certificado ausente',
+  CERTIFICADO_VENCIDO: 'Certificado vencido',
+  CERTIFICADO_DESATIVADO: 'Certificado desativado',
+  CERTIFICADO_SEM_RESPONSAVEL: 'Certificado sem responsável',
 };
 
 const OPCOES_DE_ORIGEM = [
   { valor: 'CADASTRAL', rotulo: 'Cadastral' },
   { valor: 'DOCUMENTAL', rotulo: 'Documental' },
+  { valor: 'CERTIFICADO', rotulo: 'Certificado' },
 ] as const;
 
 const OPCOES_DE_TIPO = (Object.keys(ROTULO_DO_TIPO) as TipoDaPendencia[]).map((tipo) => ({
@@ -89,7 +96,7 @@ const OPCOES_DE_VENCIMENTO = [
 ] as const;
 
 const ehOrigem = (valor: string | null): valor is OrigemDaPendencia =>
-  valor === 'CADASTRAL' || valor === 'DOCUMENTAL';
+  valor === 'CADASTRAL' || valor === 'DOCUMENTAL' || valor === 'CERTIFICADO';
 
 const ehTipo = (valor: string | null): valor is TipoDaPendencia =>
   valor !== null && valor in ROTULO_DO_TIPO;
@@ -119,7 +126,12 @@ const tomDaPendencia = (pendencia: Pendencia, hoje: string): TomDoStatus => {
 
   const vencida = pendencia.dataLimite !== null && pendencia.dataLimite < hoje;
 
-  if (vencida || pendencia.tipo === 'DOCUMENTO_VENCIDO' || pendencia.tipo === 'DOCUMENTO_REJEITADO') {
+  if (
+    vencida ||
+    pendencia.tipo === 'DOCUMENTO_VENCIDO' ||
+    pendencia.tipo === 'DOCUMENTO_REJEITADO' ||
+    pendencia.tipo === 'CERTIFICADO_VENCIDO'
+  ) {
     return 'critico';
   }
 
@@ -146,6 +158,21 @@ const Cabecalho = ({ total }: { total: number | null }) => (
 
 const AcaoDeDispensa = ({ pendencia }: { pendencia: Pendencia }) => {
   const dispensar = useDispensarPendencia();
+
+  // Pendência do cofre não se dispensa: resolve-se cadastrando o certificado ou escolhendo o
+  // responsável (SPEC-011 §3.4–3.5). A ação leva ao registro da empresa no cofre.
+  if (pendencia.origem === 'CERTIFICADO') {
+    return (
+      <Button asChild variante="contorno" tamanho="compacto">
+        <Link
+          href={`/configuracoes/cofre?empresa=${pendencia.empresaId}`}
+          aria-label={`Abrir ${pendencia.empresaNome} no cofre de certificados`}
+        >
+          Abrir no cofre
+        </Link>
+      </Button>
+    );
+  }
 
   return (
     <DialogoDeJustificativa

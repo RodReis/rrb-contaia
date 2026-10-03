@@ -110,6 +110,31 @@ describe('NavegacaoPrincipal', () => {
     await waitFor(() => expect(links()).toEqual(['Empresas', 'Minha carteira']));
   });
 
+  it('o Cofre de certificados aparece só para quem consulta o módulo, e leva à rota do cofre', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['auxiliar'], ['empresas.cadastro.consultar', 'certificados.cofre.consultar']),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(links()).toContain('Cofre de certificados'));
+    expect(screen.getByRole('link', { name: 'Cofre de certificados' })).toHaveAttribute(
+      'href',
+      '/configuracoes/cofre',
+    );
+  });
+
+  it('sem a chave de consulta do cofre, o item não é oferecido', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['contador'], ['empresas.cadastro.consultar', 'certificados.cofre.criar']),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await waitFor(() => expect(links()).toEqual(['Empresas', 'Minha carteira']));
+  });
+
   it('enquanto a sessão carrega ou se falhar, só os itens que toda sessão válida tem aparecem', async () => {
     vi.mocked(fetch).mockRejectedValue(new TypeError('fetch failed'));
 
