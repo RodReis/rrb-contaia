@@ -84,6 +84,7 @@ describe('anti-drift sobre o catálogo real', () => {
           'rls_sonda.insegura: política de SELECT',
           'rls_sonda.insegura: política de INSERT',
           'rls_sonda.insegura: política de UPDATE',
+          'rls_sonda.insegura: escopo imutável',
           'rls_sonda.insegura: sem DELETE para a aplicação',
         ]),
       );
@@ -119,6 +120,7 @@ const tabelaSegura = (sobre: Partial<TabelaDoCatalogo> = {}): TabelaDoCatalogo =
       comCheck: '((tenant_id = app.tenant_atual()) AND app.empresa_autorizada(empresa_id))',
     },
   ],
+  gatilhos: ['escopo_imutavel'],
   privilegiosDaAplicacao: ['SELECT', 'INSERT'],
   ...sobre,
 });
@@ -171,6 +173,7 @@ describe('auditoria pura do catálogo', () => {
       { privilegiosDaAplicacao: ['SELECT', 'INSERT', 'UPDATE'] },
       'política de UPDATE',
     ],
+    ['sem trigger de escopo imutável', { gatilhos: [] }, 'escopo imutável'],
     [
       'TRUNCATE concedido',
       { privilegiosDaAplicacao: ['SELECT', 'INSERT', 'TRUNCATE'] },

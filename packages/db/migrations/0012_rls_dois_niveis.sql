@@ -157,6 +157,12 @@ LANGUAGE sql STABLE AS $$
      );
 $$;
 
+-- Qualquer contexto valido, humano ou tecnico.
+CREATE OR REPLACE FUNCTION app.contexto_valido() RETURNS boolean
+LANGUAGE sql STABLE AS $$
+  SELECT app.contexto_humano() OR app.contexto_tecnico();
+$$;
+
 -- Finalidade administrativa humana (gestao de acesso e localizacao basica).
 CREATE OR REPLACE FUNCTION app.finalidade_administrativa() RETURNS boolean
 LANGUAGE sql STABLE AS $$
@@ -170,7 +176,7 @@ GRANT EXECUTE ON FUNCTION
   app.contexto_humano(), app.contexto_tecnico(), app.usuario_ativo_atual(),
   app.usuario_admin_atual(), app.empresa_na_carteira(uuid),
   app.administrador_comum(), app.empresa_autorizada(uuid),
-  app.finalidade_administrativa()
+  app.finalidade_administrativa(), app.contexto_valido()
 TO contaia_app;
 
 -- 2. Indices por empresa (I-1) --------------------------------------------------
@@ -191,8 +197,8 @@ CREATE INDEX IF NOT EXISTS carteira_vinculo_empresa_id_idx
 -- 3.1 raiz do tenant: a propria linha e o escritorio.
 DROP POLICY IF EXISTS tenant_isolamento ON app.tenant;
 CREATE POLICY tenant_isolamento ON app.tenant
-  USING (id = app.tenant_atual())
-  WITH CHECK (id = app.tenant_atual());
+  USING (id = app.tenant_atual() AND app.contexto_valido())
+  WITH CHECK (id = app.tenant_atual() AND app.contexto_valido());
 
 -- 3.2 raiz da empresa: o cadastro basico e legivel pelas finalidades
 -- administrativas (atribuicao de carteira, 403 da F9, duplicidade de CNPJ); o
@@ -248,7 +254,10 @@ CREATE POLICY carteira_vinculo_leitura ON app.carteira_vinculo FOR SELECT
   USING (
     tenant_id = app.tenant_atual()
     AND app.contexto_humano()
-    AND (app.finalidade_atual() = 'ADMIN_ACESSO' OR usuario_id = app.usuario_atual())
+    AND (
+      app.finalidade_atual() = 'ADMIN_ACESSO'
+      OR (usuario_id = app.usuario_atual() AND app.usuario_ativo_atual())
+    )
   );
 
 CREATE POLICY carteira_vinculo_insercao ON app.carteira_vinculo FOR INSERT
@@ -332,6 +341,72 @@ BEGIN
       'CREATE POLICY %I ON app.%I USING (tenant_id = app.tenant_atual() AND app.contexto_humano()) WITH CHECK (tenant_id = app.tenant_atual() AND app.contexto_humano())',
       tabela || '_isolamento', tabela);
   END LOOP;
+END
+$$;
+
+-- 3.6 escopo imutavel: UPDATE nao move linha entre tenant nem entre empresa
+-- (SPEC-010 §3.4). O WITH CHECK so ve a linha nova; a trigger compara com a velha.
+CREATE OR REPLACE FUNCTION app.proteger_escopo_tenant() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id THEN
+    RAISE EXCEPTION 'tenant_id e imutavel' USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION app.proteger_escopo_empresa() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+     OR NEW.empresa_id IS DISTINCT FROM OLD.empresa_id THEN
+    RAISE EXCEPTION 'tenant_id e empresa_id sao imutaveis' USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION app.proteger_escopo_raiz_empresa() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id OR NEW.id IS DISTINCT FROM OLD.id THEN
+    RAISE EXCEPTION 'tenant_id e id da empresa sao imutaveis' USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+DECLARE
+  tabela text;
+BEGIN
+  FOREACH tabela IN ARRAY ARRAY[
+    'empresa_cnae_secundario', 'empresa_endereco', 'empresa_evento_de_historico',
+    'empresa_exigencia_documental', 'empresa_documento_versao', 'empresa_evento_documental',
+    'empresa_pendencia', 'empresa_evento_de_pendencia', 'empresa_notificacao',
+    'empresa_evento_de_notificacao', 'carteira_vinculo'
+  ] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS escopo_imutavel ON app.%I', tabela);
+    EXECUTE format(
+      'CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.%I FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa()',
+      tabela);
+  END LOOP;
+
+  FOREACH tabela IN ARRAY ARRAY[
+    'usuario', 'usuario_papel', 'usuario_convite', 'usuario_evento',
+    'papel_personalizado', 'papel_personalizado_revisao', 'usuario_papel_personalizado',
+    'escritorio_endereco', 'escritorio_arquivo', 'carteira_evento', 'carteira_notificacao'
+  ] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS escopo_imutavel ON app.%I', tabela);
+    EXECUTE format(
+      'CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.%I FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_tenant()',
+      tabela);
+  END LOOP;
+
+  DROP TRIGGER IF EXISTS escopo_imutavel ON app.empresa;
+  CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.empresa
+    FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_raiz_empresa();
 END
 $$;
 

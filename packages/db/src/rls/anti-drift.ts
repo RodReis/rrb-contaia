@@ -44,6 +44,8 @@ export type TabelaDoCatalogo = Readonly<{
   colunas: Readonly<Record<string, boolean>>;
   indices: readonly IndiceDoCatalogo[];
   politicas: readonly PoliticaDoCatalogo[];
+  /** Triggers próprias (não internas) da tabela. */
+  gatilhos: readonly string[];
   /** Privilégios que o papel da aplicação tem (inclusive por coluna). */
   privilegiosDaAplicacao: readonly string[];
 }>;
@@ -113,6 +115,14 @@ const auditarChaves = (
     !tabela.indices.some((indice) => !indice.parcial && indice.colunas.includes('tenant_id'))
   ) {
     achados.push(violacao(tabela.nome, 'índice por tenant_id', 'nenhum índice completo com tenant_id'));
+  }
+
+  // UPDATE não move linha entre tenant nem entre empresa (SPEC-010 §3.4): o WITH
+  // CHECK só enxerga a linha nova, então a comparação com a velha é de trigger.
+  if (!tabela.gatilhos.includes('escopo_imutavel')) {
+    achados.push(
+      violacao(tabela.nome, 'escopo imutável', 'trigger escopo_imutavel ausente (UPDATE moveria a linha)'),
+    );
   }
 
   if (CLASSES_COM_EMPRESA.includes(classe)) {
@@ -391,6 +401,15 @@ export const lerCatalogo = async (
     [schemas],
   );
 
+  const gatilhos = await banco.query<{ tabela: string; nome: string }>(
+    `select n.nspname || '.' || c.relname as tabela, g.tgname as nome
+       from pg_trigger g
+       join pg_class c on c.oid = g.tgrelid
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = any($1) and not g.tgisinternal`,
+    [schemas],
+  );
+
   const roles = await banco.query<{ rolbypassrls: boolean; rolsuper: boolean }>(
     'select rolbypassrls, rolsuper from pg_roles where rolname = $1',
     [papel],
@@ -411,6 +430,7 @@ export const lerCatalogo = async (
       colunas: Object.fromEntries(
         colunas.rows.filter((c) => c.tabela === linha.nome).map((c) => [c.coluna, c.anulavel]),
       ),
+      gatilhos: gatilhos.rows.filter((g) => g.tabela === linha.nome).map((g) => g.nome),
       indices: indices.rows
         .filter((i) => i.tabela === linha.nome)
         .map((i) => ({ nome: i.nome, parcial: i.parcial, colunas: i.colunas })),
