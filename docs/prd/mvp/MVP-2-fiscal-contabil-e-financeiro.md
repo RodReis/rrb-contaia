@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F81/SPEC-081 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F82/SPEC-082 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -73,6 +73,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F79 / SPEC-079:** conferência de folha BB CNAB 240 com modalidades de conta mistas entre lotes homogêneos de corrente, poupança e conta salário; uma empresa e competência, referência CSV/JSON v2 com `accountType` por empregado, comparação individual e retornos por lote. Diagnósticos comprovados permanecem visíveis, mas falta de cobertura em qualquer modalidade torna a conclusão global `INDETERMINATE`; somente relatório, sem efeito F68. Mistura intralote segue para F80/SPEC-080; empresas/competências mistas e pagamentos divididos seguem para fatias próprias do MVP-2.
 - [ ] **F80 / SPEC-080:** conferência de folha BB CNAB 240 com modalidades de conta diferentes dentro do mesmo lote, uma empresa e competência, referência CSV/JSON v2, comparação por CPF, tipo, destino, centavos e data e retornos por item. Sem manual BB e fixtures intralote compatíveis, diagnósticos comprovados permanecem visíveis e a conclusão global é `INDETERMINATE`; contradição coberta é divergência estrutural. Somente relatório, sem efeito F68; empresas/competências mistas seguem para F81/SPEC-081 e pagamentos divididos para fatia própria do MVP-2.
 - [ ] **F81 / SPEC-081:** conferência de remessa BB CNAB 240 com empresas ou competências diferentes entre lotes, atribuindo cada lote inteiro por manifesto externo a um par e usando referência própria por par. Cada relatório é segregado por empresa/competência do mesmo tenant/carteira; falha de integridade ou atribuição em qualquer lote bloqueia conclusão positiva de todos os pares. Sem manual e fixtures BB compatíveis com o arquivo misto, `INDETERMINATE` e prova bancária `not_run`. Somente relatório, sem efeito F68; mistura de pares no mesmo lote e pagamentos divididos permanecem em fatias próprias do MVP-2.
+- [ ] **F82 / SPEC-082:** conferência de pagamentos divididos de um contrato por CPF em remessa BB CNAB 240, com referência CSV/JSON v3 e parcelas explícitas identificadas por ID estável, centavos, data, tipo de conta e destino próprios. Reutiliza modalidades F76–F80 e arquivo misto F81, compara cada instrução e mostra efetivação parcial por retorno, somente relatório sem efeito F68. Conclusão positiva exige manual e fixtures BB compatíveis; sem cobertura, `INDETERMINATE` e prova bancária `not_run`. Múltiplos contratos por CPF ficam em fatia própria do MVP-2.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
