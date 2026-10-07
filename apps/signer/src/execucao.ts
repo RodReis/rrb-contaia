@@ -89,7 +89,9 @@ export const executarComSegredo = async (
     const { chavePem, certificadoPem } = abrirPkcs12ParaAssinar(segredo.pkcs12, segredo.senha);
 
     // O que o Vault entregou precisa ser o certificado cadastrado: nunca assina com outro.
-    if (impressaoDigitalDoCertificado(certificadoPem) !== certificado.impressaoDigital) {
+    // A F11 grava a impressão digital em hexadecimal MAIÚSCULO e o Signer a calcula em minúsculo:
+    // é o mesmo valor, então a conferência ignora a caixa.
+    if (impressaoDigitalDoCertificado(certificadoPem) !== certificado.impressaoDigital.toLowerCase()) {
       return transitoria('SIGNER_VAULT_INDISPONIVEL');
     }
 

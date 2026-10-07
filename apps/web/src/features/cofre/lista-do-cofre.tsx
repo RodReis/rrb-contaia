@@ -43,11 +43,11 @@ const COLUNAS = [
 
 /** Com o Signer (SPEC-012 §5.2) entra a coluna `Signer mTLS`; as larguras se redistribuem. */
 const COLUNAS_COM_SIGNER = [
-  { titulo: 'Empresa', largura: 'w-[17%]' },
-  { titulo: 'Certificado', largura: 'w-[15%]' },
-  { titulo: 'Situação e validade', largura: 'w-[17%]' },
+  { titulo: 'Empresa', largura: 'w-[16%]' },
+  { titulo: 'Certificado', largura: 'w-[14%]' },
+  { titulo: 'Situação e validade', largura: 'w-[18%]' },
   { titulo: 'Responsável', largura: 'w-[13%]' },
-  { titulo: 'Signer mTLS', largura: 'w-[19%]' },
+  { titulo: 'Signer mTLS', largura: 'w-[22%]' },
 ] as const;
 
 /** O estado do Signer de cada empresa da página, ou o porquê de não haver. */

@@ -18,7 +18,14 @@ describe('configuração dos workers (falha fechada)', () => {
       arquivoDoCertificado: '/run/secrets/worker.crt.pem',
       arquivoDaChave: '/run/secrets/worker.key.pem',
       arquivoDaCaInterna: '/run/secrets/ca-interna.pem',
+      intervaloDoMonitorMs: 60_000,
     });
+  });
+
+  it('o intervalo do monitor é de 1 minuto, e só uma variável explícita (prova E2E) o encurta', () => {
+    expect(lerConfig({ ...COMPLETO, MONITOR_INTERVALO_MS: '5000' }).intervaloDoMonitorMs).toBe(5_000);
+    expect(() => lerConfig({ ...COMPLETO, MONITOR_INTERVALO_MS: '10' })).toThrow(/MONITOR_INTERVALO_MS/u);
+    expect(() => lerConfig({ ...COMPLETO, MONITOR_INTERVALO_MS: 'x' })).toThrow(/MONITOR_INTERVALO_MS/u);
   });
 
   it('aceita sobrescrever o endereço do Signer', () => {

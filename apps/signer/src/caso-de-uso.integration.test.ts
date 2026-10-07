@@ -130,7 +130,9 @@ const semearEmpresa = async (
       certificado.estado ?? 'VIGENTE',
       cnpj,
       `serie-${referencia}`,
-      certificado.impressao ?? materiais.get(empresaId)!.impressao,
+      // A F11 grava a impressão digital em HEXADECIMAL MAIÚSCULO (apps/cofre/src/pkcs12.ts): a
+      // fixture segue o formato real, senão o teste só provaria o formato que o Signer já espera.
+      (certificado.impressao ?? materiais.get(empresaId)!.impressao).toUpperCase(),
       certificado.validoDe ?? '2026-01-01',
       certificado.validoAte ?? '2027-12-31',
       usuarioId,

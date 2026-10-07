@@ -25,6 +25,7 @@ const pool = criarPoolDaAplicacao();
 const consumidores = await iniciarConsumidores({
   conexao: conexaoDoRedis(config.redisUrl),
   cliente,
+  intervaloDoMonitorMs: config.intervaloDoMonitorMs,
   verificar: () => verificarSaude({ pool, cliente, agora: () => new Date() }),
 });
 

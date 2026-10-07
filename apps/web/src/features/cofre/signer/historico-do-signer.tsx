@@ -134,7 +134,7 @@ export const HistoricoDoSigner = ({ empresaId }: { empresaId: string }) => {
 
   const barraDeFiltro = (
     <div className="flex flex-col gap-md tablet:flex-row tablet:flex-wrap tablet:items-end">
-      <div className="w-full tablet:w-[12rem]">
+      <div className="w-full tablet:w-[14rem]">
         <Select
           rotulo="Finalidade"
           opcoes={OPCOES_DE_FINALIDADE}
@@ -144,7 +144,7 @@ export const HistoricoDoSigner = ({ empresaId }: { empresaId: string }) => {
           }
         />
       </div>
-      <div className="w-full tablet:w-[12rem]">
+      <div className="w-full tablet:w-[14rem]">
         <Select
           rotulo="Resultado"
           opcoes={OPCOES_DE_RESULTADO}

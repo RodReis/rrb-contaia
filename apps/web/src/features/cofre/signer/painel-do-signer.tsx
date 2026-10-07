@@ -178,7 +178,7 @@ export const PainelDoSigner = ({
   temCertificadoVigente: boolean;
   podeTestar: boolean;
 }) => (
-  <section aria-labelledby="detalhe-signer" className="flex flex-col gap-md">
+  <section aria-labelledby="detalhe-signer" className="flex flex-col gap-lg">
     <h3 id="detalhe-signer" className="text-label-sm uppercase text-muted-foreground">
       Signer mTLS
     </h3>

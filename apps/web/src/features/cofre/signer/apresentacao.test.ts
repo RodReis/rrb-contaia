@@ -13,7 +13,9 @@ import {
   ROTULO_DA_FINALIDADE,
   descreverVerificacao,
   mensagemDoSigner,
+  textoCurtoDoUltimoTeste,
   textoDaLatencia,
+  textoDoUltimoTeste,
 } from './apresentacao';
 
 describe('apresentação do Signer', () => {
@@ -65,6 +67,13 @@ describe('apresentação do Signer', () => {
     expect(textoDaLatencia(42)).toBe('42 ms');
     expect(textoDaLatencia(1234)).toBe('1.234 ms');
     expect(textoDaLatencia(null)).toBe('—');
+  });
+
+  it('último teste: completo no painel, sem o ano na coluna estreita, e "Nunca testado" quando não houve', () => {
+    expect(textoDoUltimoTeste('2026-10-07T14:30:00.000Z')).toBe('07/10/2026 11:30');
+    expect(textoCurtoDoUltimoTeste('2026-10-07T14:30:00.000Z')).toBe('07/10 11:30');
+    expect(textoDoUltimoTeste(null)).toBe('Nunca testado');
+    expect(textoCurtoDoUltimoTeste(null)).toBe('Nunca testado');
   });
 
   it('descreve a verificação do serviço em horário de São Paulo, ou diz que não há', () => {

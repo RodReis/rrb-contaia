@@ -22,6 +22,7 @@ import {
   APRESENTACAO_DA_FINALIDADE_NO_SIGNER,
   ROTULO_DA_FINALIDADE,
   mensagemDoSigner,
+  textoCurtoDoUltimoTeste,
   textoDaLatencia,
   textoDoUltimoTeste,
 } from './apresentacao';
@@ -45,24 +46,35 @@ const COR_DO_ICONE: Readonly<Record<EstadoDaFinalidadeNoSigner, string>> = {
 export const FinalidadeDoSigner = ({
   finalidade,
   comMotivo = false,
+  resumo,
 }: {
   finalidade: EstadoDaEmpresaNoSigner['finalidades'][number];
   /** No painel a falha traz o motivo acionável; na linha da tabela só o estado cabe. */
   comMotivo?: boolean;
+  /**
+   * Na linha da tabela o selo de resumo já diz o estado: a palavra só aparece na finalidade que
+   * DIFERE dele. Quando é igual, segue no DOM para leitor de tela (o ícone não é o único sinal).
+   */
+  resumo?: EstadoDaFinalidadeNoSigner;
 }) => {
   const apresentacao = APRESENTACAO_DA_FINALIDADE_NO_SIGNER[finalidade.estado];
   const Icone = ICONE[finalidade.estado];
+  const palavraRedundante = resumo === finalidade.estado;
 
   return (
     <li className="flex flex-col gap-0.5">
       <p className="flex flex-wrap items-center gap-x-xs">
         <Icone className={juntar('size-icon-xs shrink-0', COR_DO_ICONE[finalidade.estado])} aria-hidden="true" />
         <span className="text-label-md text-foreground">{ROTULO_DA_FINALIDADE[finalidade.finalidade]}</span>
-        <span className="text-body-sm text-foreground">{apresentacao.rotulo}</span>
+        <span className={juntar('text-body-sm text-foreground', palavraRedundante && 'sr-only')}>
+          {apresentacao.rotulo}
+        </span>
       </p>
       {finalidade.estado === 'SEM_CERTIFICADO' ? null : (
-        <p className="flex flex-wrap items-center gap-x-xs pl-5text-body-sm text-muted-foreground">
-          <span className="tabular-nums">{textoDoUltimoTeste(finalidade.ultimoTesteEm)}</span>
+        <p className="flex flex-wrap items-center gap-x-xs pl-5 text-body-sm text-muted-foreground">
+          <span className="tabular-nums">
+            {(comMotivo ? textoDoUltimoTeste : textoCurtoDoUltimoTeste)(finalidade.ultimoTesteEm)}
+          </span>
           <span aria-hidden="true">·</span>
           <span className="tabular-nums">{textoDaLatencia(finalidade.latenciaMs)}</span>
         </p>
@@ -111,29 +123,30 @@ export const EstadoNaLinha = ({
   const resumo = APRESENTACAO_DA_FINALIDADE_NO_SIGNER[estado.resumo];
 
   return (
-    <div className="flex flex-col items-start gap-sm">
-      <div role="group" aria-label="Resumo do Signer mTLS" className="flex flex-wrap items-center gap-xs">
-        <StatusBadge tom={resumo.tom} rotulo={resumo.rotulo} />
-        {situacao === 'falha' ? (
-          <span className="text-body-sm text-warning-foreground">Desatualizado</span>
-        ) : null}
+    <div className="flex flex-col items-stretch gap-sm">
+      <div className="flex flex-wrap items-center justify-between gap-xs">
+        <div role="group" aria-label="Resumo do Signer mTLS" className="flex flex-wrap items-center gap-xs">
+          <StatusBadge tom={resumo.tom} rotulo={resumo.rotulo} />
+          {situacao === 'falha' ? (
+            <span className="text-body-sm text-warning-foreground">Desatualizado</span>
+          ) : null}
+        </div>
+        <Button
+          variante="fantasma"
+          tamanho="icone"
+          onClick={() => aoAbrir(empresaId)}
+          aria-label={`Abrir o painel do Signer de ${empresaNome}`}
+          title="Abrir o painel do Signer"
+        >
+          <PanelRightOpen aria-hidden="true" />
+        </Button>
       </div>
 
       <ul className="flex flex-col gap-xs" aria-label="Finalidades do Signer mTLS">
         {estado.finalidades.map((finalidade) => (
-          <FinalidadeDoSigner key={finalidade.finalidade} finalidade={finalidade} />
+          <FinalidadeDoSigner key={finalidade.finalidade} finalidade={finalidade} resumo={estado.resumo} />
         ))}
       </ul>
-
-      <Button
-        variante="fantasma"
-        tamanho="compacto"
-        onClick={() => aoAbrir(empresaId)}
-        aria-label={`Abrir o painel do Signer de ${empresaNome}`}
-      >
-        <PanelRightOpen aria-hidden="true" />
-        Painel
-      </Button>
     </div>
   );
 };

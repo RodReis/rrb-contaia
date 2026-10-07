@@ -102,6 +102,12 @@ export const descreverVerificacao = (verificadaEm: string | null): string =>
     ? 'Nenhuma verificação registrada ainda.'
     : `Verificado em ${formatarQuando(verificadaEm).replace(',', '')}`;
 
+/** Sem o ano, para a coluna estreita da tabela: `07/10 11:30` (o painel mostra a data inteira). */
+export const textoCurtoDoUltimoTeste = (ultimoTesteEm: string | null): string =>
+  ultimoTesteEm === null
+    ? 'Nunca testado'
+    : textoDoUltimoTeste(ultimoTesteEm).replace(/^(\d{2}\/\d{2})\/\d{4} /u, '$1 ');
+
 /** Quando o último teste da finalidade aconteceu, ou o que falta para haver um. */
 export const textoDoUltimoTeste = (ultimoTesteEm: string | null): string =>
   ultimoTesteEm === null ? 'Nunca testado' : formatarQuando(ultimoTesteEm).replace(',', '');

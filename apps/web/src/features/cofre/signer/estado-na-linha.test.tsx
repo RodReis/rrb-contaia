@@ -44,7 +44,7 @@ describe('EstadoNaLinha', () => {
 
     expect(within(dfe!).getByText('DF-e')).toBeInTheDocument();
     expect(within(dfe!).getByText('Operacional')).toBeInTheDocument();
-    expect(within(dfe!).getByText(/07\/10\/2026 11:30/u)).toBeInTheDocument();
+    expect(within(dfe!).getByText('07/10 11:30')).toBeInTheDocument();
     expect(within(dfe!).getByText(/12 ms/u)).toBeInTheDocument();
     expect(within(esocial!).getByText('eSocial')).toBeInTheDocument();
     expect(within(esocial!).getByText(/15 ms/u)).toBeInTheDocument();
@@ -60,6 +60,16 @@ describe('EstadoNaLinha', () => {
     expect(within(dfe!).getByText('Operacional')).toBeInTheDocument();
     expect(within(esocial!).getByText('Falha')).toBeInTheDocument();
     expect(within(esocial!).getByText('—')).toBeInTheDocument();
+  });
+
+  it('a palavra do estado só aparece onde difere do resumo; igual ao resumo fica só para leitor de tela', () => {
+    renderizar({ estado: estadoComFalhaNoEsocial('empresa-1') });
+
+    const [dfe, esocial] = within(screen.getByRole('list', { name: 'Finalidades do Signer mTLS' })).getAllByRole('listitem');
+
+    // Resumo é "Falha": o eSocial (Falha) é redundante com o selo; o DF-e (Operacional) é a diferença.
+    expect(within(esocial!).getByText('Falha')).toHaveClass('sr-only');
+    expect(within(dfe!).getByText('Operacional')).not.toHaveClass('sr-only');
   });
 
   it('empresa sem certificado vigente: estado próprio, sem horário nem latência inventados', () => {
