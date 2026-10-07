@@ -1,12 +1,13 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 /**
- * @param {{ categoria: 'regras' | 'banco' | 'tela', escopo: string, include?: string[], setupFiles?: string[], environment?: string }} options
+ * @param {{ categoria: 'regras' | 'banco' | 'tela', escopo: string, include?: string[], exclude?: string[], setupFiles?: string[], environment?: string }} options
  */
 export const criarConfigVitest = ({
   categoria,
   escopo,
   include,
+  exclude = [],
   setupFiles = [],
   environment = 'node',
 }) =>
@@ -14,6 +15,8 @@ export const criarConfigVitest = ({
     test: {
       environment,
       include: include ?? [`src/**/*.${categoria === 'banco' ? 'integration.test' : 'test'}.ts`],
+      // Categoria não vaza para a outra: teste de banco (exige PostgreSQL) fica fora de test:regras.
+      exclude: [...configDefaults.exclude, ...exclude],
       setupFiles,
       pool: 'threads',
       reporters: process.env['CI'] ? ['default', 'junit'] : ['default'],

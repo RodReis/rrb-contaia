@@ -242,3 +242,13 @@ export const registrarEventoDoSigner = async (cliente: PoolClient, evento: Event
     ],
   );
 };
+
+/**
+ * A empresa existe e pertence ao contexto? A RLS devolve zero linhas para tenant e empresa que não
+ * casam: é assim que o contexto cruzado é recusado sem tocar o certificado.
+ */
+export const empresaVisivel = async (cliente: PoolClient, empresaId: string): Promise<boolean> => {
+  const { rowCount } = await cliente.query('select 1 from app.empresa where id = $1', [empresaId]);
+
+  return (rowCount ?? 0) > 0;
+};

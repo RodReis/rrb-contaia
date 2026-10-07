@@ -15,6 +15,7 @@ import {
   buscarCertificadoParaUso,
   buscarOperacaoPorChave,
   criarOperacao,
+  empresaVisivel,
   finalizarOperacao,
   reabrirOperacao,
   registrarEventoDoSigner,
@@ -118,6 +119,18 @@ describe('buscarCertificadoParaUso: o que o Signer precisa para decidir, sem o s
     );
 
     expect(versao).toMatchObject({ certificadoId: desativada.id, estado: 'DESATIVADO' });
+  });
+});
+
+describe('empresaVisivel: contexto cruzado é diferente de empresa sem certificado', () => {
+  it('a empresa do próprio contexto é visível, mesmo sem certificado', async () => {
+    await expect(comoSigner(c.tenantA, c.empresaA2, (cli) => empresaVisivel(cli, c.empresaA2))).resolves.toBe(true);
+  });
+
+  it('empresa de outro tenant ou fora do contexto é invisível', async () => {
+    await expect(comoSigner(c.tenantA, c.empresaA1, (cli) => empresaVisivel(cli, c.empresaB1))).resolves.toBe(false);
+    await expect(comoSigner(c.tenantA, c.empresaB1, (cli) => empresaVisivel(cli, c.empresaB1))).resolves.toBe(false);
+    await expect(comoSigner(c.tenantA, c.empresaA2, (cli) => empresaVisivel(cli, c.empresaA1))).resolves.toBe(false);
   });
 });
 

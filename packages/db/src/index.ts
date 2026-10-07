@@ -270,6 +270,7 @@ export {
   buscarCertificadoParaUso,
   buscarOperacaoPorChave,
   criarOperacao,
+  empresaVisivel,
   finalizarOperacao,
   reabrirOperacao,
   registrarEventoDoSigner,

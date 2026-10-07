@@ -78,7 +78,8 @@ export type ConsultaHistorico = z.infer<typeof ConsultaHistoricoSchema>;
 export type RespostaDeAssinatura = Readonly<{
   operacaoId: string;
   reutilizado: boolean;
-  xmlAssinado: string;
+  /** Nulo na repetição idempotente: o XML assinado nunca é persistido (SPEC-012 §3.6). */
+  xmlAssinado: string | null;
 }>;
 
 export type RespostaDeExecucaoMtls = Readonly<{
