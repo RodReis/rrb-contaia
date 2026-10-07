@@ -70,3 +70,44 @@ export type {
   MotivoDeFalhaDaConsulta,
   ResultadoDaConsulta,
 } from './cnpja.js';
+export {
+  ComandoAssinarSchema,
+  ComandoDiagnosticarSchema,
+  ComandoExecutarMtlsSchema,
+  ConsultaEstadosSchema,
+  ConsultaHistoricoSchema,
+  FINALIDADES,
+  ITENS_POR_PAGINA_DO_HISTORICO,
+  LIMITE_DE_EMPRESAS_POR_CONSULTA,
+  LIMITE_DO_XML_BYTES,
+  ORIGENS_DO_DIAGNOSTICO,
+  RESULTADOS_DO_HISTORICO,
+  VERSAO_DO_CONTRATO_DO_SIGNER,
+} from './signer.js';
+export type {
+  ComandoAssinar,
+  ComandoDiagnosticar,
+  ComandoExecutarMtls,
+  ConsultaEstados,
+  ConsultaHistorico,
+  EstadoDeSaudeDoSigner,
+  Finalidade,
+  OrigemDoDiagnostico,
+  RespostaDeAssinatura,
+  RespostaDeExecucaoMtls,
+  RespostaDeSaude,
+  ResultadoDoHistorico,
+} from './signer.js';
+export { ESTADOS_DA_FINALIDADE_NO_SIGNER } from './signer.js';
+export type {
+  EstadoDaEmpresaNoSigner,
+  EstadoDaFinalidadeNoSigner,
+  EstadoPorFinalidade,
+  HistoricoPublicoDoSigner,
+  ItemDoHistoricoDoSigner,
+  ItemDoHistoricoPublico,
+  PainelDoServicoSigner,
+  RespostaDeEstados,
+  RespostaDeHistorico,
+  ResultadoDoTesteManual,
+} from './signer.js';

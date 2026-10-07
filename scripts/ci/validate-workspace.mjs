@@ -13,6 +13,7 @@ const REQUIRED_PACKAGES = [
   'packages/shared',
   'packages/domain',
   'packages/db',
+  'packages/signer-client',
 ];
 
 const REQUIRED_FILES = [

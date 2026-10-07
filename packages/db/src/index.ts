@@ -265,3 +265,44 @@ export type {
   ResultadoDaReconciliacao,
   ResumoDoCofreBruto,
 } from './repositorios/certificados-cofre.js';
+
+export {
+  buscarCertificadoParaUso,
+  buscarOperacaoPorChave,
+  criarOperacao,
+  empresaVisivel,
+  finalizarOperacao,
+  reabrirOperacao,
+  registrarEventoDoSigner,
+} from './repositorios/signer.js';
+export type {
+  CertificadoParaUso,
+  DesfechoDaOperacao,
+  EstadoDaOperacaoPersistida,
+  EventoDoSigner,
+  FinalidadeDoSigner,
+  NovaOperacao,
+  OperacaoDoSigner,
+  TipoDeOperacao,
+} from './repositorios/signer.js';
+export {
+  abrirIncidente,
+  encerrarIncidente,
+  estadoDoMonitor,
+  notificarIncidente,
+  registrarVerificacao,
+} from './repositorios/signer-monitor.js';
+export type { EstadoDoMonitorNoBanco } from './repositorios/signer-monitor.js';
+export {
+  ITENS_POR_PAGINA,
+  estadoDoServicoParaPainel,
+  historicoDoSigner,
+  ultimosEventosDasFinalidades,
+} from './repositorios/signer-consultas.js';
+export type {
+  EstadoGlobalDoServico,
+  FiltroDaTrilhaDoSigner,
+  ItemDaTrilhaDoSigner,
+  PaginaDaTrilhaDoSigner,
+  UltimoEventoDaFinalidade,
+} from './repositorios/signer-consultas.js';

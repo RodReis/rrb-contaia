@@ -37,7 +37,9 @@ import Link from 'next/link';
 
 import {
   ehAvisoDeCarteira,
+  ehAvisoDoSigner,
   resumoDaCarteira,
+  resumoDoSigner,
   rotaDaNotificacao,
   tipoDaNotificacao,
   tituloDaNotificacao,
@@ -145,6 +147,17 @@ export const PaginaDeHistorico = () => {
                           className="underline underline-offset-2 hover:no-underline"
                         >
                           Ver minha carteira
+                        </Link>
+                      </p>
+                    ) : null}
+                    {ehAvisoDoSigner(notificacao) ? (
+                      <p className="break-words text-body-sm text-foreground">
+                        {resumoDoSigner(notificacao)}{' '}
+                        <Link
+                          href={rotaDaNotificacao(notificacao)}
+                          className="underline underline-offset-2 hover:no-underline"
+                        >
+                          Ver o estado do Signer
                         </Link>
                       </p>
                     ) : null}

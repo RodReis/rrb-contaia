@@ -354,6 +354,11 @@ Indicador consolidado de conformidade por empresa. Dot + rótulo + contagem por 
 `próprio ✅`
 Certificado A1/A3: titular, CNPJ, validade, dias restantes, status. Vencendo em ≤30 dias → `warning`; vencido → `danger`. Ação de renovação em `destructive` só quando já vencido.
 
+### 5.2.1 SignerStatus (cartão, coluna e painel)
+
+`próprio 🆕` (SPEC-012)
+Estado operacional do Signer em três peças do cofre: **cartão geral** (estado agregado em texto grande, última verificação em `America/Sao_Paulo`, latência da última resposta válida, detalhe do incidente), **coluna `Signer mTLS`** por empresa (selo de resumo = pior estado das duas finalidades; DF-e e eSocial cada uma com ícone de forma própria, último teste sem ano e latência; a palavra do estado só é visível onde difere do resumo e segue em `sr-only` quando igual) e **painel no detalhe** (estado por finalidade com o motivo acionável, `Testar mTLS`, resultado em `role="status"` com o `correlationId` e histórico de 15 por página com filtros). Regras: estado nunca só por cor; sem dado, diz isso (`Desatualizado`, `Estado indisponível agora`, `Nunca testado`), nunca "operacional" inventado; falha de comunicação mantém o último estado conhecido; nada do conteúdo da operação é exibido, expandido ou baixado; sem alegar HSM, KMS, uptime ou produção.
+
 ### 5.3 CertificateUpload
 
 `próprio 🆕`

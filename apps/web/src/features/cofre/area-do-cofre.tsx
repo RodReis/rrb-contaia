@@ -25,9 +25,17 @@ import { DetalheDaEmpresa } from './detalhe-da-empresa';
 import { SemPermissaoNoCofre } from './erro-do-cofre';
 import { focarCampo, rolarAte } from './foco';
 import { FormularioDeEnvio } from './formulario-de-envio';
-import { CADASTRO_NO_COFRE, CONSULTA_DO_COFRE, SUBSTITUICAO_NO_COFRE, concede } from './permissoes';
+import {
+  CADASTRO_NO_COFRE,
+  CONSULTA_DO_COFRE,
+  CONSULTA_DO_SIGNER,
+  SUBSTITUICAO_NO_COFRE,
+  TESTE_DO_SIGNER,
+  concede,
+} from './permissoes';
 import { ListaDoCofre } from './lista-do-cofre';
 import { useCofre } from './queries';
+import { CartaoDoSigner } from './signer/cartao-do-signer';
 import { useFiltroDoCofre } from './use-filtro-do-cofre';
 
 
@@ -108,6 +116,9 @@ export const AreaDoCofre = () => {
     sessao !== undefined &&
     (concede(sessao, CADASTRO_NO_COFRE) || concede(sessao, SUBSTITUICAO_NO_COFRE));
 
+  const podeVerSigner = sessao !== undefined && concede(sessao, CONSULTA_DO_SIGNER);
+  const podeTestarSigner = sessao !== undefined && concede(sessao, TESTE_DO_SIGNER);
+
   const negadoPelaApi =
     consulta.error instanceof ErroDaApi && consulta.error.problema.code === 'SEM_AUTORIZACAO';
   const semCarteira =
@@ -135,7 +146,7 @@ export const AreaDoCofre = () => {
 
     return (
       <>
-        <section aria-labelledby="titulo-resumo" className="flex flex-col gap-sm">
+        <section aria-labelledby="titulo-resumo" className="flex flex-col gap-md">
           <h2 id="titulo-resumo" className="sr-only">
             Resumo do cofre
           </h2>
@@ -146,6 +157,7 @@ export const AreaDoCofre = () => {
           ) : (
             <CartoesDoResumo resumo={consulta.data.resumo} aoFiltrar={controle.aplicar} />
           )}
+          {podeVerSigner ? <CartaoDoSigner /> : null}
         </section>
 
         {podeEnviar ? (
@@ -162,13 +174,19 @@ export const AreaDoCofre = () => {
           <h2 id="titulo-lista" className="text-headline-sm text-foreground">
             Empresas e certificados
           </h2>
-          <ListaDoCofre controle={controle} consulta={consulta} aoEnviar={iniciarEnvio} />
+          <ListaDoCofre
+            controle={controle}
+            consulta={consulta}
+            aoEnviar={iniciarEnvio}
+            comSigner={podeVerSigner}
+          />
         </section>
 
         <DetalheDaEmpresa
           empresaId={controle.empresaAberta}
           aoFechar={() => controle.abrirEmpresa(null)}
           aoEnviar={iniciarEnvio}
+          signer={{ podeConsultar: podeVerSigner, podeTestar: podeTestarSigner }}
         />
       </>
     );

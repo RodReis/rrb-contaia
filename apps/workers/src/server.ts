@@ -18,9 +18,12 @@ export const escutar = (server: Server, port: number): Promise<Server> =>
     server.listen(port, '0.0.0.0', () => resolve(server));
   });
 
-export const encerrarComGraca = (server: Server): void => {
+/** Fecha o servidor e, antes de sair, o que o processo ainda mantém aberto (filas, pool). */
+export const encerrarComGraca = (server: Server, aoEncerrar: () => Promise<void> = async () => {}): void => {
   const fechar = (): void => {
-    server.close(() => process.exit(0));
+    server.close(() => {
+      void aoEncerrar().finally(() => process.exit(0));
+    });
   };
 
   process.on('SIGTERM', fechar);

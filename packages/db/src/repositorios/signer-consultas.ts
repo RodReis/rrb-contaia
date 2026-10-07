@@ -1,0 +1,188 @@
+/**
+ * Consultas de leitura do Signer (SPEC-012 §3.11, §5.2–§5.3): estado corrente por finalidade, histórico
+ * paginado e o estado global do serviço. Rodam sob contexto da empresa — técnico (Signer) ou humano
+ * (carteira) — e a RLS decide o que aparece. A trilha não tem XML nem resposta do destino, então nada
+ * disso sai daqui.
+ */
+import type { PoolClient } from 'pg';
+
+import type { FinalidadeDoSigner } from './signer.js';
+
+export type UltimoEventoDaFinalidade = Readonly<{
+  finalidade: FinalidadeDoSigner;
+  resultado: 'SUCESSO' | 'FALHA';
+  iniciadoEm: Date;
+  latenciaMs: number;
+  codigo: string | null;
+}>;
+
+/**
+ * Último SUCESSO/FALHA de cada finalidade (RECUSA é erro do chamador e não altera a saúde). O estado
+ * corrente não tem tabela própria: deriva daqui, e DF-e e eSocial nunca se misturam.
+ */
+export const ultimosEventosDasFinalidades = async (
+  cliente: PoolClient,
+  empresaId: string,
+): Promise<UltimoEventoDaFinalidade[]> => {
+  const { rows } = await cliente.query<{
+    finalidade: FinalidadeDoSigner;
+    resultado: 'SUCESSO' | 'FALHA';
+    iniciado_em: Date;
+    latencia_ms: number;
+    codigo: string | null;
+  }>(
+    // Só conta TESTE do mTLS da versão vigente do certificado: reutilização idempotente não testou
+    // nada, assinatura pura não abre o canal e o evento de uma versão anterior (rotação) não diz
+    // nada sobre o certificado de agora.
+    `select distinct on (e.finalidade) e.finalidade, e.resultado, e.iniciado_em, e.latencia_ms, e.codigo
+       from app.signer_evento e
+       join app.signer_operacao o on o.id = e.operacao_id
+      where e.empresa_id = $1
+        and e.resultado in ('SUCESSO', 'FALHA')
+        and not e.reutilizado
+        and o.tipo in ('MTLS', 'DIAGNOSTICO')
+        and e.referencia_segredo = (
+          select c.referencia_segredo from app.empresa_certificado c
+           where c.empresa_id = $1 and c.estado = 'VIGENTE')
+      order by e.finalidade, e.iniciado_em desc, e.sequencia desc`,
+    [empresaId],
+  );
+
+  return rows.map((linha) => ({
+    finalidade: linha.finalidade,
+    resultado: linha.resultado,
+    iniciadoEm: linha.iniciado_em,
+    latenciaMs: linha.latencia_ms,
+    codigo: linha.codigo,
+  }));
+};
+
+export const ITENS_POR_PAGINA = 15;
+
+export type FiltroDaTrilhaDoSigner = Readonly<{
+  empresaId: string;
+  /** Base 1. */
+  pagina: number;
+  finalidade?: FinalidadeDoSigner;
+  resultado?: 'SUCESSO' | 'FALHA' | 'RECUSA';
+}>;
+
+export type ItemDaTrilhaDoSigner = Readonly<{
+  id: string;
+  finalidade: FinalidadeDoSigner;
+  resultado: 'SUCESSO' | 'FALHA' | 'RECUSA';
+  codigo: string | null;
+  iniciadoEm: Date;
+  latenciaMs: number;
+  reutilizado: boolean;
+  origemDiagnostico: 'AUTOMATICO' | 'MANUAL' | null;
+  identidadeTecnica: string;
+  correlationId: string;
+  referenciaSegredo: string | null;
+}>;
+
+export type PaginaDaTrilhaDoSigner = Readonly<{
+  pagina: number;
+  total: number;
+  itens: readonly ItemDaTrilhaDoSigner[];
+}>;
+
+type LinhaDoHistorico = {
+  id: string;
+  finalidade: FinalidadeDoSigner;
+  resultado: 'SUCESSO' | 'FALHA' | 'RECUSA';
+  codigo: string | null;
+  iniciado_em: Date;
+  latencia_ms: number;
+  reutilizado: boolean;
+  origem_diagnostico: 'AUTOMATICO' | 'MANUAL' | null;
+  identidade_tecnica: string;
+  correlation_id: string;
+  referencia_segredo: string | null;
+};
+
+/** 15 por página, do mais recente ao mais antigo. */
+export const historicoDoSigner = async (
+  cliente: PoolClient,
+  filtro: FiltroDaTrilhaDoSigner,
+): Promise<PaginaDaTrilhaDoSigner> => {
+  const condicoes = ['empresa_id = $1'];
+  const parametros: unknown[] = [filtro.empresaId];
+
+  if (filtro.finalidade !== undefined) {
+    parametros.push(filtro.finalidade);
+    condicoes.push(`finalidade = $${parametros.length}`);
+  }
+  if (filtro.resultado !== undefined) {
+    parametros.push(filtro.resultado);
+    condicoes.push(`resultado = $${parametros.length}`);
+  }
+
+  const onde = condicoes.join(' and ');
+  const deslocamento = (filtro.pagina - 1) * ITENS_POR_PAGINA;
+
+  const { rows: contagem } = await cliente.query<{ total: string }>(
+    `select count(*)::text as total from app.signer_evento where ${onde}`,
+    parametros,
+  );
+  const { rows } = await cliente.query<LinhaDoHistorico>(
+    `select id, finalidade, resultado, codigo, iniciado_em, latencia_ms, reutilizado, origem_diagnostico,
+            identidade_tecnica, correlation_id, referencia_segredo
+       from app.signer_evento
+      where ${onde}
+      order by iniciado_em desc, sequencia desc
+      limit ${ITENS_POR_PAGINA} offset ${deslocamento}`,
+    parametros,
+  );
+
+  return {
+    pagina: filtro.pagina,
+    total: Number(contagem[0]?.total ?? 0),
+    itens: rows.map((linha) => ({
+      id: linha.id,
+      finalidade: linha.finalidade,
+      resultado: linha.resultado,
+      codigo: linha.codigo,
+      iniciadoEm: linha.iniciado_em,
+      latenciaMs: linha.latencia_ms,
+      reutilizado: linha.reutilizado,
+      origemDiagnostico: linha.origem_diagnostico,
+      identidadeTecnica: linha.identidade_tecnica,
+      correlationId: linha.correlation_id,
+      referenciaSegredo: linha.referencia_segredo,
+    })),
+  };
+};
+
+export type EstadoGlobalDoServico = Readonly<{
+  ultimaVerificacaoEm: Date | null;
+  ultimoResultado: 'OK' | 'FALHA' | null;
+  /** Latência da última resposta VÁLIDA, não da última tentativa. */
+  ultimaLatenciaMs: number | null;
+  incidenteAberto: boolean;
+  /** A última verificação válida dizia `DEGRADADO`. */
+  ultimoDegradado: boolean;
+}>;
+
+/**
+ * Estado global do serviço, sem dado de tenant, para o cartão do painel. Qualquer contexto válido lê;
+ * sem contexto, o banco recusa (42501).
+ */
+export const estadoDoServicoParaPainel = async (cliente: PoolClient): Promise<EstadoGlobalDoServico> => {
+  const { rows } = await cliente.query<{
+    ultima_verificacao_em: Date | null;
+    ultimo_resultado: 'OK' | 'FALHA' | null;
+    ultima_latencia_ms: number | null;
+    incidente_aberto: boolean;
+    ultimo_degradado: boolean;
+  }>('select * from app.signer_estado_do_servico()');
+  const linha = rows[0];
+
+  return {
+    ultimaVerificacaoEm: linha?.ultima_verificacao_em ?? null,
+    ultimoResultado: linha?.ultimo_resultado ?? null,
+    ultimaLatenciaMs: linha?.ultima_latencia_ms ?? null,
+    incidenteAberto: linha?.incidente_aberto ?? false,
+    ultimoDegradado: linha?.ultimo_degradado ?? false,
+  };
+};

@@ -87,6 +87,7 @@ const limpar = async (): Promise<void> => {
     );
   }
 
+  await poolAdmin.query('delete from app.signer_notificacao where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.usuario where tenant_id = any($1)', [ids]);
@@ -385,5 +386,92 @@ describe('histórico (secao 3)', () => {
 
     expect(pagina.notificacoes.some((n) => n.id === notificacao!.id && n.lida)).toBe(true);
     expect(pagina.total).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('alertas de incidente do Signer no sino (SPEC-012 §3.10)', () => {
+  const incidente = '0198f3c2-0000-7000-0000-0000000000a1';
+  let colegaDeA = '';
+
+  const semear = async (
+    tenantId: string,
+    usuarioId: string,
+    tipo: 'INDISPONIBILIDADE' | 'RECUPERACAO',
+    duracaoMs: number | null,
+  ): Promise<void> => {
+    await poolAdmin.query(
+      `insert into app.signer_notificacao (tenant_id, usuario_id, incidente_id, tipo, duracao_ms)
+       values ($1, $2, $3, $4, $5)`,
+      [tenantId, usuarioId, incidente, tipo, duracaoMs],
+    );
+  };
+
+  beforeAll(async () => {
+    colegaDeA = (
+      await poolAdmin.query<{ id: string }>(
+        `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+         values ($1, $2, 'colega-a@local', 'Colega A', 'ATIVO') returning id`,
+        [tenantA, `sub-colega-a-${SUFIXO}`],
+      )
+    ).rows[0]!.id;
+    await semear(tenantA, usuarioA, 'INDISPONIBILIDADE', null);
+    await semear(tenantA, usuarioA, 'RECUPERACAO', 330_000);
+  });
+
+  it('o administrador destinatário vê os dois avisos, sem empresa, com tipo e duração', async () => {
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const indisponivel = painel.find((n) => n.tipo === 'SIGNER_INDISPONIVEL');
+    const recuperado = painel.find((n) => n.tipo === 'SIGNER_RECUPERADO');
+
+    expect(indisponivel).toMatchObject({ empresaId: null, empresaNome: null, lida: false, duracaoMs: null });
+    expect(indisponivel?.chave).toBe(`signer:${incidente}:INDISPONIBILIDADE`);
+    expect(recuperado).toMatchObject({ empresaId: null, lida: false, duracaoMs: 330_000 });
+  });
+
+  it('é do destinatário: outro usuário do mesmo tenant e outro tenant não veem', async () => {
+    const doColega = await comoUsuario(poolApp, tenantA, colegaDeA, (cliente) => listarPainel(cliente, tenantA, colegaDeA), 'COMUM');
+    const deOutroTenant = await comTenant(tenantB, (cliente) => listarPainel(cliente, tenantB, usuarioB));
+
+    expect(doColega.some((n) => n.tipo.startsWith('SIGNER_'))).toBe(false);
+    expect(deOutroTenant.some((n) => n.tipo.startsWith('SIGNER_'))).toBe(false);
+  });
+
+  it('entra na contagem de não lidas e sai dela ao marcar como lida (idempotente)', async () => {
+    const antes = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA, usuarioA));
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const alvo = painel.find((n) => n.tipo === 'SIGNER_INDISPONIVEL')!;
+
+    const primeira = await comTenant(tenantA, (cliente) => marcarComoLida(cliente, tenantA, alvo.id, usuarioA));
+    const repetida = await comTenant(tenantA, (cliente) => marcarComoLida(cliente, tenantA, alvo.id, usuarioA));
+    const depois = await comTenant(tenantA, (cliente) => contarNaoLidas(cliente, tenantA, usuarioA));
+
+    expect(primeira).toMatchObject({ lida: true });
+    expect(repetida).toMatchObject({ lida: true });
+    expect(depois).toBe(antes - 1);
+  });
+
+  it('em lote conta só as recém-marcadas, e quem não é o dono não marca a do outro', async () => {
+    const painel = await comTenant(tenantA, (cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const alvo = painel.find((n) => n.tipo === 'SIGNER_RECUPERADO')!;
+
+    const doColega = await comoUsuario(
+      poolApp,
+      tenantA,
+      colegaDeA,
+      (cliente) => marcarVariasComoLidas(cliente, tenantA, [alvo.id], colegaDeA),
+      'COMUM',
+    );
+    const doDono = await comTenant(tenantA, (cliente) => marcarVariasComoLidas(cliente, tenantA, [alvo.id], usuarioA));
+    const denovo = await comTenant(tenantA, (cliente) => marcarVariasComoLidas(cliente, tenantA, [alvo.id], usuarioA));
+
+    expect(doColega).toBe(0);
+    expect(doDono).toBe(1);
+    expect(denovo).toBe(0);
+  });
+
+  it('o histórico completo preserva os avisos já lidos', async () => {
+    const pagina = await comTenant(tenantA, (cliente) => listarHistorico(cliente, tenantA, usuarioA, 25, 0));
+
+    expect(pagina.notificacoes.filter((n) => n.tipo.startsWith('SIGNER_'))).toHaveLength(2);
   });
 });

@@ -21,11 +21,15 @@
     "db:seed": "turbo run db:seed --filter @contaia/db",
     "check:workspace": "node scripts/ci/validate-workspace.mjs",
     "check:gate": "node --test scripts/ci/validate-gate.test.mjs",
-    "docker:up": "docker compose --env-file .env -f infra/docker/compose.yml up -d",
+    "docker:up": "node --env-file-if-exists=.env scripts/preparar-segredos-do-signer.mjs && docker compose --env-file .env -f infra/docker/compose.yml up -d --build",
     "docker:down": "docker compose --env-file .env -f infra/docker/compose.yml down",
     "docker:ps": "docker compose --env-file .env -f infra/docker/compose.yml ps",
     "vault:bootstrap": "node --env-file-if-exists=.env infra/docker/vault/bootstrap.mjs",
-    "cofre:pki-teste": "node scripts/gerar-pki-de-teste.mjs"
+    "cofre:pki-teste": "node scripts/gerar-pki-de-teste.mjs",
+    "signer:pki-mtls": "node scripts/gerar-pki-mtls-de-teste.mjs",
+    "check:dubles": "node --test \"infra/docker/dubles/*.test.mjs\" scripts/gerar-pki-mtls-de-teste.test.mjs scripts/preparar-segredos-do-signer.test.mjs",
+    "signer:segredos": "node --env-file-if-exists=.env scripts/preparar-segredos-do-signer.mjs",
+    "check:signer-infra": "node --env-file-if-exists=.env --test infra/docker/signer-alcance.test.mjs infra/docker/vault/signer-politica.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

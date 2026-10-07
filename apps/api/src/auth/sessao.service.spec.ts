@@ -98,6 +98,26 @@ describe('SessaoService.resolver', () => {
     expect(resolverIdentidadeMock).not.toHaveBeenCalled();
   });
 
+  it('API em contêiner: o JWKS vem do endereço interno, mas o emissor validado segue o público', async () => {
+    process.env['KEYCLOAK_ISSUER_URL'] = 'http://127.0.0.1:18080/realms/contaia';
+    process.env['KEYCLOAK_INTERNAL_URL'] = 'http://keycloak:8080/realms/contaia';
+    resolverIdentidadeMock.mockResolvedValue(null);
+
+    try {
+      await servico().resolver('token').catch(() => undefined);
+    } finally {
+      delete process.env['KEYCLOAK_INTERNAL_URL'];
+      delete process.env['KEYCLOAK_ISSUER_URL'];
+    }
+
+    const { createRemoteJWKSet } = await import('jose');
+
+    expect(vi.mocked(createRemoteJWKSet).mock.calls.at(-1)?.[0].toString()).toBe(
+      'http://keycloak:8080/realms/contaia/protocol/openid-connect/certs',
+    );
+    expect(jwtVerifyMock.mock.calls.at(-1)?.[2]).toEqual({ issuer: 'http://127.0.0.1:18080/realms/contaia' });
+  });
+
   it('token sem sub é recusado', async () => {
     jwtVerifyMock.mockResolvedValue({ payload: { email: 'ana@x.com' } });
 

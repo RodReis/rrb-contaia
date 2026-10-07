@@ -46,7 +46,8 @@
     "test:banco": {
       "cache": false,
       "env": [
-        "DATABASE_URL"
+        "DATABASE_URL",
+        "REDIS_URL"
       ],
       "outputs": [
         "coverage/**",

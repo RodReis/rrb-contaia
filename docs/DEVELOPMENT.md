@@ -29,12 +29,17 @@ pnpm dev
 ```
 
 Portas reservadas para este projeto, verificadas como livres antes da primeira
-subida: Web `15100`, API `15101`, workers `15102`, Signer `15103`,
+subida: Web `15100`, API `15101`, workers `15102` (saúde, só dentro da rede),
 PostgreSQL `15432`, Redis `16379`, Keycloak `18080`, storage `19000` e console
 `19001`. Todas publicadas apenas em `127.0.0.1`. A F7 acrescenta o Mailpit, que
 captura o e-mail do convite: SMTP `11025` e interface `18025` (`MAILPIT_SMTP_PORT`
 e `MAILPIT_UI_PORT`). Quem já tem outra instância local sobe o Mailpit com portas
 novas pelo `.env`, sem reutilizar as de outro projeto.
+
+O **Signer não publica porta**: vive na rede privada do Compose (`contaia_privada`,
+`internal`) e só as identidades de serviço o alcançam. `pnpm docker:up` agora também
+prepara os segredos de teste e sobe a API, os workers, o Signer e os dublês mTLS (exige
+`pnpm cofre:pki-teste` antes e o banco já migrado; ver o Card #14).
 
 Para parar e limpar **somente** os volumes deste projeto:
 
@@ -248,6 +253,24 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
   - `POST /interno/cofre/ativacao` e `/recusa` são autenticadas por `COFRE_SERVICE_TOKEN` (Bearer, comparação em tempo constante) e reavaliam responsável, permissão e carteira **como o usuário do ticket**;
   - sem Docker na máquina do PI durante a implementação, a pilha foi validada em Postgres, Vault e Keycloak nativos; o contrato com contêineres roda na CI desta PR
 - [ ] Fora da fatia: Signer, assinatura, mTLS, procuração RFB/e-CAC, KMS/HSM e operação produtiva (SPEC-012 em diante)
+
+### Card #14 — `[MVP1][SPEC-012][F12]` Signer isolado e assinatura/mTLS simulada
+
+- [x] **Topologia (decisão do PI, 07/10/2026)**: API e workers passam para o Compose; o Signer e os dublês mTLS de DF-e e eSocial vivem só na rede `privada` (`internal`), sem `ports`; PostgreSQL e Vault também entram nela. Uma imagem parametrizada (`infra/docker/servico.Dockerfile`) serve api, workers e signer. Web e cofre seguem como processos do host (a API os alcança por `host.docker.internal`; em Linux/CI o cofre e o dublê da CNPJá escutam em `0.0.0.0`, no runner efêmero)
+- [x] **Signer** (`apps/signer`, único consumidor do segredo): servidor mTLS TLS 1.3, identidade pelo SAN `urn:contaia:servico:{api|worker|signer}` com alçada por identidade; caso de uso em três fases (decisão em transação → segredo fora da transação → estado final); XMLDSig RSA-SHA256 com `xml-crypto` (justificativa e análise de manutenção na PR); assinatura **validada antes** da saída; **uma** chamada mTLS por tentativa (retry é do worker); idempotência por HMAC com pepper de arquivo; PKCS#12 só em memória e zerado
+- [x] **Banco** (`0014_signer.sql`): `signer_operacao`, `signer_evento` (append-only), `signer_notificacao`, e as tabelas globais do monitor acessíveis só por funções `SECURITY DEFINER` sob contexto técnico de serviço; classificação anti-drift, matriz e fixtures de RLS estendidas
+- [x] **Workers** (`apps/workers`, BullMQ sobre o Redis): diagnóstico pós-F11 (DF-e e eSocial separados, 5 tentativas com backoff, fila morta só com código estável) e monitor de saúde de 1 minuto; três falhas abrem **um** incidente, que notifica os `admin_escritorio` ativos dos tenants com A1 vigente; a recuperação notifica os mesmos e registra a duração; **nada** vai para a Central de Pendências
+- [x] **API**: `/signer/painel`, `/signer/estados` (em lote, autorizado pela carteira), `/empresas/:id/signer`, `/historico` (15 por página, sem a referência do segredo) e `POST /testes`; chaves `certificados.signer.consultar|testar` no catálogo (admin e contador ambas; auxiliar e auditor só consultam)
+- [x] **UI** (cofre, claro e escuro, 768/1024/1440): cartão `Microserviço Signer`, coluna `Signer mTLS`, painel no detalhe com `Testar mTLS` (sem disparo duplicado), resultado com `correlationId`, histórico com filtros, alertas no sino. `frontend-design` na construção e passe `impeccable` ao final (detector mecânico sem achados; corrigidos no olho um typo de classe que deixava a data enorme, a coluna estreita demais, a palavra de estado redundante e o botão `Painel` quebrando linha)
+- [x] **Ambiente**: `pnpm docker:up` agora prepara os segredos de teste (`scripts/preparar-segredos-do-signer.mjs`: PKI mTLS, pepper, raízes ICP de teste dos dublês e o ponto de montagem do token) e sobe tudo; exige `pnpm cofre:pki-teste` antes. Ordem na primeira vez: `docker compose … up -d postgres` → `pnpm db:migrate` → `pnpm db:seed` → `pnpm docker:up` (a API não sobe sem o papel `contaia_app`, criado pela migration). `MONITOR_INTERVALO_MS` (padrão 60000) só é encurtado na prova E2E
+- [x] **CI**: `PROVA_ESCOPO=SPEC-012`; o job `e2e` sobe a composição inteira (PostgreSQL → migrate → resto), roda as provas de infraestrutura (alcance e política do Vault) e o E2E, com `API_EM_COMPOSE=1`
+- [x] **Provas**: 445 no domínio, 47 em `shared`, 24 em `signer-client`, 109 no Signer (+41 de banco), 19 nos workers (+18 de banco), 834 na API (+18 de banco), 340 de banco em `@contaia/db`, 706 de tela (inclui axe), 28 de scripts/dublês, 5 de alcance do Signer e 5 de política do Vault, e **15 E2E da spec-012** contra a composição real; a suíte E2E inteira fecha com 91 passed no ambiente local limpo
+- [x] **Defeitos que só a pilha real mostrou** (todos com teste que falhava antes): `CertificadosService` sem `@Inject(SignerService)` (a API não subia no contêiner; `app.module.spec.ts`); impressão digital gravada pela F11 em **maiúsculas** contra a minúscula do Signer (toda operação virava `SIGNER_VAULT_INDISPONIVEL`; a fixture do teste de banco agora segue o formato real); `KEYCLOAK_INTERNAL_URL` para o JWKS e a Admin API da API em contêiner
+- [x] **Revisão final do branch** (revisor de código e de segurança, contexto fresco), corrigido com teste que falhava antes: retomada **concorrente** depois de falha transitória executava duas vezes (agora só uma recebe a operação; a outra vê "em andamento") e a finalização só vale se a operação ainda está em andamento; operação **presa** em andamento (processo morto no meio) ganhou prazo de 2 minutos (`em_andamento_desde`) e é retomada; retomada **depois de rotação** do certificado vira conflito (a operação registra a versão exata); o estado por finalidade só conta **teste de mTLS da versão vigente** (reutilização idempotente, assinatura pura e certificado antigo não pintam a coluna); a resposta `DEGRADADO` do próprio Signer (ex.: Vault selado) deixa de aparecer como "Operacional" no cartão; o agente HTTP compartilhado deixou de reter o PKCS#12 depois da operação; a fila só aceita diagnóstico automático; `DATABASE_URL` de superusuário saiu dos contêineres; `check:dubles` entrou na CI e as provas de infraestrutura **falham** (não pulam) na CI; a região viva do resultado do teste fica sempre montada
+- [ ] **Achados registrados e não corrigidos nesta PR** (para o PI/Cowork): papel de banco próprio para o Signer e para o monitor (hoje `contaia_app` com contexto técnico por GUC; o Plano previa `contaia_signer`); TLS no Vault e separação das redes internas (o `tls_disable` vem da F11 e é local-only, ADR-012); Redis sem senha; chave idempotente do teste manual derivada do `X-Correlation-Id` do cliente (o estado já não é alterado por reutilização); recusa definitiva do dublê sai como 502 e o worker a repete; checagem de `rolsuper`/`rolbypassrls` na subida do Signer e dos workers; log de segurança de handshake recusado e de alçada negada; fixar `node-forge` por versão exata e os digests das imagens
+- [x] **Armadilhas pagas**: o Docker cria uma **pasta** onde falta o arquivo de um bind mount (o token do Signer; o script de preparo cria o arquivo vazio); contêiner com `uid` diferente do dono dos segredos 0600 não os lê (`CONTAINER_UID`); verificação de um contêiner parado leva até o timeout do cliente (15 s), então a prova do incidente espera mais que 3 intervalos; `test:banco` do `@contaia/db` falha se os workers locais estiverem de pé (escrevem nas tabelas globais do monitor) — pare-os antes
+- [ ] **Decisões para o PI confirmar**: uma imagem Docker parametrizada em vez de três `Dockerfile`; contêineres rodam com o `uid` do dono dos segredos; o estado das empresas, com o Signer parado e a página recém-aberta, mostra "Estado indisponível agora" (o último estado conhecido só sobrevive na tela já aberta; não há cache no servidor); proposta de ADR para o Cowork (Signer isolado, rede privada, identidade por certificado de serviço)
+- [ ] Fora da fatia: certificado real, KMS/HSM, órgão oficial, procuração RFB/e-CAC e operação produtiva
 
 ### Card #7 — `[MVP1][SPEC-006][F6]` Notificações de pendências (PR #51)
 

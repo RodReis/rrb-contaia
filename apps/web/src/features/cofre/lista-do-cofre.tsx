@@ -7,7 +7,7 @@
  */
 'use client';
 
-import type { ItemDoCofre } from '@contaia/shared';
+import type { EstadoDaEmpresaNoSigner, ItemDoCofre } from '@contaia/shared';
 import { Building2, Search, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ import {
   tingimentoDoItem,
 } from './pecas-do-item';
 import type { useCofre } from './queries';
+import { EstadoNaLinha, type SituacaoDaLeitura } from './signer/estado-na-linha';
+import { useEstadosDoSigner } from './signer/queries';
 import { POR_PAGINA, type useFiltroDoCofre } from './use-filtro-do-cofre';
 
 type Controle = ReturnType<typeof useFiltroDoCofre>;
@@ -38,6 +40,22 @@ const COLUNAS = [
   { titulo: 'Situação e validade', largura: 'w-[22%]' },
   { titulo: 'Responsável', largura: 'w-[17%]' },
 ] as const;
+
+/** Com o Signer (SPEC-012 §5.2) entra a coluna `Signer mTLS`; as larguras se redistribuem. */
+const COLUNAS_COM_SIGNER = [
+  { titulo: 'Empresa', largura: 'w-[16%]' },
+  { titulo: 'Certificado', largura: 'w-[14%]' },
+  { titulo: 'Situação e validade', largura: 'w-[18%]' },
+  { titulo: 'Responsável', largura: 'w-[13%]' },
+  { titulo: 'Signer mTLS', largura: 'w-[22%]' },
+] as const;
+
+/** O estado do Signer de cada empresa da página, ou o porquê de não haver. */
+type LeituraDoSigner = Readonly<{
+  estadoDe: (empresaId: string) => EstadoDaEmpresaNoSigner | undefined;
+  situacaoDe: (empresaId: string) => SituacaoDaLeitura;
+  abrirPainel: (empresaId: string) => void;
+}>;
 
 const OPCOES_DO_FILTRO = [
   { valor: TODOS, rotulo: 'Todos os estados' },
@@ -54,14 +72,26 @@ const Esqueleto = () => (
   </div>
 );
 
+const SignerDoItem = ({ item, signer }: { item: ItemDoCofre; signer: LeituraDoSigner }) => (
+  <EstadoNaLinha
+    empresaId={item.empresaId}
+    empresaNome={item.empresaNome}
+    estado={signer.estadoDe(item.empresaId)}
+    situacao={signer.situacaoDe(item.empresaId)}
+    aoAbrir={signer.abrirPainel}
+  />
+);
+
 const Cartao = ({
   item,
   aoAbrir,
   aoEnviar,
+  signer,
 }: {
   item: ItemDoCofre;
   aoAbrir: (empresaId: string) => void;
   aoEnviar: (item: ItemDoCofre) => void;
+  signer: LeituraDoSigner | null;
 }) => (
   <li
     className={juntar(
@@ -86,6 +116,14 @@ const Cartao = ({
           <ResponsavelDoItem item={item} />
         </dd>
       </div>
+      {signer === null ? null : (
+        <div className="flex flex-col gap-xs tablet:col-span-2">
+          <dt className="text-label-sm uppercase text-muted-foreground">Signer mTLS</dt>
+          <dd>
+            <SignerDoItem item={item} signer={signer} />
+          </dd>
+        </div>
+      )}
     </dl>
     <AcoesDoItem item={item} variante="linha" aoEnviar={aoEnviar} />
   </li>
@@ -95,20 +133,22 @@ const Tabela = ({
   itens,
   aoAbrir,
   aoEnviar,
+  signer,
 }: {
   itens: readonly ItemDoCofre[];
   aoAbrir: (empresaId: string) => void;
   aoEnviar: (item: ItemDoCofre) => void;
+  signer: LeituraDoSigner | null;
 }) => (
   <div className="hidden overflow-hidden rounded-lg border border-border bg-card desktop:block">
     <table className="w-full table-fixed border-collapse text-left">
       <caption className="sr-only">
-        Empresas do escritório, com o certificado A1, a situação e a validade e o responsável de
-        cada uma
+        Empresas do escritório, com o certificado A1, a situação e a validade, o responsável e,
+        quando permitido, o estado do Signer mTLS de cada uma
       </caption>
       <thead>
         <tr className="border-b border-border bg-muted/40">
-          {COLUNAS.map(({ titulo, largura }) => (
+          {(signer === null ? COLUNAS : COLUNAS_COM_SIGNER).map(({ titulo, largura }) => (
             <th
               key={titulo}
               scope="col"
@@ -146,6 +186,11 @@ const Tabela = ({
             <td className="px-md py-sm">
               <ResponsavelDoItem item={item} />
             </td>
+            {signer === null ? null : (
+              <td className="px-md py-sm">
+                <SignerDoItem item={item} signer={signer} />
+              </td>
+            )}
             <td className="px-md py-sm">
               <AcoesDoItem item={item} variante="linha" aoEnviar={aoEnviar} />
             </td>
@@ -156,17 +201,55 @@ const Tabela = ({
   </div>
 );
 
+/**
+ * Uma leitura em lote por página (SPEC-012 §5.2): o estado de cada empresa vem da API pela
+ * carteira. Enquanto a página nova carrega, empresa que o lote anterior não trazia fica
+ * "carregando", nunca "sem dado".
+ */
+const useLeituraDoSigner = (
+  itens: readonly ItemDoCofre[],
+  habilitado: boolean,
+  abrirPainel: (empresaId: string) => void,
+): LeituraDoSigner | null => {
+  const estados = useEstadosDoSigner(
+    itens.map((item) => item.empresaId),
+    habilitado,
+  );
+
+  if (!habilitado) {
+    return null;
+  }
+
+  const porEmpresa = new Map((estados.data?.empresas ?? []).map((estado) => [estado.empresaId, estado]));
+
+  return {
+    estadoDe: (empresaId) => porEmpresa.get(empresaId),
+    situacaoDe: (empresaId) => {
+      if (estados.isPending || (estados.isPlaceholderData && !porEmpresa.has(empresaId))) {
+        return 'carregando';
+      }
+
+      return estados.isError ? 'falha' : 'pronto';
+    },
+    abrirPainel,
+  };
+};
+
 export const ListaDoCofre = ({
   controle,
   consulta,
   aoEnviar,
+  comSigner = false,
 }: {
   controle: Controle;
   consulta: Consulta;
   aoEnviar: (item: ItemDoCofre) => void;
+  /** Mostra a coluna `Signer mTLS` (permissão `certificados.signer.consultar`). */
+  comSigner?: boolean;
 }) => {
   const { filtro, buscaDigitada, definirBusca, definir, irParaPagina, limpar, temFiltro, temAjuste } =
     controle;
+  const signer = useLeituraDoSigner(consulta.data?.itens ?? [], comSigner, controle.abrirEmpresa);
 
   const barraDeFiltro = (
     <div className="flex flex-col gap-md tablet:flex-row tablet:flex-wrap tablet:items-end">
@@ -270,11 +353,22 @@ export const ListaDoCofre = ({
             aria-label="Certificados por empresa"
           >
             {data.itens.map((item) => (
-              <Cartao key={item.empresaId} item={item} aoAbrir={controle.abrirEmpresa} aoEnviar={aoEnviar} />
+              <Cartao
+                key={item.empresaId}
+                item={item}
+                aoAbrir={controle.abrirEmpresa}
+                aoEnviar={aoEnviar}
+                signer={signer}
+              />
             ))}
           </ul>
 
-          <Tabela itens={data.itens} aoAbrir={controle.abrirEmpresa} aoEnviar={aoEnviar} />
+          <Tabela
+            itens={data.itens}
+            aoAbrir={controle.abrirEmpresa}
+            aoEnviar={aoEnviar}
+            signer={signer}
+          />
 
           {totalDePaginas > 1 ? (
             <nav

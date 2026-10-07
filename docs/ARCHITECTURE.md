@@ -170,6 +170,14 @@ SET LOCAL app.empresa_id = '<uuid>';
 
 **Nenhum outro serviço lê o certificado.** Nem a API, nem os workers, nem o front, nem o pipeline de IA.
 
+**Como está implementado (SPEC-012, F12):**
+
+- **Rede:** a composição tem duas redes. `contaia_privada` é `internal` (sem rota para fora, sem porta publicável) e abriga o Signer e os dublês mTLS de DF-e e eSocial; PostgreSQL e Vault também entram nela. API e workers estão nas duas redes. O Signer **não tem `ports`**: do host não há como alcançá-lo (provado em `infra/docker/signer-alcance.test.mjs`).
+- **Quem chama:** estar na rede não autentica. O Signer é um servidor mTLS (TLS 1.3) que exige certificado de serviço da CA interna e lê a identidade do SAN `urn:contaia:servico:{api|worker|signer}`; cada identidade tem alçada própria (a API consulta e diagnostica; só o worker assina e executa mTLS).
+- **Segredo:** o Signer deriva o caminho do Vault dos metadados no banco (nunca do chamador), lê com a política `signer-leitura` (só `read`: sem `list`, `metadata`, escrita ou `delete`; provado em `infra/docker/vault/signer-politica.test.mjs`), abre o PKCS#12 em memória, confere a impressão digital com a cadastrada, assina (XMLDSig RSA-SHA256), **valida a assinatura produzida** e só então faz **uma** chamada mTLS ao dublê; o buffer é zerado ao final. A chave idempotente é guardada como HMAC-SHA256 com um pepper de arquivo de segredo.
+- **Fila e monitor:** diagnósticos pós-cadastro (DF-e e eSocial, separados) e o monitor de saúde de 1 minuto rodam em BullMQ sobre o Redis, nos workers, com retry, backoff e fila morta. Três verificações seguidas sem resposta abrem **um** incidente, que notifica os `admin_escritorio` ativos dos tenants com A1 vigente; a primeira verificação válida o encerra e avisa a recuperação com a duração. Indisponibilidade do Signer **não** cria item na Central de Pendências.
+- **Evidência de ambiente:** `pnpm docker:up` prepara os segredos de teste (`scripts/preparar-segredos-do-signer.mjs`), sobe a composição inteira e a CI roda o E2E contra ela.
+
 > **Limite dos MVPs, registrado em [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md):** o cofre e o Signer são implementados e provados localmente apenas com material criptográfico de teste. KMS/HSM, segredo real, região e isolamento da rede produtiva são gate obrigatório da etapa de produção, depois do MVP-4 e antes de qualquer piloto real.
 
 ---

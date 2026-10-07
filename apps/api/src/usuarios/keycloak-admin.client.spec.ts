@@ -81,6 +81,26 @@ describe('KeycloakAdminClient', () => {
     return undefined;
   };
 
+  describe('endereço interno (API em contêiner)', () => {
+    afterEach(() => {
+      delete process.env['KEYCLOAK_INTERNAL_URL'];
+    });
+
+    it('com KEYCLOAK_INTERNAL_URL, token e Admin API vão ao endereço interno, não ao público', async () => {
+      process.env['KEYCLOAK_INTERNAL_URL'] = 'http://keycloak:8080/realms/contaia';
+      // O token (primeira chamada) também vai ao endereço interno: o dublê do `fetch` só reconhece o público.
+      respostas.push(() => resposta(200, { access_token: 'token-admin', expires_in: 300 }));
+      respostas.push(() => resposta(201, '', { location: 'http://keycloak:8080/admin/realms/contaia/users/sub-i' }));
+
+      await new KeycloakAdminClient().criar({ email: 'a@b.com', nome: 'Ana Souza' });
+
+      const urls = chamadas.map((chamada) => chamada.url);
+
+      expect(urls.length).toBeGreaterThan(0);
+      expect(urls.every((url) => url.startsWith('http://keycloak:8080/'))).toBe(true);
+    });
+  });
+
   describe('criar', () => {
     it('cria a identidade desabilitada e devolve o sub do cabeçalho Location', async () => {
       respostas.push(() => resposta(201, '', { location: `${ADMIN}/users/sub-novo-1` }));

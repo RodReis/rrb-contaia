@@ -71,6 +71,8 @@ Para toda tabela transacional nova, `test-banco` prova:
 
 Chamada real a Sefaz/eSocial é **prova condicional**: roda fora da CI de PR, contra homologação, e é declarada `not_run` quando o ambiente não estiver disponível.
 
+**Signer e dublês mTLS (SPEC-012).** Os dublês locais de DF-e e eSocial são servidores mTLS reais, com a PKI de teste gerada a cada rodada (`pnpm signer:segredos`). Provas de infraestrutura que exigem a composição no ar (`pnpm check:signer-infra`, também no job `e2e` da CI): o Signer **não publica porta** e a rede dele é `internal`; da API a identidade `api` alcança o Signer, sem certificado o handshake é recusado e a alçada da `api` não inclui assinar; o token `signer-leitura` lê o dado do segredo e nada mais, e a API não lê nada em `kv/`. Sem a composição ou sem o Vault, cada uma é **pulada com a razão explícita** (`not_run`), nunca PASS. O E2E `spec-012-signer-mtls` percorre a jornada contra essa pilha (cadastro → diagnóstico automático → teste manual → papéis → falha de finalidade → incidente e recuperação → desativação) e varre respostas, logs dos contêineres e artefatos atrás de senha, token e chave.
+
 ### 3.4 Agentes de IA e HITL
 
 - [ ] **LLM nunca calcula:** teste prova que o resultado fiscal vem do motor determinístico, mesmo com o LLM devolvendo outro número;

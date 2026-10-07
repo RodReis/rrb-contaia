@@ -1,3 +1,8 @@
 import { criarConfigVitest } from '@contaia/config/vitest';
 
-export default criarConfigVitest({ categoria: 'regras', escopo: 'signer' });
+// `*.integration.test.ts` exige PostgreSQL e roda em `test:banco`, nunca aqui.
+export default criarConfigVitest({
+  categoria: 'regras',
+  escopo: 'signer',
+  exclude: ['src/**/*.integration.test.ts'],
+});

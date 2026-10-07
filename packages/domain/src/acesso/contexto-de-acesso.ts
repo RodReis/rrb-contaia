@@ -29,6 +29,15 @@ export const FINALIDADES_ADMINISTRATIVAS = ['ADMIN_ACESSO', 'LOCALIZACAO_BASICA_
  */
 export const FINALIDADES_TECNICAS = ['PROCESSAMENTO_DE_EMPRESA'] as const;
 
+/**
+ * Finalidade de serviço: trabalho global, sem tenant nem empresa (SPEC-012 §3.10 — o monitor do
+ * Signer é um só para todos os escritórios). Não abre nenhuma tabela de tenant: só as funções
+ * `SECURITY DEFINER` estreitas que checam `app.contexto_de_servico()` a aceitam.
+ */
+export const FINALIDADES_DE_SERVICO = ['MONITORAMENTO_DO_SIGNER'] as const;
+
+export type FinalidadeDeServico = (typeof FINALIDADES_DE_SERVICO)[number];
+
 export type FinalidadeHumana = (typeof FINALIDADES_HUMANAS)[number];
 export type FinalidadeAdministrativa = (typeof FINALIDADES_ADMINISTRATIVAS)[number];
 export type FinalidadeTecnica = (typeof FINALIDADES_TECNICAS)[number];
@@ -50,7 +59,14 @@ export type ContextoTecnico = Readonly<{
   correlationId: string;
 }>;
 
-export type ContextoDeAcesso = ContextoHumano | ContextoTecnico;
+export type ContextoDeServico = Readonly<{
+  origem: 'SERVICO';
+  identidadeTecnica: string;
+  finalidade: FinalidadeDeServico;
+  correlationId: string;
+}>;
+
+export type ContextoDeAcesso = ContextoHumano | ContextoTecnico | ContextoDeServico;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const TAMANHO_MAXIMO_DE_TEXTO = 128;
@@ -127,6 +143,29 @@ export const contextoTecnico = (entrada: EntradaDoContextoTecnico): ContextoTecn
   };
 };
 
+const ehFinalidadeDeServico = (valor: string): valor is FinalidadeDeServico =>
+  (FINALIDADES_DE_SERVICO as readonly string[]).includes(valor);
+
+export type EntradaDoContextoDeServico = Readonly<{
+  identidadeTecnica: string;
+  finalidade: FinalidadeDeServico;
+  correlationId: string;
+}>;
+
+/** Contexto de serviço global: sem tenant, empresa nem usuário. Nunca simula nenhum dos três. */
+export const contextoDeServico = (entrada: EntradaDoContextoDeServico): ContextoDeServico => {
+  if (!ehFinalidadeDeServico(entrada.finalidade)) {
+    return recusar('finalidade não é de serviço');
+  }
+
+  return {
+    origem: 'SERVICO',
+    identidadeTecnica: exigirTexto(entrada.identidadeTecnica, 'identidade técnica'),
+    finalidade: entrada.finalidade,
+    correlationId: exigirTexto(entrada.correlationId, 'correlationId'),
+  };
+};
+
 /**
  * Nova finalidade para um trecho da MESMA transação (ex.: criar empresa e
  * autoatribuí-la). Só o contexto humano muda de finalidade; job técnico não.
@@ -150,7 +189,7 @@ export const trocarFinalidade = (
 /** Variáveis de sessão que a transação grava com `set_config(..., true)` (= `SET LOCAL`). */
 export type ParametrosDeSessao = Readonly<{
   'app.tenant_id': string;
-  'app.origem': 'HUMANA' | 'TECNICA';
+  'app.origem': 'HUMANA' | 'TECNICA' | 'SERVICO';
   'app.usuario_id': string;
   'app.empresa_id': string;
   'app.finalidade': string;
@@ -174,6 +213,19 @@ export const parametrosDeSessao = (contexto: ContextoDeAcesso): ParametrosDeSess
       'app.finalidade': contexto.finalidade,
       'app.identidade_tecnica': '',
       'app.correlation_id': contexto.correlationId ?? '',
+      'app.empresa_em_criacao': '',
+    };
+  }
+
+  if (contexto.origem === 'SERVICO') {
+    return {
+      'app.tenant_id': '',
+      'app.origem': 'SERVICO',
+      'app.usuario_id': '',
+      'app.empresa_id': '',
+      'app.finalidade': contexto.finalidade,
+      'app.identidade_tecnica': contexto.identidadeTecnica,
+      'app.correlation_id': contexto.correlationId,
       'app.empresa_em_criacao': '',
     };
   }

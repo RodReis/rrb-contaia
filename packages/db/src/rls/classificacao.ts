@@ -109,6 +109,13 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   },
   { tabela: 'app.empresa_certificado_ingestao', classe: 'empresa', origem: 'F11 / SPEC-011' },
   { tabela: 'app.empresa_certificado_notificacao', classe: 'empresa', origem: 'F11 / SPEC-011' },
+  { tabela: 'app.signer_operacao', classe: 'empresa', origem: 'F12 / SPEC-012' },
+  {
+    tabela: 'app.signer_evento',
+    classe: 'empresa',
+    origem: 'F12 / SPEC-012',
+    appendOnly: true,
+  },
   { tabela: 'app.carteira_vinculo', classe: 'vinculo', origem: 'F9 / SPEC-009' },
   {
     tabela: 'app.usuario',
@@ -188,6 +195,31 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
       'Notificação do colaborador sobre a própria carteira: o destinatário é um usuário, não uma empresa.',
     leitura: 'proprio_usuario',
     escrita: 'dono_ou_admin',
+  },
+  {
+    tabela: 'app.signer_notificacao',
+    classe: 'tenant',
+    origem: 'F12 / SPEC-012',
+    justificativa:
+      'Alerta de indisponibilidade/recuperação do Signer ao administrador: o destinatário é um usuário e o incidente é global, não de uma empresa.',
+    leitura: 'proprio_usuario',
+    escrita: 'dono_ou_admin',
+  },
+  {
+    tabela: 'app.signer_verificacao',
+    classe: 'global',
+    origem: 'F12 / SPEC-012',
+    justificativa:
+      'Verificação de saúde do Signer, um serviço único para todos os escritórios: sem dado de tenant. A aplicação só a alcança pelas funções SECURITY DEFINER do contexto de serviço.',
+    appendOnly: true,
+  },
+  {
+    tabela: 'app.signer_incidente_evento',
+    classe: 'global',
+    origem: 'F12 / SPEC-012',
+    justificativa:
+      'Incidente de indisponibilidade do Signer, global: sem dado de tenant. A aplicação só o alcança pelas funções SECURITY DEFINER do contexto de serviço.',
+    appendOnly: true,
   },
   {
     tabela: 'public.__migrations',

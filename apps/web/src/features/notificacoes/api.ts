@@ -13,7 +13,11 @@ export type TipoDeNotificacao =
   // Alertas do cofre de certificados (SPEC-011 §3.6): um por marco e por certificado
   // (`CERTIFICADO_D30`, `CERTIFICADO_VENCIDO`, `CERTIFICADO_RESPONSAVEL_INCONSISTENTE`…).
   // Tolerante a marcos novos: o prefixo é o contrato, o sufixo só escolhe o rótulo.
-  | `CERTIFICADO_${string}`;
+  | `CERTIFICADO_${string}`
+  // Incidente do Signer (SPEC-012 §3.10): aviso ao administrador, sem empresa; o de recuperação
+  // traz a duração do incidente.
+  | 'SIGNER_INDISPONIVEL'
+  | 'SIGNER_RECUPERADO';
 
 export type EmpresaDoAviso = Readonly<{ id: string; nome: string; cnpj: string }>;
 
@@ -28,6 +32,8 @@ export type Notificacao = Readonly<{
   lida: boolean;
   lidaEm: string | null;
   criadoEm: string;
+  /** Só no `SIGNER_RECUPERADO`: quanto o incidente durou, em milissegundos. */
+  duracaoMs?: number | null;
 }>;
 
 export type PainelDeNotificacoes = Readonly<{

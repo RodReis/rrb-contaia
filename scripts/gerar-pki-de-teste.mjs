@@ -37,7 +37,7 @@ export const CNPJ_PADRAO_DE_TESTE = '11222333000181';
 const DIA_MS = 24 * 60 * 60 * 1000;
 
 /** Chave RSA do Node (rápida) convertida para o formato do forge. */
-const gerarChave = (bits = 2048) => {
+export const gerarChave = (bits = 2048) => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: bits });
   const privada = pki.privateKeyFromPem(privateKey.export({ type: 'pkcs1', format: 'pem' }));
   return { privateKey: privada, publicKey: pki.rsa.setPublicKey(privada.n, privada.e) };
@@ -76,7 +76,7 @@ const atributos = (nome) => [
   { name: 'commonName', value: nome },
 ];
 
-const assinar = ({ assunto, emissor, chavePublica, chaveDoEmissor, naoAntes, naoDepois, extensoes }) => {
+export const assinar = ({ assunto, emissor, chavePublica, chaveDoEmissor, naoAntes, naoDepois, extensoes }) => {
   const cert = pki.createCertificate();
   cert.publicKey = chavePublica;
   cert.serialNumber = numeroDeSerie();

@@ -229,8 +229,10 @@ export type {
 
 export {
   FINALIDADES_ADMINISTRATIVAS,
+  FINALIDADES_DE_SERVICO,
   FINALIDADES_HUMANAS,
   FINALIDADES_TECNICAS,
+  contextoDeServico,
   contextoHumano,
   contextoTecnico,
   parametrosDeSessao,
@@ -238,11 +240,14 @@ export {
 } from './acesso/contexto-de-acesso.js';
 export type {
   ContextoDeAcesso,
+  ContextoDeServico,
   ContextoHumano,
   ContextoTecnico,
+  EntradaDoContextoDeServico,
   EntradaDoContextoHumano,
   EntradaDoContextoTecnico,
   FinalidadeAdministrativa,
+  FinalidadeDeServico,
   FinalidadeHumana,
   FinalidadeTecnica,
   ParametrosDeSessao,
@@ -294,3 +299,29 @@ export {
   CHAVES_DE_PENDENCIA_DO_CERTIFICADO,
   causasDeCertificado,
 } from './certificados/pendencias.js';
+
+export { FINALIDADES, ehFinalidade } from './signer/finalidades.js';
+export type { Finalidade } from './signer/finalidades.js';
+export { certificadoUtilizavel } from './signer/condicao-certificado.js';
+export type {
+  CodigoDeBloqueioDoCertificado,
+  CondicaoDoCertificado,
+  VersaoDoCertificado,
+} from './signer/condicao-certificado.js';
+export { PRAZO_DE_EM_ANDAMENTO_MS, decidirIdempotencia } from './signer/idempotencia.js';
+export type {
+  DecisaoDeIdempotencia,
+  EstadoDaOperacao,
+  OperacaoExistente,
+  PedidoIdempotente,
+} from './signer/idempotencia.js';
+export { ESTADOS_DA_FINALIDADE, estadoDaFinalidade, piorEstado } from './signer/estado.js';
+export { LIMITE_DE_DESATUALIZACAO_MS, estadoDoServico } from './signer/servico.js';
+export type { EntradaDoEstadoDoServico, EstadoDoServicoSigner } from './signer/servico.js';
+export type { EstadoDaFinalidade } from './signer/estado.js';
+export {
+  LIMITE_DE_FALHAS_PARA_INCIDENTE,
+  MONITOR_INICIAL,
+  avancarIncidente,
+} from './signer/incidente.js';
+export type { EfeitoDoMonitor, EstadoDoMonitor, TransicaoDoMonitor } from './signer/incidente.js';

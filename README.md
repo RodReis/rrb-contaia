@@ -67,8 +67,8 @@ definidas em `.env`:
 |---|---|---|
 | Web (Next.js) | http://127.0.0.1:15100 | `WEB_PORT` |
 | API (NestJS) | http://127.0.0.1:15101 | `API_PORT` |
-| Workers | — (sem HTTP público) | `WORKERS_PORT` |
-| Signer | — (serviço isolado) | `SIGNER_PORT` |
+| Workers | — (sem HTTP público; só saúde dentro da rede) | `WORKERS_PORT` |
+| Signer | — (rede privada do Compose, **sem porta publicada**) | — |
 | Keycloak (admin console) | http://127.0.0.1:18080 | `KEYCLOAK_PORT` |
 | MinIO (console) | http://127.0.0.1:19001 | `MINIO_CONSOLE_PORT` |
 
