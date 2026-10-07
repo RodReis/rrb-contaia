@@ -42,7 +42,7 @@ export interface TransicaoInvalida {
 
 type ProximoEstado = EstadoDaImportacao | TransicaoInvalida;
 
-const TRANSICOES: ReadonlyMap<EstadoDaImportacao, ReadonlyMap<EventoDaImportacao, EstadoDaImportacao>> = new Map([
+const TRANSICOES = new Map<EstadoDaImportacao, Map<EventoDaImportacao, EstadoDaImportacao>>([
   ['RECEBIDA', new Map([['INICIAR_VALIDACAO', 'VALIDANDO']])],
   [
     'VALIDANDO',

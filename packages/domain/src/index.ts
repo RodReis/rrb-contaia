@@ -325,3 +325,32 @@ export {
   avancarIncidente,
 } from './signer/incidente.js';
 export type { EfeitoDoMonitor, EstadoDoMonitor, TransicaoDoMonitor } from './signer/incidente.js';
+
+export {
+  validarLinhasDoPlano,
+  type LinhaDeEntrada,
+  type ContaVigente,
+  type LinhaAceita,
+  type LinhaRejeitada,
+  type ResultadoDaValidacao,
+  type TipoDaConta,
+  type NaturezaDaConta,
+  type CodigoDeErroDaLinha,
+} from './plano-contas/validacao.js';
+
+export {
+  decidirIdempotenciaDaImportacao,
+  type TentativaExistente,
+  type PedidoDeImportacao,
+  type DecisaoDeIdempotenciaDaImportacao,
+  type EstadoDaTentativa,
+} from './plano-contas/idempotencia.js';
+
+export {
+  proximoEstado,
+  ehEstadoTerminal,
+  podeTransicionar,
+  type EstadoDaImportacao,
+  type EventoDaImportacao,
+  type TransicaoInvalida,
+} from './plano-contas/estados.js';
