@@ -1,7 +1,8 @@
 /**
- * Consultas de leitura do Signer (SPEC-012 §3.11, §5.2–§5.3): estado corrente por finalidade e
- * histórico paginado. Rodam sob contexto da empresa — técnico (Signer) ou humano (carteira) — e a
- * RLS decide o que aparece. A trilha não tem XML nem resposta do destino, então nada disso sai daqui.
+ * Consultas de leitura do Signer (SPEC-012 §3.11, §5.2–§5.3): estado corrente por finalidade, histórico
+ * paginado e o estado global do serviço. Rodam sob contexto da empresa — técnico (Signer) ou humano
+ * (carteira) — e a RLS decide o que aparece. A trilha não tem XML nem resposta do destino, então nada
+ * disso sai daqui.
  */
 import type { PoolClient } from 'pg';
 
@@ -140,5 +141,34 @@ export const historicoDoSigner = async (
       correlationId: linha.correlation_id,
       referenciaSegredo: linha.referencia_segredo,
     })),
+  };
+};
+
+export type EstadoGlobalDoServico = Readonly<{
+  ultimaVerificacaoEm: Date | null;
+  ultimoResultado: 'OK' | 'FALHA' | null;
+  /** Latência da última resposta VÁLIDA, não da última tentativa. */
+  ultimaLatenciaMs: number | null;
+  incidenteAberto: boolean;
+}>;
+
+/**
+ * Estado global do serviço, sem dado de tenant, para o cartão do painel. Qualquer contexto válido lê;
+ * sem contexto, o banco recusa (42501).
+ */
+export const estadoDoServicoParaPainel = async (cliente: PoolClient): Promise<EstadoGlobalDoServico> => {
+  const { rows } = await cliente.query<{
+    ultima_verificacao_em: Date | null;
+    ultimo_resultado: 'OK' | 'FALHA' | null;
+    ultima_latencia_ms: number | null;
+    incidente_aberto: boolean;
+  }>('select * from app.signer_estado_do_servico()');
+  const linha = rows[0];
+
+  return {
+    ultimaVerificacaoEm: linha?.ultima_verificacao_em ?? null,
+    ultimoResultado: linha?.ultimo_resultado ?? null,
+    ultimaLatenciaMs: linha?.ultima_latencia_ms ?? null,
+    incidenteAberto: linha?.incidente_aberto ?? false,
   };
 };

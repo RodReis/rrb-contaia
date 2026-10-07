@@ -316,6 +316,8 @@ export type {
   PedidoIdempotente,
 } from './signer/idempotencia.js';
 export { ESTADOS_DA_FINALIDADE, estadoDaFinalidade, piorEstado } from './signer/estado.js';
+export { LIMITE_DE_DESATUALIZACAO_MS, estadoDoServico } from './signer/servico.js';
+export type { EntradaDoEstadoDoServico, EstadoDoServicoSigner } from './signer/servico.js';
 export type { EstadoDaFinalidade } from './signer/estado.js';
 export {
   LIMITE_DE_FALHAS_PARA_INCIDENTE,

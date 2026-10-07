@@ -48,6 +48,8 @@ const CERTIFICADOS_TODAS = [
   'certificados.cofre.editar',
   'certificados.cofre.desativar',
   'certificados.historico.consultar',
+  'certificados.signer.consultar',
+  'certificados.signer.testar',
 ];
 
 // Matriz da SPEC-007 §3.1 lida em chaves, escrita à mão: o teste não lê a constante de produção.
@@ -85,6 +87,8 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'notificacoes.sino.consultar',
     'certificados.cofre.consultar',
     'certificados.historico.consultar',
+    // SPEC-012: o auditor lê o painel do Signer e não testa.
+    'certificados.signer.consultar',
     'historico.global.consultar',
     'usuarios.usuarios_e_papeis.consultar',
   ],

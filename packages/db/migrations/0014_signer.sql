@@ -413,6 +413,37 @@ BEGIN
 END;
 $$;
 
+-- Estado GLOBAL do servico para o cartao do painel (SPEC-012 §5.2). Sem dado de tenant: so a ultima
+-- verificacao, a ultima latencia valida e se ha incidente aberto. Qualquer contexto valido (humano da
+-- carteira ou tecnico) le; o contexto de servico do monitor e quem ESCREVE, nao quem le o painel.
+CREATE OR REPLACE FUNCTION app.signer_estado_do_servico()
+RETURNS TABLE (
+  ultima_verificacao_em timestamptz, ultimo_resultado text, ultima_latencia_ms integer, incidente_aberto boolean
+)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = app, public, pg_temp AS $$
+BEGIN
+  IF NOT app.contexto_valido() THEN
+    RAISE EXCEPTION 'contexto de acesso exigido' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    ultima.verificado_em,
+    ultima.resultado,
+    (SELECT o.latencia_ms FROM app.signer_verificacao o WHERE o.resultado = 'OK' ORDER BY o.sequencia DESC LIMIT 1),
+    EXISTS (
+      SELECT 1 FROM app.signer_incidente_evento e
+       WHERE e.tipo = 'ABERTO'
+         AND NOT EXISTS (
+           SELECT 1 FROM app.signer_incidente_evento f
+            WHERE f.incidente_id = e.incidente_id AND f.tipo = 'ENCERRADO'))
+  FROM (SELECT 1) AS base
+  LEFT JOIN LATERAL (
+    SELECT v.verificado_em, v.resultado FROM app.signer_verificacao v ORDER BY v.sequencia DESC LIMIT 1
+  ) AS ultima ON true;
+END;
+$$;
+
 -- 7. Privilegios -------------------------------------------------------------------------------
 
 -- Operacao: so o estado, o resultado, a contagem de tentativas e o fim mudam; o contexto da
@@ -432,14 +463,14 @@ REVOKE ALL ON FUNCTION
   app.contexto_de_servico(), app.exigir_contexto_de_servico(),
   app.signer_registrar_verificacao(text, integer, text), app.signer_estado_do_monitor(),
   app.signer_abrir_incidente(), app.signer_encerrar_incidente(uuid, bigint),
-  app.signer_notificar_incidente(uuid, text, bigint)
+  app.signer_notificar_incidente(uuid, text, bigint), app.signer_estado_do_servico()
 FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION
   app.contexto_de_servico(), app.exigir_contexto_de_servico(),
   app.signer_registrar_verificacao(text, integer, text), app.signer_estado_do_monitor(),
   app.signer_abrir_incidente(), app.signer_encerrar_incidente(uuid, bigint),
-  app.signer_notificar_incidente(uuid, text, bigint)
+  app.signer_notificar_incidente(uuid, text, bigint), app.signer_estado_do_servico()
 TO contaia_app;
 
 -- O `pg_default_acl` do schema volta a conceder DELETE a cada tabela nova (ver 0004).

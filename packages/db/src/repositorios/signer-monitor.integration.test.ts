@@ -9,8 +9,10 @@ import type { PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { criarPool, criarPoolDaAplicacao } from '../client.js';
-import { comContexto } from '../contexto.js';
+import { comContexto, semContexto } from '../contexto.js';
 import { limparCenario, montarCenario, type Cenario } from '../testes/cenario-rls.js';
+import { comoUsuario } from '../testes/suporte.js';
+import { estadoDoServicoParaPainel } from './signer-consultas.js';
 import {
   abrirIncidente,
   encerrarIncidente,
@@ -111,6 +113,55 @@ describe('estado e verificações', () => {
         (cli) => estadoDoMonitor(cli),
       ),
     ).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('estado do serviço para o painel (leitura por contexto humano ou técnico)', () => {
+  const comoHumano = <T>(executar: (cliente: PoolClient) => Promise<T>): Promise<T> =>
+    comoUsuario(app, c.tenantA, c.usuarios.naCarteira, executar);
+
+  it('sem nenhuma verificação: tudo nulo e nenhum incidente', async () => {
+    await limparGlobais();
+
+    expect(await comoHumano((cli) => estadoDoServicoParaPainel(cli))).toEqual({
+      ultimaVerificacaoEm: null,
+      ultimoResultado: null,
+      ultimaLatenciaMs: null,
+      incidenteAberto: false,
+    });
+  });
+
+  it('devolve a última verificação, a última latência VÁLIDA e se há incidente aberto', async () => {
+    await limparGlobais();
+    await comoMonitor((cli) => registrarVerificacao(cli, { resultado: 'OK', latenciaMs: 12, correlationId: 'p1' }));
+    await comoMonitor((cli) => registrarVerificacao(cli, { resultado: 'FALHA', latenciaMs: null, correlationId: 'p2' }));
+    await comoMonitor((cli) => abrirIncidente(cli));
+
+    const estado = await comoHumano((cli) => estadoDoServicoParaPainel(cli));
+
+    expect(estado).toMatchObject({ ultimoResultado: 'FALHA', ultimaLatenciaMs: 12, incidenteAberto: true });
+    expect(estado.ultimaVerificacaoEm).toBeInstanceOf(Date);
+  });
+
+  it('o contexto técnico da empresa também lê; sem contexto algum, não', async () => {
+    const tecnico = await comContexto(
+      app,
+      contextoTecnico({
+        identidadeTecnica: 'api',
+        finalidade: 'PROCESSAMENTO_DE_EMPRESA',
+        tenantId: c.tenantA,
+        empresaId: c.empresaA1,
+        correlationId: 'p3',
+      }),
+      (cli) => estadoDoServicoParaPainel(cli),
+    );
+
+    expect(tecnico).toHaveProperty('incidenteAberto');
+    await expect(semContexto(app, (cli) => estadoDoServicoParaPainel(cli))).rejects.toMatchObject({ code: '42501' });
+  });
+
+  it('o contexto de serviço do monitor não é o leitor do painel', async () => {
+    await expect(comoMonitor((cli) => estadoDoServicoParaPainel(cli))).rejects.toMatchObject({ code: '42501' });
   });
 });
 

@@ -293,8 +293,14 @@ export {
   registrarVerificacao,
 } from './repositorios/signer-monitor.js';
 export type { EstadoDoMonitorNoBanco } from './repositorios/signer-monitor.js';
-export { ITENS_POR_PAGINA, historicoDoSigner, ultimosEventosDasFinalidades } from './repositorios/signer-consultas.js';
+export {
+  ITENS_POR_PAGINA,
+  estadoDoServicoParaPainel,
+  historicoDoSigner,
+  ultimosEventosDasFinalidades,
+} from './repositorios/signer-consultas.js';
 export type {
+  EstadoGlobalDoServico,
   FiltroDaTrilhaDoSigner,
   ItemDaTrilhaDoSigner,
   PaginaDaTrilhaDoSigner,
