@@ -306,3 +306,35 @@ export type {
   PaginaDaTrilhaDoSigner,
   UltimoEventoDaFinalidade,
 } from './repositorios/signer-consultas.js';
+
+export {
+  aplicarLinhasNoPlano,
+  buscarTentativaPorChave,
+  buscarTentativaPorId,
+  cancelarPrevia,
+  criarNotificacaoConclusao,
+  criarTentativa,
+  empresaTemContaValida,
+  finalizarAplicacao,
+  finalizarValidacao,
+  inserirLinhasStaging,
+  listarHistorico as listarHistoricoDeImportacaoPlanoContas,
+  listarLinhasStaging,
+  listarPlanoVigente,
+  listarRejeicoesPaginadas,
+  marcarReutilizada,
+  registrarEvento,
+  salvarMapeamento,
+  iniciarValidacao,
+  confirmarImportacao,
+} from './repositorios/plano-contas.js';
+export type {
+  ContaContabil,
+  EventoDaImportacao,
+  LinhaDeStaging,
+  NotificacaoDeConclusao,
+  NovaTentativa,
+  PaginaDeHistorico,
+  TentativaDeImportacao,
+  EstadoDaTentativa,
+} from './repositorios/plano-contas.js';
