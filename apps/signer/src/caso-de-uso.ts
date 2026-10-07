@@ -16,8 +16,10 @@ import {
   criarOperacao,
   empresaVisivel,
   finalizarOperacao,
+  historicoDoSigner,
   reabrirOperacao,
   registrarEventoDoSigner,
+  ultimosEventosDasFinalidades,
   type CertificadoParaUso,
   type EventoDoSigner,
   type OperacaoDoSigner,
@@ -28,14 +30,24 @@ import {
   contextoTecnico,
   dataCivilEmSaoPaulo,
   decidirIdempotencia,
+  estadoDaFinalidade,
+  FINALIDADES,
+  piorEstado,
   type Finalidade,
 } from '@contaia/domain';
-import type {
-  ComandoAssinar,
-  ComandoDiagnosticar,
-  ComandoExecutarMtls,
-  RespostaDeAssinatura,
-  RespostaDeExecucaoMtls,
+import {
+  ITENS_POR_PAGINA_DO_HISTORICO,
+  type ComandoAssinar,
+  type ComandoDiagnosticar,
+  type ComandoExecutarMtls,
+  type ConsultaEstados,
+  type ConsultaHistorico,
+  type EstadoDaEmpresaNoSigner,
+  type EstadoPorFinalidade,
+  type RespostaDeAssinatura,
+  type RespostaDeEstados,
+  type RespostaDeExecucaoMtls,
+  type RespostaDeHistorico,
 } from '@contaia/shared';
 import type { Pool, PoolClient } from 'pg';
 
@@ -118,8 +130,6 @@ const resultadoDoEvento = (estado: 'CONCLUIDA' | 'RECUSADA' | 'FALHA_TRANSITORIA
 
 export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDoSigner => {
   const saude = criarServicosDeSaude({ vault: deps.vault, agora: deps.agora });
-  const naoImplementada = (): Promise<never> => Promise.reject(new ErroDoSigner('SIGNER_INDISPONIVEL', 501));
-
   const comoSigner = <T>(pedido: Pedido, executar: (cliente: PoolClient) => Promise<T>): Promise<T> =>
     comContexto(
       deps.pool,
@@ -355,6 +365,80 @@ export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDo
     return { operacaoId: fase.operacaoId, reutilizado: false, xmlAssinado: desfecho.xmlAssinado };
   };
 
+  /** Contexto técnico da empresa para uma consulta: tenant e empresa que não casam são recusados. */
+  const comoSignerDaEmpresa = <T>(
+    tenantId: string,
+    empresaId: string,
+    correlationId: string,
+    executar: (cliente: PoolClient) => Promise<T>,
+  ): Promise<T> =>
+    comContexto(
+      deps.pool,
+      contextoTecnico({
+        identidadeTecnica: 'signer',
+        finalidade: 'PROCESSAMENTO_DE_EMPRESA',
+        tenantId,
+        empresaId,
+        correlationId,
+      }),
+      async (cliente) => {
+        if (!(await empresaVisivel(cliente, empresaId))) {
+          throw new ErroDoSigner('SIGNER_CONTEXTO_INVALIDO', 403);
+        }
+
+        return executar(cliente);
+      },
+    );
+
+  const estadoDaEmpresa = (consulta: ConsultaEstados, empresaId: string): Promise<EstadoDaEmpresaNoSigner> =>
+    comoSignerDaEmpresa(consulta.tenantId, empresaId, consulta.correlationId, async (cliente) => {
+      const certificado = await buscarCertificadoParaUso(cliente, empresaId);
+      const utilizavel = certificado !== null && certificadoUtilizavel(certificado, dataCivilEmSaoPaulo(deps.agora())).ok;
+      const ultimos = await ultimosEventosDasFinalidades(cliente, empresaId);
+
+      const finalidades = FINALIDADES.map((finalidade): EstadoPorFinalidade => {
+        const ultimo = ultimos.find((evento) => evento.finalidade === finalidade);
+
+        return {
+          finalidade,
+          estado: estadoDaFinalidade({ certificadoUtilizavel: utilizavel, ultimoResultado: ultimo?.resultado ?? null }),
+          ultimoTesteEm: ultimo?.iniciadoEm.toISOString() ?? null,
+          latenciaMs: ultimo?.latenciaMs ?? null,
+          codigo: ultimo?.codigo ?? null,
+        };
+      });
+
+      return { empresaId, finalidades, resumo: piorEstado(finalidades.map((f) => f.estado)) };
+    });
+
+  /** Uma transação por empresa (o contexto RLS é de uma só); a ordem do lote é preservada. */
+  const estadosEmLote = async (consulta: ConsultaEstados): Promise<RespostaDeEstados> => {
+    const empresas: EstadoDaEmpresaNoSigner[] = [];
+
+    for (const empresaId of consulta.empresaIds) {
+      empresas.push(await estadoDaEmpresa(consulta, empresaId));
+    }
+
+    return { empresas };
+  };
+
+  const historicoDaEmpresa = (consulta: ConsultaHistorico): Promise<RespostaDeHistorico> =>
+    comoSignerDaEmpresa(consulta.tenantId, consulta.empresaId, consulta.correlationId, async (cliente) => {
+      const pagina = await historicoDoSigner(cliente, {
+        empresaId: consulta.empresaId,
+        pagina: consulta.pagina,
+        ...(consulta.finalidade === undefined ? {} : { finalidade: consulta.finalidade }),
+        ...(consulta.resultado === undefined ? {} : { resultado: consulta.resultado }),
+      });
+
+      return {
+        pagina: pagina.pagina,
+        itensPorPagina: ITENS_POR_PAGINA_DO_HISTORICO,
+        total: pagina.total,
+        itens: pagina.itens.map((item) => ({ ...item, iniciadoEm: item.iniciadoEm.toISOString() })),
+      };
+    });
+
   const comandoOperacional = (
     tipo: TipoDeOperacao,
     identidade: IdentidadeDeServico,
@@ -406,7 +490,7 @@ export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDo
         }),
       );
     },
-    estados: naoImplementada,
-    historico: naoImplementada,
+    estados: (_identidade, consulta) => estadosEmLote(consulta),
+    historico: (_identidade, consulta) => historicoDaEmpresa(consulta),
   };
 };

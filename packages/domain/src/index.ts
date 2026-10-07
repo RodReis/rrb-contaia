@@ -315,7 +315,7 @@ export type {
   OperacaoExistente,
   PedidoIdempotente,
 } from './signer/idempotencia.js';
-export { ESTADOS_DA_FINALIDADE, piorEstado } from './signer/estado.js';
+export { ESTADOS_DA_FINALIDADE, estadoDaFinalidade, piorEstado } from './signer/estado.js';
 export type { EstadoDaFinalidade } from './signer/estado.js';
 export {
   LIMITE_DE_FALHAS_PARA_INCIDENTE,

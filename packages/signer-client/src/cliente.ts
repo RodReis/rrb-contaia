@@ -169,7 +169,11 @@ export const criarClienteDoSigner = (config: ConfigDoClienteDoSigner) => {
     estados: (pedido: ConsultaEstados) =>
       chamar<RespostaDeEstados>(
         'GET',
-        `/v1/estados?${consulta({ tenantId: pedido.tenantId, empresaId: pedido.empresaId, correlationId: pedido.correlationId })}`,
+        `/v1/estados?${consulta({
+          tenantId: pedido.tenantId,
+          empresaIds: pedido.empresaIds.join(','),
+          correlationId: pedido.correlationId,
+        })}`,
         undefined,
         pedido.correlationId,
       ),

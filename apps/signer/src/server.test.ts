@@ -180,15 +180,25 @@ describe('alçada técnica por rota', () => {
 
   it('o worker não consulta estados; a API consulta, com query tipada', async () => {
     servicos.estados.mockResolvedValue({ empresas: [] });
-    const consulta = `/v1/estados?tenantId=${TENANT}&empresaId=${EMPRESA}&correlationId=corr-0001-abcd`;
+    const outra = '0198f3c2-0000-7000-8000-000000000009';
+    const consulta = `/v1/estados?tenantId=${TENANT}&empresaIds=${EMPRESA}%2C${outra}&correlationId=corr-0001-abcd`;
 
     expect((await chamar(credenciais.worker, 'GET', consulta)).status).toBe(403);
     expect((await chamar(credenciais.api, 'GET', consulta)).status).toBe(200);
     expect(servicos.estados).toHaveBeenCalledWith('api', {
       tenantId: TENANT,
-      empresaId: EMPRESA,
+      empresaIds: [EMPRESA, outra],
       correlationId: 'corr-0001-abcd',
     });
+  });
+
+  it('estados em lote: lista vazia ou acima de 50 empresas é recusada', async () => {
+    const base = `tenantId=${TENANT}&correlationId=corr-0001-abcd`;
+    const muitas = Array.from({ length: 51 }, (_, i) => `0198f3c2-0000-7000-8000-${String(i).padStart(12, '0')}`).join(',');
+
+    expect((await chamar(credenciais.api, 'GET', `/v1/estados?${base}&empresaIds=`)).status).toBe(400);
+    expect((await chamar(credenciais.api, 'GET', `/v1/estados?${base}&empresaIds=${muitas}`)).status).toBe(400);
+    expect((await chamar(credenciais.api, 'GET', `/v1/estados?${base}`)).status).toBe(400);
   });
 
   it('o histórico converte a página em número e valida os filtros', async () => {

@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { piorEstado } from './estado.js';
+import { estadoDaFinalidade, piorEstado } from './estado.js';
+
+describe('estadoDaFinalidade (SPEC-012 §3.3, §5.2): deriva do último evento e da condição do certificado', () => {
+  it('sem certificado utilizável a finalidade está sem certificado, mesmo com histórico bom', () => {
+    expect(estadoDaFinalidade({ certificadoUtilizavel: false, ultimoResultado: 'SUCESSO' })).toBe('SEM_CERTIFICADO');
+    expect(estadoDaFinalidade({ certificadoUtilizavel: false, ultimoResultado: null })).toBe('SEM_CERTIFICADO');
+  });
+
+  it('com certificado e sem nenhum teste ainda, não foi testada', () => {
+    expect(estadoDaFinalidade({ certificadoUtilizavel: true, ultimoResultado: null })).toBe('NAO_TESTADO');
+  });
+
+  it('o último SUCESSO ou FALHA decide', () => {
+    expect(estadoDaFinalidade({ certificadoUtilizavel: true, ultimoResultado: 'SUCESSO' })).toBe('OPERACIONAL');
+    expect(estadoDaFinalidade({ certificadoUtilizavel: true, ultimoResultado: 'FALHA' })).toBe('FALHA');
+  });
+});
 
 describe('piorEstado (SPEC-012 §5.2, §10)', () => {
   it('duas finalidades operacionais resumem como operacional', () => {

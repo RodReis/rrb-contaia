@@ -9,6 +9,25 @@ export const ESTADOS_DA_FINALIDADE = ['OPERACIONAL', 'NAO_TESTADO', 'SEM_CERTIFI
 
 export type EstadoDaFinalidade = (typeof ESTADOS_DA_FINALIDADE)[number];
 
+/**
+ * Estado corrente de UMA finalidade de uma empresa. Deriva do último evento SUCESSO/FALHA (recusa
+ * por erro do chamador não conta) e da condição atual do certificado: sem certificado utilizável a
+ * finalidade fica `SEM_CERTIFICADO`, qualquer que seja o histórico.
+ */
+export const estadoDaFinalidade = (entrada: {
+  certificadoUtilizavel: boolean;
+  ultimoResultado: 'SUCESSO' | 'FALHA' | null;
+}): EstadoDaFinalidade => {
+  if (!entrada.certificadoUtilizavel) {
+    return 'SEM_CERTIFICADO';
+  }
+  if (entrada.ultimoResultado === null) {
+    return 'NAO_TESTADO';
+  }
+
+  return entrada.ultimoResultado === 'SUCESSO' ? 'OPERACIONAL' : 'FALHA';
+};
+
 export const piorEstado = (estados: readonly EstadoDaFinalidade[]): EstadoDaFinalidade => {
   if (estados.length === 0) {
     return 'NAO_TESTADO';

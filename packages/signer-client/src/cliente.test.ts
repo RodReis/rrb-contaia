@@ -99,8 +99,10 @@ describe('cliente mTLS do Signer', () => {
 
   it('consulta estados e histórico por GET com a query codificada', async () => {
     definir(200, { empresas: [] });
-    await cliente().estados({ tenantId: TENANT, empresaId: EMPRESA, correlationId: 'corr-0001-abcd' });
-    expect(capturadas.at(-1)!.caminho).toBe(`/v1/estados?tenantId=${TENANT}&empresaId=${EMPRESA}&correlationId=corr-0001-abcd`);
+    await cliente().estados({ tenantId: TENANT, empresaIds: [EMPRESA, TENANT], correlationId: 'corr-0001-abcd' });
+    expect(capturadas.at(-1)!.caminho).toBe(
+      `/v1/estados?tenantId=${TENANT}&empresaIds=${EMPRESA}%2C${TENANT}&correlationId=corr-0001-abcd`,
+    );
 
     definir(200, { pagina: 2, itensPorPagina: 15, total: 0, itens: [] });
     await cliente().historico({

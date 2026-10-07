@@ -58,9 +58,12 @@ export const ComandoDiagnosticarSchema = z.strictObject({
 });
 export type ComandoDiagnosticar = z.infer<typeof ComandoDiagnosticarSchema>;
 
+export const LIMITE_DE_EMPRESAS_POR_CONSULTA = 50;
+
+/** Em lote: o painel lista várias empresas por página e o Signer lê uma de cada vez (RLS por empresa). */
 export const ConsultaEstadosSchema = z.strictObject({
   tenantId: identificador,
-  empresaId: identificador.optional(),
+  empresaIds: z.array(identificador).min(1).max(LIMITE_DE_EMPRESAS_POR_CONSULTA),
   correlationId: chaveTextual,
 });
 export type ConsultaEstados = z.infer<typeof ConsultaEstadosSchema>;

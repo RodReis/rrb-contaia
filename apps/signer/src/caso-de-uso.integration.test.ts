@@ -650,6 +650,107 @@ describe('diagnóstico (SPEC-012 §3.9)', () => {
   });
 });
 
+describe('estados e histórico (SPEC-012 §3.3, §5.2–§5.3)', () => {
+  const diag = (empresaId: string, finalidade: Finalidade, correlationId: string) =>
+    servicos().diagnosticar('worker', {
+      tenantId: tenantA,
+      empresaId,
+      finalidade,
+      correlationId,
+      origem: 'AUTOMATICO' as const,
+    });
+  const consultaDeEstados = (empresaIds: string[], tenantId = tenantA) => ({
+    tenantId,
+    empresaIds,
+    correlationId: 'corr-estados-0001',
+  });
+
+  it('DF-e e eSocial têm estado independente e o resumo é o pior dos dois', async () => {
+    const empresa = await semearEmpresa(tenantA, usuarioA, {});
+    await diag(empresa.empresaId, 'DFE_TESTE', 'est-0001-abcd');
+    destinoEspiado.mockResolvedValueOnce({ tipo: 'INDISPONIVEL' });
+    await erroDe(diag(empresa.empresaId, 'ESOCIAL_TESTE', 'est-0002-abcd'));
+
+    const { empresas } = (await servicos().estados('api', consultaDeEstados([empresa.empresaId]))) as {
+      empresas: { empresaId: string; resumo: string; finalidades: { finalidade: string; estado: string; codigo: string | null; ultimoTesteEm: string | null }[] }[];
+    };
+
+    expect(empresas).toHaveLength(1);
+    expect(empresas[0]!.finalidades.map((f) => [f.finalidade, f.estado])).toEqual([
+      ['DFE_TESTE', 'OPERACIONAL'],
+      ['ESOCIAL_TESTE', 'FALHA'],
+    ]);
+    expect(empresas[0]!.finalidades[1]!.codigo).toBe('SIGNER_DESTINO_INDISPONIVEL');
+    expect(empresas[0]!.finalidades[0]!.ultimoTesteEm).toMatch(/^\d{4}-\d{2}-\d{2}T.*Z$/u);
+    expect(empresas[0]!.resumo).toBe('FALHA');
+  });
+
+  it('empresa nunca testada fica NAO_TESTADA; sem certificado utilizável, SEM_CERTIFICADO', async () => {
+    const nunca = await semearEmpresa(tenantA, usuarioA, {});
+    const semCert = await semearEmpresa(tenantA, usuarioA, null);
+
+    const { empresas } = (await servicos().estados('api', consultaDeEstados([nunca.empresaId, semCert.empresaId]))) as {
+      empresas: { empresaId: string; resumo: string }[];
+    };
+
+    expect(empresas.map((e) => [e.empresaId, e.resumo])).toEqual([
+      [nunca.empresaId, 'NAO_TESTADO'],
+      [semCert.empresaId, 'SEM_CERTIFICADO'],
+    ]);
+  });
+
+  it('recusa por erro do chamador não derruba o estado de uma finalidade operacional', async () => {
+    const empresa = await semearEmpresa(tenantA, usuarioA, {});
+    await diag(empresa.empresaId, 'DFE_TESTE', 'est-0003-abcd');
+    await erroDe(servicos().executarMtls('worker', { ...contexto(empresa), xml: '<NFe><infNFe Id="A1"></NFe>' }));
+
+    const { empresas } = (await servicos().estados('api', consultaDeEstados([empresa.empresaId]))) as {
+      empresas: { finalidades: { finalidade: string; estado: string }[] }[];
+    };
+
+    expect(empresas[0]!.finalidades.find((f) => f.finalidade === 'DFE_TESTE')!.estado).toBe('OPERACIONAL');
+  });
+
+  it('empresa de outro tenant no lote recusa o lote inteiro, sem revelar nada', async () => {
+    const minha = await semearEmpresa(tenantA, usuarioA, {});
+    const alheia = await semearEmpresa(tenantB, usuarioB, {});
+
+    const erro = await erroDe(servicos().estados('api', consultaDeEstados([minha.empresaId, alheia.empresaId])));
+
+    expect(erro).toMatchObject({ codigo: 'SIGNER_CONTEXTO_INVALIDO', status: 403 });
+  });
+
+  it('histórico: página, total e itens sem XML nem segredo, do mais recente ao mais antigo', async () => {
+    const empresa = await semearEmpresa(tenantA, usuarioA, {});
+    await diag(empresa.empresaId, 'DFE_TESTE', 'hist-0001-abc');
+    await diag(empresa.empresaId, 'ESOCIAL_TESTE', 'hist-0002-abc');
+
+    const pagina = (await servicos().historico('api', {
+      tenantId: tenantA,
+      empresaId: empresa.empresaId,
+      correlationId: 'corr-hist-0001',
+      pagina: 1,
+    })) as { pagina: number; itensPorPagina: number; total: number; itens: Record<string, unknown>[] };
+
+    expect(pagina).toMatchObject({ pagina: 1, itensPorPagina: 15, total: 2 });
+    expect(pagina.itens.map((i) => i['finalidade'])).toEqual(['ESOCIAL_TESTE', 'DFE_TESTE']);
+    expect(Object.keys(pagina.itens[0]!).sort()).toEqual(
+      ['codigo', 'correlationId', 'finalidade', 'id', 'identidadeTecnica', 'iniciadoEm', 'latenciaMs', 'origemDiagnostico', 'referenciaSegredo', 'resultado', 'reutilizado'].sort(),
+    );
+    expect(JSON.stringify(pagina)).not.toMatch(/<Signature|pkcs12|SENHA-SENTINELA/u);
+  });
+
+  it('histórico de empresa de outro tenant é contexto inválido', async () => {
+    const alheia = await semearEmpresa(tenantB, usuarioB, {});
+
+    const erro = await erroDe(
+      servicos().historico('api', { tenantId: tenantA, empresaId: alheia.empresaId, correlationId: 'corr-hist-0002', pagina: 1 }),
+    );
+
+    expect(erro.codigo).toBe('SIGNER_CONTEXTO_INVALIDO');
+  });
+});
+
 describe('o segredo nunca fica fora da fronteira (I-10)', () => {
   it('a senha sentinela não aparece em nenhuma linha persistida nem em erro algum', async () => {
     const empresa = await semearEmpresa(tenantA, usuarioA, {});

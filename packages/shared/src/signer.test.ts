@@ -104,6 +104,17 @@ describe('comandos operacionais', () => {
     );
   });
 
+  it('estados em lote aceitam de 1 a 50 empresas', () => {
+    const base = { tenantId: UUID_A, correlationId: 'corr-0001-abcd' };
+    const empresas = (n: number): string[] =>
+      Array.from({ length: n }, (_, i) => `0198f3c2-0000-7000-8000-${String(i).padStart(12, '0')}`);
+
+    expect(ConsultaEstadosSchema.safeParse({ ...base, empresaIds: empresas(1) }).success).toBe(true);
+    expect(ConsultaEstadosSchema.safeParse({ ...base, empresaIds: empresas(50) }).success).toBe(true);
+    expect(ConsultaEstadosSchema.safeParse({ ...base, empresaIds: [] }).success).toBe(false);
+    expect(ConsultaEstadosSchema.safeParse({ ...base, empresaIds: empresas(51) }).success).toBe(false);
+  });
+
   it('o histórico filtra por finalidade e resultado e começa na página 1', () => {
     const base = { tenantId: UUID_A, empresaId: UUID_B, correlationId: 'corr-0001-abcd' };
 

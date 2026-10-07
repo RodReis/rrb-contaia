@@ -285,3 +285,18 @@ export type {
   OperacaoDoSigner,
   TipoDeOperacao,
 } from './repositorios/signer.js';
+export {
+  abrirIncidente,
+  encerrarIncidente,
+  estadoDoMonitor,
+  notificarIncidente,
+  registrarVerificacao,
+} from './repositorios/signer-monitor.js';
+export type { EstadoDoMonitorNoBanco } from './repositorios/signer-monitor.js';
+export { ITENS_POR_PAGINA, historicoDoSigner, ultimosEventosDasFinalidades } from './repositorios/signer-consultas.js';
+export type {
+  FiltroDaTrilhaDoSigner,
+  ItemDaTrilhaDoSigner,
+  PaginaDaTrilhaDoSigner,
+  UltimoEventoDaFinalidade,
+} from './repositorios/signer-consultas.js';

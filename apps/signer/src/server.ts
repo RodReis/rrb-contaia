@@ -130,6 +130,10 @@ const consultaDe = (url: URL): Record<string, unknown> => {
   if (typeof consulta['pagina'] === 'string') {
     consulta['pagina'] = Number(consulta['pagina']);
   }
+  // Lote de empresas: lista separada por vírgula; vazio vira lista vazia e o contrato recusa.
+  if (typeof consulta['empresaIds'] === 'string') {
+    consulta['empresaIds'] = consulta['empresaIds'] === '' ? [] : consulta['empresaIds'].split(',');
+  }
 
   return consulta;
 };

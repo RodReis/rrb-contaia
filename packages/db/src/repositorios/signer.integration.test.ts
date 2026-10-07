@@ -20,6 +20,7 @@ import {
   reabrirOperacao,
   registrarEventoDoSigner,
 } from './signer.js';
+import { historicoDoSigner, ultimosEventosDasFinalidades } from './signer-consultas.js';
 
 const admin = criarPool();
 const app = criarPoolDaAplicacao();
@@ -191,6 +192,103 @@ describe('operação idempotente', () => {
   });
 });
 
+describe('consultas de estado e histórico', () => {
+  const semearEvento = (
+    tenantId: string,
+    empresaId: string,
+    finalidade: 'DFE_TESTE' | 'ESOCIAL_TESTE',
+    resultado: 'SUCESSO' | 'FALHA' | 'RECUSA',
+    minutosAtras: number,
+    extra: { reutilizado?: boolean; origem?: 'AUTOMATICO' | 'MANUAL' } = {},
+  ): Promise<unknown> =>
+    admin.query(
+      `insert into app.signer_evento
+         (tenant_id, empresa_id, finalidade, identidade_tecnica, iniciado_em, finalizado_em, latencia_ms,
+          resultado, codigo, correlation_id, reutilizado, origem_diagnostico)
+       values ($1, $2, $3, 'worker', now() - ($4 || ' minutes')::interval, now() - ($4 || ' minutes')::interval,
+               7, $5, $6, 'corr-hist', $7, $8)`,
+      [
+        tenantId,
+        empresaId,
+        finalidade,
+        String(minutosAtras),
+        resultado,
+        resultado === 'SUCESSO' ? null : 'SIGNER_DESTINO_INDISPONIVEL',
+        extra.reutilizado ?? false,
+        extra.origem ?? null,
+      ],
+    );
+
+  it('último SUCESSO/FALHA por finalidade; RECUSA não conta e uma finalidade não contamina a outra', async () => {
+    await semearEvento(c.tenantA, c.empresaA2, 'DFE_TESTE', 'FALHA', 30);
+    await semearEvento(c.tenantA, c.empresaA2, 'DFE_TESTE', 'SUCESSO', 20);
+    await semearEvento(c.tenantA, c.empresaA2, 'DFE_TESTE', 'RECUSA', 5);
+    await semearEvento(c.tenantA, c.empresaA2, 'ESOCIAL_TESTE', 'SUCESSO', 25);
+    await semearEvento(c.tenantA, c.empresaA2, 'ESOCIAL_TESTE', 'FALHA', 10);
+
+    const ultimos = await comoSigner(c.tenantA, c.empresaA2, (cli) => ultimosEventosDasFinalidades(cli, c.empresaA2));
+
+    expect(ultimos.map((u) => [u.finalidade, u.resultado])).toEqual([
+      ['DFE_TESTE', 'SUCESSO'],
+      ['ESOCIAL_TESTE', 'FALHA'],
+    ]);
+    expect(ultimos[0]).toMatchObject({ latenciaMs: 7 });
+    expect(ultimos[0]?.iniciadoEm).toBeInstanceOf(Date);
+  });
+
+  it('empresa sem evento não tem nenhum último evento', async () => {
+    const ultimos = await comoSigner(c.tenantA, c.empresaA3Arquivada, (cli) =>
+      ultimosEventosDasFinalidades(cli, c.empresaA3Arquivada),
+    );
+
+    expect(ultimos).toEqual([]);
+  });
+
+  it('histórico paginado: 15 por página, do mais recente ao mais antigo, com o total', async () => {
+    // i minutos atrás: quanto MAIOR o i, mais antigo. O mais recente é i = 1.
+    for (let i = 1; i <= 17; i += 1) {
+      await semearEvento(c.tenantB, c.empresaB1, 'DFE_TESTE', i % 2 === 0 ? 'SUCESSO' : 'FALHA', i);
+    }
+
+    const primeira = await comoSigner(c.tenantB, c.empresaB1, (cli) =>
+      historicoDoSigner(cli, { empresaId: c.empresaB1, pagina: 1 }),
+    );
+    const segunda = await comoSigner(c.tenantB, c.empresaB1, (cli) =>
+      historicoDoSigner(cli, { empresaId: c.empresaB1, pagina: 2 }),
+    );
+    const alem = await comoSigner(c.tenantB, c.empresaB1, (cli) =>
+      historicoDoSigner(cli, { empresaId: c.empresaB1, pagina: 3 }),
+    );
+
+    expect(primeira).toMatchObject({ total: 17, pagina: 1 });
+    expect(primeira.itens).toHaveLength(15);
+    expect(segunda.itens).toHaveLength(2);
+    expect(alem.itens).toHaveLength(0);
+    // Ordem decrescente: cada item é mais antigo que o anterior, atravessando a fronteira das páginas.
+    const instantes = [...primeira.itens, ...segunda.itens].map((item) => item.iniciadoEm.getTime());
+    expect([...instantes].sort((a, b) => b - a)).toEqual(instantes);
+  });
+
+  it('o histórico de outra empresa nunca aparece (RLS)', async () => {
+    const alheio = await comoSigner(c.tenantA, c.empresaA1, (cli) => historicoDoSigner(cli, { empresaId: c.empresaB1, pagina: 1 }));
+
+    expect(alheio).toMatchObject({ total: 0, itens: [] });
+  });
+
+  it('o histórico respeita os filtros de finalidade e de resultado', async () => {
+    await semearEvento(c.tenantA, c.empresaA1, 'ESOCIAL_TESTE', 'FALHA', 3, { origem: 'MANUAL' });
+    await semearEvento(c.tenantA, c.empresaA1, 'DFE_TESTE', 'SUCESSO', 2, { reutilizado: true });
+
+    const pagina = await comoSigner(c.tenantA, c.empresaA1, (cli) =>
+      historicoDoSigner(cli, { empresaId: c.empresaA1, pagina: 1, finalidade: 'ESOCIAL_TESTE', resultado: 'FALHA' }),
+    );
+
+    expect(pagina.total).toBeGreaterThanOrEqual(1);
+    expect(pagina.itens.every((i) => i.finalidade === 'ESOCIAL_TESTE' && i.resultado === 'FALHA')).toBe(true);
+    expect(pagina.itens[0]).toMatchObject({ origemDiagnostico: 'MANUAL', identidadeTecnica: 'worker' });
+  });
+});
+
 describe('evento (trilha append-only)', () => {
   it('grava sucesso, falha e recusa sem XML nem resposta do destino', async () => {
     const base = {
@@ -206,7 +304,7 @@ describe('evento (trilha append-only)', () => {
       iniciadoEm: new Date('2026-10-07T12:00:00.000Z'),
       finalizadoEm: new Date('2026-10-07T12:00:00.250Z'),
       latenciaMs: 250,
-      correlationId: 'corr-0001-abcd',
+      correlationId: 'corr-trilha-isolada',
       reutilizado: false,
       origemDiagnostico: null,
     };
@@ -218,7 +316,8 @@ describe('evento (trilha append-only)', () => {
     });
 
     const { rows } = await admin.query<{ resultado: string; codigo: string | null; latencia_ms: number }>(
-      `select resultado, codigo, latencia_ms from app.signer_evento where empresa_id = $1 order by sequencia`,
+      `select resultado, codigo, latencia_ms from app.signer_evento
+        where empresa_id = $1 and correlation_id = 'corr-trilha-isolada' order by sequencia`,
       [c.empresaA1],
     );
 
