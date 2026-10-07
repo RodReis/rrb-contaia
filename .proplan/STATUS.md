@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-03
+updated: 2026-10-07
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -9,6 +9,8 @@ updated: 2026-10-03
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-082][F82] Validação de folha BB com pagamentos divididos por contrato (#103)
+- [MVP2][SPEC-081][F81] Validação de folha BB em arquivo com empresas e competências mistas (#102)
 - [MVP2][SPEC-080][F80] Validação de folha BB com modalidades de conta no mesmo lote (#94)
 - [MVP2][SPEC-079][F79] Validação de folha BB com modalidades de conta mistas por CNAB 240 (#93)
 - [MVP2][SPEC-078][F78] Validação de folha mensal em conta salário BB por CNAB 240 (#92)
@@ -80,7 +82,6 @@ updated: 2026-10-03
 - [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17)
 - [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16)
 - [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15)
-- [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14)
 
 ### Sem épico
 
@@ -102,6 +103,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14, finalizado em: 2026-10-07)
 - [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13, finalizado em: 2026-10-03)
 - [MVP1][SPEC-010][F10] RLS de dois níveis e provas negativas (#12, finalizado em: 2026-10-03)
 - [MVP1][SPEC-007][F7] Gestão de usuários e papéis padrão (#9, finalizado em: 2026-10-03)
