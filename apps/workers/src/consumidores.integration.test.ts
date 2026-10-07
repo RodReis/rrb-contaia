@@ -18,7 +18,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { iniciarConsumidores, type Consumidores } from './consumidores.js';
 import { criarConexaoRedis } from './redis.js';
 
-const conexao = conexaoDoRedis(process.env['REDIS_URL'] ?? 'redis://127.0.0.1:26379');
+const conexao = conexaoDoRedis(process.env['REDIS_URL'] ?? 'redis://127.0.0.1:16379');
 const prefixo = `teste-${process.pid}-${Date.now()}`;
 
 const TENANT = '0198f3c2-0000-7000-8000-000000000001';
