@@ -96,3 +96,46 @@ export type RespostaDeSaude = Readonly<{
   estado: EstadoDeSaudeDoSigner;
   verificadoEm: string;
 }>;
+
+export const ESTADOS_DA_FINALIDADE_NO_SIGNER = ['OPERACIONAL', 'NAO_TESTADO', 'SEM_CERTIFICADO', 'FALHA'] as const;
+export type EstadoDaFinalidadeNoSigner = (typeof ESTADOS_DA_FINALIDADE_NO_SIGNER)[number];
+
+export type EstadoPorFinalidade = Readonly<{
+  finalidade: Finalidade;
+  estado: EstadoDaFinalidadeNoSigner;
+  /** UTC; a tela converte para America/Sao_Paulo (I-11). */
+  ultimoTesteEm: string | null;
+  latenciaMs: number | null;
+  codigo: string | null;
+}>;
+
+export type EstadoDaEmpresaNoSigner = Readonly<{
+  empresaId: string;
+  finalidades: readonly EstadoPorFinalidade[];
+  /** O pior estado entre as finalidades; nunca depende só de cor na tela. */
+  resumo: EstadoDaFinalidadeNoSigner;
+}>;
+
+export type RespostaDeEstados = Readonly<{ empresas: readonly EstadoDaEmpresaNoSigner[] }>;
+
+export type ItemDoHistoricoDoSigner = Readonly<{
+  id: string;
+  finalidade: Finalidade;
+  resultado: ResultadoDoHistorico;
+  codigo: string | null;
+  iniciadoEm: string;
+  latenciaMs: number;
+  reutilizado: boolean;
+  origemDiagnostico: OrigemDoDiagnostico | null;
+  identidadeTecnica: string;
+  correlationId: string;
+  /** Referência opaca da versão do certificado usada; nunca o segredo. */
+  referenciaSegredo: string | null;
+}>;
+
+export type RespostaDeHistorico = Readonly<{
+  pagina: number;
+  itensPorPagina: typeof ITENS_POR_PAGINA_DO_HISTORICO;
+  total: number;
+  itens: readonly ItemDoHistoricoDoSigner[];
+}>;

@@ -97,3 +97,12 @@ export type {
   RespostaDeSaude,
   ResultadoDoHistorico,
 } from './signer.js';
+export { ESTADOS_DA_FINALIDADE_NO_SIGNER } from './signer.js';
+export type {
+  EstadoDaEmpresaNoSigner,
+  EstadoDaFinalidadeNoSigner,
+  EstadoPorFinalidade,
+  ItemDoHistoricoDoSigner,
+  RespostaDeEstados,
+  RespostaDeHistorico,
+} from './signer.js';
