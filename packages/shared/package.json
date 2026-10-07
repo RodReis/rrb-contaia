@@ -18,7 +18,8 @@
     "test:regras": "vitest run --config vitest.config.mjs"
   },
   "dependencies": {
-    "@contaia/domain": "workspace:*"
+    "@contaia/domain": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@contaia/config": "workspace:*",

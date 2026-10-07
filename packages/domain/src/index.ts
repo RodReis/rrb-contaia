@@ -294,3 +294,27 @@ export {
   CHAVES_DE_PENDENCIA_DO_CERTIFICADO,
   causasDeCertificado,
 } from './certificados/pendencias.js';
+
+export { FINALIDADES, ehFinalidade } from './signer/finalidades.js';
+export type { Finalidade } from './signer/finalidades.js';
+export { certificadoUtilizavel } from './signer/condicao-certificado.js';
+export type {
+  CodigoDeBloqueioDoCertificado,
+  CondicaoDoCertificado,
+  VersaoDoCertificado,
+} from './signer/condicao-certificado.js';
+export { decidirIdempotencia } from './signer/idempotencia.js';
+export type {
+  DecisaoDeIdempotencia,
+  EstadoDaOperacao,
+  OperacaoExistente,
+  PedidoIdempotente,
+} from './signer/idempotencia.js';
+export { ESTADOS_DA_FINALIDADE, piorEstado } from './signer/estado.js';
+export type { EstadoDaFinalidade } from './signer/estado.js';
+export {
+  LIMITE_DE_FALHAS_PARA_INCIDENTE,
+  MONITOR_INICIAL,
+  avancarIncidente,
+} from './signer/incidente.js';
+export type { EfeitoDoMonitor, EstadoDoMonitor, TransicaoDoMonitor } from './signer/incidente.js';
