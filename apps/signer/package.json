@@ -13,6 +13,7 @@
     "test:regras": "vitest run --config vitest.config.mjs"
   },
   "dependencies": {
+    "@contaia/domain": "workspace:*",
     "@contaia/shared": "workspace:*"
   },
   "devDependencies": {

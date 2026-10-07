@@ -66,7 +66,9 @@ export const ConsultaEstadosSchema = z.strictObject({
 export type ConsultaEstados = z.infer<typeof ConsultaEstadosSchema>;
 
 export const ConsultaHistoricoSchema = z.strictObject({
+  tenantId: identificador,
   empresaId: identificador,
+  correlationId: chaveTextual,
   pagina: z.number().int().min(1),
   finalidade: finalidade.optional(),
   resultado: z.enum(RESULTADOS_DO_HISTORICO).optional(),

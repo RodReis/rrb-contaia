@@ -105,11 +105,15 @@ describe('comandos operacionais', () => {
   });
 
   it('o histórico filtra por finalidade e resultado e começa na página 1', () => {
-    expect(ConsultaHistoricoSchema.safeParse({ empresaId: UUID_B, pagina: 1 }).success).toBe(true);
+    const base = { tenantId: UUID_A, empresaId: UUID_B, correlationId: 'corr-0001-abcd' };
+
+    expect(ConsultaHistoricoSchema.safeParse({ ...base, pagina: 1 }).success).toBe(true);
     expect(
-      ConsultaHistoricoSchema.safeParse({ empresaId: UUID_B, pagina: 2, finalidade: 'ESOCIAL_TESTE', resultado: 'FALHA' })
+      ConsultaHistoricoSchema.safeParse({ ...base, pagina: 2, finalidade: 'ESOCIAL_TESTE', resultado: 'FALHA' })
         .success,
     ).toBe(true);
-    expect(ConsultaHistoricoSchema.safeParse({ empresaId: UUID_B, pagina: 0 }).success).toBe(false);
+    expect(ConsultaHistoricoSchema.safeParse({ ...base, pagina: 0 }).success).toBe(false);
+    // Sem tenant o contexto de RLS não abre: a consulta é recusada, nunca ampliada.
+    expect(ConsultaHistoricoSchema.safeParse({ empresaId: UUID_B, pagina: 1, correlationId: 'corr-0001-abcd' }).success).toBe(false);
   });
 });

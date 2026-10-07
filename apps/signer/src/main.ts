@@ -1,9 +1,25 @@
-import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
+import { readFileSync } from 'node:fs';
 
-const port = Number(process.env['SIGNER_PORT'] ?? 15103);
-const server = criarServidorDeSaude('signer');
+import { lerConfig } from './config.js';
+import { criarServicosDeSaude } from './servicos.js';
+import { criarServidorDoSigner, encerrarComGraca, escutar } from './server.js';
+import { criarLeitorDoVault } from './vault.js';
 
-await escutar(server, port);
-encerrarComGraca(server);
+const config = lerConfig(process.env);
 
-console.warn(`[signer] saúde em http://0.0.0.0:${port}/health`);
+const vault = criarLeitorDoVault({
+  endereco: config.vaultAddr,
+  arquivoDoToken: config.arquivoDoTokenDoVault,
+});
+
+const servidor = criarServidorDoSigner({
+  certificadoPem: readFileSync(config.arquivoDoCertificado, 'utf8'),
+  chavePem: readFileSync(config.arquivoDaChave, 'utf8'),
+  caInternaPem: readFileSync(config.arquivoDaCaInterna, 'utf8'),
+  servicos: criarServicosDeSaude({ vault, agora: () => new Date() }),
+});
+
+await escutar(servidor, config.porta);
+encerrarComGraca(servidor);
+
+console.warn(`[signer] mTLS interno ouvindo na porta ${config.porta}`);

@@ -163,6 +163,9 @@ importers:
 
   apps/signer:
     dependencies:
+      '@contaia/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@contaia/shared':
         specifier: workspace:*
         version: link:../../packages/shared
