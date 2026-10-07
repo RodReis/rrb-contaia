@@ -33,13 +33,61 @@ export const ehAvisoDeCarteira = (notificacao: Notificacao): boolean =>
 export const ehAvisoDeCertificado = (notificacao: Notificacao): boolean =>
   notificacao.tipo.startsWith('CERTIFICADO_');
 
-export const tituloDaNotificacao = (notificacao: Notificacao): string =>
-  ehAvisoDeCarteira(notificacao) ? 'Sua carteira foi atualizada' : (notificacao.empresaNome ?? '');
+/** Incidente do Signer (SPEC-012 §3.10): serviço global, sem empresa. */
+export const ehAvisoDoSigner = (notificacao: Notificacao): boolean =>
+  notificacao.tipo === 'SIGNER_INDISPONIVEL' || notificacao.tipo === 'SIGNER_RECUPERADO';
 
-export const tipoDaNotificacao = (notificacao: Notificacao): string =>
-  ehAvisoDeCertificado(notificacao)
+const RESUMO_DO_SIGNER: Readonly<Record<string, string>> = {
+  SIGNER_INDISPONIVEL: 'Signer indisponível',
+  SIGNER_RECUPERADO: 'Signer recuperado',
+};
+
+export const tituloDaNotificacao = (notificacao: Notificacao): string => {
+  if (ehAvisoDeCarteira(notificacao)) {
+    return 'Sua carteira foi atualizada';
+  }
+
+  return ehAvisoDoSigner(notificacao) ? 'Microserviço Signer' : (notificacao.empresaNome ?? '');
+};
+
+export const tipoDaNotificacao = (notificacao: Notificacao): string => {
+  if (ehAvisoDoSigner(notificacao)) {
+    return RESUMO_DO_SIGNER[notificacao.tipo] ?? notificacao.tipo;
+  }
+
+  return ehAvisoDeCertificado(notificacao)
     ? (RESUMO_DO_CERTIFICADO[notificacao.tipo] ?? RESUMO_GENERICO_DO_CERTIFICADO)
     : (RESUMO_POR_TIPO[notificacao.tipo] ?? notificacao.tipo);
+};
+
+/** `65 min` → `1 h 5 min`; menos de um minuto não vira `0 min`. */
+const duracaoEmTexto = (milissegundos: number): string => {
+  const minutos = Math.floor(milissegundos / 60_000);
+
+  if (minutos < 1) {
+    return 'menos de 1 min';
+  }
+
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+
+  if (horas === 0) {
+    return `${minutos} min`;
+  }
+
+  return resto === 0 ? `${horas} h` : `${horas} h ${resto} min`;
+};
+
+/** Linha de apoio do aviso do Signer: o que houve e, na recuperação, por quanto tempo. */
+export const resumoDoSigner = (notificacao: Notificacao): string => {
+  if (notificacao.tipo === 'SIGNER_INDISPONIVEL') {
+    return 'Três verificações seguidas sem resposta.';
+  }
+
+  return notificacao.duracaoMs === null || notificacao.duracaoMs === undefined
+    ? 'O Signer voltou a responder.'
+    : `O Signer voltou a responder. Ficou indisponível por ${duracaoEmTexto(notificacao.duracaoMs)}.`;
+};
 
 /** Linha de apoio do aviso de carteira: o efeito, com nomes e contagem. */
 export const resumoDaCarteira = (notificacao: Notificacao): string => {
@@ -69,6 +117,11 @@ export const resumoDaCarteira = (notificacao: Notificacao): string => {
 export const rotaDaNotificacao = (notificacao: Notificacao): string => {
   if (ehAvisoDeCarteira(notificacao)) {
     return '/carteira';
+  }
+
+  if (ehAvisoDoSigner(notificacao)) {
+    // O cartão do Signer fica no topo do cofre: é onde se vê o estado de agora.
+    return '/configuracoes/cofre';
   }
 
   if (ehAvisoDeCertificado(notificacao)) {

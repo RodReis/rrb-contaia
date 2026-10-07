@@ -27,6 +27,7 @@ import {
   APRESENTACAO_DA_SITUACAO_DO_RESPONSAVEL,
   APRESENTACAO_DA_VERSAO,
   APRESENTACAO_DO_ESTADO,
+  ESTADOS_QUE_VENCEM,
   formatarDataCivil,
   impressaoDigitalAgrupada,
   prazoEmTexto,
@@ -34,6 +35,7 @@ import {
 import { ErroDoCofre } from './erro-do-cofre';
 import { FUNDO_DA_SOBREPOSICAO } from './estilos';
 import { useDetalheDoCofre } from './queries';
+import { PainelDoSigner } from './signer/painel-do-signer';
 
 const Linha = ({ rotulo, children }: { rotulo: string; children: ReactNode }) => (
   <div className="flex flex-col gap-xs tablet:flex-row tablet:gap-md">
@@ -182,12 +184,23 @@ const Versao = ({ versao }: { versao: CertificadoMetadados }) => {
   );
 };
 
+/** Permissões do Signer na sessão (SPEC-012 §3.9): o painel só aparece a quem pode consultar. */
+export type PermissoesDoSigner = Readonly<{ podeConsultar: boolean; podeTestar: boolean }>;
+
+const SEM_SIGNER: PermissoesDoSigner = { podeConsultar: false, podeTestar: false };
+
+/** O Signer só assina com certificado vigente: válido ou na janela de alerta. */
+const temCertificadoVigente = (item: ItemDoCofre): boolean =>
+  item.estado === 'VALIDO' || ESTADOS_QUE_VENCEM.includes(item.estado);
+
 const Conteudo = ({
   detalhe,
   aoEnviar,
+  signer,
 }: {
   detalhe: DetalheDoCofre;
   aoEnviar: (item: ItemDoCofre) => void;
+  signer: PermissoesDoSigner;
 }) => {
   const { item, versoes } = detalhe;
   const estado = APRESENTACAO_DO_ESTADO[item.estado];
@@ -212,6 +225,14 @@ const Conteudo = ({
         </h3>
         <Certificado item={item} />
       </section>
+
+      {signer.podeConsultar ? (
+        <PainelDoSigner
+          empresaId={item.empresaId}
+          temCertificadoVigente={temCertificadoVigente(item)}
+          podeTestar={signer.podeTestar}
+        />
+      ) : null}
 
       <section aria-labelledby="detalhe-responsavel" className="flex flex-col gap-sm">
         <h3 id="detalhe-responsavel" className="text-label-sm uppercase text-muted-foreground">
@@ -257,11 +278,13 @@ export const DetalheDaEmpresa = ({
   empresaId,
   aoFechar,
   aoEnviar,
+  signer = SEM_SIGNER,
 }: {
   /** Aberto enquanto houver `empresa` na URL. */
   empresaId: string | null;
   aoFechar: () => void;
   aoEnviar: (item: ItemDoCofre) => void;
+  signer?: PermissoesDoSigner;
 }) => {
   const painel = useRef<HTMLDivElement>(null);
   const { data, isPending, isError, error, refetch } = useDetalheDoCofre(empresaId);
@@ -328,6 +351,7 @@ export const DetalheDaEmpresa = ({
             ) : (
               <Conteudo
                 detalhe={data}
+                signer={signer}
                 aoEnviar={(alvo) => {
                   aoFechar();
                   aoEnviar(alvo);

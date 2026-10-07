@@ -39,7 +39,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 import {
   ehAvisoDeCarteira,
+  ehAvisoDoSigner,
   resumoDaCarteira,
+  resumoDoSigner,
   rotaDaNotificacao,
   tipoDaNotificacao,
   tituloDaNotificacao,
@@ -202,6 +204,11 @@ export const SinoDeNotificacoes = () => {
                       // Um aviso só por operação, com o resumo do que entrou e do que saiu.
                       <p className="break-words text-body-sm text-foreground">
                         {resumoDaCarteira(notificacao)}
+                      </p>
+                    ) : null}
+                    {ehAvisoDoSigner(notificacao) ? (
+                      <p className="break-words text-body-sm text-foreground">
+                        {resumoDoSigner(notificacao)}
                       </p>
                     ) : null}
                   </Link>

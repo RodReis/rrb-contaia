@@ -211,4 +211,49 @@ describe('SinoDeNotificacoes', () => {
 
     expect(within(painel).getByRole('checkbox', { name: /todas/iu })).toBeChecked();
   });
+
+  /** Incidente do Signer (SPEC-012 §3.10): serviço global, sem empresa, aviso a cada administrador. */
+  const AVISO_DO_SIGNER = (tipo: string, duracaoMs: number | null) => ({
+    id: 's1',
+    empresaId: null,
+    empresaNome: null,
+    adicionadas: null,
+    removidas: null,
+    tipo,
+    chave: 'signer:incidente-1:x',
+    lida: false,
+    lidaEm: null,
+    criadoEm: new Date().toISOString(),
+    duracaoMs,
+  });
+
+  it.each([
+    ['SIGNER_INDISPONIVEL', null, 'Signer indisponível', /três verificações seguidas sem resposta/iu],
+    ['SIGNER_RECUPERADO', 125_000, 'Signer recuperado', /ficou indisponível por 2 min/iu],
+    ['SIGNER_RECUPERADO', 30_000, 'Signer recuperado', /ficou indisponível por menos de 1 min/iu],
+    ['SIGNER_RECUPERADO', 3_900_000, 'Signer recuperado', /ficou indisponível por 1 h 5 min/iu],
+    ['SIGNER_RECUPERADO', null, 'Signer recuperado', /voltou a responder\./iu],
+  ] as const)(
+    'incidente %s (%s ms): título do serviço, tipo, resumo e destino no cofre, sem empresa',
+    async (tipo, duracaoMs, rotulo, resumo) => {
+      vi.mocked(requisitar).mockResolvedValue({
+        notificacoes: [AVISO_DO_SIGNER(tipo, duracaoMs)],
+        naoLidas: 1,
+      });
+      const usuario = userEvent.setup();
+
+      renderizar();
+      await usuario.click(await screen.findByRole('button', { name: /notifica/iu }));
+
+      const painel = await screen.findByRole('dialog');
+
+      expect(within(painel).getByText('Microserviço Signer')).toBeInTheDocument();
+      expect(within(painel).getByText(new RegExp(rotulo, 'u'))).toBeInTheDocument();
+      expect(within(painel).getByText(resumo)).toBeInTheDocument();
+      expect(within(painel).getByRole('link', { name: /Microserviço Signer/u })).toHaveAttribute(
+        'href',
+        '/configuracoes/cofre',
+      );
+    },
+  );
 });

@@ -11,6 +11,9 @@ export const CONSULTA_DO_COFRE = 'certificados.cofre.consultar';
 export const CADASTRO_NO_COFRE = 'certificados.cofre.criar';
 export const SUBSTITUICAO_NO_COFRE = 'certificados.cofre.substituir';
 export const CONSULTA_DO_HISTORICO_DE_CERTIFICADOS = 'certificados.historico.consultar';
+// Signer isolado (SPEC-012 §3.9): consultar estado e histórico, e disparar o teste manual.
+export const CONSULTA_DO_SIGNER = 'certificados.signer.consultar';
+export const TESTE_DO_SIGNER = 'certificados.signer.testar';
 
 export const concede = (sessao: Sessao, chave: string): boolean => {
   const concedidas: readonly string[] = sessao.permissoes;
