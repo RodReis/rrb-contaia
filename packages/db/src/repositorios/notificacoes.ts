@@ -29,6 +29,8 @@ export type NotificacaoPersistida = Readonly<{
   criadoEm: string;
   adicionadas: readonly EmpresaDaNotificacaoDeCarteira[] | null;
   removidas: readonly EmpresaDaNotificacaoDeCarteira[] | null;
+  /** Só no aviso de recuperação do Signer (SPEC-012 §3.10): quanto o serviço ficou fora. */
+  duracaoMs: number | null;
 }>;
 
 export type PaginaDeNotificacoes = Readonly<{
@@ -47,6 +49,7 @@ type LinhaDaNotificacao = {
   criado_em: Date;
   adicionadas: EmpresaDaNotificacaoDeCarteira[] | null;
   removidas: EmpresaDaNotificacaoDeCarteira[] | null;
+  duracao_ms: string | null;
 };
 
 const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida => ({
@@ -60,6 +63,8 @@ const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida 
   criadoEm: linha.criado_em.toISOString(),
   adicionadas: linha.adicionadas,
   removidas: linha.removidas,
+  // bigint chega como texto do driver; a duração de um incidente cabe com folga em Number.
+  duracaoMs: linha.duracao_ms === null ? null : Number(linha.duracao_ms),
 });
 
 /**
@@ -74,7 +79,7 @@ const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida 
 const ITENS_DO_SINO = `
   select n.id, n.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj) as empresa_nome,
          n.tipo, n.chave, n.lida, n.lida_em, n.criado_em, n.sequencia,
-         null::jsonb as adicionadas, null::jsonb as removidas
+         null::jsonb as adicionadas, null::jsonb as removidas, null::bigint as duracao_ms
     from app.empresa_notificacao n
     join app.empresa e on e.id = n.empresa_id
    where n.tenant_id = $1
@@ -84,7 +89,7 @@ const ITENS_DO_SINO = `
           and cv.usuario_id = $2 and cv.encerrado_em is null)
   union all
   select c.id, null::uuid, null::text, 'CARTEIRA_ALTERADA', c.evento_id::text,
-         c.lida, c.lida_em, c.criado_em, c.sequencia, c.adicionadas, c.removidas
+         c.lida, c.lida_em, c.criado_em, c.sequencia, c.adicionadas, c.removidas, null::bigint
     from app.carteira_notificacao c
    where c.tenant_id = $1 and c.usuario_id = $2
   union all
@@ -93,10 +98,19 @@ const ITENS_DO_SINO = `
   -- empresas da carteira de quem lê. Abre o cofre da empresa, que mostra o estado atual.
   select k.id, k.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj),
          'CERTIFICADO_' || k.marco, 'certificado:' || k.certificado_id::text || ':' || k.marco,
-         k.lida, k.lida_em, k.criado_em, k.sequencia, null::jsonb, null::jsonb
+         k.lida, k.lida_em, k.criado_em, k.sequencia, null::jsonb, null::jsonb, null::bigint
     from app.empresa_certificado_notificacao k
     join app.empresa e on e.id = k.empresa_id
-   where k.tenant_id = $1 and k.usuario_id = $2`;
+   where k.tenant_id = $1 and k.usuario_id = $2
+  union all
+  -- Incidente do Signer (SPEC-012 §3.10): do administrador destinatário, sem empresa (o serviço é
+  -- global). O tipo diz o que houve e a chave aponta o incidente; a duração só vem na recuperação.
+  select s.id, null::uuid, null::text,
+         case s.tipo when 'INDISPONIBILIDADE' then 'SIGNER_INDISPONIVEL' else 'SIGNER_RECUPERADO' end,
+         'signer:' || s.incidente_id::text || ':' || s.tipo,
+         s.lida, s.lida_em, s.criado_em, s.sequencia, null::jsonb, null::jsonb, s.duracao_ms
+    from app.signer_notificacao s
+   where s.tenant_id = $1 and s.usuario_id = $2`;
 
 const SELECAO_DO_SINO = `select * from (${ITENS_DO_SINO}) itens`;
 
@@ -278,5 +292,12 @@ export const marcarVariasComoLidas = async (
     [ids, tenantId, usuarioId],
   );
 
-  return deEmpresa.rows.length + (deCarteira.rowCount ?? 0) + (doCofre.rowCount ?? 0);
+  const doSigner = await cliente.query(
+    `update app.signer_notificacao
+        set lida = true, lida_em = now()
+      where id = any($1) and tenant_id = $2 and usuario_id = $3 and lida = false`,
+    [ids, tenantId, usuarioId],
+  );
+
+  return deEmpresa.rows.length + (deCarteira.rowCount ?? 0) + (doCofre.rowCount ?? 0) + (doSigner.rowCount ?? 0);
 };
