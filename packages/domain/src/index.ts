@@ -229,8 +229,10 @@ export type {
 
 export {
   FINALIDADES_ADMINISTRATIVAS,
+  FINALIDADES_DE_SERVICO,
   FINALIDADES_HUMANAS,
   FINALIDADES_TECNICAS,
+  contextoDeServico,
   contextoHumano,
   contextoTecnico,
   parametrosDeSessao,
@@ -238,11 +240,14 @@ export {
 } from './acesso/contexto-de-acesso.js';
 export type {
   ContextoDeAcesso,
+  ContextoDeServico,
   ContextoHumano,
   ContextoTecnico,
+  EntradaDoContextoDeServico,
   EntradaDoContextoHumano,
   EntradaDoContextoTecnico,
   FinalidadeAdministrativa,
+  FinalidadeDeServico,
   FinalidadeHumana,
   FinalidadeTecnica,
   ParametrosDeSessao,

@@ -89,6 +89,8 @@ const SQL_CERTIFICADO = `insert into app.empresa_certificado
          now(), $6, 'DESATIVACAO', 'prova da matriz')
  returning id`;
 
+const hex64 = (): string => (randomUUID() + randomUUID()).replaceAll('-', '').slice(0, 64);
+
 const parametrosDoCertificado = (e: Escopo, n: number): unknown[] => [
   e.tenantId,
   e.empresaId,
@@ -286,6 +288,50 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
         parametrosDoCertificado(e, n),
       );
     },
+    colunaDeAtualizacao: 'lida',
+  },
+  'app.signer_operacao': {
+    // O certificado-pai nasce na mesma instrução e na empresa da própria tentativa: a FK composta
+    // (certificado, empresa, tenant) recusaria um pai de outra empresa, e a matriz repete a
+    // tentativa em empresas diferentes com as mesmas referências.
+    inserir: (banco, e) => {
+      const n = proximo();
+
+      return unico(
+        banco,
+        `with certificado as (${SQL_CERTIFICADO})
+         insert into app.signer_operacao
+           (tenant_id, empresa_id, finalidade, tipo, chave_hmac, hash_conteudo, certificado_id,
+            referencia_segredo, identidade_tecnica, correlation_id)
+         select $1, $2, 'DFE_TESTE', 'MTLS', $8, $9, certificado.id, $7::uuid, 'matriz-rls', 'matriz-rls'
+           from certificado
+         returning id`,
+        [...parametrosDoCertificado(e, n), hex64(), hex64()],
+      );
+    },
+    colunaDeAtualizacao: 'tentativas',
+  },
+  'app.signer_evento': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.signer_evento
+           (tenant_id, empresa_id, finalidade, identidade_tecnica, iniciado_em, finalizado_em, latencia_ms,
+            resultado, codigo, correlation_id)
+         values ($1, $2, 'DFE_TESTE', 'matriz-rls', now(), now(), 5, 'FALHA', 'SIGNER_DESTINO_INDISPONIVEL',
+                 'matriz-rls')
+         returning id`,
+        [e.tenantId, e.empresaId],
+      ),
+  },
+  'app.signer_notificacao': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.signer_notificacao (tenant_id, usuario_id, incidente_id, tipo)
+         values ($1, $2, gen_random_uuid(), 'INDISPONIBILIDADE') returning id`,
+        [e.tenantId, e.autorId],
+      ),
     colunaDeAtualizacao: 'lida',
   },
   'app.carteira_vinculo': {
