@@ -82,7 +82,11 @@ const servidor = createServer((requisicao, resposta) => {
   resposta.end(JSON.stringify(corpo));
 });
 
-servidor.listen(PORTA, '127.0.0.1', () => {
+// Loopback por padrão. Com a API em contêiner (SPEC-012) ela chega aqui por `host.docker.internal`,
+// que não é loopback: a CI define CNPJA_DUBLE_HOST=0.0.0.0 (runner efêmero, dados fictícios).
+const HOST = process.env['CNPJA_DUBLE_HOST'] ?? '127.0.0.1';
+
+servidor.listen(PORTA, HOST, () => {
   // eslint-disable-next-line no-console
-  console.log(`[duble-cnpja] ouvindo em http://127.0.0.1:${PORTA}`);
+  console.log(`[duble-cnpja] ouvindo em http://${HOST}:${PORTA}`);
 });

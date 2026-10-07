@@ -1,7 +1,10 @@
 import type { CodigoDeErro } from '@contaia/domain';
 
+/** O teste manual em andamento é recusa da API (409 na tela); o Signer nunca a emite. */
+type CodigoDaApi = 'SIGNER_TESTE_EM_ANDAMENTO';
+
 export type CodigoDoSigner =
-  | Extract<CodigoDeErro, `SIGNER_${string}`>
+  | Exclude<Extract<CodigoDeErro, `SIGNER_${string}`>, CodigoDaApi>
   | 'ROTA_NAO_ENCONTRADA'
   | 'REQUISICAO_INVALIDA';
 

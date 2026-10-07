@@ -56,7 +56,7 @@ import {
   type RespostaDaIngestao,
   type TicketDeIngestao,
 } from '@contaia/shared';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 
 import { permissoesEfetivas } from '../auth/permissoes-efetivas';
@@ -84,7 +84,8 @@ export class CertificadosService {
   constructor(
     private readonly pool: PoolDoBanco,
     private readonly cofre: CofreClient,
-    private readonly signer: Pick<SignerService, 'agendarDiagnosticosPosCadastro'>,
+    // Tipo estreito para os testes; o token explícito evita `Object` em `design:paramtypes`.
+    @Inject(SignerService) private readonly signer: Pick<SignerService, 'agendarDiagnosticosPosCadastro'>,
   ) {}
 
   /** Único ponto que lê o relógio (I-11): os testes o substituem. */

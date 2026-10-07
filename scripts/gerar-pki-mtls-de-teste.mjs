@@ -122,10 +122,9 @@ const lerArgumento = (nome, padrao) => {
   return indice > 0 && process.argv[indice + 1] ? process.argv[indice + 1] : padrao;
 };
 
-const executarComoCli = async () => {
-  const raizDoRepo = resolve(fileURLToPath(new URL('../', import.meta.url)));
-  const saida = resolve(lerArgumento('saida', join(raizDoRepo, 'infra/docker/.vault-local/pki-mtls')));
-  const pkiMtls = criarPkiMtls();
+/** Grava as duas CAs e as identidades de serviço em `saida`. Chaves em 0600; nada disso é versionado. */
+export const escreverPkiMtls = async (saida, { agora = new Date() } = {}) => {
+  const pkiMtls = criarPkiMtls({ agora });
 
   await mkdir(saida, { recursive: true });
   await writeFile(join(saida, 'ca-interna.pem'), pkiMtls.interna.certificadoPem);
@@ -143,6 +142,14 @@ const executarComoCli = async () => {
     await writeFile(join(saida, `${nome}.crt.pem`), certificadoPem);
     await writeFile(join(saida, `${nome}.key.pem`), chavePem, { mode: 0o600 });
   }
+
+};
+
+const executarComoCli = async () => {
+  const raizDoRepo = resolve(fileURLToPath(new URL('../', import.meta.url)));
+  const saida = resolve(lerArgumento('saida', join(raizDoRepo, 'infra/docker/.vault-local/pki-mtls')));
+
+  await escreverPkiMtls(saida);
 
   console.warn(`PKI mTLS de teste gerada em ${saida}`);
   console.warn('  Material sintético; nunca versionar.');

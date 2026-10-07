@@ -24,8 +24,12 @@ export type SessaoDaRequisicao = IdentidadeResolvida &
     permissoes: readonly ChaveDePermissao[];
   }>;
 
+/** O `iss` que os tokens carregam: a origem que o NAVEGADOR usa para falar com o Keycloak. */
 const emissor = (): string =>
   process.env['KEYCLOAK_ISSUER_URL'] ?? 'http://127.0.0.1:18080/realms/contaia';
+
+/** Onde ESTE processo alcança o Keycloak. Em contêiner difere do público (`keycloak:8080`). */
+const enderecoDoRealm = (): string => process.env['KEYCLOAK_INTERNAL_URL'] ?? emissor();
 
 @Injectable()
 export class SessaoService {
@@ -37,7 +41,7 @@ export class SessaoService {
   private obterJwks(): ReturnType<typeof createRemoteJWKSet> {
     // O conjunto de chaves é cacheado pelo próprio `jose` e revalidado quando o
     // Keycloak rotaciona: criar um por requisição buscaria o JWKS toda vez.
-    this.jwks ??= createRemoteJWKSet(new URL(`${emissor()}/protocol/openid-connect/certs`));
+    this.jwks ??= createRemoteJWKSet(new URL(`${enderecoDoRealm()}/protocol/openid-connect/certs`));
 
     return this.jwks;
   }

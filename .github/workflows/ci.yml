@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROVA_ESCOPO: SPEC-011
+  PROVA_ESCOPO: SPEC-012
 
 jobs:
   quality:
@@ -150,24 +150,13 @@ jobs:
   e2e:
     name: e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    # O caminho crítico da SPEC-001 exige identidade e storage reais: sem estes
-    # serviços a prova do wizard não roda na CI e a regressão só apareceria em
-    # execução manual.
-    services:
-      postgres:
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_DB: contaia
-          POSTGRES_USER: contaia
-          POSTGRES_PASSWORD: contaia_local
-        ports: ['15432:5432']
-        options: >-
-          --health-cmd "pg_isready -U contaia -d contaia"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
+    timeout-minutes: 35
+    # A prova roda contra a MESMA composição do desenvolvimento local (infra/docker/compose.yml):
+    # PostgreSQL, Redis, Keycloak, MinIO, Mailpit, Vault em modo servidor, o Signer isolado na rede
+    # privada, os dublês mTLS, a API e os workers. Web e cofre seguem como processos do runner (o
+    # Playwright os sobe), e a API os alcança por `host.docker.internal`.
     env:
+      COMPOSE_PROJECT_NAME: contaia
       DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:15432/contaia
       KEYCLOAK_ISSUER_URL: http://127.0.0.1:18080/realms/contaia
       KEYCLOAK_ADMIN: admin
@@ -183,12 +172,14 @@ jobs:
       WEB_PUBLIC_URL: http://127.0.0.1:15100
       WEB_ORIGIN: http://127.0.0.1:15100
       API_ORIGIN: http://127.0.0.1:15101
+      # A API roda no Compose: o Playwright não a sobe (ver playwright.config.ts).
+      API_EM_COMPOSE: '1'
       S3_ENDPOINT: http://127.0.0.1:19000
       S3_BUCKET: contaia-documentos
       MINIO_ROOT_USER: contaia_local
       MINIO_ROOT_PASSWORD: contaia_local_secret
-      # Cofre local de certificados A1 (SPEC-011). Os segredos e os caminhos do Vault são
-      # gerados em tempo de execução pelo passo "Subir o Vault efêmero" (nada fixo no repositório).
+      # Cofre local de certificados A1 (SPEC-011). Os segredos são gerados em tempo de execução
+      # pelo passo "Preparar o ambiente" (nada fixo no repositório).
       VAULT_IMAGE: hashicorp/vault:1.20
       VAULT_ADDR: http://127.0.0.1:18200
       VAULT_CONTAINER: contaia-vault
@@ -197,9 +188,14 @@ jobs:
       COFRE_URL: http://127.0.0.1:15104
       # Embutida pelo Next no `pnpm build`: o navegador só envia o certificado a esta origem.
       NEXT_PUBLIC_COFRE_URL: http://127.0.0.1:15104
-      COFRE_HOST: 127.0.0.1
+      # A API (contêiner) chama o cofre (processo do runner) por `host.docker.internal`, que chega
+      # pela ponte do Docker, não pelo loopback: o runner é efêmero, então o cofre escuta em todas.
+      COFRE_HOST: 0.0.0.0
       COFRE_API_URL: http://127.0.0.1:15101
       COFRE_ORIGENS_PERMITIDAS: http://127.0.0.1:15100
+      # Mesmo motivo para o dublê da CNPJá: a API o alcança pelo host.
+      CNPJA_URL: http://host.docker.internal:15310
+      CNPJA_DUBLE_HOST: 0.0.0.0
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -214,45 +210,13 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps chromium
-      # Keycloak sobe por `docker run` e não como service container: o import do
-      # realm precisa de um volume, que a sintaxe de `services` não expõe.
-      - name: Subir MinIO, Keycloak e Mailpit
+      # Segredos 100% efêmeros. Tudo que é sensível (unseal key, root token, tokens técnicos, PKI
+      # de teste, chaves mTLS) fica em infra/docker/.vault-local/ (ignorado pelo Git), FORA de
+      # test-results/, para nunca entrar em artefato da CI.
+      - name: Preparar o ambiente e os segredos de teste
         run: |
-          # Nenhum dos três roda como service container: o MinIO precisa do
-          # argumento `server` e o Keycloak precisa de volume para importar o
-          # realm — `services` não expõe `command` nem volume de bind.
-          # O Mailpit captura o e-mail do convite (SPEC-007) para a prova E2E.
-          docker run -d --name contaia-mailpit -p 127.0.0.1:11025:1025 -p 127.0.0.1:18025:8025 axllent/mailpit:v1.31.3
+          cp .env.example .env
 
-          # A imagem oficial saiu do quay.io e do Docker Hub (a tag fixada deixou de existir e
-          # o `pull` responde `unauthorized`). A do Bitnami legado é o mesmo MinIO, congelada e
-          # fixada por digest; entra pelo binário `minio`, como root, com o mesmo `/data`.
-          docker run -d --name contaia-minio             -p 127.0.0.1:19000:9000             -e MINIO_ROOT_USER=contaia_local             -e MINIO_ROOT_PASSWORD=contaia_local_secret             --user 0:0 --entrypoint minio             bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c             server /data
-
-          docker run -d --name contaia-keycloak             -p 127.0.0.1:18080:8080             -e KC_BOOTSTRAP_ADMIN_USERNAME=admin             -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin_local             -v "$PWD/infra/keycloak:/opt/keycloak/data/import:ro"             quay.io/keycloak/keycloak:26.5.2             start-dev --import-realm
-          for tentativa in $(seq 1 40); do
-            pronto=1
-            curl -sf "http://127.0.0.1:19000/minio/health/live" >/dev/null || pronto=0
-            curl -sf "http://127.0.0.1:18080/realms/contaia/.well-known/openid-configuration" >/dev/null || pronto=0
-            curl -sf "http://127.0.0.1:18025/readyz" >/dev/null || pronto=0
-
-            if [ "$pronto" = "1" ]; then
-              echo "MinIO, Keycloak e Mailpit prontos"
-              exit 0
-            fi
-            sleep 5
-          done
-
-          echo "::error::MinIO, Keycloak ou Mailpit não ficaram prontos"
-          docker logs contaia-mailpit 2>&1 | tail -20
-          docker logs contaia-minio 2>&1 | tail -20
-          docker logs contaia-keycloak 2>&1 | tail -40
-          exit 1
-      # SPEC-011: Vault em modo servidor (nunca -dev) e material 100% efêmero. Tudo que é
-      # sensível (unseal key, root token, tokens técnicos, PKI de teste) fica em
-      # $RUNNER_TEMP, FORA de test-results/, para nunca entrar em artefato da CI.
-      - name: Subir o Vault efêmero, fazer o bootstrap e gerar a PKI de teste
-        run: |
           ticket_secret="$(openssl rand -hex 32)"
           service_token="$(openssl rand -hex 32)"
           admin_token="$(openssl rand -hex 32)"
@@ -260,7 +224,7 @@ jobs:
           echo "::add-mask::$service_token"
           echo "::add-mask::$admin_token"
 
-          vault_dir="$RUNNER_TEMP/vault-local"
+          vault_dir="$PWD/infra/docker/.vault-local"
           mkdir -p "$vault_dir"
 
           {
@@ -270,20 +234,38 @@ jobs:
             echo "VAULT_LOCAL_DIR=$vault_dir"
             echo "COFRE_VAULT_TOKEN_FILE=$vault_dir/token-cofre-ingestao"
             echo "COFRE_RAIZES_ICP_DIR=$vault_dir/raizes-icp"
+            # Os contêineres de serviço rodam com o uid do dono dos arquivos de segredo (0600).
+            echo "CONTAINER_UID=$(id -u)"
+            echo "CONTAINER_GID=$(id -g)"
           } >> "$GITHUB_ENV"
-
-          docker run -d --name "$VAULT_CONTAINER"             -p 127.0.0.1:18200:8200             -e VAULT_ADDR=http://127.0.0.1:8200             -e SKIP_SETCAP=true             -e 'VAULT_LOCAL_CONFIG={"storage":{"file":{"path":"/vault/file"}},"listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":true}},"disable_mlock":true,"ui":false,"api_addr":"http://127.0.0.1:8200"}'             "$VAULT_IMAGE" server
-
-          # O bootstrap espera o Vault subir, inicializa, desseleia e configura (idempotente).
-          if ! VAULT_LOCAL_DIR="$vault_dir" node infra/docker/vault/bootstrap.mjs; then
-            docker logs "$VAULT_CONTAINER" 2>&1 | tail -40
-            exit 1
-          fi
 
           # Raiz e PFXs sintéticos; nada disto é ICP-Brasil real nem vai para o repositório.
           node scripts/gerar-pki-de-teste.mjs --saida "$vault_dir"
-      - run: pnpm db:migrate
-      - run: pnpm db:seed
+          # PKI mTLS dos serviços, dublês, pepper e ponto de montagem do token do Signer.
+          COFRE_RAIZES_ICP_DIR="$vault_dir/raizes-icp" node scripts/preparar-segredos-do-signer.mjs
+      # O PostgreSQL sobe primeiro: as migrations criam o papel `contaia_app`, sem o qual a API,
+      # os workers e o Signer não conectam.
+      - name: Subir o PostgreSQL, migrar e semear
+        run: |
+          docker compose --env-file .env -f infra/docker/compose.yml up -d --wait --wait-timeout 120 postgres
+          pnpm db:migrate
+          pnpm db:seed
+      - name: Subir a composição (Vault, Signer, dublês, API, workers e o resto)
+        run: |
+          docker compose --env-file .env -f infra/docker/compose.yml up -d --build --wait --wait-timeout 600
+          docker compose --env-file .env -f infra/docker/compose.yml ps
+      - name: Diagnóstico da composição
+        if: failure()
+        run: |
+          docker compose --env-file .env -f infra/docker/compose.yml ps -a
+          docker compose --env-file .env -f infra/docker/compose.yml logs --no-color --tail=60
+      - name: Provas de infraestrutura do Signer (alcance e política do Vault)
+        run: |
+          mkdir -p "test-results/$PROVA_ESCOPO/e2e"
+          node --test --test-reporter=spec --test-reporter=junit \
+            --test-reporter-destination=stdout \
+            --test-reporter-destination="test-results/$PROVA_ESCOPO/e2e/infra-signer-junit.xml" \
+            infra/docker/signer-alcance.test.mjs infra/docker/vault/signer-politica.test.mjs
       - run: pnpm build
       - run: pnpm test:e2e
       - name: Resumo da categoria

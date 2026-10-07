@@ -32,3 +32,5 @@ export function emitirServidorDoDuble(
   pki: PkiMtls,
   opcoes: { dns: string; naoAntes?: Date; naoDepois?: Date },
 ): CredencialPem;
+
+export function escreverPkiMtls(saida: string, opcoes?: { agora?: Date }): Promise<void>;

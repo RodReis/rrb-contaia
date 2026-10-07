@@ -8,6 +8,8 @@ const ambiente: Record<string, string> = Object.fromEntries(
     (entrada): entrada is [string, string] => typeof entrada[1] === 'string',
   ),
 );
+/** `API_EM_COMPOSE=1`: a API é o contêiner do Compose (SPEC-012), não um processo do Playwright. */
+const emCompose = process.env['API_EM_COMPOSE'] === '1';
 const portaWeb = process.env['WEB_PORT'] ?? '15100';
 const portaApi = process.env['API_PORT'] ?? '15101';
 const portaCofre = process.env['COFRE_PORT'] ?? '15104';
@@ -43,21 +45,27 @@ export default defineConfig({
       timeout: 120_000,
       env: { ...ambiente, PORT: portaWeb },
     },
-    {
-      command: 'pnpm --filter @contaia/api start',
-      url: `http://127.0.0.1:${portaApi}/health`,
-      reuseExistingServer: !process.env['CI'],
-      timeout: 120_000,
-      // `CNPJA_URL` aponta para o dublê: a aplicação seletiva consulta a fonte
-      // pelo **servidor**, e um dublê só no navegador não alcança essa chamada
-      // — sem isto o E2E grava o retorno da CNPJá real e deixa de ser
-      // determinístico (CI-PR.md §5).
-      env: {
-        ...ambiente,
-        API_PORT: portaApi,
-        CNPJA_URL: `http://127.0.0.1:${portaDubleDaCnpja}`,
-      },
-    },
+    // Com a API no Compose (CI e `pnpm docker:up`) ela já está de pé e é a que fala com o Signer
+    // pela rede privada: o Playwright só a sobe como processo quando ela não está em contêiner.
+    ...(emCompose
+      ? []
+      : [
+          {
+            command: 'pnpm --filter @contaia/api start',
+            url: `http://127.0.0.1:${portaApi}/health`,
+            reuseExistingServer: !process.env['CI'],
+            timeout: 120_000,
+            // `CNPJA_URL` aponta para o dublê: a aplicação seletiva consulta a fonte
+            // pelo **servidor**, e um dublê só no navegador não alcança essa chamada
+            // — sem isto o E2E grava o retorno da CNPJá real e deixa de ser
+            // determinístico (CI-PR.md §5).
+            env: {
+              ...ambiente,
+              API_PORT: portaApi,
+              CNPJA_URL: `http://127.0.0.1:${portaDubleDaCnpja}`,
+            },
+          },
+        ]),
     {
       // Cofre isolado (SPEC-011): recebe o upload do navegador, guarda no Vault e avisa a API.
       // Exige Vault inicializado e a PKI de teste em `COFRE_RAIZES_ICP_DIR` (CI-PR.md §5).

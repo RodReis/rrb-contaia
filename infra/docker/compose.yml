@@ -22,7 +22,8 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
-    networks: [contaia]
+    # Também na rede privada: o Signer lê o estado dos certificados daqui (papel `contaia_app`, RLS).
+    networks: [contaia, privada]
 
   redis:
     image: redis:8.2-alpine
@@ -145,7 +146,8 @@ services:
       timeout: 5s
       retries: 12
       start_period: 5s
-    networks: [contaia]
+    # Também na rede privada: o Signer lê o PKCS#12 daqui, com o token da política `signer-leitura`.
+    networks: [contaia, privada]
 
   # Mesmo script da CI (infra/docker/vault/bootstrap.mjs): inicializa, desseleia e
   # configura de forma idempotente e, em `--vigiar`, desseleia de novo apos um reinicio.
@@ -154,6 +156,9 @@ services:
     image: node:24-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-contaia}-vault-bootstrap
     restart: unless-stopped
+    # Mesmo uid dos demais contêineres de serviço: os tokens gravados aqui (0600) precisam ser
+    # legíveis pelo Signer, que roda com esse uid (ver CONTAINER_UID no .env.example).
+    user: '${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}'
     depends_on:
       vault:
         condition: service_healthy
@@ -173,9 +178,232 @@ services:
       start_period: 5s
     networks: [contaia]
 
+  # -- Signer isolado, dublês e serviços que falam com ele (SPEC-012 / F12) ------------------------
+  #
+  # Rede `privada` é `internal`: sem rota para fora e sem porta publicável. O Signer e os dublês
+  # só existem nela; API e workers entram nas duas redes. Estar na rede NÃO autentica ninguém: o
+  # Signer decide quem chama pelo certificado de serviço (CA interna) e pela alçada de cada
+  # identidade. Todo segredo é arquivo de teste montado somente-leitura, só no serviço que o usa;
+  # `pnpm docker:up` o prepara (scripts/preparar-segredos-do-signer.mjs). Sem KMS/HSM e sem produção.
+
+  # Dublê do DF-e: servidor mTLS que só aceita como cliente um A1 de teste (raiz ICP de teste).
+  duble-dfe:
+    image: node:24-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-duble-dfe
+    restart: unless-stopped
+    user: '${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}'
+    working_dir: /app
+    command: ['node', '/app/main.mjs']
+    environment:
+      DUBLE_NOME: duble-dfe
+      DUBLE_PORTA: '8443'
+      DUBLE_CERT_FILE: /run/secrets/duble.crt.pem
+      DUBLE_KEY_FILE: /run/secrets/duble.key.pem
+      DUBLE_CA_CLIENTES_FILE: /run/secrets/ca-clientes.pem
+    volumes:
+      - ./dubles:/app:ro
+      - ./.vault-local/pki-mtls/duble-dfe.crt.pem:/run/secrets/duble.crt.pem:ro
+      - ./.vault-local/pki-mtls/duble-dfe.key.pem:/run/secrets/duble.key.pem:ro
+      - ./.vault-local/pki-mtls/ca-clientes-dos-dubles.pem:/run/secrets/ca-clientes.pem:ro
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('node:net').connect(8443,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+    networks: [privada]
+
+  duble-esocial:
+    image: node:24-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-duble-esocial
+    restart: unless-stopped
+    user: '${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}'
+    working_dir: /app
+    command: ['node', '/app/main.mjs']
+    environment:
+      DUBLE_NOME: duble-esocial
+      DUBLE_PORTA: '8443'
+      DUBLE_CERT_FILE: /run/secrets/duble.crt.pem
+      DUBLE_KEY_FILE: /run/secrets/duble.key.pem
+      DUBLE_CA_CLIENTES_FILE: /run/secrets/ca-clientes.pem
+    volumes:
+      - ./dubles:/app:ro
+      - ./.vault-local/pki-mtls/duble-esocial.crt.pem:/run/secrets/duble.crt.pem:ro
+      - ./.vault-local/pki-mtls/duble-esocial.key.pem:/run/secrets/duble.key.pem:ro
+      - ./.vault-local/pki-mtls/ca-clientes-dos-dubles.pem:/run/secrets/ca-clientes.pem:ro
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('node:net').connect(8443,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+    networks: [privada]
+
+  # Único consumidor do segredo do certificado. SEM `ports`: do host não há como alcançá-lo.
+  signer:
+    build:
+      context: ../..
+      dockerfile: infra/docker/servico.Dockerfile
+      args:
+        PACOTE: '@contaia/signer'
+        PASTA: apps/signer
+    image: ${COMPOSE_PROJECT_NAME:-contaia}-signer:local
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-signer
+    restart: unless-stopped
+    user: '${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault-bootstrap:
+        condition: service_healthy
+      duble-dfe:
+        condition: service_healthy
+      duble-esocial:
+        condition: service_healthy
+    environment:
+      SIGNER_PORT: '8443'
+      SIGNER_CERT_FILE: /run/secrets/signer.crt.pem
+      SIGNER_KEY_FILE: /run/secrets/signer.key.pem
+      SIGNER_CA_INTERNA_FILE: /run/secrets/ca-interna.pem
+      SIGNER_CA_DUBLES_FILE: /run/secrets/ca-dubles.pem
+      SIGNER_PEPPER_FILE: /run/secrets/signer-pepper
+      SIGNER_VAULT_TOKEN_FILE: /run/secrets/token-signer-leitura
+      VAULT_ADDR: http://vault:8200
+      SIGNER_DATABASE_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
+      SIGNER_DESTINO_DFE_HOST: duble-dfe
+      SIGNER_DESTINO_DFE_SERVERNAME: duble-dfe
+      SIGNER_DESTINO_ESOCIAL_HOST: duble-esocial
+      SIGNER_DESTINO_ESOCIAL_SERVERNAME: duble-esocial
+    volumes:
+      - ./.vault-local/pki-mtls/signer.crt.pem:/run/secrets/signer.crt.pem:ro
+      - ./.vault-local/pki-mtls/signer.key.pem:/run/secrets/signer.key.pem:ro
+      - ./.vault-local/pki-mtls/ca-interna.pem:/run/secrets/ca-interna.pem:ro
+      - ./.vault-local/pki-mtls/ca-dubles.pem:/run/secrets/ca-dubles.pem:ro
+      - ./.vault-local/signer-pepper:/run/secrets/signer-pepper:ro
+      - ./.vault-local/token-signer-leitura:/run/secrets/token-signer-leitura:ro
+    healthcheck:
+      test: ['CMD', 'node', 'dist/healthcheck.js']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks: [privada]
+
+  # API: fala com o Signer pela rede privada com a identidade `api` (alçada: saúde, estados,
+  # histórico e diagnóstico) e publica a única porta do conjunto, em loopback. A Web e o cofre
+  # seguem como processos do host; a API os alcança por `host.docker.internal`.
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/servico.Dockerfile
+      args:
+        PACOTE: '@contaia/api'
+        PASTA: apps/api
+    image: ${COMPOSE_PROJECT_NAME:-contaia}-api:local
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-api
+    restart: unless-stopped
+    user: '${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${API_PORT}:${API_PORT}'
+    environment:
+      API_PORT: '${API_PORT}'
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_APP_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      # `iss` dos tokens é a origem do navegador; o JWKS e a Admin API vão pelo nome da rede.
+      KEYCLOAK_ISSUER_URL: ${KEYCLOAK_ISSUER_URL}
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-contaia}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      SMTP_FROM: ${SMTP_FROM}
+      WEB_PUBLIC_URL: ${WEB_PUBLIC_URL}
+      WEB_ORIGIN: ${WEB_PUBLIC_URL}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      COFRE_URL: http://host.docker.internal:${COFRE_PORT}
+      COFRE_PUBLIC_URL: ${COFRE_PUBLIC_URL}
+      COFRE_TICKET_SECRET: ${COFRE_TICKET_SECRET}
+      COFRE_SERVICE_TOKEN: ${COFRE_SERVICE_TOKEN}
+      COFRE_ADMIN_TOKEN: ${COFRE_ADMIN_TOKEN}
+      # Padrão = a fonte real (a mesma do adaptador); a prova E2E aponta para o dublê no host.
+      CNPJA_URL: ${CNPJA_URL:-https://open.cnpja.com/office}
+      SIGNER_HOST: signer
+      SIGNER_PORT: '8443'
+      SIGNER_SERVERNAME: signer
+      API_CERT_FILE: /run/secrets/api.crt.pem
+      API_KEY_FILE: /run/secrets/api.key.pem
+      SIGNER_CA_INTERNA_FILE: /run/secrets/ca-interna.pem
+    volumes:
+      - ./.vault-local/pki-mtls/api.crt.pem:/run/secrets/api.crt.pem:ro
+      - ./.vault-local/pki-mtls/api.key.pem:/run/secrets/api.key.pem:ro
+      - ./.vault-local/pki-mtls/ca-interna.pem:/run/secrets/ca-interna.pem:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:$${API_PORT}/health']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+    networks: [contaia, privada]
+
+  # Workers: consumidores BullMQ (diagnóstico pós-F11 e monitor de saúde de 1 minuto), com a
+  # identidade `worker` (alçada: saúde, assinar, executar-mtls e diagnosticar).
+  workers:
+    build:
+      context: ../..
+      dockerfile: infra/docker/servico.Dockerfile
+      args:
+        PACOTE: '@contaia/workers'
+        PASTA: apps/workers
+    image: ${COMPOSE_PROJECT_NAME:-contaia}-workers:local
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-workers
+    restart: unless-stopped
+    user: '${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      WORKERS_PORT: '${WORKERS_PORT}'
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_APP_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      SIGNER_HOST: signer
+      SIGNER_PORT: '8443'
+      SIGNER_SERVERNAME: signer
+      WORKER_CERT_FILE: /run/secrets/worker.crt.pem
+      WORKER_KEY_FILE: /run/secrets/worker.key.pem
+      SIGNER_CA_INTERNA_FILE: /run/secrets/ca-interna.pem
+    volumes:
+      - ./.vault-local/pki-mtls/worker.crt.pem:/run/secrets/worker.crt.pem:ro
+      - ./.vault-local/pki-mtls/worker.key.pem:/run/secrets/worker.key.pem:ro
+      - ./.vault-local/pki-mtls/ca-interna.pem:/run/secrets/ca-interna.pem:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:$${WORKERS_PORT}/health']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+    networks: [contaia, privada]
+
 networks:
   contaia:
     name: ${COMPOSE_PROJECT_NAME:-contaia}_local
+  # Sem rota para fora e sem porta publicável: só nomes de serviço, entre quem está nela.
+  privada:
+    name: ${COMPOSE_PROJECT_NAME:-contaia}_privada
+    internal: true
 
 volumes:
   contaia_postgres:

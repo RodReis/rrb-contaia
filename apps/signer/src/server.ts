@@ -265,9 +265,12 @@ export const escutar = (servidor: https.Server, porta: number, host = '0.0.0.0')
     servidor.listen(porta, host, () => resolver(servidor));
   });
 
-export const encerrarComGraca = (servidor: https.Server): void => {
+/** Para de aceitar conexões, deixa as em curso terminarem e só então libera o que o processo abriu. */
+export const encerrarComGraca = (servidor: https.Server, aoEncerrar?: () => Promise<void>): void => {
   const fechar = (): void => {
-    servidor.close(() => process.exit(0));
+    servidor.close(() => {
+      void (aoEncerrar?.() ?? Promise.resolve()).finally(() => process.exit(0));
+    });
   };
 
   process.on('SIGTERM', fechar);

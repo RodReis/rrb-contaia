@@ -18,8 +18,14 @@ const TIMEOUT_MS = 5_000;
 /** Renova o token um pouco antes de vencer, para não usá-lo no limite. */
 const FOLGA_DO_TOKEN_MS = 30_000;
 
+/**
+ * Onde ESTE processo alcança o Keycloak: em contêiner o endereço interno (`KEYCLOAK_INTERNAL_URL`),
+ * que difere do público que o navegador e o `iss` dos tokens usam.
+ */
 const emissor = (): string =>
-  process.env['KEYCLOAK_ISSUER_URL'] ?? 'http://127.0.0.1:18080/realms/contaia';
+  process.env['KEYCLOAK_INTERNAL_URL'] ??
+  process.env['KEYCLOAK_ISSUER_URL'] ??
+  'http://127.0.0.1:18080/realms/contaia';
 
 const baseAdmin = (): string => emissor().replace('/realms/', '/admin/realms/');
 
