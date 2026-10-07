@@ -84,8 +84,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
+      # Os consumidores BullMQ dos workers (SPEC-012) são provados contra um Redis de verdade.
+      redis:
+        image: redis:8.2-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
     env:
       DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:5432/contaia
+      REDIS_URL: redis://127.0.0.1:6379
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -250,15 +260,17 @@ jobs:
           COFRE_RAIZES_ICP_DIR="$vault_dir/raizes-icp" node scripts/preparar-segredos-do-signer.mjs
       # O PostgreSQL sobe primeiro: as migrations criam o papel `contaia_app`, sem o qual a API,
       # os workers e o Signer não conectam.
-      - name: Subir o PostgreSQL, migrar e semear
+      - name: Subir o PostgreSQL e migrar
         run: |
           docker compose --env-file .env -f infra/docker/compose.yml up -d --wait --wait-timeout 120 postgres
           pnpm db:migrate
-          pnpm db:seed
       - name: Subir a composição (Vault, Signer, dublês, API, workers e o resto)
         run: |
           docker compose --env-file .env -f infra/docker/compose.yml up -d --build --wait --wait-timeout 600
           docker compose --env-file .env -f infra/docker/compose.yml ps
+      # O seed cria o usuário no Keycloak: só depois de a composição estar de pé.
+      - name: Semear o escritório de teste
+        run: pnpm db:seed
       - name: Diagnóstico da composição
         if: failure()
         run: |
