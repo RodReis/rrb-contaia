@@ -93,11 +93,9 @@ describe('validarLinhasDoPlano — SPEC-013 §3.4', () => {
 
   it('rejeita filha cujo pai foi rejeitado, com vínculo causal', () => {
     const linhas: LinhaDeEntrada[] = [
-      linha({ numeroDaLinha: 1, codigo: '', contaPai: null }),
-      linha({ numeroDaLinha: 2, codigo: '1.1', tipo: 'analitica', contaPai: '' }),
+      linha({ numeroDaLinha: 1, codigo: '1', tipo: 'invalido' as never, contaPai: null }),
+      linha({ numeroDaLinha: 2, codigo: '1.1', tipo: 'analitica', contaPai: '1' }),
     ];
-    // pai da linha 2 é o código vazio da linha 1, que foi rejeitada por campo ausente
-    linhas[1]!.contaPai = '';
 
     const resultado = validarLinhasDoPlano({ linhas, contasVigentes: [] });
     const rejeicaoDaFilha = resultado.rejeitadas.find((r) => r.numeroDaLinha === 2);
