@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import https from 'node:https';
 import net from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { criarDuble, type Duble } from '../../../infra/docker/dubles/servidor-mtls.mjs';
 import { criarPki, emitirPfx, raizConfiavelEmPem } from '../../../scripts/gerar-pki-de-teste.mjs';
@@ -56,6 +56,19 @@ describe('saída mTLS para o dublê (SPEC-012 §3.7)', () => {
 
     expect(resultado).toEqual({ tipo: 'ACEITO', statusHttp: 200 });
     expect(duble.efeitos()).toBe(antes + 1);
+  });
+
+  it('não usa agente compartilhado: o PKCS#12 não fica retido no pool de conexões depois da operação', async () => {
+    const espiao = vi.spyOn(https, 'request');
+
+    try {
+      await chamarDestino(base({ idempotencyKey: 'sem-agente-0001' }));
+
+      expect(espiao).toHaveBeenCalledTimes(1);
+      expect((espiao.mock.calls[0]?.[0] as { agent?: unknown }).agent).toBe(false);
+    } finally {
+      espiao.mockRestore();
+    }
   });
 
   it('a repetição com a MESMA Idempotency-Key não gera efeito novo no dublê', async () => {

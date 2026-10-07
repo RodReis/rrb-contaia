@@ -104,6 +104,9 @@ export const chamarDestino = (entrada: EntradaDoDestino): Promise<ResultadoDoDes
         path: destino.caminho,
         // Nome validado contra o SAN do servidor; a CA é a configurada e nenhuma outra.
         servername: destino.servername,
+        // Sem agente compartilhado: o `globalAgent` guardaria o PKCS#12 na chave do pool, o socket
+        // ocioso (com a chave privada no contexto TLS) e a sessão TLS depois da operação (SPEC §3.4).
+        agent: false,
         ca: entrada.caPem,
         pfx: entrada.pfx,
         passphrase: entrada.senha,

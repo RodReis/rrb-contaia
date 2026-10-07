@@ -18,7 +18,9 @@ export const processarDiagnostico = async (
 ): Promise<RespostaDeExecucaoMtls> => {
   const validado = ComandoDiagnosticarSchema.safeParse(dados);
 
-  if (!validado.success) {
+  // A fila é só do diagnóstico automático (autor técnico, sem pessoa). O teste manual vai direto da
+  // API ao Signer: um job que se diga MANUAL ou traga usuário é payload forjado, não se executa.
+  if (!validado.success || validado.data.origem !== 'AUTOMATICO' || validado.data.usuarioOriginadorId !== undefined) {
     // Payload fora do contrato: repetir não conserta.
     throw new UnrecoverableError('SIGNER_CONTEXTO_INVALIDO');
   }

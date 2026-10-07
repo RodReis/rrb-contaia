@@ -20,6 +20,18 @@ describe('estado agregado do serviço Signer para o cartão (SPEC-012 §5.2)', (
     });
   });
 
+  it('o Signer respondeu, mas se disse degradado (ex.: Vault selado): o cartão não afirma operacional', () => {
+    expect(
+      estadoDoServico({
+        ultimaVerificacaoEm: haMinutos(0),
+        ultimoResultado: 'OK',
+        ultimoDegradado: true,
+        incidenteAberto: false,
+        agora: AGORA,
+      }),
+    ).toEqual({ estado: 'DEGRADADO', desatualizado: false });
+  });
+
   it('falha recente ainda sem incidente (menos de três) é degradado', () => {
     expect(estadoDoServico({ ultimaVerificacaoEm: haMinutos(0), ultimoResultado: 'FALHA', incidenteAberto: false, agora: AGORA })).toEqual({
       estado: 'DEGRADADO',

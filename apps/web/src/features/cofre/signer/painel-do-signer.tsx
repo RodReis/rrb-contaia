@@ -43,21 +43,24 @@ const LinhaDoResultado = ({ resultado }: { resultado: ResultadoDoTesteManual }) 
 };
 
 /** O código de suporte (`correlationId`) de cada teste, uma vez só quando as finalidades o dividem. */
-const ResultadoDoTeste = ({ resultados }: { resultados: readonly ResultadoDoTesteManual[] }) => {
-  const codigos = [...new Set(resultados.map((resultado) => resultado.correlationId))];
-  const falhou = resultados.some((resultado) => resultado.resultado === 'FALHA');
+const ResultadoDoTeste = ({ resultados }: { resultados: readonly ResultadoDoTesteManual[] | undefined }) => {
+  const codigos = [...new Set((resultados ?? []).map((resultado) => resultado.correlationId))];
+  const falhou = (resultados ?? []).some((resultado) => resultado.resultado === 'FALHA');
 
+  // A região viva fica SEMPRE montada: leitor de tela só anuncia mudança numa região que já existia.
   return (
     <div
       role="status"
       aria-label="Resultado do teste mTLS"
       className={
-        falhou
-          ? 'flex flex-col gap-xs rounded-md border border-danger-indicator/40 bg-danger px-md py-sm'
-          : 'flex flex-col gap-xs rounded-md border border-success-indicator/40 bg-success px-md py-sm'
+        resultados === undefined
+          ? undefined
+          : falhou
+            ? 'flex flex-col gap-xs rounded-md border border-danger-indicator/40 bg-danger px-md py-sm'
+            : 'flex flex-col gap-xs rounded-md border border-success-indicator/40 bg-success px-md py-sm'
       }
     >
-      {resultados.map((resultado) => (
+      {(resultados ?? []).map((resultado) => (
         <LinhaDoResultado key={resultado.finalidade} resultado={resultado} />
       ))}
       {codigos.map((codigo) => (
@@ -164,7 +167,7 @@ const TesteManual = ({
             : 'A empresa não tem certificado A1 vigente. Cadastre um no cofre para poder testar.'}
         </p>
       </div>
-      {teste.data === undefined ? null : <ResultadoDoTeste resultados={teste.data} />}
+      <ResultadoDoTeste resultados={teste.data} />
     </div>
   );
 };

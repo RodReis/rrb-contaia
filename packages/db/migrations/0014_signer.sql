@@ -41,6 +41,9 @@ CREATE TABLE app.signer_operacao (
   correlation_id text NOT NULL,
 
   iniciado_em timestamptz NOT NULL DEFAULT now(),
+  -- Quando a tentativa ATUAL começou (cada retomada a renova): sem isto, um processo que morre no
+  -- meio deixaria a operação em EM_ANDAMENTO para sempre e a chave nunca mais seria retomada.
+  em_andamento_desde timestamptz NOT NULL DEFAULT now(),
   finalizado_em timestamptz,
   sequencia bigint NOT NULL GENERATED ALWAYS AS IDENTITY,
 
@@ -181,6 +184,8 @@ CREATE TABLE app.signer_verificacao (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   resultado text NOT NULL CHECK (resultado IN ('OK', 'FALHA')),
   latencia_ms integer CHECK (latencia_ms IS NULL OR latencia_ms >= 0),
+  -- O Signer respondeu (OK), mas o contrato de saude dizia DEGRADADO (ex.: Vault selado): de pe, nao pleno.
+  degradado boolean NOT NULL DEFAULT false,
   correlation_id text NOT NULL,
   verificado_em timestamptz NOT NULL DEFAULT now(),
   sequencia bigint NOT NULL GENERATED ALWAYS AS IDENTITY
@@ -296,13 +301,13 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION app.signer_registrar_verificacao(
-  p_resultado text, p_latencia_ms integer, p_correlation_id text
+  p_resultado text, p_latencia_ms integer, p_correlation_id text, p_degradado boolean
 ) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = app, public, pg_temp AS $$
 BEGIN
   PERFORM app.exigir_contexto_de_servico();
-  INSERT INTO app.signer_verificacao (resultado, latencia_ms, correlation_id)
-  VALUES (p_resultado, p_latencia_ms, p_correlation_id);
+  INSERT INTO app.signer_verificacao (resultado, latencia_ms, correlation_id, degradado)
+  VALUES (p_resultado, p_latencia_ms, p_correlation_id, p_degradado);
 END;
 $$;
 
@@ -418,7 +423,8 @@ $$;
 -- carteira ou tecnico) le; o contexto de servico do monitor e quem ESCREVE, nao quem le o painel.
 CREATE OR REPLACE FUNCTION app.signer_estado_do_servico()
 RETURNS TABLE (
-  ultima_verificacao_em timestamptz, ultimo_resultado text, ultima_latencia_ms integer, incidente_aberto boolean
+  ultima_verificacao_em timestamptz, ultimo_resultado text, ultima_latencia_ms integer, incidente_aberto boolean,
+  ultimo_degradado boolean
 )
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = app, public, pg_temp AS $$
 BEGIN
@@ -436,10 +442,11 @@ BEGIN
        WHERE e.tipo = 'ABERTO'
          AND NOT EXISTS (
            SELECT 1 FROM app.signer_incidente_evento f
-            WHERE f.incidente_id = e.incidente_id AND f.tipo = 'ENCERRADO'))
+            WHERE f.incidente_id = e.incidente_id AND f.tipo = 'ENCERRADO')),
+    COALESCE(ultima.degradado, false)
   FROM (SELECT 1) AS base
   LEFT JOIN LATERAL (
-    SELECT v.verificado_em, v.resultado FROM app.signer_verificacao v ORDER BY v.sequencia DESC LIMIT 1
+    SELECT v.verificado_em, v.resultado, v.degradado FROM app.signer_verificacao v ORDER BY v.sequencia DESC LIMIT 1
   ) AS ultima ON true;
 END;
 $$;
@@ -449,7 +456,8 @@ $$;
 -- Operacao: so o estado, o resultado, a contagem de tentativas e o fim mudam; o contexto da
 -- operacao (chave, hash, certificado, empresa) e imutavel por privilegio de coluna.
 REVOKE UPDATE ON app.signer_operacao FROM contaia_app;
-GRANT UPDATE (estado, resultado_codigo, tentativas, finalizado_em) ON app.signer_operacao TO contaia_app;
+GRANT UPDATE (estado, resultado_codigo, tentativas, finalizado_em, em_andamento_desde)
+  ON app.signer_operacao TO contaia_app;
 
 REVOKE UPDATE ON app.signer_evento FROM contaia_app;
 
@@ -461,14 +469,14 @@ REVOKE ALL ON app.signer_verificacao, app.signer_incidente_evento FROM contaia_a
 
 REVOKE ALL ON FUNCTION
   app.contexto_de_servico(), app.exigir_contexto_de_servico(),
-  app.signer_registrar_verificacao(text, integer, text), app.signer_estado_do_monitor(),
+  app.signer_registrar_verificacao(text, integer, text, boolean), app.signer_estado_do_monitor(),
   app.signer_abrir_incidente(), app.signer_encerrar_incidente(uuid, bigint),
   app.signer_notificar_incidente(uuid, text, bigint), app.signer_estado_do_servico()
 FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION
   app.contexto_de_servico(), app.exigir_contexto_de_servico(),
-  app.signer_registrar_verificacao(text, integer, text), app.signer_estado_do_monitor(),
+  app.signer_registrar_verificacao(text, integer, text, boolean), app.signer_estado_do_monitor(),
   app.signer_abrir_incidente(), app.signer_encerrar_incidente(uuid, bigint),
   app.signer_notificar_incidente(uuid, text, bigint), app.signer_estado_do_servico()
 TO contaia_app;

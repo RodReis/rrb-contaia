@@ -94,6 +94,7 @@ export class SignerService {
     const { estado, desatualizado } = estadoDoServico({
       ultimaVerificacaoEm: bruto.ultimaVerificacaoEm,
       ultimoResultado: bruto.ultimoResultado,
+      ultimoDegradado: bruto.ultimoDegradado,
       incidenteAberto: bruto.incidenteAberto,
       agora: this.agora(),
     });

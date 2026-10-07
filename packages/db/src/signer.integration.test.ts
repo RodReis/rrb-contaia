@@ -350,7 +350,7 @@ describe('monitor global: contexto de serviço e funções estreitas (SPEC-012 �
       comoUsuario(app, c.tenantA, c.usuarios.admin, (cli) => cli.query('select * from app.signer_estado_do_monitor()')),
     ).rejects.toMatchObject({ code: '42501' });
     await expect(
-      comoSigner(c.tenantA, c.empresaA1, (cli) => cli.query(`select app.signer_registrar_verificacao('FALHA', 10, 'x')`)),
+      comoSigner(c.tenantA, c.empresaA1, (cli) => cli.query(`select app.signer_registrar_verificacao('FALHA', 10, 'x', false)`)),
     ).rejects.toMatchObject({ code: '42501' });
     await expect(
       semContexto(app, (cli) => cli.query('select * from app.signer_estado_do_monitor()')),
@@ -370,7 +370,7 @@ describe('monitor global: contexto de serviço e funções estreitas (SPEC-012 �
     await limparGlobais();
 
     for (let i = 0; i < 3; i += 1) {
-      await comoMonitor((cli) => cli.query(`select app.signer_registrar_verificacao('FALHA', null, $1)`, [`m-${i}`]));
+      await comoMonitor((cli) => cli.query(`select app.signer_registrar_verificacao('FALHA', null, $1, false)`, [`m-${i}`]));
     }
     const estado = await comoMonitor((cli) =>
       cli.query<{ falhas_consecutivas: number; incidente_id: string | null }>('select * from app.signer_estado_do_monitor()'),
@@ -412,7 +412,7 @@ describe('monitor global: contexto de serviço e funções estreitas (SPEC-012 �
 
   it('a recuperação encerra o incidente e notifica exatamente os mesmos administradores', async () => {
     await limparGlobais();
-    await comoMonitor((cli) => cli.query(`select app.signer_registrar_verificacao('FALHA', null, 'a')`));
+    await comoMonitor((cli) => cli.query(`select app.signer_registrar_verificacao('FALHA', null, 'a', false)`));
     const incidente = (
       await comoMonitor((cli) => cli.query<{ id: string }>('select app.signer_abrir_incidente() as id'))
     ).rows[0]!.id;
@@ -422,7 +422,7 @@ describe('monitor global: contexto de serviço e funções estreitas (SPEC-012 �
       )
     ).rows[0]!.n;
 
-    await comoMonitor((cli) => cli.query(`select app.signer_registrar_verificacao('OK', 8, 'b')`));
+    await comoMonitor((cli) => cli.query(`select app.signer_registrar_verificacao('OK', 8, 'b', false)`));
     await comoMonitor((cli) => cli.query('select app.signer_encerrar_incidente($1, $2)', [incidente, 300_000]));
     const recuperados = (
       await comoMonitor((cli) =>

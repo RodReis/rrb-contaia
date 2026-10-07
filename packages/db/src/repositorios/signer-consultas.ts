@@ -31,10 +31,20 @@ export const ultimosEventosDasFinalidades = async (
     latencia_ms: number;
     codigo: string | null;
   }>(
-    `select distinct on (finalidade) finalidade, resultado, iniciado_em, latencia_ms, codigo
-       from app.signer_evento
-      where empresa_id = $1 and resultado in ('SUCESSO', 'FALHA')
-      order by finalidade, iniciado_em desc, sequencia desc`,
+    // Só conta TESTE do mTLS da versão vigente do certificado: reutilização idempotente não testou
+    // nada, assinatura pura não abre o canal e o evento de uma versão anterior (rotação) não diz
+    // nada sobre o certificado de agora.
+    `select distinct on (e.finalidade) e.finalidade, e.resultado, e.iniciado_em, e.latencia_ms, e.codigo
+       from app.signer_evento e
+       join app.signer_operacao o on o.id = e.operacao_id
+      where e.empresa_id = $1
+        and e.resultado in ('SUCESSO', 'FALHA')
+        and not e.reutilizado
+        and o.tipo in ('MTLS', 'DIAGNOSTICO')
+        and e.referencia_segredo = (
+          select c.referencia_segredo from app.empresa_certificado c
+           where c.empresa_id = $1 and c.estado = 'VIGENTE')
+      order by e.finalidade, e.iniciado_em desc, e.sequencia desc`,
     [empresaId],
   );
 
@@ -150,6 +160,8 @@ export type EstadoGlobalDoServico = Readonly<{
   /** Latência da última resposta VÁLIDA, não da última tentativa. */
   ultimaLatenciaMs: number | null;
   incidenteAberto: boolean;
+  /** A última verificação válida dizia `DEGRADADO`. */
+  ultimoDegradado: boolean;
 }>;
 
 /**
@@ -162,6 +174,7 @@ export const estadoDoServicoParaPainel = async (cliente: PoolClient): Promise<Es
     ultimo_resultado: 'OK' | 'FALHA' | null;
     ultima_latencia_ms: number | null;
     incidente_aberto: boolean;
+    ultimo_degradado: boolean;
   }>('select * from app.signer_estado_do_servico()');
   const linha = rows[0];
 
@@ -170,5 +183,6 @@ export const estadoDoServicoParaPainel = async (cliente: PoolClient): Promise<Es
     ultimoResultado: linha?.ultimo_resultado ?? null,
     ultimaLatenciaMs: linha?.ultima_latencia_ms ?? null,
     incidenteAberto: linha?.incidente_aberto ?? false,
+    ultimoDegradado: linha?.ultimo_degradado ?? false,
   };
 };

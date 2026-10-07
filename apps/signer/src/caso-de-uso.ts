@@ -260,10 +260,19 @@ export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDo
 
         return { tipo: 'REUTILIZADA', operacao };
       }
-      case 'RETENTAR':
-        await reabrirOperacao(cliente, decisao.operacaoId);
+      case 'RETENTAR': {
+        // A operação registra a versão EXATA do certificado da primeira tentativa (SPEC-012 §3.5).
+        // Depois de uma rotação a mesma chave não retoma com outro certificado: é outra operação.
+        if ((existente as OperacaoDoSigner).referenciaSegredo !== c.certificado.referenciaSegredo) {
+          return recusar(cliente, pedido, 'SIGNER_IDEMPOTENCIA_CONFLITO', c.inicio, c.contexto);
+        }
+        // Duas retomadas ao mesmo tempo: a que perde a corrida não executa, espera como "em andamento".
+        if (!(await reabrirOperacao(cliente, decisao.operacaoId))) {
+          return { tipo: 'RECUSADA', erro: new ErroDoSigner('SIGNER_OPERACAO_EM_ANDAMENTO') };
+        }
 
         return { tipo: 'EXECUTAR', operacaoId: decisao.operacaoId, certificado: c.certificado, xml: c.xml, hash: c.hash, inicio: c.inicio };
+      }
       case 'NOVA':
         return criarEExecutar(cliente, pedido, c, tentativasRestantes);
     }
@@ -314,7 +323,11 @@ export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDo
     comoSigner(pedido, async (cliente) => {
       const codigo = desfecho.estado === 'CONCLUIDA' ? null : desfecho.codigo;
 
-      await finalizarOperacao(cliente, fase.operacaoId, { estado: desfecho.estado, codigo });
+      // Outra execução da mesma operação já a finalizou (retomada por prazo): a trilha dela vale.
+      if (!(await finalizarOperacao(cliente, fase.operacaoId, { estado: desfecho.estado, codigo }))) {
+        return;
+      }
+
       await registrarEventoDoSigner(
         cliente,
         evento(pedido, {

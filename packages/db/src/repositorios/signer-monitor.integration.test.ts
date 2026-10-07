@@ -128,7 +128,24 @@ describe('estado do serviço para o painel (leitura por contexto humano ou técn
       ultimoResultado: null,
       ultimaLatenciaMs: null,
       incidenteAberto: false,
+      ultimoDegradado: false,
     });
+  });
+
+  it('a última verificação válida que se disse degradada é devolvida ao painel', async () => {
+    await limparGlobais();
+    await comoMonitor((cli) =>
+      registrarVerificacao(cli, { resultado: 'OK', latenciaMs: 8, correlationId: 'd1', degradado: true }),
+    );
+
+    expect(await comoHumano((cli) => estadoDoServicoParaPainel(cli))).toMatchObject({
+      ultimoResultado: 'OK',
+      ultimoDegradado: true,
+    });
+
+    await comoMonitor((cli) => registrarVerificacao(cli, { resultado: 'OK', latenciaMs: 8, correlationId: 'd2' }));
+
+    expect((await comoHumano((cli) => estadoDoServicoParaPainel(cli))).ultimoDegradado).toBe(false);
   });
 
   it('devolve a última verificação, a última latência VÁLIDA e se há incidente aberto', async () => {

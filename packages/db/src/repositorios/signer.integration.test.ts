@@ -219,14 +219,57 @@ describe('consultas de estado e histórico', () => {
       ],
     );
 
-  it('último SUCESSO/FALHA por finalidade; RECUSA não conta e uma finalidade não contamina a outra', async () => {
-    await semearEvento(c.tenantA, c.empresaA2, 'DFE_TESTE', 'FALHA', 30);
-    await semearEvento(c.tenantA, c.empresaA2, 'DFE_TESTE', 'SUCESSO', 20);
-    await semearEvento(c.tenantA, c.empresaA2, 'DFE_TESTE', 'RECUSA', 5);
-    await semearEvento(c.tenantA, c.empresaA2, 'ESOCIAL_TESTE', 'SUCESSO', 25);
-    await semearEvento(c.tenantA, c.empresaA2, 'ESOCIAL_TESTE', 'FALHA', 10);
+  /**
+   * Evento de um TESTE de verdade: ligado a uma operação do tipo dado e à versão do certificado. O
+   * estado corrente só deriva destes (revisão final): reutilização, assinatura pura e certificado
+   * antigo não dizem nada sobre o mTLS de agora.
+   */
+  const semearTeste = async (
+    finalidade: 'DFE_TESTE' | 'ESOCIAL_TESTE',
+    resultado: 'SUCESSO' | 'FALHA' | 'RECUSA',
+    minutosAtras: number,
+    extra: { reutilizado?: boolean; tipo?: 'MTLS' | 'DIAGNOSTICO' | 'ASSINATURA'; referencia?: string } = {},
+  ): Promise<void> => {
+    const referencia = extra.referencia ?? certA1.referencia;
+    const operacao = await admin.query<{ id: string }>(
+      `insert into app.signer_operacao
+         (tenant_id, empresa_id, finalidade, tipo, chave_hmac, hash_conteudo, certificado_id, referencia_segredo,
+          identidade_tecnica, correlation_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, 'worker', 'corr-estado')
+       returning id`,
+      [c.tenantA, c.empresaA1, finalidade, extra.tipo ?? 'DIAGNOSTICO', hex64(), hex64(), certA1.id, referencia],
+    );
 
-    const ultimos = await comoSigner(c.tenantA, c.empresaA2, (cli) => ultimosEventosDasFinalidades(cli, c.empresaA2));
+    await admin.query(
+      `insert into app.signer_evento
+         (tenant_id, empresa_id, operacao_id, finalidade, referencia_segredo, identidade_tecnica, iniciado_em,
+          finalizado_em, latencia_ms, resultado, codigo, correlation_id, reutilizado)
+       values ($1, $2, $3, $4, $5, 'worker', now() - ($6 || ' minutes')::interval,
+               now() - ($6 || ' minutes')::interval, 7, $7, $8, 'corr-estado', $9)`,
+      [
+        c.tenantA,
+        c.empresaA1,
+        operacao.rows[0]!.id,
+        finalidade,
+        referencia,
+        String(minutosAtras),
+        resultado,
+        resultado === 'SUCESSO' ? null : 'SIGNER_DESTINO_INDISPONIVEL',
+        extra.reutilizado ?? false,
+      ],
+    );
+  };
+
+  const estadoDaA1 = () => comoSigner(c.tenantA, c.empresaA1, (cli) => ultimosEventosDasFinalidades(cli, c.empresaA1));
+
+  it('último SUCESSO/FALHA por finalidade; RECUSA não conta e uma finalidade não contamina a outra', async () => {
+    await semearTeste('DFE_TESTE', 'FALHA', 300);
+    await semearTeste('DFE_TESTE', 'SUCESSO', 290);
+    await semearTeste('DFE_TESTE', 'RECUSA', 280);
+    await semearTeste('ESOCIAL_TESTE', 'SUCESSO', 295);
+    await semearTeste('ESOCIAL_TESTE', 'FALHA', 285, { tipo: 'MTLS' });
+
+    const ultimos = await estadoDaA1();
 
     expect(ultimos.map((u) => [u.finalidade, u.resultado])).toEqual([
       ['DFE_TESTE', 'SUCESSO'],
@@ -234,6 +277,33 @@ describe('consultas de estado e histórico', () => {
     ]);
     expect(ultimos[0]).toMatchObject({ latenciaMs: 7 });
     expect(ultimos[0]?.iniciadoEm).toBeInstanceOf(Date);
+  });
+
+  it('reutilização idempotente NÃO altera o estado: não houve teste novo', async () => {
+    await semearTeste('DFE_TESTE', 'FALHA', 200);
+    await semearTeste('DFE_TESTE', 'SUCESSO', 100, { reutilizado: true });
+
+    const dfe = (await estadoDaA1()).find((u) => u.finalidade === 'DFE_TESTE');
+
+    expect(dfe?.resultado).toBe('FALHA');
+  });
+
+  it('assinatura pura não diz nada do mTLS: não pinta a coluna de operacional', async () => {
+    await semearTeste('ESOCIAL_TESTE', 'FALHA', 150);
+    await semearTeste('ESOCIAL_TESTE', 'SUCESSO', 50, { tipo: 'ASSINATURA' });
+
+    const esocial = (await estadoDaA1()).find((u) => u.finalidade === 'ESOCIAL_TESTE');
+
+    expect(esocial?.resultado).toBe('FALHA');
+  });
+
+  it('evento de OUTRA versão do certificado (rotação) não vale para a versão vigente', async () => {
+    await semearTeste('DFE_TESTE', 'FALHA', 40);
+    await semearTeste('DFE_TESTE', 'SUCESSO', 10, { referencia: randomUUID() });
+
+    const dfe = (await estadoDaA1()).find((u) => u.finalidade === 'DFE_TESTE');
+
+    expect(dfe?.resultado).toBe('FALHA');
   });
 
   it('empresa sem evento não tem nenhum último evento', async () => {

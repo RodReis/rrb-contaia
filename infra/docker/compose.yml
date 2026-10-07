@@ -314,7 +314,7 @@ services:
       - '127.0.0.1:${API_PORT}:${API_PORT}'
     environment:
       API_PORT: '${API_PORT}'
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Só o papel da aplicação (sem BYPASSRLS): o superusuário das migrations nunca entra num contêiner de serviço.
       DATABASE_APP_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
       # `iss` dos tokens é a origem do navegador; o JWKS e a Admin API vão pelo nome da rede.
@@ -376,7 +376,6 @@ services:
         condition: service_healthy
     environment:
       WORKERS_PORT: '${WORKERS_PORT}'
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       DATABASE_APP_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
       # A verificação de saúde é de 1 minuto (SPEC-012 §3.10). Só a prova E2E a encurta, para

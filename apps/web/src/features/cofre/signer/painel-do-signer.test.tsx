@@ -166,6 +166,15 @@ describe('PainelDoSigner — teste manual', () => {
     expect(await screen.findByRole('button', { name: 'Testar mTLS' })).toBeEnabled();
   });
 
+  it('a região do resultado já existe, vazia, antes do teste (só assim o leitor de tela anuncia a mudança)', async () => {
+    renderizar();
+    await screen.findByRole('button', { name: 'Testar mTLS' });
+
+    const regiao = screen.getByRole('status', { name: 'Resultado do teste mTLS' });
+
+    expect(regiao).toBeEmptyDOMElement();
+  });
+
   it('sucesso nas duas finalidades: resultado anunciado, com o código de suporte', async () => {
     renderizar();
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Testar mTLS' }));

@@ -32,6 +32,16 @@ describe('processarDiagnostico: o worker chama o Signer e decide o que é retry 
     expect(cliente.diagnosticar).not.toHaveBeenCalled();
   });
 
+  it('a fila só carrega diagnóstico AUTOMÁTICO e sem pessoa: o teste manual não passa por ela (quem a alcançar não forja autoria)', async () => {
+    const cliente = { diagnosticar: vi.fn() };
+
+    await expect(processarDiagnostico({ ...dados, origem: 'MANUAL' }, cliente)).rejects.toBeInstanceOf(UnrecoverableError);
+    await expect(
+      processarDiagnostico({ ...dados, usuarioOriginadorId: '0198f3c2-0000-7000-8000-000000000003' }, cliente),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
+    expect(cliente.diagnosticar).not.toHaveBeenCalled();
+  });
+
   it('falha transitória do Signer volta como está, para o BullMQ repetir com backoff', async () => {
     const erro = new ErroDoClienteDoSigner('SIGNER_DESTINO_INDISPONIVEL', 504, 'corr-0001-abcd', true);
     const cliente = { diagnosticar: vi.fn().mockRejectedValue(erro) };

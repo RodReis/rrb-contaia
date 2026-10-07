@@ -9,6 +9,13 @@ import type { Finalidade } from './finalidades.js';
 
 export type EstadoDaOperacao = 'EM_ANDAMENTO' | 'CONCLUIDA' | 'RECUSADA' | 'FALHA_TRANSITORIA';
 
+/**
+ * Quanto tempo uma operação pode ficar `EM_ANDAMENTO` antes de se presumir que o processo que a
+ * executava morreu. Cobre com folga as duas esperas da fase com segredo (Vault e destino, 15 s cada
+ * no máximo). Passado o prazo, a MESMA operação é retomada; o destino deduplica pelo `operacaoId`.
+ */
+export const PRAZO_DE_EM_ANDAMENTO_MS = 120_000;
+
 export type OperacaoExistente = Readonly<{
   id: string;
   tenantId: string;
@@ -16,6 +23,8 @@ export type OperacaoExistente = Readonly<{
   finalidade: Finalidade;
   hashConteudo: string;
   estado: EstadoDaOperacao;
+  /** Há quanto tempo está (ou ficou) em andamento, pelo relógio do banco. */
+  emAndamentoHaMs: number;
 }>;
 
 export type PedidoIdempotente = Readonly<{
@@ -55,7 +64,9 @@ export const decidirIdempotencia = (
     case 'RECUSADA':
       return { tipo: 'REUTILIZAR', operacaoId: existente.id };
     case 'EM_ANDAMENTO':
-      return { tipo: 'EM_ANDAMENTO', operacaoId: existente.id };
+      return existente.emAndamentoHaMs > PRAZO_DE_EM_ANDAMENTO_MS
+        ? { tipo: 'RETENTAR', operacaoId: existente.id }
+        : { tipo: 'EM_ANDAMENTO', operacaoId: existente.id };
     case 'FALHA_TRANSITORIA':
       return { tipo: 'RETENTAR', operacaoId: existente.id };
   }

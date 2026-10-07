@@ -308,7 +308,7 @@ export type {
   CondicaoDoCertificado,
   VersaoDoCertificado,
 } from './signer/condicao-certificado.js';
-export { decidirIdempotencia } from './signer/idempotencia.js';
+export { PRAZO_DE_EM_ANDAMENTO_MS, decidirIdempotencia } from './signer/idempotencia.js';
 export type {
   DecisaoDeIdempotencia,
   EstadoDaOperacao,

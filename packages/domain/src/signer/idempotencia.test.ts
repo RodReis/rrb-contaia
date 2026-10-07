@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { decidirIdempotencia, type OperacaoExistente, type PedidoIdempotente } from './idempotencia.js';
+import {
+  PRAZO_DE_EM_ANDAMENTO_MS,
+  decidirIdempotencia,
+  type OperacaoExistente,
+  type PedidoIdempotente,
+} from './idempotencia.js';
 
 const pedido: PedidoIdempotente = {
   tenantId: 'tenant-1',
@@ -16,7 +21,28 @@ const existente = (parcial: Partial<OperacaoExistente> = {}): OperacaoExistente 
   finalidade: 'DFE_TESTE',
   hashConteudo: 'hash-a',
   estado: 'CONCLUIDA',
+  emAndamentoHaMs: 0,
   ...parcial,
+});
+
+describe('operação presa em andamento (processo que morreu no meio)', () => {
+  it('dentro do prazo continua em andamento; passado o prazo, a mesma operação é retomada', () => {
+    expect(decidirIdempotencia(existente({ estado: 'EM_ANDAMENTO', emAndamentoHaMs: PRAZO_DE_EM_ANDAMENTO_MS - 1 }), pedido)).toEqual({
+      tipo: 'EM_ANDAMENTO',
+      operacaoId: 'op-1',
+    });
+    expect(decidirIdempotencia(existente({ estado: 'EM_ANDAMENTO', emAndamentoHaMs: PRAZO_DE_EM_ANDAMENTO_MS + 1 }), pedido)).toEqual({
+      tipo: 'RETENTAR',
+      operacaoId: 'op-1',
+    });
+  });
+
+  it('o prazo não afeta resultado terminal nem conflito', () => {
+    expect(decidirIdempotencia(existente({ estado: 'CONCLUIDA', emAndamentoHaMs: 10 * PRAZO_DE_EM_ANDAMENTO_MS }), pedido).tipo).toBe('REUTILIZAR');
+    expect(
+      decidirIdempotencia(existente({ estado: 'EM_ANDAMENTO', hashConteudo: 'outro', emAndamentoHaMs: 10 * PRAZO_DE_EM_ANDAMENTO_MS }), pedido).tipo,
+    ).toBe('CONFLITO');
+  });
 });
 
 describe('decidirIdempotencia (SPEC-012 §3.8, I-9)', () => {

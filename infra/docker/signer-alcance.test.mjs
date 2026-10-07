@@ -32,6 +32,11 @@ const emExecucao = (nome) => {
 const composicaoNoAr = emExecucao(SIGNER) && emExecucao(API);
 const pular = composicaoNoAr ? false : `composição não está no ar (${SIGNER}/${API}): not_run`;
 
+// Na CI (`EXIGIR_INFRA=1`) a composição é obrigatória: sem ela a prova FALHA, não vira `not_run` verde.
+if (pular !== false && process.env.EXIGIR_INFRA === '1') {
+  throw new Error(`EXIGIR_INFRA=1 e ${pular}`);
+}
+
 /** Corre `node -e` dentro da API, que tem o certificado `api` e a CA interna montados. */
 const daApi = (programa) => docker('exec', API, 'node', '-e', programa);
 

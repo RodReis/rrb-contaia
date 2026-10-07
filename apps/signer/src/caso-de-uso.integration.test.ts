@@ -779,3 +779,77 @@ describe('o segredo nunca fica fora da fronteira (I-10)', () => {
     expect(entregue.pkcs12.every((byte) => byte === 0)).toBe(true);
   });
 });
+
+describe('retomada concorrente, operação presa e rotação (revisão final)', () => {
+  const comFalhaTransitoria = async (xml: string) => {
+    const empresa = await semearEmpresa(tenantA, usuarioA, {});
+    const pedido = { ...contexto(empresa), xml };
+
+    destinoEspiado.mockResolvedValueOnce({ tipo: 'INDISPONIVEL' });
+    await erroDe(servicos().executarMtls('worker', pedido));
+    vaultFalso.ler.mockClear();
+
+    return { empresa, pedido };
+  };
+
+  it('duas retomadas simultâneas depois de falha transitória: um só uso do segredo e nenhuma sem trilha', async () => {
+    const { empresa, pedido } = await comFalhaTransitoria(NFE('NFe0031'));
+
+    const resultados = await Promise.allSettled([
+      servicos().executarMtls('worker', pedido),
+      servicos().executarMtls('worker', pedido),
+    ]);
+
+    expect(vaultFalso.ler).toHaveBeenCalledTimes(1);
+    expect(resultados.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    for (const resultado of resultados) {
+      if (resultado.status === 'rejected') {
+        expect((resultado.reason as ErroDoSigner).codigo).toBe('SIGNER_OPERACAO_EM_ANDAMENTO');
+      }
+    }
+    expect((await operacaoPor(pedido.chaveIdempotente))?.estado).toBe('CONCLUIDA');
+    // FALHA (1ª tentativa) + SUCESSO (retomada): nenhuma execução fica sem evento.
+    expect((await eventosDe(empresa.empresaId)).map((e) => e.resultado)).toEqual(['FALHA', 'SUCESSO']);
+  });
+
+  it('operação presa em andamento passado o prazo é retomada (a mesma); dentro do prazo segue em andamento', async () => {
+    const { pedido } = await comFalhaTransitoria(NFE('NFe0032'));
+    const marcar = (intervalo: string) =>
+      admin.query(
+        `update app.signer_operacao
+            set estado = 'EM_ANDAMENTO', resultado_codigo = null, finalizado_em = null,
+                em_andamento_desde = now() - $2::interval
+          where chave_hmac = $1`,
+        [chaveProtegida(pedido.chaveIdempotente, PEPPER), intervalo],
+      );
+
+    await marcar('10 seconds');
+    expect((await erroDe(servicos().executarMtls('worker', pedido))).codigo).toBe('SIGNER_OPERACAO_EM_ANDAMENTO');
+    expect(vaultFalso.ler).not.toHaveBeenCalled();
+
+    await marcar('10 minutes');
+    const retomada = await servicos().executarMtls('worker', pedido);
+
+    expect(retomada).toMatchObject({ reutilizado: false, resultado: 'SUCESSO' });
+    expect(await operacaoPor(pedido.chaveIdempotente)).toMatchObject({ estado: 'CONCLUIDA', tentativas: 2 });
+  });
+
+  it('depois da rotação do certificado a mesma chave NÃO retoma com o novo: conflito, sem tocar o Vault', async () => {
+    const { empresa, pedido } = await comFalhaTransitoria(NFE('NFe0033'));
+    const cliente = await admin.connect();
+
+    try {
+      await cliente.query("set session_replication_role = 'replica'");
+      await cliente.query(`update app.empresa_certificado set referencia_segredo = gen_random_uuid() where id = $1`, [
+        empresa.certificadoId,
+      ]);
+    } finally {
+      await cliente.query('reset session_replication_role');
+      cliente.release();
+    }
+
+    expect((await erroDe(servicos().executarMtls('worker', pedido))).codigo).toBe('SIGNER_IDEMPOTENCIA_CONFLITO');
+    expect(vaultFalso.ler).not.toHaveBeenCalled();
+    expect(destinoEspiado).toHaveBeenCalledTimes(1);
+  });
+});

@@ -138,6 +138,20 @@ describe('verificação de saúde a cada minuto', () => {
     expect((await verificar()).resultado).toBe('OK');
   });
 
+  it('a resposta DEGRADADO fica registrada: o cartão não afirma operacional com o Vault fora', async () => {
+    const ultima = async () =>
+      (await admin.query<{ degradado: boolean }>('select degradado from app.signer_verificacao order by sequencia desc limit 1'))
+        .rows[0]?.degradado;
+
+    ok('DEGRADADO');
+    await verificar();
+    expect(await ultima()).toBe(true);
+
+    ok('OPERACIONAL');
+    await verificar();
+    expect(await ultima()).toBe(false);
+  });
+
   it('qualquer falha de chamada, de qualquer tipo, conta como FALHA', async () => {
     saude.mockRejectedValueOnce(new Error('qualquer coisa'));
 

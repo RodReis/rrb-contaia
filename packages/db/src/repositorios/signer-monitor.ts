@@ -14,12 +14,19 @@ export type EstadoDoMonitorNoBanco = Readonly<{
 
 export const registrarVerificacao = async (
   cliente: PoolClient,
-  verificacao: Readonly<{ resultado: 'OK' | 'FALHA'; latenciaMs: number | null; correlationId: string }>,
+  verificacao: Readonly<{
+    resultado: 'OK' | 'FALHA';
+    latenciaMs: number | null;
+    correlationId: string;
+    /** A resposta foi válida, mas o Signer se disse `DEGRADADO` (ex.: Vault selado). */
+    degradado?: boolean;
+  }>,
 ): Promise<void> => {
-  await cliente.query('select app.signer_registrar_verificacao($1, $2, $3)', [
+  await cliente.query('select app.signer_registrar_verificacao($1, $2, $3, $4)', [
     verificacao.resultado,
     verificacao.latenciaMs,
     verificacao.correlationId,
+    verificacao.degradado ?? false,
   ]);
 };
 

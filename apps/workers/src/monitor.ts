@@ -52,11 +52,16 @@ export const verificarSaude = async ({ pool, cliente, agora }: DependenciasDoMon
   const inicio = agora().getTime();
   let resultado: 'OK' | 'FALHA' = 'FALHA';
   let latenciaMs: number | null = null;
+  let degradado = false;
 
   try {
-    if (respostaDeSaudeValida(await cliente.saude(correlationId))) {
+    const resposta = await cliente.saude(correlationId);
+
+    if (respostaDeSaudeValida(resposta)) {
       resultado = 'OK';
       latenciaMs = agora().getTime() - inicio;
+      // De pé, mas o próprio Signer diz que não está pleno (ex.: Vault selado): não é falha, mas o cartão não afirma "operacional".
+      degradado = resposta.estado === 'DEGRADADO';
     }
   } catch {
     // Falha de chamada de qualquer tipo é falha de verificação: o motivo não muda a decisão.
@@ -76,7 +81,7 @@ export const verificarSaude = async ({ pool, cliente, agora }: DependenciasDoMon
       agora(),
     );
 
-    await registrarVerificacao(transacao, { resultado, latenciaMs, correlationId });
+    await registrarVerificacao(transacao, { resultado, latenciaMs, correlationId, degradado });
 
     let incidenteId = antes.incidenteId;
 

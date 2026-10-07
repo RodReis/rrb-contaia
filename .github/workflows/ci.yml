@@ -28,6 +28,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
       - run: pnpm check:gate
+      # Dublês mTLS, PKI de teste e preparo dos segredos do Signer (scripts fora do workspace do turbo).
+      - run: pnpm check:dubles
       - run: pnpm lint
       - run: pnpm typecheck
       - name: Resumo da categoria
@@ -263,6 +265,9 @@ jobs:
           docker compose --env-file .env -f infra/docker/compose.yml ps -a
           docker compose --env-file .env -f infra/docker/compose.yml logs --no-color --tail=60
       - name: Provas de infraestrutura do Signer (alcance e política do Vault)
+        # Na CI a composição tem de estar no ar: pular seria `not_run` e passaria verde por engano.
+        env:
+          EXIGIR_INFRA: '1'
         run: |
           mkdir -p "test-results/$PROVA_ESCOPO/e2e"
           node --test --test-reporter=spec --test-reporter=junit \

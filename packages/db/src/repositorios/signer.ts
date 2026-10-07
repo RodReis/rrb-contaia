@@ -5,6 +5,7 @@
  * limita cada leitura e escrita à empresa do trabalho. Nada aqui lê ou grava segredo, XML ou
  * resposta do destino — só metadados, hashes e códigos estáveis.
  */
+import { PRAZO_DE_EM_ANDAMENTO_MS } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 
 export type FinalidadeDoSigner = 'DFE_TESTE' | 'ESOCIAL_TESTE';
@@ -80,6 +81,8 @@ export type OperacaoDoSigner = Readonly<{
   tentativas: number;
   certificadoId: string;
   referenciaSegredo: string;
+  /** Há quanto tempo a tentativa atual começou, pelo relógio do banco. */
+  emAndamentoHaMs: number;
 }>;
 
 /** Operação da chave protegida visível ao contexto (a mesma empresa); outra empresa não aparece. */
@@ -99,9 +102,11 @@ export const buscarOperacaoPorChave = async (
     tentativas: number;
     certificado_id: string;
     referencia_segredo: string;
+    em_andamento_ha_ms: string;
   }>(
     `select id, tenant_id, empresa_id, finalidade, tipo, hash_conteudo, estado, resultado_codigo,
-            tentativas, certificado_id, referencia_segredo
+            tentativas, certificado_id, referencia_segredo,
+            floor(extract(epoch from (now() - em_andamento_desde)) * 1000)::text as em_andamento_ha_ms
        from app.signer_operacao
       where chave_hmac = $1`,
     [chaveHmac],
@@ -122,6 +127,7 @@ export const buscarOperacaoPorChave = async (
         tentativas: linha.tentativas,
         certificadoId: linha.certificado_id,
         referenciaSegredo: linha.referencia_segredo,
+        emAndamentoHaMs: Number(linha.em_andamento_ha_ms),
       };
 };
 
@@ -165,14 +171,28 @@ export const criarOperacao = async (cliente: PoolClient, operacao: NovaOperacao)
   return (rows[0] as { id: string }).id;
 };
 
-/** Falha transitória volta a EM_ANDAMENTO na MESMA operação, com a tentativa seguinte. */
-export const reabrirOperacao = async (cliente: PoolClient, operacaoId: string): Promise<void> => {
-  await cliente.query(
+/**
+ * Falha transitória (ou tentativa presa além do prazo) volta a EM_ANDAMENTO na MESMA operação, com a
+ * tentativa seguinte. Devolve `false` quando OUTRA retomada chegou antes: o `update` espera o lock,
+ * reavalia o `where` e não casa mais nenhuma linha. Só quem recebe `true` executa.
+ */
+export const reabrirOperacao = async (
+  cliente: PoolClient,
+  operacaoId: string,
+  prazoDeEmAndamentoMs: number = PRAZO_DE_EM_ANDAMENTO_MS,
+): Promise<boolean> => {
+  const { rowCount } = await cliente.query(
     `update app.signer_operacao
-        set estado = 'EM_ANDAMENTO', resultado_codigo = null, finalizado_em = null, tentativas = tentativas + 1
-      where id = $1 and estado = 'FALHA_TRANSITORIA'`,
-    [operacaoId],
+        set estado = 'EM_ANDAMENTO', resultado_codigo = null, finalizado_em = null,
+            tentativas = tentativas + 1, em_andamento_desde = now()
+      where id = $1
+        and (estado = 'FALHA_TRANSITORIA'
+             or (estado = 'EM_ANDAMENTO'
+                 and em_andamento_desde < now() - make_interval(secs => $2::double precision / 1000)))`,
+    [operacaoId, prazoDeEmAndamentoMs],
   );
+
+  return rowCount === 1;
 };
 
 export type DesfechoDaOperacao = Readonly<{
@@ -181,17 +201,20 @@ export type DesfechoDaOperacao = Readonly<{
   codigo: string | null;
 }>;
 
+/** `false` se a operação já não está em andamento (outra execução a finalizou): quem chega depois não a sobrescreve. */
 export const finalizarOperacao = async (
   cliente: PoolClient,
   operacaoId: string,
   desfecho: DesfechoDaOperacao,
-): Promise<void> => {
-  await cliente.query(
+): Promise<boolean> => {
+  const { rowCount } = await cliente.query(
     `update app.signer_operacao
         set estado = $2, resultado_codigo = $3, finalizado_em = now()
-      where id = $1`,
+      where id = $1 and estado = 'EM_ANDAMENTO'`,
     [operacaoId, desfecho.estado, desfecho.codigo],
   );
+
+  return rowCount === 1;
 };
 
 export type EventoDoSigner = Readonly<{

@@ -15,6 +15,8 @@ export type EstadoDoServicoSigner = 'OPERACIONAL' | 'DEGRADADO' | 'INDISPONIVEL'
 export type EntradaDoEstadoDoServico = Readonly<{
   ultimaVerificacaoEm: Date | null;
   ultimoResultado: 'OK' | 'FALHA' | null;
+  /** A última resposta VÁLIDA do Signer dizia `DEGRADADO` (ex.: Vault selado): ele está de pé, mas não pleno. */
+  ultimoDegradado?: boolean;
   incidenteAberto: boolean;
   agora: Date;
 }>;
@@ -29,7 +31,7 @@ export const estadoDoServico = (
   if (entrada.incidenteAberto) {
     return { estado: 'INDISPONIVEL', desatualizado: false };
   }
-  if (desatualizado || entrada.ultimoResultado !== 'OK') {
+  if (desatualizado || entrada.ultimoResultado !== 'OK' || entrada.ultimoDegradado === true) {
     return { estado: 'DEGRADADO', desatualizado };
   }
 

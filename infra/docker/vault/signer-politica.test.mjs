@@ -58,6 +58,11 @@ const razaoParaPular = async () => {
 
 const pular = await razaoParaPular();
 
+// Na CI (`EXIGIR_INFRA=1`) o Vault e os tokens são obrigatórios: sem eles a prova FALHA, não vira `not_run` verde.
+if (pular !== false && process.env.EXIGIR_INFRA === '1') {
+  throw new Error(`EXIGIR_INFRA=1 e ${pular}`);
+}
+
 describe('política `signer-leitura` e `api-principal` no Vault', { skip: pular }, () => {
   const tenant = randomUUID();
   const empresa = randomUUID();
