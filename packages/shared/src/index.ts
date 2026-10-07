@@ -111,3 +111,36 @@ export type {
   RespostaDeHistorico,
   ResultadoDoTesteManual,
 } from './signer.js';
+
+export {
+  FILA_DE_VALIDACAO_PLANO_CONTAS,
+  FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA,
+  OPCOES_DE_VALIDACAO_PLANO_CONTAS,
+  VERSAO_DO_CONTRATO_DO_PLANO_CONTAS,
+  ESTADOS_DA_IMPORTACAO,
+  TIPOS_DE_CONTA,
+  NATUREZAS_DE_CONTA,
+  CODIGOS_DE_ERRO_DA_LINHA,
+  LinhaDeEntradaSchema,
+  ContaVigenteSchema,
+  LinhaRejeitadaSchema,
+  LinhaAceitaSchema,
+  PreviaDaImportacaoSchema,
+  TentativaDoHistoricoSchema,
+  HistoricoDeImportacoesSchema,
+  ComandoValidarImportacaoSchema,
+} from './plano-contas.js';
+export type {
+  EstadoDaImportacao,
+  TipoDeConta,
+  NaturezaDeConta,
+  CodigoDeErroDaLinha,
+  LinhaDeEntrada,
+  ContaVigente,
+  LinhaRejeitada,
+  LinhaAceita,
+  PreviaDaImportacao,
+  TentativaDoHistorico,
+  HistoricoDeImportacoes,
+  ComandoValidarImportacao,
+} from './plano-contas.js';
