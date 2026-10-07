@@ -41,6 +41,8 @@ import {
 import { CertificadosService } from './certificados/certificados.service';
 import { CofreClient } from './certificados/cofre.client';
 import { GuardDeServicoInterno } from './certificados/servico-interno.guard';
+import { SignerController, SignerDaEmpresaController } from './signer/signer.controller';
+import { PROVEDORES_DO_SIGNER } from './signer/signer.providers';
 import { NotificacoesController } from './notificacoes/notificacoes.controller';
 import { NotificacoesService } from './notificacoes/notificacoes.service';
 import {
@@ -66,10 +68,12 @@ import { PendenciasService } from './pendencias/pendencias.service';
     ManutencaoDaEmpresaController,
     PendenciasDaEmpresaController,
     CertificadosDaEmpresaController,
+    SignerDaEmpresaController,
     DocumentosDaEmpresaController,
     EmpresaController,
     PendenciasController,
     CertificadosController,
+    SignerController,
     CofreInternoController,
     NotificacoesController,
     UsuariosController,
@@ -88,6 +92,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     PendenciasService,
     CertificadosService,
     CofreClient,
+    ...PROVEDORES_DO_SIGNER,
     GuardDeServicoInterno,
     NotificacoesService,
     UsuariosService,

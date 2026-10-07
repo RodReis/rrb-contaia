@@ -74,6 +74,28 @@ describe('nenhum DTO aceita URL, caminho do Vault, PKCS#12, senha, chave ou toke
   });
 });
 
+describe('identificadores do sistema', () => {
+  // `app.uuid_v7()` grava a variante no byte "errado": ~3/4 dos ids reais não passam em `z.uuid()`.
+  const IDS_REAIS = [
+    '0198f3c2-0000-7000-0000-000000000001',
+    '0198f3c2-0000-7000-4000-000000000002',
+    '0198f3c2-0000-7000-c000-000000000003',
+    '0198F3C2-0000-7000-8000-00000000000A',
+  ];
+
+  it.each(IDS_REAIS)('aceita o id gerado pelo banco: %s', (id) => {
+    expect(ComandoAssinarSchema.safeParse({ ...contexto, tenantId: id, empresaId: id, xml: '<a/>' }).success).toBe(true);
+    expect(ConsultaHistoricoSchema.safeParse({ tenantId: id, empresaId: id, correlationId: 'corr-0001-abcd', pagina: 1 }).success).toBe(true);
+  });
+
+  it.each(['', 'não-é-id', '0198f3c2-0000-7000-8000-00000000000', '../../etc/passwd', '0198f3c2-0000-7000-8000-000000000001/x'])(
+    'continua recusando o que não é UUID: %s',
+    (id) => {
+      expect(ComandoAssinarSchema.safeParse({ ...contexto, tenantId: id, xml: '<a/>' }).success).toBe(false);
+    },
+  );
+});
+
 describe('comandos operacionais', () => {
   it('aceita assinatura com contexto completo', () => {
     expect(ComandoAssinarSchema.safeParse({ ...contexto, xml: '<infNFe Id="NFe1"/>' }).success).toBe(true);

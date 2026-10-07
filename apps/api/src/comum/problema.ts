@@ -120,6 +120,9 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.CERTIFICADO_JA_VIGENTE]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.CERTIFICADO_VIGENTE_INEXISTENTE]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL]: HttpStatus.CONFLICT,
+  // SPEC-012 §7. Signer fora do ar, sem resposta ou recusando o contexto é falha de dependência
+  // (503) com `correlationId`: a tela mantém o último estado e diz que está desatualizado.
+  [CODIGOS_DE_ERRO.SIGNER_INDISPONIVEL]: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>

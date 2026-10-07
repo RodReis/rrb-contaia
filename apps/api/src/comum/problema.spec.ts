@@ -37,6 +37,24 @@ const capturar = (excecao: unknown): { status: number; corpo: CorpoDoProblema } 
   };
 };
 
+describe('Signer (SPEC-012 §7)', () => {
+  it('Signer fora do ar é falha de dependência: 503, não entrada inválida', () => {
+    const { status, corpo } = capturar(new ErroDeDominio(CODIGOS_DE_ERRO.SIGNER_INDISPONIVEL, 'O Signer está indisponível.'));
+
+    expect(status).toBe(503);
+    expect(corpo.code).toBe('SIGNER_INDISPONIVEL');
+  });
+
+  it('segundo teste manual enquanto o primeiro roda é conflito de estado: 409', () => {
+    const { status, corpo } = capturar(
+      new ErroDeConflito(CODIGOS_DE_ERRO.SIGNER_TESTE_EM_ANDAMENTO, 'Já há um teste em andamento.'),
+    );
+
+    expect(status).toBe(409);
+    expect(corpo.code).toBe('SIGNER_TESTE_EM_ANDAMENTO');
+  });
+});
+
 describe('correlationId vindo de fora', () => {
   const com = (valor: string | undefined): string =>
     obterCorrelationId({ header: () => valor } as never);

@@ -103,7 +103,11 @@ export type {
   EstadoDaEmpresaNoSigner,
   EstadoDaFinalidadeNoSigner,
   EstadoPorFinalidade,
+  HistoricoPublicoDoSigner,
   ItemDoHistoricoDoSigner,
+  ItemDoHistoricoPublico,
+  PainelDoServicoSigner,
   RespostaDeEstados,
   RespostaDeHistorico,
+  ResultadoDoTesteManual,
 } from './signer.js';

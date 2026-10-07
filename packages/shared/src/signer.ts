@@ -21,8 +21,14 @@ export type ResultadoDoHistorico = (typeof RESULTADOS_DO_HISTORICO)[number];
 export const ITENS_POR_PAGINA_DO_HISTORICO = 15;
 export const LIMITE_DO_XML_BYTES = 1_048_576;
 
-/** Identificadores opacos (UUID) e tokens curtos sem espaço nem controle. */
-const identificador = z.uuid();
+/**
+ * Identificadores opacos (UUID) e tokens curtos sem espaço nem controle. O regex é o mesmo dos
+ * demais DTOs do sistema: `app.uuid_v7()` grava a variante no byte "errado" e `z.uuid()` recusaria
+ * cerca de 3/4 dos ids reais.
+ */
+const identificador = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
 const chaveTextual = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/u);
 const finalidade = z.enum(FINALIDADES);
 
@@ -141,4 +147,34 @@ export type RespostaDeHistorico = Readonly<{
   itensPorPagina: typeof ITENS_POR_PAGINA_DO_HISTORICO;
   total: number;
   itens: readonly ItemDoHistoricoDoSigner[];
+}>;
+
+/**
+ * O que a API entrega ao navegador: o contrato do Signer SEM a referência do segredo. A F11 nunca
+ * expõe `referenciaSegredo` ao navegador, e o histórico do painel não é exceção.
+ */
+export type ItemDoHistoricoPublico = Omit<ItemDoHistoricoDoSigner, 'referenciaSegredo'>;
+
+export type HistoricoPublicoDoSigner = Readonly<
+  Omit<RespostaDeHistorico, 'itens'> & { itens: readonly ItemDoHistoricoPublico[] }
+>;
+
+/** Cartão geral do serviço (SPEC-012 §5.2). `desatualizado`: o monitor não confirmou recentemente. */
+export type PainelDoServicoSigner = Readonly<{
+  estado: EstadoDeSaudeDoSigner;
+  desatualizado: boolean;
+  /** UTC; a tela converte para America/Sao_Paulo. */
+  ultimaVerificacaoEm: string | null;
+  /** Latência da última resposta VÁLIDA. */
+  ultimaLatenciaMs: number | null;
+  incidenteAberto: boolean;
+}>;
+
+/** Resultado acionável do teste manual de UMA finalidade (SPEC-012 §3.9, §5.3). */
+export type ResultadoDoTesteManual = Readonly<{
+  finalidade: Finalidade;
+  resultado: 'SUCESSO' | 'FALHA';
+  /** Código estável da falha; nulo no sucesso. */
+  codigo: string | null;
+  correlationId: string;
 }>;

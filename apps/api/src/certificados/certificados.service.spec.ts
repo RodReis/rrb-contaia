@@ -145,8 +145,9 @@ class ServicoDeTeste extends CertificadosService {
 }
 
 const cofre = { inutilizar: vi.fn(), restaurar: vi.fn() };
+const agendador = { agendarDiagnosticosPosCadastro: vi.fn().mockResolvedValue(undefined) };
 const servico = (): ServicoDeTeste =>
-  new ServicoDeTeste({ instancia: {} as never } as never, cofre as unknown as CofreClient);
+  new ServicoDeTeste({ instancia: {} as never } as never, cofre as unknown as CofreClient, agendador as never);
 
 const codigoDe = async (acao: () => Promise<unknown>): Promise<string> => {
   try {

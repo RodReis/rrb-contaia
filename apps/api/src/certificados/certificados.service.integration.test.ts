@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { criarPool, criarPoolDaAplicacao } from '@contaia/db';
 import { CODIGOS_DE_ERRO, ErroDeDominio, permissoesDosPapeisPadrao } from '@contaia/domain';
 import type { Pool } from 'pg';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CertificadosService } from './certificados.service';
 import type { CofreClient } from './cofre.client';
@@ -44,7 +44,12 @@ class CofreFalso {
 const admin = criarPool();
 const app: Pool = criarPoolDaAplicacao();
 const cofre = new CofreFalso();
-const servico = new CertificadosService({ instancia: app } as never, cofre as unknown as CofreClient);
+const agendador = { agendarDiagnosticosPosCadastro: vi.fn() };
+const servico = new CertificadosService(
+  { instancia: app } as never,
+  cofre as unknown as CofreClient,
+  agendador as never,
+);
 
 const sufixo = `${String(process.pid).padStart(6, '0').slice(-6)}${String(Date.now()).slice(-6)}`;
 let tenantId = '';
@@ -231,6 +236,58 @@ describe('desativação concorrente', () => {
       CODIGOS_DE_ERRO.CERTIFICADO_VIGENTE_INEXISTENTE,
     );
     expect(cofre.chamadas).toEqual([]);
+  });
+});
+
+describe('diagnóstico do Signer depois da ativação (SPEC-012 §3.9)', () => {
+  beforeEach(() => {
+    agendador.agendarDiagnosticosPosCadastro.mockReset();
+    agendador.agendarDiagnosticosPosCadastro.mockResolvedValue(undefined);
+  });
+
+  it('a ativação confirmada agenda o diagnóstico da empresa, uma única vez', async () => {
+    const empresa = await novaEmpresa();
+
+    await cadastrar(empresa);
+
+    expect(agendador.agendarDiagnosticosPosCadastro).toHaveBeenCalledTimes(1);
+    expect(agendador.agendarDiagnosticosPosCadastro).toHaveBeenCalledWith(tenantId, empresa, 'corr-ativacao-01');
+  });
+
+  it('repetir a mesma ativação NÃO agenda de novo: nada foi ativado', async () => {
+    const empresa = await novaEmpresa();
+    const { pedido } = await cadastrar(empresa);
+    agendador.agendarDiagnosticosPosCadastro.mockClear();
+
+    await servico.ativar(pedido, 'corr-ativacao-02');
+
+    expect(agendador.agendarDiagnosticosPosCadastro).not.toHaveBeenCalled();
+  });
+
+  it('ativação recusada pelo negócio não agenda nada', async () => {
+    const empresa = await novaEmpresa();
+    const ticket = await servico.emitirTicket(sessao, empresa, usuarioId, 'corr-emissao-03');
+
+    await codigoDe(() =>
+      servico.ativar(
+        { ticket: ticket.ticket, referenciaDoSegredo: randomUUID(), metadados: metadadosDe('99888777000166') },
+        'corr-ativacao-07',
+      ),
+    );
+
+    expect(agendador.agendarDiagnosticosPosCadastro).not.toHaveBeenCalled();
+  });
+
+  it('falha do agendador nunca desfaz a ativação: o A1 já está vigente', async () => {
+    agendador.agendarDiagnosticosPosCadastro.mockRejectedValue(new Error('redis fora do ar'));
+    const empresa = await novaEmpresa();
+
+    const { resposta } = await cadastrar(empresa);
+
+    expect(resposta.certificado.estado).toBe('VIGENTE');
+    expect(
+      await contar(`select count(*) as n from app.empresa_certificado where empresa_id = $1 and estado = 'VIGENTE'`, [empresa]),
+    ).toBe(1);
   });
 });
 

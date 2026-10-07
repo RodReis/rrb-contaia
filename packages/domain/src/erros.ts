@@ -143,6 +143,8 @@ export const CODIGOS_DE_ERRO = {
   SIGNER_IDEMPOTENCIA_CONFLITO: 'SIGNER_IDEMPOTENCIA_CONFLITO',
   SIGNER_OPERACAO_EM_ANDAMENTO: 'SIGNER_OPERACAO_EM_ANDAMENTO',
   SIGNER_INDISPONIVEL: 'SIGNER_INDISPONIVEL',
+  // Teste manual já em andamento para a empresa: não se dispara um segundo (409).
+  SIGNER_TESTE_EM_ANDAMENTO: 'SIGNER_TESTE_EM_ANDAMENTO',
 } as const;
 
 export type CodigoDeErro = (typeof CODIGOS_DE_ERRO)[keyof typeof CODIGOS_DE_ERRO];

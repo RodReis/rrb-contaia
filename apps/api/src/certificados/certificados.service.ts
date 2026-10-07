@@ -67,6 +67,7 @@ import type {
   PedidoDeAtivacaoDto,
   PedidoDeRecusaDto,
 } from './certificados.dto';
+import { SignerService } from '../signer/signer.service';
 import { CofreClient, configuracaoDoCofre } from './cofre.client';
 import { assinarTicket, lerTicketAssinado } from './ticket';
 import { paraItem, paraMetadados, type SessaoDoCofre } from './visoes';
@@ -83,6 +84,7 @@ export class CertificadosService {
   constructor(
     private readonly pool: PoolDoBanco,
     private readonly cofre: CofreClient,
+    private readonly signer: Pick<SignerService, 'agendarDiagnosticosPosCadastro'>,
   ) {}
 
   /** Único ponto que lê o relógio (I-11): os testes o substituem. */
@@ -517,7 +519,7 @@ export class CertificadosService {
     }
 
     try {
-      return await this.comoUsuario(quem, correlationId, async (cliente) => {
+      const resposta = await this.comoUsuario(quem, correlationId, async (cliente) => {
         await travarCofreDaEmpresa(cliente, carga.empresaId);
 
         const item = await this.empresaMutavel(cliente, carga.tenantId, carga.empresaId);
@@ -590,6 +592,14 @@ export class CertificadosService {
 
         return { certificado: paraMetadados(nova) };
       });
+
+      // Depois do commit e sem esperar: DF-e e eSocial são testados em separado pela fila, e a falha
+      // de um diagnóstico NUNCA desfaz o certificado vigente (SPEC-012 §3.9).
+      void Promise.resolve(this.signer.agendarDiagnosticosPosCadastro(carga.tenantId, carga.empresaId, correlationId)).catch(
+        () => this.logger.warn('diagnóstico do Signer não agendado após a ativação'),
+      );
+
+      return resposta;
     } catch (erro) {
       if (erro instanceof ErroDeDominio) {
         await this.registrarRecusa(carga, erro.codigo, correlationId);
