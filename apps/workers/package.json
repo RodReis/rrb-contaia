@@ -10,14 +10,22 @@
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:regras": "vitest run --config vitest.config.mjs"
+    "test:regras": "vitest run --config vitest.config.mjs",
+    "test:banco": "vitest run --config vitest.banco.config.mjs"
   },
   "dependencies": {
-    "@contaia/shared": "workspace:*"
+    "@contaia/db": "workspace:*",
+    "@contaia/domain": "workspace:*",
+    "@contaia/shared": "workspace:*",
+    "@contaia/signer-client": "workspace:*",
+    "bullmq": "6.3.11",
+    "ioredis": "5.11.1",
+    "pg": "8.23.0"
   },
   "devDependencies": {
     "@contaia/config": "workspace:*",
     "@types/node": "24.13.5",
+    "@types/pg": "8.23.1",
     "eslint": "9.39.5",
     "typescript": "5.9.3",
     "vitest": "3.2.7"

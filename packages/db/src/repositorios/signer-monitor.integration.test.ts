@@ -47,7 +47,16 @@ const limparGlobais = async (): Promise<void> => {
   }
 };
 
+/**
+ * As tabelas do monitor são GLOBAIS e outras suítes (db e workers) também as usam, em paralelo:
+ * um lock consultivo de sessão, mantido até o fim, serializa quem toca nelas.
+ */
+const CHAVE_DA_TRAVA_DO_MONITOR = 7_012_001;
+let travaDoMonitor: PoolClient | null = null;
+
 beforeAll(async () => {
+  travaDoMonitor = await admin.connect();
+  await travaDoMonitor.query('select pg_advisory_lock($1)', [CHAVE_DA_TRAVA_DO_MONITOR]);
   c = await montarCenario(admin);
   const referencia = randomUUID();
   await admin.query(
@@ -64,6 +73,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await limparGlobais();
   await limparCenario(admin, c);
+  await travaDoMonitor?.query('select pg_advisory_unlock($1)', [CHAVE_DA_TRAVA_DO_MONITOR]);
+  travaDoMonitor?.release();
   await Promise.all([admin.end(), app.end()]);
 });
 
