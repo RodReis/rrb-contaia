@@ -265,3 +265,22 @@ export type {
   ResultadoDaReconciliacao,
   ResumoDoCofreBruto,
 } from './repositorios/certificados-cofre.js';
+
+export {
+  buscarCertificadoParaUso,
+  buscarOperacaoPorChave,
+  criarOperacao,
+  finalizarOperacao,
+  reabrirOperacao,
+  registrarEventoDoSigner,
+} from './repositorios/signer.js';
+export type {
+  CertificadoParaUso,
+  DesfechoDaOperacao,
+  EstadoDaOperacaoPersistida,
+  EventoDoSigner,
+  FinalidadeDoSigner,
+  NovaOperacao,
+  OperacaoDoSigner,
+  TipoDeOperacao,
+} from './repositorios/signer.js';
