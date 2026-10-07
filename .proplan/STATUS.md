@@ -81,7 +81,6 @@ updated: 2026-10-07
 - [MVP1][SPEC-016][F16] Motor tributário base versionado (#18)
 - [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17)
 - [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16)
-- [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15)
 
 ### Sem épico
 
@@ -103,6 +102,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15, finalizado em: 2026-10-07)
 - [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14, finalizado em: 2026-10-07)
 - [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13, finalizado em: 2026-10-03)
 - [MVP1][SPEC-010][F10] RLS de dois níveis e provas negativas (#12, finalizado em: 2026-10-03)
