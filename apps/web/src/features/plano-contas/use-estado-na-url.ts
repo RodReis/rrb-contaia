@@ -20,12 +20,16 @@ export const useEstadoNaUrl = (empresaId: string) => {
   const navegador = useRouter();
   const parametros = useSearchParams();
 
-  const ir = (ajustar: (proximos: URLSearchParams) => void): void => {
+  /**
+   * Abrir ou fechar uma tentativa é mudar de "tela": entra no histórico do navegador (`push`), e o
+   * "voltar" retorna. Página e busca só refinam a mesma tela: trocam a entrada (`replace`).
+   */
+  const ir = (ajustar: (proximos: URLSearchParams) => void, modo: 'push' | 'replace' = 'replace'): void => {
     const proximos = new URLSearchParams(parametros.toString());
 
     proximos.set('aba', ABA_DO_PLANO);
     ajustar(proximos);
-    navegador.replace(`/empresas/${empresaId}?${proximos.toString()}`, { scroll: false });
+    navegador[modo](`/empresas/${empresaId}?${proximos.toString()}`, { scroll: false });
   };
 
   const definirPagina = (nome: string, pagina: number) => (proximos: URLSearchParams) => {
@@ -48,12 +52,12 @@ export const useEstadoNaUrl = (empresaId: string) => {
       ir((proximos) => {
         proximos.set('tentativa', tentativaId);
         proximos.delete('rejeicoes');
-      }),
+      }, 'push'),
     fecharTentativa: (): void =>
       ir((proximos) => {
         proximos.delete('tentativa');
         proximos.delete('rejeicoes');
-      }),
+      }, 'push'),
     irParaHistorico: (pagina: number): void => ir(definirPagina('historico', pagina)),
     irParaRejeicoes: (pagina: number): void => ir(definirPagina('rejeicoes', pagina)),
     irParaContas: (pagina: number): void => ir(definirPagina('contas', pagina)),

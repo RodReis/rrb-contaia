@@ -141,7 +141,12 @@ export const Previa = ({
       );
     }
 
-    if (conflito) {
+    // A permissão diz quem pode; as flags da API dizem se esta prévia ainda aceita a ação. Sem a
+    // versão validada não há o que confirmar: a tela não inventa uma.
+    const versaoDaPrevia = previa.versaoDaPrevia;
+    const podeConfirmar = previa.podeConfirmar && versaoDaPrevia !== null && totais !== null;
+
+    if (conflito && previa.podeCancelar) {
       return (
         <PainelDeConflito
           nomeDoArquivo={previa.arquivo.nome}
@@ -150,39 +155,52 @@ export const Previa = ({
       );
     }
 
+    if (!podeConfirmar && !previa.podeCancelar) {
+      return (
+        <p className="max-w-prose text-body-sm text-muted-foreground">
+          Esta prévia não aceita mais confirmação nem cancelamento. Feche a tentativa e abra-a de novo pelo histórico para
+          ver a situação atual.
+        </p>
+      );
+    }
+
     return (
       <div className="flex flex-col gap-sm tablet:flex-row tablet:items-center tablet:justify-end">
-        <ConfirmacaoDeAcao
-          gatilho={
-            <Button variante="contorno" tamanho="compacto" disabled={confirmar.isPending}>
-              <Ban aria-hidden="true" />
-              Cancelar importação
-            </Button>
-          }
-          titulo={`Cancelar a importação de ${previa.arquivo.nome}?`}
-          descricao="Nenhuma conta é criada ou alterada. A tentativa, o arquivo e o relatório ficam no histórico como cancelados."
-          rotuloDeConfirmacao="Cancelar importação"
-          destrutivo
-          explicarBloqueio={explicarRecusa}
-          aoConfirmar={() => cancelar.mutateAsync()}
-        />
-        <ConfirmacaoDeAcao
-          gatilho={
-            <Button tamanho="compacto" disabled={confirmar.isPending || totais === null}>
-              {confirmar.isPending ? (
-                <LoaderCircle className="motion-safe:animate-spin" aria-hidden="true" />
-              ) : (
-                <CheckCircle2 aria-hidden="true" />
-              )}
-              Confirmar importação
-            </Button>
-          }
-          titulo={`Confirmar a importação de ${previa.arquivo.nome}?`}
-          descricao={totais === null ? '' : textoDaDecisao(totais)}
-          rotuloDeConfirmacao="Confirmar importação"
-          explicarBloqueio={explicarRecusa}
-          aoConfirmar={() => confirmar.mutateAsync(previa.versaoDaPrevia ?? 0)}
-        />
+        {previa.podeCancelar ? (
+          <ConfirmacaoDeAcao
+            gatilho={
+              <Button variante="contorno" tamanho="compacto" disabled={confirmar.isPending}>
+                <Ban aria-hidden="true" />
+                Cancelar importação
+              </Button>
+            }
+            titulo={`Cancelar a importação de ${previa.arquivo.nome}?`}
+            descricao="Nenhuma conta é criada ou alterada. A tentativa, o arquivo e o relatório ficam no histórico como cancelados."
+            rotuloDeConfirmacao="Cancelar importação"
+            destrutivo
+            explicarBloqueio={explicarRecusa}
+            aoConfirmar={() => cancelar.mutateAsync()}
+          />
+        ) : null}
+        {podeConfirmar ? (
+          <ConfirmacaoDeAcao
+            gatilho={
+              <Button tamanho="compacto" disabled={confirmar.isPending}>
+                {confirmar.isPending ? (
+                  <LoaderCircle className="motion-safe:animate-spin" aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 aria-hidden="true" />
+                )}
+                Confirmar importação
+              </Button>
+            }
+            titulo={`Confirmar a importação de ${previa.arquivo.nome}?`}
+            descricao={textoDaDecisao(totais)}
+            rotuloDeConfirmacao="Confirmar importação"
+            explicarBloqueio={explicarRecusa}
+            aoConfirmar={() => confirmar.mutateAsync(versaoDaPrevia)}
+          />
+        ) : null}
       </div>
     );
   };

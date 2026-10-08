@@ -63,7 +63,7 @@ describe('Central de Pendências — origem Plano de contas', () => {
   it('leva à aba Plano de contas da empresa quem consulta o plano', async () => {
     render(<CentralDePendencias />, { wrapper: Envolvido });
 
-    const acoes = await screen.findAllByRole('link', { name: 'Abrir a aba Plano de contas de Padaria Aurora' });
+    const acoes = await screen.findAllByRole('link', { name: 'Abrir aba Plano de contas de Padaria Aurora' });
 
     expect(acoes[0]).toHaveAttribute('href', '/empresas/empresa-1?aba=plano-contas');
     expect(acoes[0]).toHaveTextContent('Abrir aba Plano de contas');

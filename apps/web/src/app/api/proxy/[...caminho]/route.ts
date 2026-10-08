@@ -21,8 +21,16 @@ const urlDaApi = (): string => process.env['API_ORIGIN'] ?? 'http://127.0.0.1:15
  */
 const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
 
-/** Cabeçalhos da resposta que a tela usa: nome do arquivo baixado e o id de correlação. */
-const CABECALHOS_DEVOLVIDOS = ['content-disposition', 'x-correlation-id'] as const;
+/**
+ * Cabeçalhos da resposta repassados ao navegador (lista fechada): nome do arquivo baixado, id de
+ * correlação e as proteções que a API põe em documento e relatório (`nosniff`, sem cache).
+ */
+const CABECALHOS_DEVOLVIDOS = [
+  'content-disposition',
+  'x-correlation-id',
+  'x-content-type-options',
+  'cache-control',
+] as const;
 
 const semSessao = (): NextResponse =>
   NextResponse.json(

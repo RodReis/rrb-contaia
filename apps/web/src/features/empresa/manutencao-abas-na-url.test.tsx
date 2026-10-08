@@ -25,7 +25,7 @@ vi.mock('next/navigation', async () => {
   const { navegacao: url } = await import('../plano-contas/plano-contas.fixtures');
 
   return {
-    useRouter: () => ({ replace: url.replace, push: vi.fn() }),
+    useRouter: () => ({ replace: url.replace, push: url.push }),
     useSearchParams: () => useSyncExternalStore(url.assinar, url.ler, url.ler),
   };
 });

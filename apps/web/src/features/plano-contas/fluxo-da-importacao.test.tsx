@@ -4,7 +4,7 @@
  * incompleto ou com coluna repetida não envia nada, o diálogo de confirmação funciona por teclado,
  * e toda chamada leva o `x-correlation-id` da ação.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -29,7 +29,7 @@ vi.mock('next/navigation', async () => {
   const { navegacao: url } = await import('./plano-contas.fixtures');
 
   return {
-    useRouter: () => ({ replace: url.replace, push: vi.fn() }),
+    useRouter: () => ({ replace: url.replace, push: url.push }),
     useSearchParams: () => useSyncExternalStore(url.assinar, url.ler, url.ler),
   };
 });
@@ -193,5 +193,25 @@ describe('teclado', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(confirmar).toHaveFocus();
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/confirmar'))).toBe(false);
+  });
+});
+
+describe('arrastar e soltar', () => {
+  it('ignora um segundo arquivo solto enquanto o primeiro ainda está sendo lido', async () => {
+    renderizar();
+
+    const zona = (await screen.findByText('Arraste o CSV do plano de contas aqui')).parentElement;
+    expect(zona).not.toBeNull();
+    if (zona === null) {
+      return;
+    }
+
+    fireEvent.drop(zona, { dataTransfer: { files: [csvDoModelo()] } });
+    fireEvent.drop(zona, { dataTransfer: { files: [csvLegado()] } });
+
+    expect(await screen.findByText('Associe as colunas do arquivo')).toBeInTheDocument();
+    await new Promise((resolver) => setTimeout(resolver, 50));
+    expect(screen.getByText('plano-legado.csv')).toBeInTheDocument();
+    expect(screen.queryByText('legado.csv')).not.toBeInTheDocument();
   });
 });

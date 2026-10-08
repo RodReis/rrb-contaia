@@ -58,10 +58,23 @@ const Linha = ({ conta }: { conta: ContaDoPlanoDeContas }) => {
   );
 };
 
-/** Busca com atraso de 300 ms (PATTERNS.md §11) publicada na URL; voltar no navegador a desfaz. */
+/**
+ * Busca com atraso de 300 ms (PATTERNS.md §11), publicada na URL com `replace`. Se a busca da URL
+ * muda por fora (voltar do navegador, outro link), o que estava digitado e ainda não publicado
+ * deixa de valer — senão o atraso republicaria o rascunho velho por cima.
+ */
 const useBuscaComAtraso = (url: EstadoNaUrl) => {
   const [rascunho, definirRascunho] = useState<string | null>(null);
+  const [buscaVista, definirBuscaVista] = useState(url.busca);
   const buscar = useRef(url.buscar);
+
+  if (url.busca !== buscaVista) {
+    definirBuscaVista(url.busca);
+
+    if (rascunho !== null && rascunho.trim() !== url.busca) {
+      definirRascunho(null);
+    }
+  }
 
   useEffect(() => {
     buscar.current = url.buscar;

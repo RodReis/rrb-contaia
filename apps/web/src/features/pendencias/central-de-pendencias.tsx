@@ -179,7 +179,7 @@ const AtalhoDoPlanoDeContas = ({ pendencia }: { pendencia: Pendencia }) => {
     <Button asChild variante="contorno" tamanho="compacto">
       <Link
         href={`/empresas/${pendencia.empresaId}?aba=plano-contas`}
-        aria-label={`Abrir a aba Plano de contas de ${pendencia.empresaNome}`}
+        aria-label={`Abrir aba Plano de contas de ${pendencia.empresaNome}`}
       >
         Abrir aba Plano de contas
       </Link>

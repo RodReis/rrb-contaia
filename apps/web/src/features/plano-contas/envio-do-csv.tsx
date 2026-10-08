@@ -39,12 +39,15 @@ export const EnvioDoCsv = ({ aoLer }: { aoLer: (lido: ArquivoLido) => void }) =>
   const [lendo, definirLendo] = useState(false);
   const [recusa, definirRecusa] = useState<Readonly<{ nome: string; motivo: string }> | null>(null);
   const entrada = useRef<HTMLInputElement>(null);
+  // Trava síncrona: dois arquivos soltos em sequência chegam antes de o estado `lendo` renderizar,
+  // e o segundo não pode atropelar a leitura do primeiro.
+  const leituraEmCurso = useRef(false);
   const id = useId();
   const idDaAjuda = `${id}-ajuda`;
   const idDaRecusa = `${id}-recusa`;
 
   const escolher = async (arquivo: File | undefined): Promise<void> => {
-    if (arquivo === undefined) {
+    if (arquivo === undefined || leituraEmCurso.current) {
       return;
     }
 
@@ -58,10 +61,17 @@ export const EnvioDoCsv = ({ aoLer }: { aoLer: (lido: ArquivoLido) => void }) =>
       return;
     }
 
+    leituraEmCurso.current = true;
     definirLendo(true);
     definirRecusa(null);
-    const leitura = await lerCabecalhoDoArquivo(arquivo);
-    definirLendo(false);
+    let leitura: LeituraDoCabecalho;
+
+    try {
+      leitura = await lerCabecalhoDoArquivo(arquivo);
+    } finally {
+      leituraEmCurso.current = false;
+      definirLendo(false);
+    }
 
     if (leitura.tipo === 'RECUSADO') {
       definirRecusa({ nome: arquivo.name, motivo: mensagemDoCodigo(leitura.codigo) });

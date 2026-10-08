@@ -36,6 +36,9 @@ describe('proxy autenticado', () => {
               'content-type': 'text/csv; charset=utf-8',
               'content-disposition': 'attachment; filename="relatorio-plano.csv"',
               'x-correlation-id': 'corr-da-api-123',
+              'x-content-type-options': 'nosniff',
+              'cache-control': 'no-store',
+              'set-cookie': 'segredo=1',
             },
           }),
       ),
@@ -76,5 +79,16 @@ describe('proxy autenticado', () => {
     expect(resposta.headers.get('content-disposition')).toBe('attachment; filename="relatorio-plano.csv"');
     expect(resposta.headers.get('x-correlation-id')).toBe('corr-da-api-123');
     expect(resposta.headers.get('content-type')).toBe('text/csv; charset=utf-8');
+  });
+
+  it('preserva nosniff e cache-control do relatório e nada fora da lista', async () => {
+    const resposta = await GET(
+      requisicao('/api/proxy/empresas/e-1/plano-contas/importacoes/t-1/relatorio'),
+      contexto('empresas', 'e-1', 'plano-contas', 'importacoes', 't-1', 'relatorio'),
+    );
+
+    expect(resposta.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(resposta.headers.get('cache-control')).toBe('no-store');
+    expect(resposta.headers.get('set-cookie')).toBeNull();
   });
 });
