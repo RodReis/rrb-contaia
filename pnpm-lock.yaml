@@ -41,9 +41,6 @@ importers:
       '@contaia/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@contaia/importacao-plano-contas-client':
-        specifier: workspace:*
-        version: link:../../packages/importacao-plano-contas-client
       '@contaia/shared':
         specifier: workspace:*
         version: link:../../packages/shared
