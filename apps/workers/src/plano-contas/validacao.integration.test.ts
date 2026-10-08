@@ -30,9 +30,25 @@ import { lerConfigDoArmazenamento } from '../config.js';
 import { criarConexaoRedis } from '../redis.js';
 import { iniciarConsumidorDoPlanoDeContas, type ConsumidorDoPlano } from './consumidor.js';
 import { ErroDoArmazenamento, criarLeitorDoArmazenamento, type LeitorDoArmazenamento } from './leitura-s3.js';
+import { registrarFalhaDaValidacao } from './validacao.js';
 
 const admin: Pool = criarPool();
 const app: Pool = criarPoolDaAplicacao();
+
+/** Quantas das próximas conexões do worker falham (banco "fora" por um instante). */
+let conexoesQueFalham = 0;
+const poolDoWorker: Pool = new Proxy(app, {
+  get(alvo, propriedade) {
+    if (propriedade === 'connect' && conexoesQueFalham > 0) {
+      conexoesQueFalham -= 1;
+
+      return () => Promise.reject(new Error('banco fora do ar (simulado)'));
+    }
+    const valor: unknown = Reflect.get(alvo, propriedade, alvo);
+
+    return typeof valor === 'function' ? (valor as (...args: unknown[]) => unknown).bind(alvo) : valor;
+  },
+});
 
 const sufixo = `${String(process.pid).slice(-4).padStart(4, '0')}${String(Date.now()).slice(-6)}${randomInt(10, 99)}`;
 const prefixo = `teste-${process.pid}-${Date.now()}`;
@@ -190,8 +206,9 @@ beforeAll(async () => {
   consumidor = await iniciarConsumidorDoPlanoDeContas({
     conexao,
     prefixo,
-    pool: app,
+    pool: poolDoWorker,
     agora: () => new Date(),
+    esperaParaRegistrarFalhaMs: 50,
     ler: async (chave) => {
       const falha = falhaDaLeitura(chave);
       if (falha !== null) {
@@ -247,6 +264,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   falhaDaLeitura = () => null;
+  conexoesQueFalham = 0;
 });
 
 describe('caminho completo com o original real no MinIO', () => {
@@ -412,6 +430,72 @@ describe('falha técnica e fila morta', () => {
   });
 });
 
+describe('FALHA gravada com o job ainda ativo (SPEC-013 §6.4)', () => {
+  it('banco fora ao gravar a FALHA na última tentativa: o job é ADIADO, volta, e a FALHA sai uma vez só', async () => {
+    const tentativa = await novaTentativa(csv(['1;Ativo;sintetica;devedora;']));
+    let leituras = 0;
+    falhaDaLeitura = (chave) => {
+      if (chave !== tentativa.chave) {
+        return null;
+      }
+      leituras += 1;
+      if (leituras === 3) {
+        // Última tentativa: a próxima conexão do worker é a da FALHA, e ela cai.
+        conexoesQueFalham = 1;
+      }
+
+      return new ErroDoArmazenamento('ARMAZENAMENTO_INDISPONIVEL');
+    };
+
+    await enfileirar(tentativa.comando, idDoJobDeValidacao(tentativa.id));
+    await esperar(async () => (await doJobNaMorta(tentativa.id)) !== undefined);
+
+    // 3 tentativas + 1 volta do adiamento (que não gastou tentativa).
+    expect(leituras).toBe(4);
+    expect(await estadoDe(tentativa.id)).toBe('FALHA');
+    expect((await eventosDe(tentativa.id)).filter((e) => e.acao === 'FALHA_TECNICA')).toHaveLength(1);
+    expect(await notificacoesDe(tentativa.id)).toEqual([{ usuario_id: iniciadorA }]);
+    const naMorta = (await morta.getJobs(['waiting'])).filter((job) => job.data?.tentativaId === tentativa.id);
+    expect(naMorta.map((job) => job.data)).toEqual([{ ...tentativa.comando, motivo: 'ARMAZENAMENTO_INDISPONIVEL', tentativas: 3 }]);
+  });
+
+  it('falha transitória que NÃO é a última não grava FALHA: a tentativa seguinte conclui a validação', async () => {
+    const tentativa = await novaTentativa(csv(['1;Ativo;sintetica;devedora;']));
+    let leituras = 0;
+    falhaDaLeitura = (chave) => {
+      if (chave !== tentativa.chave) {
+        return null;
+      }
+      leituras += 1;
+
+      return leituras <= 2 ? new ErroDoArmazenamento('ARMAZENAMENTO_INDISPONIVEL') : null;
+    };
+
+    await enfileirar(tentativa.comando, idDoJobDeValidacao(tentativa.id));
+    await esperar(() => terminouOuEsperando(tentativa.id));
+
+    expect(await estadoDe(tentativa.id)).toBe('AGUARDANDO_CONFIRMACAO');
+    expect((await eventosDe(tentativa.id)).map((e) => e.acao)).toEqual(['INICIAR_VALIDACAO', 'VALIDACAO_SUCESSO']);
+    expect(await doJobNaMorta(tentativa.id)).toBeUndefined();
+  });
+
+  it('queda do processo depois do commit da FALHA (job ainda ativo): a reentrega é ack sem efeito', async () => {
+    const tentativa = await novaTentativa(csv(['1;Ativo;sintetica;devedora;']));
+    await admin.query(`update app.importacao_plano_contas set estado = 'VALIDANDO', iniciado_em = now() where id = $1`, [tentativa.id]);
+    // O que o processo gravou antes de morrer.
+    await expect(registrarFalhaDaValidacao({ pool: app, agora: () => new Date() }, tentativa.comando, 'FALHA_NA_VALIDACAO')).resolves.toBe(true);
+
+    const jobId = idDoJobDeValidacao(tentativa.id);
+    await enfileirar(tentativa.comando, jobId);
+    await esperar(async () => (await fila.getJobState(jobId)) === 'completed');
+
+    expect((await fila.getJob(jobId))!.returnvalue).toEqual({ desfecho: 'JA_PROCESSADA' });
+    expect((await eventosDe(tentativa.id)).map((e) => e.acao)).toEqual(['FALHA_TECNICA']);
+    expect(await notificacoesDe(tentativa.id)).toHaveLength(1);
+    expect(await doJobNaMorta(tentativa.id)).toBeUndefined();
+  });
+});
+
 describe('isolamento de tenant (RLS no contexto técnico)', () => {
   it('job com o tenant A apontando para a tentativa do tenant B: nada é lido nem alterado; vai à fila morta como não encontrada', async () => {
     const deB = await novaTentativa(csv(['1;Ativo;sintetica;devedora;']), { tenantId: tenantB, empresaId: empresaB, iniciador: iniciadorB });
@@ -440,8 +524,8 @@ describe('isolamento de tenant (RLS no contexto técnico)', () => {
     ]);
   });
 
-  it('payload fora do contrato vai à fila morta como PAYLOAD_INVALIDO, sem tocar o banco', async () => {
-    await fila.add(NOME_DO_JOB_DE_VALIDACAO_PLANO_CONTAS, { tentativaId: 'nao-e-uuid' }, { ...RAPIDAS, jobId: `lixo-${sufixo}` });
+  it('payload fora do contrato vai à fila morta como PAYLOAD_INVALIDO, só com os identificadores (nada arbitrário)', async () => {
+    await fila.add(NOME_DO_JOB_DE_VALIDACAO_PLANO_CONTAS, { tentativaId: 'nao-e-uuid', conteudo: 'SENHA-SENTINELA' }, { ...RAPIDAS, jobId: `lixo-${sufixo}` });
 
     await esperar(async () => (await morta.getJobs(['waiting'])).some((job) => job.data?.tentativaId === 'nao-e-uuid'));
 

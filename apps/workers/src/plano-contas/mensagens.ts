@@ -42,6 +42,9 @@ const MENSAGENS_FIXAS: Readonly<Record<Exclude<CodigoDeErroDaLinha, 'CAMPO_OBRIG
 export const mensagemPadraoDaRejeicao = (codigoDeErro: CodigoDeErroDaLinha, campo: string | null): string => {
   switch (codigoDeErro) {
     case 'CAMPO_OBRIGATORIO_AUSENTE': {
+      if (campo === 'conta_pai') {
+        return 'Preencha a conta-pai: ela é obrigatória para conta que não é raiz.';
+      }
       const nome = rotulo(campo);
 
       return nome === null ? 'Preencha os campos obrigatórios da linha.' : `Preencha o campo ${nome}: ele é obrigatório.`;

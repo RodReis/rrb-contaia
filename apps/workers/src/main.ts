@@ -67,4 +67,12 @@ encerrarComGraca(server, async () => {
   await pool.end();
 });
 
-console.warn(`[workers] consumidores ativos: ${ativos.join(', ')}; saúde em http://0.0.0.0:${config.portaDeSaude}/health`);
+const desligados = [
+  ...(config.signer === null ? ['Signer (sem os arquivos de mTLS)'] : []),
+  ...(config.armazenamento === null ? ['plano de contas (sem S3_*)'] : []),
+];
+
+console.warn(
+  `[workers] consumidores ativos: ${ativos.join(', ')}; desligados: ${desligados.join(', ') || 'nenhum'}; ` +
+    `saúde em http://0.0.0.0:${config.portaDeSaude}/health`,
+);

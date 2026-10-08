@@ -398,7 +398,8 @@ describe('motivoDaFalhaDaValidacao: só código estável', () => {
 
 describe('mensagemPadraoDaRejeicao: texto acionável para cada código', () => {
   it.each([
-    ['CAMPO_OBRIGATORIO_AUSENTE', 'conta_pai', 'Preencha o campo conta-pai: ele é obrigatório.'],
+    ['CAMPO_OBRIGATORIO_AUSENTE', 'conta_pai', 'Preencha a conta-pai: ela é obrigatória para conta que não é raiz.'],
+    ['CAMPO_OBRIGATORIO_AUSENTE', 'codigo', 'Preencha o campo código: ele é obrigatório.'],
     ['CAMPO_OBRIGATORIO_AUSENTE', null, 'Preencha os campos obrigatórios da linha.'],
     ['VALOR_FORA_DO_DOMINIO', 'natureza', 'A natureza deve ser "devedora" ou "credora".'],
     ['VALOR_FORA_DO_DOMINIO', null, 'A linha tem um valor fora do permitido.'],

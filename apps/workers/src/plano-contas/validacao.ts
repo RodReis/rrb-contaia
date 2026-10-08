@@ -178,7 +178,9 @@ const gravar = async (
       const sucesso = gravado.estado === 'AGUARDANDO_CONFIRMACAO';
       await registrarEventoDeImportacao(c, {
         empresaId, tentativaId, acao: sucesso ? 'VALIDACAO_SUCESSO' : 'VALIDACAO_REJEITADA',
-        estadoAnterior: 'VALIDANDO', estadoNovo: gravado.estado, usuarioId: null, totais: gravado.totais, codigo, correlationId, agora,
+        estadoAnterior: 'VALIDANDO', estadoNovo: gravado.estado, usuarioId: null, totais: gravado.totais,
+        // Código só no desfecho de rejeição (defeito do arquivo); a validação bem-sucedida não tem.
+        codigo: sucesso ? null : codigo, correlationId, agora,
       });
 
       if (!sucesso) {
