@@ -231,6 +231,8 @@ describe('status dos códigos da importação do plano de contas (SPEC-013)', ()
     ['ARQUIVO_VAZIO', HttpStatus.UNPROCESSABLE_ENTITY],
     ['CABECALHO_INVALIDO', HttpStatus.UNPROCESSABLE_ENTITY],
     ['MAPEAMENTO_INCOMPLETO', HttpStatus.UNPROCESSABLE_ENTITY],
+    // CSV ilegível (aspas malformadas, binário) e formato não aceito: rejeição de arquivo, 422.
+    ['ARQUIVO_INVALIDO', HttpStatus.UNPROCESSABLE_ENTITY],
   ];
 
   it.each(casos)('%s responde %i', (codigo, esperado) => {

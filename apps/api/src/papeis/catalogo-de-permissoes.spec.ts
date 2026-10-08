@@ -53,4 +53,28 @@ describe('catalogoDePermissoes (visão para a interface)', () => {
     expect(porPapel.get('auditor_readonly')).toContain('certificados.historico.consultar');
     expect(porPapel.get('auditor_readonly')).not.toContain('certificados.cofre.criar');
   });
+
+  it('o plano de contas (SPEC-013 §3.12) está em Empresas com as quatro ações e os papéis coerentes', () => {
+    const empresas = catalogo.modulos.find((modulo) => modulo.id === 'empresas');
+    const plano = empresas?.funcionalidades.find((funcionalidade) => funcionalidade.id === 'plano_contas');
+    const porPapel = new Map(catalogo.papeisPadrao.map((p) => [p.papel, p.permissoes]));
+    const todas = [
+      'empresas.plano_contas.consultar',
+      'empresas.plano_contas.importar',
+      'empresas.plano_contas.confirmar_importacao',
+      'empresas.plano_contas.baixar_relatorio',
+    ];
+    const leitura = ['empresas.plano_contas.consultar', 'empresas.plano_contas.baixar_relatorio'];
+
+    expect(plano?.rotulo).toBe('Plano de contas');
+    expect(plano?.acoes.map((acao) => acao.chave)).toEqual(todas);
+    expect(plano?.acoes.every((acao) => acao.rotulo.length > 0)).toBe(true);
+    expect(porPapel.get('admin_escritorio')).toEqual(expect.arrayContaining(todas));
+    expect(porPapel.get('contador')).toEqual(expect.arrayContaining(todas));
+    for (const papel of ['auxiliar', 'auditor_readonly'] as const) {
+      expect(porPapel.get(papel)).toEqual(expect.arrayContaining(leitura));
+      expect(porPapel.get(papel)).not.toContain('empresas.plano_contas.importar');
+      expect(porPapel.get(papel)).not.toContain('empresas.plano_contas.confirmar_importacao');
+    }
+  });
 });

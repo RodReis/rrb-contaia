@@ -136,6 +136,8 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.ARQUIVO_VAZIO]: HttpStatus.UNPROCESSABLE_ENTITY,
   [CODIGOS_DE_ERRO.CABECALHO_INVALIDO]: HttpStatus.UNPROCESSABLE_ENTITY,
   [CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  // CSV ilegível ou fora do formato (SPEC-013 §7): rejeição do arquivo antes do staging.
+  [CODIGOS_DE_ERRO.ARQUIVO_INVALIDO]: HttpStatus.UNPROCESSABLE_ENTITY,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>
