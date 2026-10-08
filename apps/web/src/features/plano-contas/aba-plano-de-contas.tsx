@@ -27,9 +27,12 @@ import { useEstadoNaUrl } from './use-estado-na-url';
 export const AbaPlanoDeContas = ({
   empresaId,
   somenteLeitura,
+  comCabecalho = true,
 }: {
   empresaId: string;
   somenteLeitura: boolean;
+  /** Falso quando quem hospeda a aba (a etapa do cadastro) já tem o próprio título e introdução. */
+  comCabecalho?: boolean;
 }) => {
   const { data: sessao } = useSessao();
   const permissoes = permissoesDoPlano(sessao, somenteLeitura);
@@ -37,13 +40,15 @@ export const AbaPlanoDeContas = ({
 
   return (
     <div className="flex flex-col gap-xl">
-      <header className="flex flex-col gap-xs">
-        <h2 className="font-display text-headline-md text-foreground">Plano de contas</h2>
-        <p className="max-w-3xl text-body-md text-muted-foreground">
-          Importe e reimporte o plano de contas desta empresa por CSV, no modelo do ContaIA ou mapeando as colunas
-          de um arquivo legado. Nenhuma conta muda antes da sua confirmação.
-        </p>
-      </header>
+      {comCabecalho ? (
+        <header className="flex flex-col gap-xs">
+          <h2 className="font-display text-headline-md text-foreground">Plano de contas</h2>
+          <p className="max-w-3xl text-body-md text-muted-foreground">
+            Importe e reimporte o plano de contas desta empresa por CSV, no modelo do ContaIA ou mapeando as colunas
+            de um arquivo legado. Nenhuma conta muda antes da sua confirmação.
+          </p>
+        </header>
+      ) : null}
 
       {somenteLeitura ? (
         <p role="status" className="rounded-md border border-border bg-muted/40 px-md py-sm text-body-sm text-muted-foreground">

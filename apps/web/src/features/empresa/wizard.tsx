@@ -11,7 +11,6 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { CircleAlert } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { ETAPAS_DA_EMPRESA, formatarCep, formatarCnpj, formatarTelefone } from '@contaia/domain';
@@ -29,7 +28,7 @@ import { FormularioIdentificacao } from './formulario-identificacao';
 import { useAtivarEmpresa, useEmpresa } from './queries';
 import type { VisaoDaEmpresa } from './api';
 
-const ROTULO_DA_ETAPA: Readonly<Record<EtapaDaEmpresa, string>> = {
+export const ROTULO_DA_ETAPA: Readonly<Record<EtapaDaEmpresa, string>> = {
   identificacao: 'Identificação',
   fiscal: 'Dados fiscais',
   endereco: 'Endereço principal',
@@ -97,15 +96,16 @@ const Secao = ({
 const Revisao = ({
   visao,
   aoEditar,
+  aoAtivar,
 }: {
   visao: VisaoDaEmpresa;
   aoEditar: (etapa: EtapaDaEmpresa) => void;
+  aoAtivar: () => void;
 }) => {
-  const navegador = useRouter();
   const { identificacao, dadosFiscais, enderecoPrincipal, status } = visao.cadastro;
   const [confirmacaoAberta, definirConfirmacao] = useState(false);
 
-  const ativar = useAtivarEmpresa(visao.id, () => navegador.push('/empresas'));
+  const ativar = useAtivarEmpresa(visao.id, aoAtivar);
   const jaAtiva = status === 'ATIVA';
 
   const pendencias = ETAPAS_DA_EMPRESA.filter(
@@ -317,7 +317,18 @@ const Revisao = ({
   );
 };
 
-export const WizardDaEmpresa = ({ empresaId }: { empresaId: string }) => {
+/**
+ * `aoAtivar` avisa a porta de entrada que a ativação deu certo. O wizard não decide o que vem
+ * depois: assim que o servidor devolve a empresa ATIVA, a porta de entrada deixa de renderizá-lo,
+ * então a etapa seguinte precisa viver acima dele (`PaginaDaEmpresa`).
+ */
+export const WizardDaEmpresa = ({
+  empresaId,
+  aoAtivar,
+}: {
+  empresaId: string;
+  aoAtivar: () => void;
+}) => {
   const { data: visao, isPending, isError, error, refetch } = useEmpresa(empresaId);
   // `null` significa "ainda não navegou": a etapa exibida vem da primeira
   // incompleta que o servidor informa. Guardar a escolha só quando o usuário
@@ -423,7 +434,7 @@ export const WizardDaEmpresa = ({ empresaId }: { empresaId: string }) => {
           />
         ) : null}
 
-        {atual === 'revisao' ? <Revisao visao={visao} aoEditar={definirEtapa} /> : null}
+        {atual === 'revisao' ? <Revisao visao={visao} aoEditar={definirEtapa} aoAtivar={aoAtivar} /> : null}
       </section>
     </div>
   );

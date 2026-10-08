@@ -2,7 +2,7 @@
 
 import type { Mapeamento } from '@contaia/domain';
 import type { EstadoDaImportacao, PreviaDaImportacao } from '@contaia/shared';
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -71,10 +71,11 @@ const falhasDesdeOUltimoSucesso = (consulta: object, estado: ContagemDaConsulta)
   return estado.errorUpdateCount - marco.errorUpdateCount;
 };
 
-export const useTentativa = (empresaId: string, tentativaId: string) =>
+/** `tentativaId` nulo = nenhuma tentativa aberta: a consulta existe, mas não dispara. */
+export const useTentativa = (empresaId: string, tentativaId: string | null) =>
   useQuery({
-    queryKey: chavesDoPlano.tentativa(empresaId, tentativaId),
-    queryFn: () => obterTentativa(empresaId, tentativaId),
+    queryKey: chavesDoPlano.tentativa(empresaId, tentativaId ?? ''),
+    queryFn: tentativaId === null ? skipToken : () => obterTentativa(empresaId, tentativaId),
     // Estado de processamento não convive com cache velho (FRONTEND.md §6.2).
     staleTime: 0,
     // Leitura que falha não para o acompanhamento: ele segue com espera crescente, e a tela avisa
