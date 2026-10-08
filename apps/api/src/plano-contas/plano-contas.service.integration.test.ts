@@ -257,8 +257,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await http?.close();
-  await fila.obliterate({ force: true }).catch(() => undefined);
+  await fila.obliterate({ force: true });
   await fila.close();
+  // Garantia extra: nenhuma chave do prefixo do teste fica no Redis de desenvolvimento.
+  const restantes = await redis.keys(`${PREFIXO_DA_FILA}:*`);
+  if (restantes.length > 0) {
+    await redis.del(...restantes);
+  }
   await redis.quit();
 
   const objetos = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: `${tenantA}/` }));
