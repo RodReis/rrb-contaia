@@ -89,7 +89,7 @@ describe('estrutura', () => {
     expect(within(modulo('Histórico de Informações')).getByText('1 de 1 permissão')).toBeInTheDocument();
     expect(within(modulo('Histórico de Informações')).getByText('Módulo visível')).toBeInTheDocument();
     expect(within(modulo('Empresas')).getByText('Módulo oculto')).toBeInTheDocument();
-    expect(within(modulo('Empresas')).getByText('0 de 6 permissões')).toBeInTheDocument();
+    expect(within(modulo('Empresas')).getByText('0 de 10 permissões')).toBeInTheDocument();
   });
 
   it('só os módulos que já têm permissão começam abertos; os outros recolhidos', () => {
