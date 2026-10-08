@@ -2,6 +2,10 @@
  * Manutenção da empresa ativa (SPEC-003 §3.1, §3.2 e §3.5): abas Identificação,
  * Dados fiscais e Endereços, com arquivamento e reativação.
  *
+ * A aba aberta vive na URL (`?aba=`): o link da notificação de importação
+ * (`?aba=plano-contas&tentativa=…`, SPEC-013 §3.10) cai direto no Plano de contas, e
+ * aba desconhecida ou sem permissão volta para a primeira permitida.
+ *
  * Os formulários são os mesmos do cadastro, com o salvamento trocado: aqui cada
  * alteração precisa gerar evento no Histórico de Informações, e a rota do
  * wizard não registra nada. Duplicar os formulários faria duas telas
@@ -13,12 +17,16 @@ import { formatarCnpj } from '@contaia/domain';
 import * as Tabs from '@radix-ui/react-tabs';
 import { Archive, History, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/cn';
 import { AbaDeColaboradores } from '../carteira/aba-de-colaboradores';
 import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
+import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
+import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
 import { ADMINISTRACAO_DE_USUARIOS, pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
 import { AbaDeDocumentos } from './aba-de-documentos';
@@ -40,8 +48,41 @@ const ABAS = [
   { id: 'fiscal', rotulo: 'Dados fiscais' },
   { id: 'enderecos', rotulo: 'Endereços' },
   { id: 'documentos', rotulo: 'Documentos' },
+  { id: 'plano-contas', rotulo: 'Plano de contas' },
   { id: 'colaboradores', rotulo: 'Colaboradores' },
 ] as const;
+
+type IdDaAba = (typeof ABAS)[number]['id'];
+
+/**
+ * Aba ativa: a da URL, se existir e for permitida; senão a primeira. A escolha por clique vale na
+ * hora (sem esperar a navegação) e some assim que a URL a reflete — ou muda por fora, como no
+ * "voltar" do navegador ou num link de notificação.
+ */
+const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
+  const navegador = useRouter();
+  const parametros = useSearchParams();
+  const naUrl = parametros.get('aba');
+  const [escolha, definirEscolha] = useState<Readonly<{ urlVista: string | null; aba: string }> | null>(null);
+  const pedida = escolha !== null && escolha.urlVista === naUrl ? escolha.aba : naUrl;
+  const ativa = permitidas.find((aba) => aba === pedida) ?? permitidas[0] ?? 'identificacao';
+
+  const abrir = (aba: string): void => {
+    definirEscolha({ urlVista: naUrl, aba });
+    const proximos = new URLSearchParams();
+
+    if (aba !== permitidas[0]) {
+      proximos.set('aba', aba);
+    }
+
+    const consulta = proximos.toString();
+    navegador.replace(consulta === '' ? `/empresas/${empresaId}` : `/empresas/${empresaId}?${consulta}`, {
+      scroll: false,
+    });
+  };
+
+  return { ativa, abrir };
+};
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
@@ -145,7 +186,16 @@ export const ManutencaoDaEmpresa = ({
   const { data: sessao } = useSessao();
   // Só o administrador gere carteira (SPEC-009 §3.1): a aba não existe para os demais papéis.
   const administraCarteira = sessao !== undefined && pode(sessao, ADMINISTRACAO_DE_USUARIOS);
-  const abas = ABAS.filter((aba) => aba.id !== 'colaboradores' || administraCarteira);
+  // Plano de contas aparece para quem consulta (SPEC-013 §3.12); a API revalida em cada rota.
+  const consultaPlano = sessao !== undefined && concede(sessao, CONSULTA_DO_PLANO);
+  const abas = ABAS.filter(
+    (aba) =>
+      (aba.id !== 'colaboradores' || administraCarteira) && (aba.id !== 'plano-contas' || consultaPlano),
+  );
+  const aba = useAbaNaUrl(
+    visao.id,
+    abas.map((item) => item.id),
+  );
   const nomeDaEmpresa =
     visao.cadastro.identificacao?.nomeFantasia ?? visao.cadastro.identificacao?.razaoSocial ?? 'a empresa';
 
@@ -163,7 +213,7 @@ export const ManutencaoDaEmpresa = ({
         </p>
       ) : null}
 
-      <Tabs.Root defaultValue="identificacao" className="flex flex-col gap-lg">
+      <Tabs.Root value={aba.ativa} onValueChange={aba.abrir} className="flex flex-col gap-lg">
         <Tabs.List
           aria-label="Seções da empresa"
           className="flex flex-wrap gap-xs rounded-md bg-secondary p-xs"
@@ -234,6 +284,12 @@ export const ManutencaoDaEmpresa = ({
         <Tabs.Content value="documentos" className="focus-visible:outline-none">
           <AbaDeDocumentos empresaId={visao.id} somenteLeitura={arquivada} />
         </Tabs.Content>
+
+        {consultaPlano ? (
+          <Tabs.Content value="plano-contas" className="focus-visible:outline-none">
+            <AbaPlanoDeContas empresaId={visao.id} somenteLeitura={arquivada} />
+          </Tabs.Content>
+        ) : null}
 
         {administraCarteira ? (
           <Tabs.Content value="colaboradores" className="focus-visible:outline-none">
