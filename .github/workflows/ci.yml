@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROVA_ESCOPO: SPEC-012
+  PROVA_ESCOPO: SPEC-013
 
 jobs:
   quality:
