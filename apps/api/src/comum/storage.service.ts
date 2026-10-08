@@ -80,6 +80,22 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Sobe o arquivo numa chave decidida pelo caso de uso — nunca derivada do nome do usuário. Serve
+   * ao armazenamento endereçado por conteúdo (SPEC-013: `…/<sha256>.csv`): reenviar os mesmos bytes
+   * sobrescreve o objeto com conteúdo idêntico e não deixa original órfão.
+   */
+  async enviarComChave(chave: string, conteudo: Buffer, tipoConteudo: string): Promise<void> {
+    await this.cliente.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: chave,
+        Body: conteudo,
+        ContentType: tipoConteudo,
+      }),
+    );
+  }
+
+  /**
    * Lê o arquivo pela chave. Não há URL assinada nem acesso direto do
    * navegador ao storage: o conteúdo passa pela aplicação, que já autorizou
    * tenant e empresa e registra o acesso (SPEC-004 §3.2). Bucket público ou

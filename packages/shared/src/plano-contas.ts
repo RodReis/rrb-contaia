@@ -83,6 +83,30 @@ export const LinhaAceitaSchema = z.strictObject({
 });
 export type LinhaAceita = z.infer<typeof LinhaAceitaSchema>;
 
+/** Rejeição como a API a mostra (amostra da prévia e páginas): com a mensagem acionável. */
+export const RejeicaoDaImportacaoSchema = z.strictObject({
+  numeroDaLinha: z.number().int().min(1),
+  // Valor cru do arquivo: a linha pode ter sido rejeitada justamente por exceder o limite.
+  codigo: z.string().nullable(),
+  campo: z.string().max(64).nullable(),
+  codigoDeErro: z.enum(CODIGOS_DE_ERRO_DA_LINHA),
+  mensagem: z.string().nullable(),
+});
+export type RejeicaoDaImportacao = z.infer<typeof RejeicaoDaImportacaoSchema>;
+
+const totaisSchema = z.strictObject({
+  lidas: z.number().int().min(0),
+  novas: z.number().int().min(0),
+  atualizadas: z.number().int().min(0),
+  rejeitadas: z.number().int().min(0),
+});
+
+/**
+ * Visão da tentativa que a API devolve no envio, na prévia, na confirmação e no cancelamento.
+ * `totais` e `versaoDaPrevia` são nulos até a validação terminar; `amostraRejeicoes` é a primeira
+ * página das rejeições. As flags `pode*` e `relatorioDisponivel` saem do estado, calculadas no
+ * servidor (a permissão continua sendo conferida em cada rota).
+ */
 export const PreviaDaImportacaoSchema = z.strictObject({
   tentativaId: identificador,
   estado: z.enum(ESTADOS_DA_IMPORTACAO),
@@ -92,16 +116,47 @@ export const PreviaDaImportacaoSchema = z.strictObject({
     hash: z.string().min(32).max(64),
   }),
   mapeamento: z.record(z.string(), z.string()),
-  totais: z.strictObject({
-    lidas: z.number().int().min(0),
-    novas: z.number().int().min(0),
-    atualizadas: z.number().int().min(0),
-    rejeitadas: z.number().int().min(0),
-  }),
-  amostraRejeicoes: z.array(LinhaRejeitadaSchema).max(50),
+  totais: totaisSchema.nullable(),
+  amostraRejeicoes: z.array(RejeicaoDaImportacaoSchema).max(50),
   criadoEm: z.string().datetime(),
+  finalizadoEm: z.string().datetime().nullable(),
+  correlationId: chaveTextual,
+  /** Versão do plano validada: o corpo da confirmação a devolve (`CONFLITO_DE_VERSAO` se mudou). */
+  versaoDaPrevia: z.number().int().min(0).nullable(),
+  reutilizadaPorIdempotencia: z.boolean(),
+  podeConfirmar: z.boolean(),
+  podeCancelar: z.boolean(),
+  relatorioDisponivel: z.boolean(),
 });
 export type PreviaDaImportacao = z.infer<typeof PreviaDaImportacaoSchema>;
+
+export const PaginaDeRejeicoesDaImportacaoSchema = z.strictObject({
+  pagina: z.number().int().min(1),
+  itensPorPagina: z.number().int().min(1).max(100),
+  total: z.number().int().min(0),
+  itens: z.array(RejeicaoDaImportacaoSchema),
+});
+export type PaginaDeRejeicoesDaImportacao = z.infer<typeof PaginaDeRejeicoesDaImportacaoSchema>;
+
+export const ContaDoPlanoDeContasSchema = z.strictObject({
+  id: identificador,
+  codigo: z.string().min(1),
+  nome: z.string().min(1),
+  tipo: z.enum(TIPOS_DE_CONTA),
+  natureza: z.enum(NATUREZAS_DE_CONTA),
+  contaPai: z.string().nullable(),
+  arquivada: z.boolean(),
+  atualizadoEm: z.string().datetime(),
+});
+export type ContaDoPlanoDeContas = z.infer<typeof ContaDoPlanoDeContasSchema>;
+
+export const PaginaDoPlanoDeContasSchema = z.strictObject({
+  pagina: z.number().int().min(1),
+  itensPorPagina: z.number().int().min(1).max(100),
+  total: z.number().int().min(0),
+  itens: z.array(ContaDoPlanoDeContasSchema),
+});
+export type PaginaDoPlanoDeContas = z.infer<typeof PaginaDoPlanoDeContasSchema>;
 
 export const TentativaDoHistoricoSchema = z.strictObject({
   id: identificador,
@@ -143,21 +198,26 @@ export const HistoricoDeImportacoesSchema = z.strictObject({
 });
 export type HistoricoDeImportacoes = z.infer<typeof HistoricoDeImportacoesSchema>;
 
-// Payload de fila (worker de validação)
+// Payload de fila (worker de validação). Só identificadores: o worker relê a tentativa (arquivo,
+// hash e mapeamento) do banco, dentro do contexto técnico da empresa.
 export const ComandoValidarImportacaoSchema = z.strictObject({
   tenantId: identificador,
   empresaId: identificador,
   tentativaId: identificador,
   correlationId: chaveTextual,
-  arquivoHash: z.string().min(32).max(64),
-  mapeamento: z.record(z.string(), z.string()),
-  usuarioOriginadorId: identificador.optional(),
 });
 export type ComandoValidarImportacao = z.infer<typeof ComandoValidarImportacaoSchema>;
 
-// Nomes de fila
-export const FILA_DE_VALIDACAO_PLANO_CONTAS = 'plano-contas:validacao';
-export const FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA = 'plano-contas:validacao:morto';
+// Nomes de fila. O BullMQ 6 recusa ":" no nome da fila e no id de job customizado.
+export const FILA_DE_VALIDACAO_PLANO_CONTAS = 'plano-contas-validacao';
+export const FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA = 'plano-contas-validacao-morta';
+export const NOME_DO_JOB_DE_VALIDACAO_PLANO_CONTAS = 'validar-importacao';
+
+/**
+ * Id determinístico do job (API e worker usam este mesmo): reenfileirar a mesma tentativa não
+ * cria um segundo job enquanto o primeiro existir.
+ */
+export const idDoJobDeValidacao = (tentativaId: string): string => `validacao-${tentativaId}`;
 
 // Opções de job (retry/backoff)
 export const OPCOES_DE_VALIDACAO_PLANO_CONTAS = {

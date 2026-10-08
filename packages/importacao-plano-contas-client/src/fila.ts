@@ -1,10 +1,9 @@
-import { createHash } from 'node:crypto';
 import type { ComandoValidarImportacao } from '@contaia/shared';
 
 /** Nomes de fila (SPEC-013 §6.4). */
-export const FILA_DE_VALIDACAO_PLANO_CONTAS = 'plano-contas:validacao';
+export const FILA_DE_VALIDACAO_PLANO_CONTAS = 'plano-contas-validacao';
 /** DLQ: o que esgotou as tentativas ou falhou de forma definitiva, para olhar e agir. */
-export const FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA = 'plano-contas:validacao:morto';
+export const FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA = 'plano-contas-validacao-morta';
 export const NOME_DO_JOB_DE_VALIDACAO = 'validar-importacao';
 
 /** Opções de retry/backoff do job (SPEC-013 §6.4). */
@@ -15,17 +14,8 @@ export const OPCOES_DE_VALIDACAO_PLANO_CONTAS = {
   removeOnFail: 50,
 } as const;
 
-/**
- * Id determinístico do job: o mesmo processamento (empresa, hash, mapeamento) não entra duas
- * vezes na fila, mesmo se o gancho repetir. Hash do payload inteiro.
- */
-export const idDoJobDeValidacao = (comando: ComandoValidarImportacao): string =>
-  `val-${createHash('sha256')
-    .update(
-      `${comando.tenantId}|${comando.empresaId}|${comando.tentativaId}|${comando.arquivoHash}|${JSON.stringify(comando.mapeamento)}`,
-    )
-    .digest('hex')
-    .slice(0, 40)}`;
+/** Pacote legado (removido na Task 13): mesmo id do `@contaia/shared` (`validacao-<tentativa>`). */
+export const idDoJobDeValidacao = (comando: ComandoValidarImportacao): string => `validacao-${comando.tentativaId}`;
 
 export type ConexaoDoRedis = Readonly<{ host: string; port: number; password?: string; db?: number }>;
 
