@@ -299,6 +299,10 @@ export {
   CHAVES_DE_PENDENCIA_DO_CERTIFICADO,
   causasDeCertificado,
 } from './certificados/pendencias.js';
+export {
+  CHAVE_DE_PENDENCIA_DO_PLANO_DE_CONTAS,
+  causasDoPlanoDeContas,
+} from './plano-contas/pendencias.js';
 
 export { FINALIDADES, ehFinalidade } from './signer/finalidades.js';
 export type { Finalidade } from './signer/finalidades.js';

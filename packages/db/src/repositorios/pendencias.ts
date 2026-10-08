@@ -262,7 +262,8 @@ export const dispensar = async (
 ): Promise<PendenciaPersistida | null> => {
   // A pendência do cofre some quando a causa some (cadastrar, trocar responsável) — dispensá-la
   // esconderia um certificado ausente ou vencido, e a reconciliação a reabriria. O servidor recusa,
-  // não a interface (SPEC-011 §3.6).
+  // não a interface (SPEC-011 §3.6). Vale igual para o plano de contas incompleto: só a primeira
+  // conta válida a resolve (SPEC-013 §3.10).
   const origem = await cliente.query<{ origem: string }>(
     `select origem from app.empresa_pendencia where id = $1 and empresa_id = $2 and estado = 'ABERTA'`,
     [pendenciaId, empresaId],
@@ -275,10 +276,17 @@ export const dispensar = async (
     );
   }
 
+  if (origem.rows[0]?.origem === 'PLANO_CONTAS') {
+    throw new ErroDeDominio(
+      CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL,
+      'Pendência do plano de contas não se dispensa: ela se resolve com a primeira conta válida.',
+    );
+  }
+
   const resultado = await cliente.query<LinhaDaPendencia>(
     `update app.empresa_pendencia
      set estado = 'RESOLVIDA', resolvido_em = now()
-     where id = $1 and empresa_id = $2 and estado = 'ABERTA' and origem <> 'CERTIFICADO'
+     where id = $1 and empresa_id = $2 and estado = 'ABERTA' and origem not in ('CERTIFICADO', 'PLANO_CONTAS')
        -- Empresa arquivada é só consulta (o admin a alcança sem vínculo, SPEC-009): sem dispensa.
        and exists (select 1 from app.empresa e where e.id = $2 and e.situacao = 'ativo')
      returning *`,

@@ -11,7 +11,7 @@
 import type { EstadoDoDocumento } from '../empresa/documentos.js';
 import { dataCivilEmSaoPaulo } from '../empresa/manutencao.js';
 
-export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO';
+export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO' | 'PLANO_CONTAS';
 
 export type TipoDaPendencia =
   | 'CAMPO_AUSENTE'
@@ -23,7 +23,9 @@ export type TipoDaPendencia =
   // Cofre de certificados A1 (SPEC-011 §3.4–3.6).
   | 'CERTIFICADO_AUSENTE'
   | 'CERTIFICADO_VENCIDO'
-  | 'CERTIFICADO_SEM_RESPONSAVEL';
+  | 'CERTIFICADO_SEM_RESPONSAVEL'
+  // Plano de contas sem nenhuma conta válida (SPEC-013 §3.10).
+  | 'PLANO_CONTAS_INCOMPLETO';
 
 export type EstadoDaPendencia = 'ABERTA' | 'RESOLVIDA';
 

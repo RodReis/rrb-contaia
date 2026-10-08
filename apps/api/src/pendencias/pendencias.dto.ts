@@ -14,7 +14,7 @@ const identificador = z
 export const filtroDaCentralSchema = z.object({
   empresaId: identificador.nullish().transform((valor) => valor ?? null),
   origem: z
-    .enum(['CADASTRAL', 'DOCUMENTAL', 'CERTIFICADO'])
+    .enum(['CADASTRAL', 'DOCUMENTAL', 'CERTIFICADO', 'PLANO_CONTAS'])
     .nullish()
     .transform((valor) => valor ?? null),
   tipo: z
@@ -28,6 +28,7 @@ export const filtroDaCentralSchema = z.object({
       'CERTIFICADO_AUSENTE',
       'CERTIFICADO_VENCIDO',
       'CERTIFICADO_SEM_RESPONSAVEL',
+      'PLANO_CONTAS_INCOMPLETO',
     ])
     .nullish()
     .transform((valor) => valor ?? null),
