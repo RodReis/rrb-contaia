@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { validarLinhasDoPlano } from './validacao.js';
+import { LIMITE_DO_CODIGO_DA_CONTA, LIMITE_DO_NOME_DA_CONTA, validarLinhasDoPlano } from './validacao.js';
 import type { ContaVigente, LinhaBrutaDeEntrada, LinhaDeEntrada } from './validacao.js';
 
 const linha = (dados: Partial<LinhaDeEntrada> & { numeroDaLinha: number }): LinhaDeEntrada => ({
@@ -275,6 +275,85 @@ describe('validarLinhasDoPlano — defeito de estrutura da linha (SPEC-013 §3.4
     expect(resultado.rejeitadas.map((r) => [r.numeroDaLinha, r.codigoDeErro])).toEqual([
       [2, 'VALOR_FORA_DO_DOMINIO'],
       [3, 'CONTA_PAI_REJEITADA'],
+    ]);
+  });
+});
+
+describe('validarLinhasDoPlano — limites de coluna (SPEC-013 §3.3–§3.4)', () => {
+  const linhaBruta = (dados: Partial<LinhaBrutaDeEntrada> & { numeroDaLinha: number }): LinhaBrutaDeEntrada => ({
+    codigo: '1',
+    nome: 'Ativo',
+    tipo: 'sintetica',
+    natureza: 'devedora',
+    contaPai: null,
+    ...dados,
+  });
+
+  it('expõe os limites do contrato da conta: código até 64 e nome até 255 caracteres', () => {
+    expect(LIMITE_DO_CODIGO_DA_CONTA).toBe(64);
+    expect(LIMITE_DO_NOME_DA_CONTA).toBe(255);
+  });
+
+  it('aceita código com exatamente 64 caracteres e nome com exatamente 255', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [linhaBruta({ numeroDaLinha: 2, codigo: 'C'.repeat(64), nome: 'N'.repeat(255) })],
+      contasVigentes: [],
+    });
+
+    expect(resultado.rejeitadas).toEqual([]);
+    expect(resultado.aceitas).toHaveLength(1);
+  });
+
+  it('código com 65 caracteres é rejeição da linha (VALOR_FORA_DO_DOMINIO no campo codigo), com mensagem em PT-BR', () => {
+    const codigo = 'C'.repeat(65);
+    const resultado = validarLinhasDoPlano({
+      linhas: [linhaBruta({ numeroDaLinha: 2, codigo }), linhaBruta({ numeroDaLinha: 3, codigo: '2' })],
+      contasVigentes: [],
+    });
+
+    expect(resultado.aceitas.map((a) => a.codigo)).toEqual(['2']);
+    expect(resultado.rejeitadas).toEqual([
+      {
+        numeroDaLinha: 2,
+        codigo,
+        campo: 'codigo',
+        codigoDeErro: 'VALOR_FORA_DO_DOMINIO',
+        mensagem: 'O código tem 65 caracteres; o limite é 64.',
+      },
+    ]);
+  });
+
+  it('nome com 256 caracteres é rejeição da linha (VALOR_FORA_DO_DOMINIO no campo nome), com mensagem em PT-BR', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [linhaBruta({ numeroDaLinha: 7, codigo: '1', nome: 'N'.repeat(256) })],
+      contasVigentes: [],
+    });
+
+    expect(resultado.aceitas).toEqual([]);
+    expect(resultado.rejeitadas).toEqual([
+      {
+        numeroDaLinha: 7,
+        codigo: '1',
+        campo: 'nome',
+        codigoDeErro: 'VALOR_FORA_DO_DOMINIO',
+        mensagem: 'O nome tem 256 caracteres; o limite é 255.',
+      },
+    ]);
+  });
+
+  it('a filha de um código rejeitado por tamanho recebe CONTA_PAI_REJEITADA', () => {
+    const longo = 'C'.repeat(70);
+    const resultado = validarLinhasDoPlano({
+      linhas: [
+        linhaBruta({ numeroDaLinha: 2, codigo: longo }),
+        linhaBruta({ numeroDaLinha: 3, codigo: '1.1', tipo: 'analitica', contaPai: longo }),
+      ],
+      contasVigentes: [],
+    });
+
+    expect(resultado.rejeitadas.map((r) => [r.numeroDaLinha, r.codigoDeErro, r.campo])).toEqual([
+      [2, 'VALOR_FORA_DO_DOMINIO', 'codigo'],
+      [3, 'CONTA_PAI_REJEITADA', null],
     ]);
   });
 });

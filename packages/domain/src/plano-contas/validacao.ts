@@ -84,6 +84,13 @@ const NATUREZAS_VALIDAS: readonly NaturezaDaConta[] = ['devedora', 'credora'];
 
 const MENSAGEM_CAMPOS_A_MAIS = "A linha tem mais campos do que o cabeçalho; confira ';' ou aspas no texto.";
 
+/**
+ * Limites do contrato da conta (os mesmos dos schemas do `@contaia/shared`). Excedê-los é erro de
+ * conteúdo da linha, que vai ao relatório; nunca uma falha na gravação.
+ */
+export const LIMITE_DO_CODIGO_DA_CONTA = 64;
+export const LIMITE_DO_NOME_DA_CONTA = 255;
+
 const ehTipoDaConta = (valor: string): valor is TipoDaConta =>
   (TIPOS_VALIDOS as readonly string[]).includes(valor);
 
@@ -101,6 +108,17 @@ const rejeicao = (
   codigoDeErro,
 });
 
+const acimaDoLimite = (
+  linha: LinhaBrutaDeEntrada,
+  campo: 'codigo' | 'nome',
+  rotulo: string,
+  tamanho: number,
+  limite: number,
+): LinhaRejeitada => ({
+  ...rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', campo),
+  mensagem: `${rotulo} tem ${tamanho} caracteres; o limite é ${limite}.`,
+});
+
 /**
  * Valida os campos obrigatórios e o domínio de cada linha, isoladamente das demais, e devolve a
  * linha com tipo e natureza estreitados. Em branco → obrigatório ausente; preenchido fora do
@@ -113,8 +131,14 @@ const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | Linh
   if (!linha.codigo) {
     return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'codigo');
   }
+  if (linha.codigo.length > LIMITE_DO_CODIGO_DA_CONTA) {
+    return acimaDoLimite(linha, 'codigo', 'O código', linha.codigo.length, LIMITE_DO_CODIGO_DA_CONTA);
+  }
   if (!linha.nome) {
     return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'nome');
+  }
+  if (linha.nome.length > LIMITE_DO_NOME_DA_CONTA) {
+    return acimaDoLimite(linha, 'nome', 'O nome', linha.nome.length, LIMITE_DO_NOME_DA_CONTA);
   }
   if (!linha.tipo) {
     return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'tipo');
