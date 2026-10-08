@@ -104,6 +104,21 @@ const parametrosDoCertificado = (e: Escopo, n: number): unknown[] => [
 const certificado = (banco: Consultavel, e: Escopo): Promise<string> =>
   unico(banco, SQL_CERTIFICADO, parametrosDoCertificado(e, proximo()));
 
+/** Tentativa de importação do plano de contas ($1 tenant, $2 empresa, $3 autor, $4 hash, $5 chave). */
+const SQL_TENTATIVA_DO_PLANO = `insert into app.importacao_plano_contas
+   (tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome, arquivo_tamanho, arquivo_chave,
+    usuario_iniciador_id, correlation_id)
+ values ($1, $2, $4, '{"codigo":"codigo"}'::jsonb, 'plano.csv', 10, $5, $3, 'matriz-rls')
+ returning id, empresa_id, tenant_id`;
+
+const parametrosDaTentativa = (e: Escopo): unknown[] => [
+  e.tenantId,
+  e.empresaId,
+  e.autorId,
+  hex64(),
+  `plano-contas/${e.sufixo}/${proximo()}.csv`,
+];
+
 export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.tenant': {
     inserir: (banco, escopo) =>
@@ -331,6 +346,74 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
         `insert into app.signer_notificacao (tenant_id, usuario_id, incidente_id, tipo)
          values ($1, $2, gen_random_uuid(), 'INDISPONIBILIDADE') returning id`,
         [e.tenantId, e.autorId],
+      ),
+    colunaDeAtualizacao: 'lida',
+  },
+  'app.conta_contabil': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.conta_contabil (tenant_id, empresa_id, codigo, nome, tipo, natureza)
+         values ($1, $2, $3, 'Conta da prova', 'sintetica', 'devedora') returning id`,
+        [e.tenantId, e.empresaId, `matriz-${e.sufixo}-${proximo()}`],
+      ),
+    colunaDeAtualizacao: 'nome',
+  },
+  'app.empresa_plano_versao': {
+    // Uma linha por empresa, e a matriz grava várias vezes na mesma (semente e tentativas, todas
+    // revertidas): o upsert sem efeito mantém o controle positivo. Os negativos não chegam ao
+    // conflito — a política de INSERT barra antes — e a linha com tenant trocado não colide com a
+    // chave (empresa_id, tenant_id): cai na FK composta, como nas demais tabelas.
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.empresa_plano_versao (tenant_id, empresa_id) values ($1, $2)
+         on conflict (empresa_id, tenant_id) do update set versao = app.empresa_plano_versao.versao
+         returning id`,
+        [e.tenantId, e.empresaId],
+      ),
+    colunaDeAtualizacao: 'versao',
+  },
+  'app.importacao_plano_contas': {
+    inserir: (banco, e) => unico(banco, SQL_TENTATIVA_DO_PLANO, parametrosDaTentativa(e)),
+    colunaDeAtualizacao: 'estado',
+  },
+  // As filhas criam a tentativa-pai na mesma instrução e na empresa da própria tentativa: a FK
+  // composta (tentativa, empresa, tenant) recusaria um pai de outra empresa (ver certificado).
+  'app.importacao_plano_contas_linha': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `with tentativa as (${SQL_TENTATIVA_DO_PLANO})
+         insert into app.importacao_plano_contas_linha
+           (tenant_id, empresa_id, tentativa_id, numero_linha, codigo, status, codigo_de_erro, campo)
+         select $1, $2, tentativa.id, 1, null, 'REJEITADA', 'CAMPO_OBRIGATORIO_AUSENTE', 'codigo'
+           from tentativa
+         returning id`,
+        parametrosDaTentativa(e),
+      ),
+  },
+  'app.importacao_plano_contas_evento': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `with tentativa as (${SQL_TENTATIVA_DO_PLANO})
+         insert into app.importacao_plano_contas_evento
+           (tenant_id, empresa_id, tentativa_id, acao, estado_novo, usuario_id, correlation_id)
+         select $1, $2, tentativa.id, 'CRIACAO', 'RECEBIDA', $3, 'matriz-rls' from tentativa
+         returning id`,
+        parametrosDaTentativa(e),
+      ),
+  },
+  'app.importacao_plano_contas_notificacao': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `with tentativa as (${SQL_TENTATIVA_DO_PLANO})
+         insert into app.importacao_plano_contas_notificacao (tenant_id, empresa_id, tentativa_id, usuario_id)
+         select $1, $2, tentativa.id, $3 from tentativa
+         returning id`,
+        parametrosDaTentativa(e),
       ),
     colunaDeAtualizacao: 'lida',
   },

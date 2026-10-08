@@ -15,7 +15,6 @@ import {
   CODIGOS_DE_ERRO,
   ErroDeDominio,
   FINALIDADES_HUMANAS,
-  FINALIDADES_TECNICAS,
   contextoHumano,
   contextoTecnico,
   parametrosDeSessao,
