@@ -29,7 +29,29 @@ export const TIPOS_DE_DOCUMENTO_DA_EMPRESA = [
   'image/jpeg',
 ] as const;
 
-export type TipoDeArquivo = 'LOGO' | 'DOCUMENTO' | 'DOCUMENTO_DA_EMPRESA';
+/**
+ * CSV de importação do plano de contas (SPEC-013 §3.2). O mesmo limite do parser do domínio
+ * (`LIMITE_DE_BYTES`), repetido aqui porque este módulo também vai para o navegador; um teste
+ * garante que os dois valores não divergem.
+ */
+export const LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Tipos que navegadores e sistemas operacionais anunciam para `.csv`: o Windows com Excel
+ * instalado envia `application/vnd.ms-excel`, e `text/plain` aparece em vários clientes.
+ */
+export const TIPOS_DE_IMPORTACAO_DO_PLANO = [
+  'text/csv',
+  'application/csv',
+  'application/vnd.ms-excel',
+  'text/plain',
+] as const;
+
+export type TipoDeArquivo =
+  | 'LOGO'
+  | 'DOCUMENTO'
+  | 'DOCUMENTO_DA_EMPRESA'
+  | 'IMPORTACAO_PLANO_CONTAS';
 
 /**
  * Arquivo do cadastro do escritório (SPEC-001). Tipo próprio para o
@@ -61,6 +83,11 @@ export const REGRAS_DE_ARQUIVO: Readonly<Record<TipoDeArquivo, RegraDeArquivo>> 
     tiposAceitos: TIPOS_DE_DOCUMENTO_DA_EMPRESA,
     extensoesAceitas: ['.pdf', '.png', '.jpg', '.jpeg'],
   },
+  IMPORTACAO_PLANO_CONTAS: {
+    limiteBytes: LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
+    tiposAceitos: TIPOS_DE_IMPORTACAO_DO_PLANO,
+    extensoesAceitas: ['.csv'],
+  },
 };
 
 export type FalhaDeArquivo =
@@ -82,6 +109,35 @@ const ASSINATURAS: Readonly<Record<string, readonly (readonly number[])[]>> = {
   'image/jpeg': [[0xff, 0xd8, 0xff]],
 };
 
+const comecaCom = (inicio: Uint8Array, assinatura: readonly number[]): boolean =>
+  inicio.length >= assinatura.length && assinatura.every((byte, indice) => inicio[indice] === byte);
+
+/** Formatos binários que não podem se passar por texto (PDF, zip/xlsx, PNG, JPEG). */
+const ASSINATURAS_BINARIAS: readonly (readonly number[])[] = [
+  [0x25, 0x50, 0x44, 0x46],
+  [0x50, 0x4b, 0x03, 0x04],
+  [0x89, 0x50, 0x4e, 0x47],
+  [0xff, 0xd8, 0xff],
+];
+const MARCAS_UTF16: readonly (readonly number[])[] = [
+  [0xff, 0xfe],
+  [0xfe, 0xff],
+];
+
+/**
+ * CSV é texto sem assinatura mágica: confere-se só que não é um binário conhecido nem tem byte
+ * nulo (exceto em UTF-16 com BOM, que o Excel grava como "Texto Unicode").
+ */
+const pareceTexto = (inicio: Uint8Array): boolean => {
+  if (ASSINATURAS_BINARIAS.some((assinatura) => comecaCom(inicio, assinatura))) {
+    return false;
+  }
+
+  return MARCAS_UTF16.some((marca) => comecaCom(inicio, marca)) || !inicio.includes(0x00);
+};
+
+const TIPOS_DE_TEXTO: readonly string[] = TIPOS_DE_IMPORTACAO_DO_PLANO;
+
 /**
  * Confere se os bytes iniciais correspondem ao tipo declarado.
  *
@@ -92,6 +148,10 @@ export const conteudoConfereComOTipo = (
   tipoConteudo: string,
   inicio: Uint8Array,
 ): boolean => {
+  if (TIPOS_DE_TEXTO.includes(tipoConteudo)) {
+    return pareceTexto(inicio);
+  }
+
   const assinaturas = ASSINATURAS[tipoConteudo];
 
   if (assinaturas === undefined) {

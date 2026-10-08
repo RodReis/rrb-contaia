@@ -1,7 +1,9 @@
+import { LIMITE_DE_BYTES } from '@contaia/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
   LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
+  LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
   LIMITE_DE_LOGO_BYTES,
   conteudoConfereComOTipo,
   mensagemDaFalha,
@@ -125,5 +127,68 @@ describe('conteudoConfereComOTipo', () => {
 
   it('não opina sobre tipo sem assinatura conhecida: quem decide o aceite é validarArquivo', () => {
     expect(conteudoConfereComOTipo('image/svg+xml', bytes(0x3c, 0x73, 0x76, 0x67))).toBe(true);
+  });
+});
+
+describe('importação do plano de contas por CSV (SPEC-013)', () => {
+  const bytes = (...valores: number[]): Uint8Array => Uint8Array.from(valores);
+  const ascii = (texto: string): Uint8Array => new TextEncoder().encode(texto);
+
+  it('aceita CSV nos tipos que os navegadores anunciam', () => {
+    for (const tipoConteudo of ['text/csv', 'application/csv', 'application/vnd.ms-excel', 'text/plain']) {
+      expect(
+        validarArquivo('IMPORTACAO_PLANO_CONTAS', { tipoConteudo, tamanhoBytes: 1024 }),
+      ).toBeNull();
+    }
+  });
+
+  it('recusa PDF e planilha .xlsx como importação', () => {
+    expect(
+      validarArquivo('IMPORTACAO_PLANO_CONTAS', { tipoConteudo: 'application/pdf', tamanhoBytes: 1024 }),
+    ).toBe('TIPO_NAO_ACEITO');
+    expect(
+      validarArquivo('IMPORTACAO_PLANO_CONTAS', {
+        tipoConteudo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        tamanhoBytes: 1024,
+      }),
+    ).toBe('TIPO_NAO_ACEITO');
+  });
+
+  it('aceita até 10 MB e recusa o byte seguinte, igual ao limite do domínio', () => {
+    expect(LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES).toBe(LIMITE_DE_BYTES);
+    expect(
+      validarArquivo('IMPORTACAO_PLANO_CONTAS', {
+        tipoConteudo: 'text/csv',
+        tamanhoBytes: LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
+      }),
+    ).toBeNull();
+    expect(
+      validarArquivo('IMPORTACAO_PLANO_CONTAS', {
+        tipoConteudo: 'text/csv',
+        tamanhoBytes: LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES + 1,
+      }),
+    ).toBe('TAMANHO_EXCEDIDO');
+  });
+
+  it('recusa arquivo vazio e orienta o formato na mensagem', () => {
+    expect(
+      validarArquivo('IMPORTACAO_PLANO_CONTAS', { tipoConteudo: 'text/csv', tamanhoBytes: 0 }),
+    ).toBe('ARQUIVO_VAZIO');
+    expect(mensagemDaFalha('IMPORTACAO_PLANO_CONTAS', 'TIPO_NAO_ACEITO')).toContain('.csv');
+    expect(mensagemDaFalha('IMPORTACAO_PLANO_CONTAS', 'TAMANHO_EXCEDIDO')).toContain('10 MB');
+  });
+
+  it('o conteúdo confere quando é texto, com ou sem BOM, e em UTF-16 com BOM', () => {
+    expect(conteudoConfereComOTipo('text/csv', ascii('codigo;nome\r\n1;Ativo'))).toBe(true);
+    expect(conteudoConfereComOTipo('text/csv', bytes(0xef, 0xbb, 0xbf, 0x63, 0x6f))).toBe(true);
+    expect(conteudoConfereComOTipo('text/csv', bytes(0xff, 0xfe, 0x63, 0x00, 0x6f, 0x00))).toBe(true);
+    expect(conteudoConfereComOTipo('text/csv', bytes(0x63, 0xe9, 0x64))).toBe(true); // Latin-1
+  });
+
+  it('o conteúdo não confere quando é binário anunciado como CSV', () => {
+    expect(conteudoConfereComOTipo('text/csv', ascii('%PDF-1.7\n'))).toBe(false);
+    expect(conteudoConfereComOTipo('text/csv', bytes(0x50, 0x4b, 0x03, 0x04, 0x14))).toBe(false); // .xlsx (zip)
+    expect(conteudoConfereComOTipo('application/vnd.ms-excel', bytes(0x61, 0x00, 0x62, 0x00))).toBe(false);
+    expect(conteudoConfereComOTipo('text/plain', bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))).toBe(false);
   });
 });

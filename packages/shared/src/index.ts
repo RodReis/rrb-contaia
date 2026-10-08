@@ -4,10 +4,12 @@ export type { ProblemDetails } from './problem.js';
 export {
   LIMITE_DE_DOCUMENTO_BYTES,
   LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
+  LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
   LIMITE_DE_LOGO_BYTES,
   REGRAS_DE_ARQUIVO,
   TIPOS_DE_DOCUMENTO,
   TIPOS_DE_DOCUMENTO_DA_EMPRESA,
+  TIPOS_DE_IMPORTACAO_DO_PLANO,
   TIPOS_DE_LOGO,
   conteudoConfereComOTipo,
   formatarLimite,
@@ -144,3 +146,6 @@ export type {
   HistoricoDeImportacoes,
   ComandoValidarImportacao,
 } from './plano-contas.js';
+
+export { lerCsv } from './plano-contas-csv.js';
+export type { CsvLido } from './plano-contas-csv.js';
