@@ -173,6 +173,7 @@ export {
 } from './repositorios/notificacoes.js';
 export type {
   EmpresaDaNotificacaoDeCarteira,
+  ImportacaoDaNotificacao,
   NotificacaoPersistida,
   PaginaDeNotificacoes,
 } from './repositorios/notificacoes.js';

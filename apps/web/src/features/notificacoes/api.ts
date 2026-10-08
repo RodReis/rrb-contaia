@@ -17,9 +17,27 @@ export type TipoDeNotificacao =
   // Incidente do Signer (SPEC-012 §3.10): aviso ao administrador, sem empresa; o de recuperação
   // traz a duração do incidente.
   | 'SIGNER_INDISPONIVEL'
-  | 'SIGNER_RECUPERADO';
+  | 'SIGNER_RECUPERADO'
+  // Fim do processamento de uma importação do plano de contas (SPEC-013 §3.10): só para quem
+  // iniciou; traz a tentativa, o estado terminal e os totais em `importacao`.
+  | 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA';
 
 export type EmpresaDoAviso = Readonly<{ id: string; nome: string; cnpj: string }>;
+
+export type TotaisDaImportacaoNoAviso = Readonly<{
+  lidas: number;
+  novas: number;
+  atualizadas: number;
+  rejeitadas: number;
+}>;
+
+/** Desfecho da tentativa que o aviso abre; `totais` é nulo quando ela terminou em FALHA. */
+export type ImportacaoNoAviso = Readonly<{
+  tentativaId: string;
+  /** CONCLUIDA, CONCLUIDA_COM_REJEICOES, REJEITADA ou FALHA; tolerante a estado novo. */
+  estado: string;
+  totais: TotaisDaImportacaoNoAviso | null;
+}>;
 
 export type Notificacao = Readonly<{
   id: string;
@@ -34,6 +52,8 @@ export type Notificacao = Readonly<{
   criadoEm: string;
   /** Só no `SIGNER_RECUPERADO`: quanto o incidente durou, em milissegundos. */
   duracaoMs?: number | null;
+  /** Só no `IMPORTACAO_PLANO_CONTAS_CONCLUIDA`: a tentativa, o estado e os totais. */
+  importacao?: ImportacaoNoAviso | null;
 }>;
 
 export type PainelDeNotificacoes = Readonly<{

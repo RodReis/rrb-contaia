@@ -91,4 +91,42 @@ describe('PaginaDeHistorico', () => {
     expect(alerta).toBeInTheDocument();
     expect(await screen.findByText('corr-123')).toBeInTheDocument();
   });
+
+  it('aviso da importação do plano de contas resume os totais e abre a tentativa', async () => {
+    vi.mocked(requisitar).mockReset();
+    vi.mocked(requisitar).mockResolvedValue({
+      notificacoes: [
+        {
+          id: 'i1',
+          empresaId: 'e-plano',
+          empresaNome: 'Padaria Aurora',
+          adicionadas: null,
+          removidas: null,
+          tipo: 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA',
+          chave: 'importacao-plano-contas:t-9',
+          lida: true,
+          lidaEm: new Date().toISOString(),
+          criadoEm: new Date().toISOString(),
+          duracaoMs: null,
+          importacao: {
+            tentativaId: 't-9',
+            estado: 'CONCLUIDA_COM_REJEICOES',
+            totais: { lidas: 131, novas: 120, atualizadas: 8, rejeitadas: 3 },
+          },
+        },
+      ],
+      total: 1,
+    });
+
+    renderizar();
+
+    expect(
+      await screen.findByText(/Padaria Aurora — Importação do plano de contas concluída com rejeições/u),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/120 incluídas, 8 atualizadas, 3 rejeitadas/u)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver a importação' })).toHaveAttribute(
+      'href',
+      '/empresas/e-plano?aba=plano-contas&tentativa=t-9',
+    );
+  });
 });

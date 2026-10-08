@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'jest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SinoDeNotificacoes } from './sino-de-notificacoes';
@@ -256,4 +257,90 @@ describe('SinoDeNotificacoes', () => {
       );
     },
   );
+
+  /** Conclusão da importação do plano de contas (SPEC-013 §3.10): da empresa, só do iniciador. */
+  const AVISO_DA_IMPORTACAO = (
+    estado: string,
+    totais: { lidas: number; novas: number; atualizadas: number; rejeitadas: number } | null,
+  ) => ({
+    id: 'i1',
+    empresaId: 'e-plano',
+    empresaNome: 'Padaria Aurora',
+    adicionadas: null,
+    removidas: null,
+    tipo: 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA',
+    chave: 'importacao-plano-contas:t-9',
+    lida: false,
+    lidaEm: null,
+    criadoEm: new Date().toISOString(),
+    duracaoMs: null,
+    importacao: { tentativaId: 't-9', estado, totais },
+  });
+
+  it.each([
+    [
+      'CONCLUIDA',
+      { lidas: 120, novas: 120, atualizadas: 0, rejeitadas: 0 },
+      'Importação do plano de contas concluída',
+      /120 incluídas, 0 atualizadas, 0 rejeitadas/u,
+    ],
+    [
+      'CONCLUIDA_COM_REJEICOES',
+      { lidas: 131, novas: 120, atualizadas: 8, rejeitadas: 3 },
+      'Importação do plano de contas concluída com rejeições',
+      /120 incluídas, 8 atualizadas, 3 rejeitadas/u,
+    ],
+    [
+      'CONCLUIDA',
+      { lidas: 2, novas: 1, atualizadas: 1, rejeitadas: 0 },
+      'Importação do plano de contas concluída',
+      /1 incluída, 1 atualizada, 0 rejeitadas/u,
+    ],
+    [
+      'REJEITADA',
+      { lidas: 5, novas: 0, atualizadas: 0, rejeitadas: 5 },
+      'Importação do plano de contas rejeitada',
+      /nenhuma conta foi alterada: 5 linhas rejeitadas/iu,
+    ],
+    [
+      'FALHA',
+      null,
+      'Importação do plano de contas com falha',
+      /o processamento do arquivo falhou/iu,
+    ],
+  ] as const)(
+    'importação %s (%j): nomeia a empresa, o desfecho e os totais, e abre a tentativa',
+    async (estado, totais, rotulo, resumo) => {
+      vi.mocked(requisitar).mockResolvedValue({
+        notificacoes: [AVISO_DA_IMPORTACAO(estado, totais)],
+        naoLidas: 1,
+      });
+      const usuario = userEvent.setup();
+
+      renderizar();
+      await usuario.click(await screen.findByRole('button', { name: /notifica/iu }));
+
+      const painel = await screen.findByRole('dialog');
+      const link = within(painel).getByRole('link', { name: /Padaria Aurora/u });
+
+      expect(link).toHaveTextContent(rotulo);
+      expect(within(painel).getByText(resumo)).toBeInTheDocument();
+      expect(link).toHaveAttribute('href', '/empresas/e-plano?aba=plano-contas&tentativa=t-9');
+    },
+  );
+
+  it('o aviso da importação não tem violação detectável pelo axe', async () => {
+    vi.mocked(requisitar).mockResolvedValue({
+      notificacoes: [
+        AVISO_DA_IMPORTACAO('CONCLUIDA_COM_REJEICOES', { lidas: 131, novas: 120, atualizadas: 8, rejeitadas: 3 }),
+      ],
+      naoLidas: 1,
+    });
+    const usuario = userEvent.setup();
+
+    renderizar();
+    await usuario.click(await screen.findByRole('button', { name: /notifica/iu }));
+
+    expect(await axe(await screen.findByRole('dialog'))).toHaveNoViolations();
+  });
 });
