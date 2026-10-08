@@ -18,6 +18,7 @@
     "@contaia/domain": "workspace:*",
     "@contaia/shared": "workspace:*",
     "@contaia/signer-client": "workspace:*",
+    "@contaia/importacao-plano-contas-client": "workspace:*",
     "bullmq": "6.3.11",
     "ioredis": "5.11.1",
     "pg": "8.23.0"

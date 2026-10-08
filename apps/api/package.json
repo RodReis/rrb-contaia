@@ -17,6 +17,7 @@
     "@contaia/domain": "workspace:*",
     "@contaia/shared": "workspace:*",
     "@contaia/signer-client": "workspace:*",
+    "@contaia/importacao-plano-contas-client": "workspace:*",
     "@nestjs/common": "11.2.5",
     "@nestjs/core": "11.2.5",
     "@nestjs/platform-express": "11.2.5",

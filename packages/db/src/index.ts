@@ -11,6 +11,7 @@ export type { RoleDaAplicacao, SaudeDoBanco } from './health.js';
 export {
   comContexto,
   comContextoHumano,
+  comContextoTecnico,
   comEmpresaEmCriacao,
   comFinalidade,
   semContexto,
