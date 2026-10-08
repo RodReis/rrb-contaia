@@ -18,6 +18,20 @@ export interface LinhaDeEntrada {
   readonly contaPai: string | null;
 }
 
+/**
+ * Linha como sai da leitura do CSV: tipo e natureza ainda são texto livre (já normalizado por
+ * `normalizarLinhas`, mas possivelmente fora do domínio ou em branco). `validarLinhasDoPlano`
+ * rejeita o que não for do domínio; `LinhaDeEntrada` é atribuível a este tipo.
+ */
+export interface LinhaBrutaDeEntrada {
+  readonly numeroDaLinha: number;
+  readonly codigo: string;
+  readonly nome: string;
+  readonly tipo: string;
+  readonly natureza: string;
+  readonly contaPai: string | null;
+}
+
 export interface ContaVigente {
   readonly codigo: string;
   readonly tipo: TipoDaConta;
@@ -59,8 +73,14 @@ export interface ResultadoDaValidacao {
 const TIPOS_VALIDOS: readonly TipoDaConta[] = ['analitica', 'sintetica'];
 const NATUREZAS_VALIDAS: readonly NaturezaDaConta[] = ['devedora', 'credora'];
 
+const ehTipoDaConta = (valor: string): valor is TipoDaConta =>
+  (TIPOS_VALIDOS as readonly string[]).includes(valor);
+
+const ehNaturezaDaConta = (valor: string): valor is NaturezaDaConta =>
+  (NATUREZAS_VALIDAS as readonly string[]).includes(valor);
+
 const rejeicao = (
-  linha: LinhaDeEntrada,
+  linha: LinhaBrutaDeEntrada,
   codigoDeErro: CodigoDeErroDaLinha,
   campo: string | null = null,
 ): LinhaRejeitada => ({
@@ -71,25 +91,35 @@ const rejeicao = (
 });
 
 /**
- * Valida os campos obrigatórios e o domínio de cada linha, isoladamente das demais.
- * Não decide hierarquia, duplicidade nem conflito com o plano vigente.
+ * Valida os campos obrigatórios e o domínio de cada linha, isoladamente das demais, e devolve a
+ * linha com tipo e natureza estreitados. Em branco → obrigatório ausente; preenchido fora do
+ * domínio → valor fora do domínio. Não decide hierarquia, duplicidade nem conflito com o vigente.
  */
-const validarCamposDaLinha = (linha: LinhaDeEntrada): LinhaRejeitada | null => {
+const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | LinhaDeEntrada => {
   if (!linha.codigo) {
     return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'codigo');
   }
   if (!linha.nome) {
     return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'nome');
   }
-  if (!TIPOS_VALIDOS.includes(linha.tipo)) {
+  if (!linha.tipo) {
+    return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'tipo');
+  }
+  if (!ehTipoDaConta(linha.tipo)) {
     return rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'tipo');
   }
-  if (!NATUREZAS_VALIDAS.includes(linha.natureza)) {
+  if (!linha.natureza) {
+    return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'natureza');
+  }
+  if (!ehNaturezaDaConta(linha.natureza)) {
     return rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'natureza');
   }
 
-  return null;
+  return { ...linha, tipo: linha.tipo, natureza: linha.natureza };
 };
+
+const ehRejeicao = (resultado: LinhaRejeitada | LinhaDeEntrada): resultado is LinhaRejeitada =>
+  'codigoDeErro' in resultado;
 
 /**
  * Detecta ciclos no grafo de conta-pai formado só pelas linhas candidatas (já aprovadas nas
@@ -120,7 +150,7 @@ const codigosEmCiclo = (candidatas: readonly LinhaDeEntrada[]): ReadonlySet<stri
 };
 
 export const validarLinhasDoPlano = (entrada: {
-  readonly linhas: readonly LinhaDeEntrada[];
+  readonly linhas: readonly LinhaBrutaDeEntrada[];
   readonly contasVigentes: readonly ContaVigente[];
 }): ResultadoDaValidacao => {
   const { linhas, contasVigentes } = entrada;
@@ -130,11 +160,11 @@ export const validarLinhasDoPlano = (entrada: {
   // 1) campos obrigatórios e domínio — isolado por linha.
   const comCamposValidos: LinhaDeEntrada[] = [];
   for (const linha of linhas) {
-    const erro = validarCamposDaLinha(linha);
-    if (erro) {
-      rejeitadas.push(erro);
+    const resultado = validarCamposDaLinha(linha);
+    if (ehRejeicao(resultado)) {
+      rejeitadas.push(resultado);
     } else {
-      comCamposValidos.push(linha);
+      comCamposValidos.push(resultado);
     }
   }
 

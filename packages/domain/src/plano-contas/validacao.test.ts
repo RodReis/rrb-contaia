@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { validarLinhasDoPlano } from './validacao.js';
-import type { ContaVigente, LinhaDeEntrada } from './validacao.js';
+import type { ContaVigente, LinhaBrutaDeEntrada, LinhaDeEntrada } from './validacao.js';
 
 const linha = (dados: Partial<LinhaDeEntrada> & { numeroDaLinha: number }): LinhaDeEntrada => ({
   codigo: '1',
@@ -149,5 +149,84 @@ describe('validarLinhasDoPlano — SPEC-013 §3.4', () => {
 
     expect(resultado.aceitas).toHaveLength(1);
     expect(resultado.rejeitadas).toHaveLength(0);
+  });
+});
+
+describe('validarLinhasDoPlano — valores crus vindos do CSV (SPEC-013 §3.3)', () => {
+  const bruta = (dados: Partial<LinhaBrutaDeEntrada> & { numeroDaLinha: number }): LinhaBrutaDeEntrada => ({
+    codigo: '1',
+    nome: 'Ativo',
+    tipo: 'sintetica',
+    natureza: 'devedora',
+    contaPai: null,
+    ...dados,
+  });
+
+  it('aceita linha crua com tipo e natureza do domínio e devolve os tipos estreitos', () => {
+    const resultado = validarLinhasDoPlano({ linhas: [bruta({ numeroDaLinha: 2 })], contasVigentes: [] });
+
+    expect(resultado.aceitas).toEqual([
+      { numeroDaLinha: 2, codigo: '1', nome: 'Ativo', tipo: 'sintetica', natureza: 'devedora', contaPai: null },
+    ]);
+  });
+
+  it('rejeita tipo desconhecido como VALOR_FORA_DO_DOMINIO sem lançar', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [bruta({ numeroDaLinha: 2, tipo: 'xpto' })],
+      contasVigentes: [],
+    });
+
+    expect(resultado.aceitas).toHaveLength(0);
+    expect(resultado.rejeitadas).toEqual([
+      { numeroDaLinha: 2, codigo: '1', campo: 'tipo', codigoDeErro: 'VALOR_FORA_DO_DOMINIO' },
+    ]);
+  });
+
+  it('rejeita tipo e natureza em branco como CAMPO_OBRIGATORIO_AUSENTE', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [
+        bruta({ numeroDaLinha: 2, codigo: '1', tipo: '' }),
+        bruta({ numeroDaLinha: 3, codigo: '2', natureza: '' }),
+      ],
+      contasVigentes: [],
+    });
+
+    expect(resultado.rejeitadas).toEqual([
+      { numeroDaLinha: 2, codigo: '1', campo: 'tipo', codigoDeErro: 'CAMPO_OBRIGATORIO_AUSENTE' },
+      { numeroDaLinha: 3, codigo: '2', campo: 'natureza', codigoDeErro: 'CAMPO_OBRIGATORIO_AUSENTE' },
+    ]);
+  });
+
+  it('rejeita código em branco e mantém o código nulo no relatório', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [bruta({ numeroDaLinha: 2, codigo: '' })],
+      contasVigentes: [],
+    });
+
+    expect(resultado.rejeitadas).toEqual([
+      { numeroDaLinha: 2, codigo: null, campo: 'codigo', codigoDeErro: 'CAMPO_OBRIGATORIO_AUSENTE' },
+    ]);
+  });
+
+  it('trata 01 e 1 como códigos distintos (comparação textual)', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [bruta({ numeroDaLinha: 2, codigo: '01' }), bruta({ numeroDaLinha: 3, codigo: '1' })],
+      contasVigentes: [],
+    });
+
+    expect(resultado.aceitas.map((a) => a.codigo)).toEqual(['01', '1']);
+    expect(resultado.rejeitadas).toHaveLength(0);
+  });
+
+  it('rejeita conta cujo pai é ela mesma (ciclo de uma conta)', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [bruta({ numeroDaLinha: 2, codigo: '5', contaPai: '5' })],
+      contasVigentes: [],
+    });
+
+    expect(resultado.aceitas).toHaveLength(0);
+    expect(resultado.rejeitadas).toEqual([
+      { numeroDaLinha: 2, codigo: '5', campo: null, codigoDeErro: 'CICLO_HIERARQUICO' },
+    ]);
   });
 });

@@ -333,6 +333,7 @@ export type { EfeitoDoMonitor, EstadoDoMonitor, TransicaoDoMonitor } from './sig
 export {
   validarLinhasDoPlano,
   type LinhaDeEntrada,
+  type LinhaBrutaDeEntrada,
   type ContaVigente,
   type LinhaAceita,
   type LinhaRejeitada,
@@ -358,3 +359,19 @@ export {
   type EventoDaImportacao,
   type TransicaoInvalida,
 } from './plano-contas/estados.js';
+
+export {
+  LIMITE_DE_LINHAS,
+  LIMITE_DE_BYTES,
+  CAMPOS_DO_CONTRATO,
+  MODELO_CSV,
+  decodificarCsv,
+  validarMapeamento,
+  normalizarLinhas,
+  type CampoDoContrato,
+  type Mapeamento,
+  type Delimitador,
+  type PendenciaDoMapeamento,
+} from './plano-contas/csv.js';
+
+export { gerarRelatorioCsv, type LinhaDoRelatorio } from './plano-contas/relatorio.js';
