@@ -231,6 +231,14 @@ vi.mock('@contaia/db', () => ({
     return true;
   },
   contarContasValidas: async () => db.atual.contas.length,
+  buscarDiagnosticoDaTentativa: async (_c: unknown, _empresaId: string, tentativaId: string) => {
+    chamadas.ordem.push('diagnostico');
+    const evento = [...db.atual.eventosCompletos]
+      .reverse()
+      .find((e) => e['tentativaId'] === tentativaId && ['FALHA_TECNICA', 'VALIDACAO_REJEITADA'].includes(String(e['acao'])) && e['codigo'] !== null);
+
+    return evento === undefined ? null : { acao: evento['acao'], codigo: evento['codigo'] };
+  },
   listarAbertasDaEmpresa: async (_c: unknown, _empresaId: string, origem: string | null) => {
     chamadas.origensConsultadas.push(origem);
 
@@ -506,6 +514,32 @@ describe('enviar: idempotência (SPEC-013 §3.7)', () => {
     expect(fila.enfileirar.mock.calls[1]![0]).toMatchObject({ tentativaId: primeira.tentativaId });
   });
 
+  it('reuso de tentativa presa em VALIDANDO reenfileira (sem job vivo, o worker refaz a validação)', async () => {
+    const { fila, servico } = montar();
+
+    const primeira = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    trocar(primeira.tentativaId, { estado: 'VALIDANDO', iniciadoEm: AGORA });
+    const segunda = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+
+    expect(segunda).toMatchObject({ tentativaId: primeira.tentativaId, estado: 'VALIDANDO' });
+    // O helper da fila decide: job vivo (waiting/active/delayed) → nada; terminado → remove e adiciona.
+    expect(fila.enfileirar).toHaveBeenCalledTimes(2);
+    expect(fila.enfileirar.mock.calls[1]![0]).toMatchObject({ tentativaId: primeira.tentativaId });
+  });
+
+  it.each(['AGUARDANDO_CONFIRMACAO', 'CONCLUIDA', 'REJEITADA'] as const)(
+    'reuso de tentativa em %s não reenfileira: a validação já terminou',
+    async (estado) => {
+      const { fila, servico } = montar();
+
+      const primeira = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+      trocar(primeira.tentativaId, { estado, totais: { lidas: 1, novas: 1, atualizadas: 0, rejeitadas: 0 }, planoVersaoNaValidacao: 0 });
+      await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+
+      expect(fila.enfileirar).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('mesmo arquivo com mapeamento diferente é nova tentativa', async () => {
     const { fila, servico } = montar();
     const legado = 'Cod;Descricao;Tipo;Natureza;Pai\n1;Ativo;sintetica;devedora;\n';
@@ -741,6 +775,64 @@ describe('consultas', () => {
       relatorioDisponivel: true,
       amostraRejeicoes: [{ numeroDaLinha: 4, codigoDeErro: 'CONTA_PAI_INEXISTENTE', mensagem: 'Pai ausente.' }],
     });
+  });
+
+  describe('diagnóstico acionável (SPEC-013 §3.10, §7)', () => {
+    const comEvento = (tentativaId: string, acao: string, codigo: string | null) =>
+      db.atual.eventosCompletos.push({ tentativaId, acao, codigo, estadoNovo: acao === 'FALHA_TECNICA' ? 'FALHA' : 'REJEITADA' });
+
+    it('FALHA traz o código estável do último evento e a mensagem PT-BR fechada', async () => {
+      const { servico } = montar();
+      const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+      trocar(tentativaId, { estado: 'FALHA', totais: null, finalizadoEm: AGORA });
+      comEvento(tentativaId, 'FALHA_TECNICA', 'ARMAZENAMENTO_INDISPONIVEL');
+
+      expect((await servico.previa(CONTEXTO, EMPRESA, tentativaId)).diagnostico).toEqual({
+        codigo: 'ARMAZENAMENTO_INDISPONIVEL',
+        mensagem: 'O armazenamento de arquivos ficou indisponível durante a validação. Envie o arquivo de novo em instantes.',
+      });
+    });
+
+    it('REJEITADA pelo arquivo inteiro traz o código; REJEITADA só por linhas não tem diagnóstico', async () => {
+      const { servico } = montar();
+      const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+      const zerados = { lidas: 0, novas: 0, atualizadas: 0, rejeitadas: 0 };
+      trocar(tentativaId, { estado: 'REJEITADA', totais: zerados, planoVersaoNaValidacao: 0, finalizadoEm: AGORA });
+
+      expect((await servico.previa(CONTEXTO, EMPRESA, tentativaId)).diagnostico).toBeNull();
+
+      comEvento(tentativaId, 'VALIDACAO_REJEITADA', 'CABECALHO_INVALIDO');
+      expect((await servico.previa(CONTEXTO, EMPRESA, tentativaId)).diagnostico).toEqual({
+        codigo: 'CABECALHO_INVALIDO',
+        mensagem: 'O cabeçalho do arquivo tem coluna sem nome ou repetida. Corrija o cabeçalho e envie de novo.',
+      });
+    });
+
+    it('código desconhecido sai com a mensagem genérica (nunca texto vindo do evento)', async () => {
+      const { servico } = montar();
+      const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+      trocar(tentativaId, { estado: 'FALHA', totais: null, finalizadoEm: AGORA });
+      comEvento(tentativaId, 'FALHA_TECNICA', 'CODIGO_NOVO_QUALQUER');
+
+      expect((await servico.previa(CONTEXTO, EMPRESA, tentativaId)).diagnostico).toEqual({
+        codigo: 'CODIGO_NOVO_QUALQUER',
+        mensagem: 'A importação não pôde ser concluída. Envie o arquivo de novo; se persistir, informe o código de correlação ao suporte.',
+      });
+    });
+
+    it.each(['RECEBIDA', 'VALIDANDO', 'AGUARDANDO_CONFIRMACAO', 'CONCLUIDA', 'CANCELADA'] as const)(
+      'em %s não há diagnóstico nem consulta à trilha',
+      async (estado) => {
+        const { servico } = montar();
+        const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+        trocar(tentativaId, { estado });
+        comEvento(tentativaId, 'FALHA_TECNICA', 'FALHA_NA_VALIDACAO');
+        chamadas.ordem.length = 0;
+
+        expect((await servico.previa(CONTEXTO, EMPRESA, tentativaId)).diagnostico).toBeNull();
+        expect(chamadas.ordem).not.toContain('diagnostico');
+      },
+    );
   });
 
   it('prévia de outra empresa → TENTATIVA_NAO_ENCONTRADA', async () => {

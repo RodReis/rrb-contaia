@@ -447,6 +447,11 @@ describe('falhas na confirmação e no relatório', () => {
     expect(falhas.rows).toEqual([{ codigo: 'FALHA_NA_APLICACAO', correlation_id: `corr-plano-${sufixo}`, estado_anterior: 'APLICANDO' }]);
     const contas = await admin.query(`select 1 from app.conta_contabil where empresa_id = $1`, [empresaFalha]);
     expect(contas.rowCount).toBe(0);
+    // Desfecho acionável: a prévia da FALHA expõe o código estável e a mensagem fechada (SPEC-013 §7).
+    expect((await servico.previa(contexto(contador), empresaFalha, enviada.tentativaId)).diagnostico).toEqual({
+      codigo: 'FALHA_NA_APLICACAO',
+      mensagem: 'Uma falha técnica interrompeu a aplicação e nenhuma conta foi alterada. Envie o arquivo de novo.',
+    });
 
     // O índice de idempotência ignora FALHA: o mesmo arquivo com o mesmo mapeamento vira tentativa nova.
     const nova = await servico.enviar(contexto(contador), empresaFalha, arquivo, MAPEAMENTO);

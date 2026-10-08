@@ -27,6 +27,7 @@ import {
 } from '@contaia/domain';
 import {
   aplicarLinhasNoPlano,
+  buscarDiagnosticoDaTentativa,
   buscarTentativaDeImportacao,
   cancelarImportacao,
   comContextoHumano,
@@ -65,6 +66,7 @@ import {
   paraPaginaDeRejeicoes,
   paraPaginaDoPlano,
   paraPrevia,
+  temDiagnostico,
   relatorioDisponivel,
   temResultadoDaValidacao,
 } from './plano-contas.apresentacao';
@@ -261,8 +263,10 @@ export class PlanoContasService {
     });
 
     // Depois do commit, para o worker já encontrar a tentativa. Reuso de tentativa ainda RECEBIDA
-    // (envio anterior sem fila) reenfileira; nos demais estados o job já rodou ou está rodando.
-    if (tentativa.estado === 'RECEBIDA') {
+    // (envio anterior sem fila) ou presa em VALIDANDO (job perdido) reenfileira: o helper da fila
+    // não duplica job vivo e o worker refaz a validação a partir de VALIDANDO sem duplicar staging.
+    // Nos demais estados a validação já terminou.
+    if (tentativa.estado === 'RECEBIDA' || tentativa.estado === 'VALIDANDO') {
       await this.enfileirar(tentativa);
     }
 
@@ -588,7 +592,11 @@ export class PlanoContasService {
       ? (await listarRejeicoesDaImportacao(cliente, tentativa.empresaId, tentativa.id, 1, ITENS_POR_PAGINA_DE_REJEICOES)).itens
       : [];
 
-    return paraPrevia(tentativa, amostra);
+    const diagnostico = temDiagnostico(tentativa)
+      ? await buscarDiagnosticoDaTentativa(cliente, tentativa.empresaId, tentativa.id)
+      : null;
+
+    return paraPrevia(tentativa, amostra, diagnostico);
   }
 
   private evento(
