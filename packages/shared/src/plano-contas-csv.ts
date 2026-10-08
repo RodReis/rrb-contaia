@@ -114,39 +114,69 @@ const ehEspaco = (caractere: string): boolean =>
 type Bloco = Readonly<{
   /** Primeira posição depois do bloco, terminador incluído. */
   fim: number;
-  temAspas: boolean;
-  /** Algum caractere que não é espaço, delimitador, aspas nem quebra entre aspas. */
+  /** Há texto que não é espaço: o registro nunca é em branco. */
   temConteudo: boolean;
   /** Quebras de linha dentro de campos entre aspas (CRLF conta uma). */
   quebrasInternas: number;
+  /** Aspas bem formadas e fechadas até o fim do registro: o `csv-parse` o leria sem erro. */
+  bemFormado: boolean;
 }>;
 
-/** Um registro lógico: vai até a quebra de linha que não está entre aspas. */
+/** Onde o leitor está dentro de um registro, como no `csv-parse` estrito (sem `trim` nem `relax_quotes`). */
+const Posicao = { INICIO_DE_CAMPO: 0, SEM_ASPAS: 1, ENTRE_ASPAS: 2, APOS_ASPAS: 3 } as const;
+type PosicaoNoRegistro = (typeof Posicao)[keyof typeof Posicao];
+
+/**
+ * Um registro lógico: vai até a quebra de linha que não está entre aspas. Acompanha, campo a
+ * campo, se as aspas são bem formadas (abrem no início do campo, fecham antes de delimitador ou
+ * fim de registro, `""` dentro das aspas é uma aspa) e se há algum conteúdo visível — inclusive
+ * `;` e `"` escapado dentro de aspas, que fazem o campo deixar de ser vazio.
+ */
 const lerBloco = (texto: string, inicio: number, delimitador: Delimitador): Bloco => {
-  let entreAspas = false;
-  let temAspas = false;
+  let onde: PosicaoNoRegistro = Posicao.INICIO_DE_CAMPO;
   let temConteudo = false;
+  let bemFormado = true;
   let quebrasInternas = 0;
   let posicao = inicio;
 
   for (; posicao < texto.length; posicao += 1) {
     const caractere = texto.charAt(posicao);
-    if (caractere === '"') {
-      entreAspas = !entreAspas;
-      temAspas = true;
-    } else if (caractere === '\r' || caractere === '\n') {
-      if (!entreAspas) {
-        break;
+    const ehQuebra = caractere === '\r' || caractere === '\n';
+
+    if (onde === Posicao.ENTRE_ASPAS) {
+      if (caractere === '"') {
+        onde = Posicao.APOS_ASPAS;
+      } else if (ehQuebra) {
+        posicao += caractere === '\r' && texto.charAt(posicao + 1) === '\n' ? 1 : 0;
+        quebrasInternas += 1;
+      } else if (!ehEspaco(caractere)) {
+        temConteudo = true;
       }
-      posicao += caractere === '\r' && texto.charAt(posicao + 1) === '\n' ? 1 : 0;
-      quebrasInternas += 1;
-    } else if (caractere !== delimitador && !ehEspaco(caractere)) {
-      temConteudo = true;
+    } else if (ehQuebra) {
+      break;
+    } else if (caractere === delimitador) {
+      onde = Posicao.INICIO_DE_CAMPO;
+    } else if (onde === Posicao.APOS_ASPAS) {
+      // `""` é uma aspa literal; qualquer outra coisa depois de fechar as aspas é malformada.
+      onde = caractere === '"' ? Posicao.ENTRE_ASPAS : Posicao.SEM_ASPAS;
+      temConteudo = temConteudo || caractere === '"' || !ehEspaco(caractere);
+      bemFormado = bemFormado && caractere === '"';
+    } else if (caractere === '"') {
+      bemFormado = bemFormado && onde === Posicao.INICIO_DE_CAMPO;
+      onde = Posicao.ENTRE_ASPAS;
+    } else {
+      onde = Posicao.SEM_ASPAS;
+      temConteudo = temConteudo || !ehEspaco(caractere);
     }
   }
 
   const terminador = texto.startsWith('\r\n', posicao) ? 2 : Number(posicao < texto.length);
-  return { fim: posicao + terminador, temAspas, temConteudo, quebrasInternas };
+  return {
+    fim: posicao + terminador,
+    temConteudo,
+    quebrasInternas,
+    bemFormado: bemFormado && onde !== Posicao.ENTRE_ASPAS,
+  };
 };
 
 type TextoCompactado = Readonly<{
@@ -156,24 +186,26 @@ type TextoCompactado = Readonly<{
 }>;
 
 /**
- * Tira do texto as linhas só de espaços (e as vazias) fora de aspas, que o `csv-parse` lê em tempo
- * mais que linear (um arquivo de 10 MB de quebras de linha levaria minutos) e que seriam
- * descartadas de qualquer jeito. Guarda a linha física em que começa cada registro que sobrou,
- * porque a numeração do `info.lines` do `csv-parse` não é confiável com CRLF entre aspas.
- * Também antecipa o limite de linhas: mais registros com conteúdo que cabeçalho + 10.000 → recusa.
+ * Tira do texto os registros em branco e bem formados (vazios, só espaços, só delimitadores, só
+ * aspas vazias como `""` ou `"";""`), que o `csv-parse` lê em tempo mais que linear (10 MB de
+ * `""` levavam mais de um minuto) e que seriam descartados de qualquer jeito. Registros malformados
+ * ou com aspas sem fechar NÃO saem: chegam ao `csv-parse`, que recusa o arquivo. Guarda a linha
+ * física em que começa cada registro que sobrou, porque o `info.lines` do `csv-parse` não é
+ * confiável com CRLF entre aspas. Antecipa o limite: mais de cabeçalho + 10.000 registros mantidos
+ * (todos têm conteúdo ou são malformados) → recusa antes do `csv-parse`.
  */
 const compactarLinhasEmBranco = (texto: string, delimitador: Delimitador): TextoCompactado => {
   const trechos: string[] = [];
   const inicios: number[] = [];
   let trechoDesde = -1;
   let linha = 1;
-  let comConteudo = 0;
+  let mantidos = 0;
   let posicao = 0;
 
   while (posicao < texto.length) {
     const bloco = lerBloco(texto, posicao, delimitador);
 
-    if (!bloco.temAspas && !bloco.temConteudo) {
+    if (bloco.bemFormado && !bloco.temConteudo) {
       if (trechoDesde >= 0) {
         trechos.push(texto.slice(trechoDesde, posicao));
         trechoDesde = -1;
@@ -181,8 +213,8 @@ const compactarLinhasEmBranco = (texto: string, delimitador: Delimitador): Texto
     } else {
       trechoDesde = trechoDesde >= 0 ? trechoDesde : posicao;
       inicios.push(linha);
-      comConteudo += bloco.temConteudo ? 1 : 0;
-      if (comConteudo > LIMITE_DE_LINHAS + 1) {
+      mantidos += 1;
+      if (mantidos > LIMITE_DE_LINHAS + 1) {
         throw limiteDeLinhasExcedido();
       }
     }
