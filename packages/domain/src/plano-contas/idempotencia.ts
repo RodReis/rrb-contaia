@@ -2,7 +2,9 @@
  * Idempotência da importação do plano de contas (SPEC-013 §3.7, I-9).
  *
  * A identidade da tentativa é tenant + empresa + hash do arquivo + mapeamento confirmado.
- * Reenviar o mesmo conteúdo com o mesmo mapeamento reutiliza o resultado terminal existente.
+ * Reenviar o mesmo conteúdo com o mesmo mapeamento reutiliza o resultado terminal existente
+ * (CONCLUIDA, CONCLUIDA_COM_REJEICOES, REJEITADA); em andamento informa EM_ANDAMENTO. Depois de
+ * FALHA ou CANCELADA a identidade fica livre e o reenvio abre nova tentativa (nova validação).
  * Mesmo arquivo com mapeamento diferente é uma nova tentativa vinculada ao mesmo arquivo de
  * origem — nunca duplica aplicação nem notificação.
  */
@@ -39,13 +41,15 @@ export type DecisaoDeIdempotenciaDaImportacao =
   | Readonly<{ tipo: 'REUTILIZAR'; tentativaId: string }>
   | Readonly<{ tipo: 'EM_ANDAMENTO'; tentativaId: string }>;
 
-const ESTADOS_TERMINAIS: readonly EstadoDaTentativa[] = [
-  'CONCLUIDA',
-  'CONCLUIDA_COM_REJEICOES',
-  'REJEITADA',
-  'CANCELADA',
-  'FALHA',
-];
+/** Resultado terminal que o reenvio idêntico reaproveita (SPEC-013 §3.7). */
+const RESULTADOS_REUTILIZAVEIS: readonly EstadoDaTentativa[] = ['CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA'];
+
+/**
+ * Terminais que não fecham a identidade: depois de falha técnica ou cancelamento o mesmo arquivo
+ * com o mesmo mapeamento pode ser validado de novo (SPEC-013 §3.6, §3.8, §5.3). No banco, a
+ * UNIQUE parcial `importacao_plano_contas_idempotente` exclui exatamente estes estados.
+ */
+const ESTADOS_QUE_LIBERAM_NOVA_TENTATIVA: readonly EstadoDaTentativa[] = ['FALHA', 'CANCELADA'];
 
 export const decidirIdempotenciaDaImportacao = (
   existente: TentativaExistente | null,
@@ -61,11 +65,11 @@ export const decidirIdempotenciaDaImportacao = (
     existente.hashArquivo === pedido.hashArquivo &&
     existente.mapeamento === pedido.mapeamento;
 
-  if (!mesmoContexto) {
+  if (!mesmoContexto || ESTADOS_QUE_LIBERAM_NOVA_TENTATIVA.includes(existente.estado)) {
     return { tipo: 'NOVA' };
   }
 
-  if (ESTADOS_TERMINAIS.includes(existente.estado)) {
+  if (RESULTADOS_REUTILIZAVEIS.includes(existente.estado)) {
     return { tipo: 'REUTILIZAR', tentativaId: existente.id };
   }
 

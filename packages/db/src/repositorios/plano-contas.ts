@@ -105,6 +105,7 @@ export type LinhaDeStaging = LinhaDeStagingValida | LinhaDeStagingRejeitada;
 export type ResultadoDoInicioDaValidacao = Readonly<{
   /** `false` na reentrega do job com a tentativa já em VALIDANDO. */
   transicionou: boolean;
+  /** Versão lida por ESTA entrega: passar a `gravarResultadoDaValidacao` (não é gravada aqui). */
   planoVersaoNaValidacao: number;
 }>;
 
@@ -159,10 +160,10 @@ export type NovoEvento = Readonly<{
   agora: Date;
 }>;
 
+/** O destinatário não entra: é sempre o iniciador da tentativa (SPEC-013 §3.10). */
 export type NovaNotificacao = Readonly<{
   empresaId: string;
   tentativaId: string;
-  usuarioId: string;
   agora: Date;
 }>;
 
@@ -196,7 +197,10 @@ const COLUNAS_DA_TENTATIVA = `id, tenant_id, empresa_id, hash_arquivo, mapeament
   usuario_confirmador_id, usuario_cancelador_id, correlation_id, reutilizada_por_idempotencia,
   criado_em, iniciado_em, finalizado_em`;
 
-const ESTADOS_TERMINAIS_SQL = `('CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA', 'CANCELADA', 'FALHA')`;
+/** Resultado terminal que o reenvio idêntico reaproveita (SPEC-013 §3.7). */
+const RESULTADOS_REUTILIZAVEIS_SQL = `('CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA')`;
+/** Predicado da UNIQUE parcial `importacao_plano_contas_idempotente` (migration 0015), literal. */
+const PREDICADO_DA_IDENTIDADE_SQL = `estado not in ('FALHA', 'CANCELADA')`;
 
 const paraTentativa = (linha: LinhaDaTentativa): TentativaDeImportacao => ({
   id: linha.id,
@@ -276,9 +280,11 @@ const erroDaTransicao = async (
 
 /**
  * Cria a tentativa RECEBIDA, já com o mapeamento. A identidade idempotente (tenant + empresa +
- * hash + mapeamento) é a UNIQUE da tabela: o pedido repetido devolve a existente com
- * `reutilizada = true`, numa única instrução (sem corrida entre ler e inserir). Se a existente já é
- * terminal, a marca de reuso do histórico também sobe.
+ * hash + mapeamento) é a UNIQUE parcial da tabela, que ignora FALHA e CANCELADA: o pedido
+ * repetido devolve a tentativa viva ou com resultado reutilizável, com `reutilizada = true`, numa
+ * única instrução (sem corrida entre ler e inserir; o segundo de dois envios simultâneos espera o
+ * primeiro e cai no reuso). Depois de FALHA ou CANCELADA nasce uma tentativa nova. Se a existente
+ * tem resultado reutilizável, a marca de reuso do histórico também sobe.
  */
 export const criarTentativa = async (cliente: PoolClient, nova: NovaTentativa): Promise<TentativaCriada> => {
   const { rows } = await cliente.query<LinhaDaTentativa & { nova: boolean }>(
@@ -286,8 +292,9 @@ export const criarTentativa = async (cliente: PoolClient, nova: NovaTentativa): 
        (tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome, arquivo_tamanho, arquivo_chave,
         usuario_iniciador_id, correlation_id, criado_em)
      values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10)
-     on conflict on constraint importacao_plano_contas_idempotente do update
-       set reutilizada_por_idempotencia = t.reutilizada_por_idempotencia or t.estado in ${ESTADOS_TERMINAIS_SQL}
+     on conflict (empresa_id, tenant_id, hash_arquivo, mapeamento) where ${PREDICADO_DA_IDENTIDADE_SQL}
+     do update
+       set reutilizada_por_idempotencia = t.reutilizada_por_idempotencia or t.estado in ${RESULTADOS_REUTILIZAVEIS_SQL}
      returning ${COLUNAS_DA_TENTATIVA}, (xmax = 0) as nova`,
     [
       nova.tenantId,
@@ -325,11 +332,13 @@ export const buscarTentativa = async (
 // --- validação (worker) --------------------------------------------------------------------------
 
 /**
- * RECEBIDA → VALIDANDO e guarda a versão do plano lida agora (cria a linha de versão sob demanda).
- * Chamar ANTES de carregar as contas vigentes: assim uma aplicação concorrente no meio do caminho
- * só pode gerar conflito na confirmação, nunca uma prévia obsoleta aceita. Reentrega com a
- * tentativa já em VALIDANDO relê a versão (o staging só é gravado junto com a saída de
- * VALIDANDO) e mantém o início.
+ * RECEBIDA → VALIDANDO e DEVOLVE a versão do plano lida agora (cria a linha de versão sob
+ * demanda). A versão NÃO é gravada aqui: cada entrega do job leva a sua até
+ * `gravarResultadoDaValidacao`, que a fixa junto com o staging. Assim uma reentrega que começou
+ * depois de outra aplicação nunca rotula com a versão nova o staging que a entrega anterior
+ * calculou sobre o plano antigo. Chamar ANTES de carregar as contas vigentes: uma aplicação
+ * concorrente no meio do caminho só pode gerar conflito na confirmação, nunca uma prévia obsoleta
+ * aceita. Reentrega com a tentativa já em VALIDANDO não falha e mantém o início.
  */
 export const iniciarValidacao = async (
   cliente: PoolClient,
@@ -356,11 +365,9 @@ export const iniciarValidacao = async (
 
   await cliente.query(
     `update app.importacao_plano_contas
-        set estado = 'VALIDANDO',
-            iniciado_em = coalesce(iniciado_em, $3),
-            plano_versao_na_validacao = $4
+        set estado = 'VALIDANDO', iniciado_em = coalesce(iniciado_em, $3)
       where id = $1 and empresa_id = $2`,
-    [tentativaId, empresaId, agora, planoVersaoNaValidacao],
+    [tentativaId, empresaId, agora],
   );
 
   return { transicionou: tentativa.estado === 'RECEBIDA', planoVersaoNaValidacao };
@@ -388,6 +395,16 @@ const inserirStaging = async (
 ): Promise<void> => {
   if (linhas.length === 0) {
     return;
+  }
+
+  // DO NOTHING descartaria em silêncio a segunda linha com o mesmo número e os totais sairiam
+  // menores que o arquivo: lote assim é defeito de quem chama, recusado antes de gravar.
+  const vistos = new Set<number>();
+  for (const linha of linhas) {
+    if (vistos.has(linha.numeroDaLinha)) {
+      throw new Error(`Lote de staging com número de linha repetido: ${linha.numeroDaLinha}.`);
+    }
+    vistos.add(linha.numeroDaLinha);
   }
 
   const coluna = <T>(valor: (linha: LinhaDeStaging) => T): T[] => linhas.map(valor);
@@ -424,14 +441,17 @@ const inserirStaging = async (
 /**
  * Grava o staging e fecha a validação: VALIDANDO → AGUARDANDO_CONFIRMACAO (ao menos uma linha
  * válida) ou REJEITADA (nenhuma; terminal, com término). Os totais vêm do que está no banco, não
- * do lote recebido. Idempotente: se a validação já foi gravada (reentrega do job), não insere
- * nada e devolve o estado e os totais existentes com `transicionou = false`. Sem DELETE.
+ * do lote recebido. `planoVersaoNaValidacao` é a versão que ESTA entrega recebeu de
+ * `iniciarValidacao` (antes de carregar as contas) e é fixada no mesmo UPDATE que muda o estado.
+ * Idempotente: se a validação já foi gravada (reentrega do job), não insere nada, não troca a
+ * versão e devolve o estado e os totais existentes com `transicionou = false`. Sem DELETE.
  */
 export const gravarResultadoDaValidacao = async (
   cliente: PoolClient,
   empresaId: string,
   tentativaId: string,
   linhas: readonly LinhaDeStaging[],
+  planoVersaoNaValidacao: number,
   agora: Date,
 ): Promise<ResultadoDaValidacaoGravada> => {
   const tentativa = await travarTentativa(cliente, empresaId, tentativaId);
@@ -454,9 +474,16 @@ export const gravarResultadoDaValidacao = async (
 
   await cliente.query(
     `update app.importacao_plano_contas
-        set estado = $3, totais = $4::jsonb, finalizado_em = $5
+        set estado = $3, totais = $4::jsonb, finalizado_em = $5, plano_versao_na_validacao = $6
       where id = $1 and empresa_id = $2 and estado = 'VALIDANDO'`,
-    [tentativaId, empresaId, estado, JSON.stringify(totais), estado === 'REJEITADA' ? agora : null],
+    [
+      tentativaId,
+      empresaId,
+      estado,
+      JSON.stringify(totais),
+      estado === 'REJEITADA' ? agora : null,
+      planoVersaoNaValidacao,
+    ],
   );
 
   return { estado, totais, transicionou: true };
@@ -689,18 +716,24 @@ export const registrarEvento = async (cliente: PoolClient, evento: NovoEvento): 
 };
 
 /**
- * Notificação de conclusão para o destinatário (o iniciador). Uma por tentativa e usuário:
- * repetir devolve `false` e não cria outra (reprocessar ou reusar não notifica de novo).
- * A RLS deixa a carteira ver as notificações da empresa: quem lê filtra por `usuario_id`.
+ * Notificação de conclusão, sempre para o iniciador: o destinatário vem da própria tentativa,
+ * nunca de quem chama (SPEC-013 §3.10). Uma por tentativa: repetir devolve `false` e não cria
+ * outra (reprocessar ou reusar não notifica de novo). Tentativa ausente nesta empresa →
+ * `TENTATIVA_NAO_ENCONTRADA`, nunca confundida com "já existia". A RLS deixa a carteira ver as
+ * notificações da empresa: quem lê filtra por `usuario_id`.
  */
 export const criarNotificacao = async (cliente: PoolClient, notificacao: NovaNotificacao): Promise<boolean> => {
+  const tentativa = await buscarTentativa(cliente, notificacao.empresaId, notificacao.tentativaId);
+
+  if (tentativa === null) {
+    throw tentativaNaoEncontrada();
+  }
+
   const { rowCount } = await cliente.query(
     `insert into app.importacao_plano_contas_notificacao (tenant_id, empresa_id, tentativa_id, usuario_id, criado_em)
-     select t.tenant_id, t.empresa_id, t.id, $3, $4
-       from app.importacao_plano_contas t
-      where t.id = $1 and t.empresa_id = $2
+     values ($1, $2, $3, $4, $5)
      on conflict (tentativa_id, usuario_id) do nothing`,
-    [notificacao.tentativaId, notificacao.empresaId, notificacao.usuarioId, notificacao.agora],
+    [tentativa.tenantId, tentativa.empresaId, tentativa.id, tentativa.usuarioIniciadorId, notificacao.agora],
   );
 
   return rowCount === 1;

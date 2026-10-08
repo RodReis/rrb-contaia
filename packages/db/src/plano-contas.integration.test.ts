@@ -335,6 +335,26 @@ describe('tentativa de importação: idempotência e estado (SPEC-013 §3.7, §3
     ).toBe('nao_lancou');
   });
 
+  it('(g) depois de FALHA ou CANCELADA o mesmo hash e mapeamento abre nova tentativa; REJEITADA continua fechando', async () => {
+    const fechar = async (estado: 'FALHA' | 'CANCELADA' | 'REJEITADA'): Promise<string> => {
+      const hash = hex64();
+      const id = await como(c.usuarios.naCarteira, (cli) => inserirTentativa(cli, c.empresaA1, { hash }));
+      await admin.query(
+        `update app.importacao_plano_contas
+            set estado = $2, finalizado_em = now(),
+                usuario_cancelador_id = case when $2 = 'CANCELADA' then usuario_iniciador_id end
+          where id = $1`,
+        [id, estado],
+      );
+
+      return codigoPg(() => como(c.usuarios.naCarteira, (cli) => inserirTentativa(cli, c.empresaA1, { hash })));
+    };
+
+    expect(await fechar('FALHA')).toBe('nao_lancou');
+    expect(await fechar('CANCELADA')).toBe('nao_lancou');
+    expect(await fechar('REJEITADA')).toBe('23505');
+  });
+
   it('defeito 1: a tentativa tem UNIQUE (id, empresa_id, tenant_id) para as FKs compostas das filhas', async () => {
     const { rows } = await admin.query<{ definicao: string }>(
       `select pg_get_constraintdef(oid) as definicao from pg_constraint

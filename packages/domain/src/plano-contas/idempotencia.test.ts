@@ -2,7 +2,8 @@
  * Idempotência da importação do plano de contas (SPEC-013 §3.7, I-9).
  *
  * A identidade da tentativa é tenant + empresa + hash do arquivo + mapeamento confirmado.
- * Reenviar o mesmo conteúdo com o mesmo mapeamento reutiliza o resultado terminal existente.
+ * Reenviar o mesmo conteúdo com o mesmo mapeamento reutiliza o resultado terminal existente
+ * (CONCLUIDA, CONCLUIDA_COM_REJEICOES, REJEITADA); depois de FALHA ou CANCELADA abre nova tentativa.
  * Mesmo arquivo com mapeamento diferente é uma nova tentativa vinculada ao mesmo arquivo de
  * origem — nunca duplica aplicação nem notificação.
  */
@@ -33,13 +34,20 @@ describe('decidirIdempotenciaDaImportacao (SPEC-013 §3.7, I-9)', () => {
     expect(decidirIdempotenciaDaImportacao(null, pedido)).toEqual({ tipo: 'NOVA' });
   });
 
-  it.each(['CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA', 'CANCELADA', 'FALHA'] as const)(
-    'mesmo hash e mapeamento com estado terminal %s reutiliza o resultado existente',
+  it.each(['CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA'] as const)(
+    'mesmo hash e mapeamento com resultado terminal %s reutiliza o resultado existente',
     (estado) => {
       expect(decidirIdempotenciaDaImportacao(tentativa({ estado }), pedido)).toEqual({
         tipo: 'REUTILIZAR',
         tentativaId: 'tentativa-1',
       });
+    },
+  );
+
+  it.each(['FALHA', 'CANCELADA'] as const)(
+    'mesmo hash e mapeamento depois de %s abre uma nova tentativa (nova validação é possível)',
+    (estado) => {
+      expect(decidirIdempotenciaDaImportacao(tentativa({ estado }), pedido)).toEqual({ tipo: 'NOVA' });
     },
   );
 

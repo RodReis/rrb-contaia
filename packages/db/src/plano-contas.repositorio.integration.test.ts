@@ -158,8 +158,10 @@ const rejeitada = (numeroDaLinha: number, codigo: string | null): LinhaDeStaging
 /** Upload → validação no worker → prévia em AGUARDANDO_CONFIRMACAO (ou REJEITADA). */
 const prepararPrevia = async (empresaId: string, linhas: readonly LinhaDeStaging[]): Promise<TentativaDeImportacao> => {
   const criada = await como((cli) => criarTentativa(cli, novaTentativa(empresaId)));
-  await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, criada.id, agora()));
-  await comoWorker(empresaId, (cli) => gravarResultadoDaValidacao(cli, empresaId, criada.id, linhas, agora()));
+  const inicio = await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, criada.id, agora()));
+  await comoWorker(empresaId, (cli) =>
+    gravarResultadoDaValidacao(cli, empresaId, criada.id, linhas, inicio.planoVersaoNaValidacao, agora()),
+  );
 
   return (await como((cli) => buscarTentativa(cli, empresaId, criada.id)))!;
 };
@@ -283,12 +285,59 @@ describe('tentativa: criação idempotente e leitura por empresa (SPEC-013 §3.7
     const primeira = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
     await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, primeira.id, agora()));
     await comoWorker(empresaId, (cli) =>
-      gravarResultadoDaValidacao(cli, empresaId, primeira.id, [rejeitada(1, 'X')], agora()),
+      gravarResultadoDaValidacao(cli, empresaId, primeira.id, [rejeitada(1, 'X')], 0, agora()),
     );
 
     const repetida = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
 
     expect(repetida).toMatchObject({ id: primeira.id, estado: 'REJEITADA', reutilizada: true, reutilizadaPorIdempotencia: true });
+  });
+
+  it('depois de FALHA ou CANCELADA o mesmo arquivo e mapeamento abre nova tentativa; prévia pendente é reutilizada', async () => {
+    const empresaId = await novaEmpresa();
+    const hashFalha = hex64();
+    const falhou = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash: hashFalha })));
+    await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, falhou.id, agora()));
+    await comoWorker(empresaId, (cli) => registrarFalha(cli, empresaId, falhou.id, agora()));
+
+    const depoisDaFalha = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash: hashFalha })));
+    expect(depoisDaFalha).toMatchObject({ estado: 'RECEBIDA', reutilizada: false });
+    expect(depoisDaFalha.id).not.toBe(falhou.id);
+
+    const pendente = await prepararPrevia(empresaId, [valida(1, '1')]);
+    const reenvioPendente = await como((cli) =>
+      criarTentativa(cli, novaTentativa(empresaId, { hash: pendente.hashArquivo })),
+    );
+    expect(reenvioPendente).toMatchObject({ id: pendente.id, estado: 'AGUARDANDO_CONFIRMACAO', reutilizada: true });
+
+    await como((cli) => cancelar(cli, { empresaId, tentativaId: pendente.id, usuarioId: usuario, agora: agora() }));
+    const depoisDoCancelamento = await como((cli) =>
+      criarTentativa(cli, novaTentativa(empresaId, { hash: pendente.hashArquivo })),
+    );
+    expect(depoisDoCancelamento).toMatchObject({ estado: 'RECEBIDA', reutilizada: false });
+    expect(depoisDoCancelamento.id).not.toBe(pendente.id);
+  });
+
+  it('dois envios idênticos simultâneos: uma tentativa nova e um reuso', async () => {
+    const empresaId = await novaEmpresa();
+    const hash = hex64();
+    const enviar = (): Promise<TentativaDeImportacao & { reutilizada: boolean }> =>
+      como(async (cli) => {
+        const criada = await criarTentativa(cli, novaTentativa(empresaId, { hash }));
+        await cli.query('select pg_sleep(0.2)');
+
+        return criada;
+      });
+
+    const [a, b] = await Promise.all([enviar(), enviar()]);
+
+    expect(a.id).toBe(b.id);
+    expect([a.reutilizada, b.reutilizada].sort()).toEqual([false, true]);
+    const { rows } = await admin.query<{ n: number }>(
+      `select count(*)::int as n from app.importacao_plano_contas where empresa_id = $1`,
+      [empresaId],
+    );
+    expect(rows[0]!.n).toBe(1);
   });
 
   it('buscarTentativa só encontra pela empresa certa e dentro do tenant e da carteira', async () => {
@@ -314,7 +363,8 @@ describe('validação no worker: staging idempotente (SPEC-013 §3.4, §6.4)', (
     expect(resultado).toEqual({ transicionou: true, planoVersaoNaValidacao: 0 });
     expect(await versaoDoPlano(empresaId)).toBe(0);
     const lida = await como((cli) => buscarTentativa(cli, empresaId, criada.id));
-    expect(lida).toMatchObject({ estado: 'VALIDANDO', planoVersaoNaValidacao: 0 });
+    // A versão só é fixada junto com o staging (gravarResultadoDaValidacao), nunca no início.
+    expect(lida).toMatchObject({ estado: 'VALIDANDO', planoVersaoNaValidacao: null });
     expect(lida?.iniciadoEm?.toISOString()).toBe(inicio.toISOString());
 
     // Reentrega do job durante a validação: não falha nem troca o início.
@@ -345,13 +395,13 @@ describe('validação no worker: staging idempotente (SPEC-013 §3.4, §6.4)', (
     const linhas = [valida(1, '1', { acao: 'ATUALIZAR' }), valida(2, '1.1', { contaPai: '1' }), rejeitada(3, '1.2')];
 
     const primeira = await comoWorker(empresaId, (cli) =>
-      gravarResultadoDaValidacao(cli, empresaId, criada.id, linhas, agora()),
+      gravarResultadoDaValidacao(cli, empresaId, criada.id, linhas, 0, agora()),
     );
     const totais = { lidas: 3, novas: 1, atualizadas: 1, rejeitadas: 1 };
     expect(primeira).toEqual({ estado: 'AGUARDANDO_CONFIRMACAO', totais, transicionou: true });
 
     const segunda = await comoWorker(empresaId, (cli) =>
-      gravarResultadoDaValidacao(cli, empresaId, criada.id, linhas, agora()),
+      gravarResultadoDaValidacao(cli, empresaId, criada.id, linhas, 0, agora()),
     );
     expect(segunda).toEqual({ estado: 'AGUARDANDO_CONFIRMACAO', totais, transicionou: false });
 
@@ -363,8 +413,62 @@ describe('validação no worker: staging idempotente (SPEC-013 §3.4, §6.4)', (
     expect(await como((cli) => buscarTentativa(cli, empresaId, criada.id))).toMatchObject({
       estado: 'AGUARDANDO_CONFIRMACAO',
       totais,
+      planoVersaoNaValidacao: 0,
       finalizadoEm: null,
     });
+  });
+
+  it('reentrega com o plano alterado entre os dois inícios não rotula staging antigo com versão nova', async () => {
+    const empresaId = await novaEmpresa();
+    await inserirContaComoAdmin(empresaId, '1');
+    const criada = await como((cli) => criarTentativa(cli, novaTentativa(empresaId)));
+    // Entrega 1 lê a versão 0 (e carregaria as contas nessa versão)...
+    const entrega1 = await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, criada.id, agora()));
+    // ...outra importação é aplicada no meio do caminho (versão 1)...
+    const outra = await prepararPrevia(empresaId, [valida(1, '1', { acao: 'ATUALIZAR', nome: 'Outra' })]);
+    await confirmarEAplicar(empresaId, outra);
+    // ...e a reentrega começa já na versão 1, sem sobrescrever o que a entrega 1 vai gravar.
+    const entrega2 = await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, criada.id, agora()));
+    expect([entrega1.planoVersaoNaValidacao, entrega2.planoVersaoNaValidacao]).toEqual([0, 1]);
+
+    await comoWorker(empresaId, (cli) =>
+      gravarResultadoDaValidacao(
+        cli,
+        empresaId,
+        criada.id,
+        [valida(1, '1', { acao: 'ATUALIZAR', nome: 'Obsoleta' }), valida(2, '7')],
+        entrega1.planoVersaoNaValidacao,
+        agora(),
+      ),
+    );
+    // A entrega 2 chega depois: já gravado, nada muda.
+    expect(
+      await comoWorker(empresaId, (cli) =>
+        gravarResultadoDaValidacao(cli, empresaId, criada.id, [valida(1, '1')], entrega2.planoVersaoNaValidacao, agora()),
+      ),
+    ).toMatchObject({ transicionou: false });
+
+    const previa = (await como((cli) => buscarTentativa(cli, empresaId, criada.id)))!;
+    expect(previa.planoVersaoNaValidacao).toBe(0);
+    const antes = await contasNoBanco(empresaId);
+
+    expect(await erroDe(() => confirmarEAplicar(empresaId, previa))).toBe('CONFLITO_DE_VERSAO');
+    expect(await contasNoBanco(empresaId)).toEqual(antes);
+    expect(await estadoNoBanco(criada.id)).toBe('AGUARDANDO_CONFIRMACAO');
+    expect(await versaoDoPlano(empresaId)).toBe(1);
+  });
+
+  it('lote com número de linha repetido é recusado antes de gravar', async () => {
+    const empresaId = await novaEmpresa();
+    const criada = await como((cli) => criarTentativa(cli, novaTentativa(empresaId)));
+    await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, criada.id, agora()));
+
+    await expect(
+      comoWorker(empresaId, (cli) =>
+        gravarResultadoDaValidacao(cli, empresaId, criada.id, [valida(1, '1'), valida(2, '2'), valida(2, '3')], 0, agora()),
+      ),
+    ).rejects.toThrow(/número de linha repetido: 2/u);
+    expect(await estadoNoBanco(criada.id)).toBe('VALIDANDO');
   });
 
   it('nenhuma linha válida termina REJEITADA, com término gravado', async () => {
@@ -374,7 +478,7 @@ describe('validação no worker: staging idempotente (SPEC-013 §3.4, §6.4)', (
     const fim = agora();
 
     const resultado = await comoWorker(empresaId, (cli) =>
-      gravarResultadoDaValidacao(cli, empresaId, criada.id, [rejeitada(1, 'A'), rejeitada(2, null)], fim),
+      gravarResultadoDaValidacao(cli, empresaId, criada.id, [rejeitada(1, 'A'), rejeitada(2, null)], 0, fim),
     );
 
     expect(resultado).toEqual({
@@ -393,7 +497,7 @@ describe('validação no worker: staging idempotente (SPEC-013 §3.4, §6.4)', (
 
     expect(
       await erroDe(() =>
-        comoWorker(empresaId, (cli) => gravarResultadoDaValidacao(cli, empresaId, criada.id, [valida(1, '1')], agora())),
+        comoWorker(empresaId, (cli) => gravarResultadoDaValidacao(cli, empresaId, criada.id, [valida(1, '1')], 0, agora())),
       ),
     ).toBe('ESTADO_INVALIDO_PARA_ACAO');
   });
@@ -630,14 +734,31 @@ describe('eventos e notificação (SPEC-013 §3.10, I-6, I-9)', () => {
     ).toBe('TENTATIVA_NAO_ENCONTRADA');
   });
 
-  it('criarNotificacao devolve true na primeira vez e false na repetição', async () => {
+  it('criarNotificacao vai só ao iniciador: true na primeira vez, false na repetição', async () => {
     const empresaId = await novaEmpresa();
     const criada = await como((cli) => criarTentativa(cli, novaTentativa(empresaId)));
+    // Gravada pelo worker: o destinatário vem da tentativa, nunca de quem chama.
     const notificar = (): Promise<boolean> =>
-      como((cli) => criarNotificacao(cli, { empresaId, tentativaId: criada.id, usuarioId: usuario, agora: agora() }));
+      comoWorker(empresaId, (cli) => criarNotificacao(cli, { empresaId, tentativaId: criada.id, agora: agora() }));
 
     expect(await notificar()).toBe(true);
     expect(await notificar()).toBe(false);
+    const { rows } = await admin.query<{ usuario_id: string }>(
+      `select usuario_id from app.importacao_plano_contas_notificacao where tentativa_id = $1`,
+      [criada.id],
+    );
+    expect(rows).toEqual([{ usuario_id: usuario }]);
+  });
+
+  it('criarNotificacao de tentativa de outra empresa é TENTATIVA_NAO_ENCONTRADA, não "já existia"', async () => {
+    const empresaId = await novaEmpresa();
+    const criada = await como((cli) => criarTentativa(cli, novaTentativa(empresaId)));
+
+    expect(
+      await erroDe(() =>
+        como((cli) => criarNotificacao(cli, { empresaId: c.empresaA1, tentativaId: criada.id, agora: agora() })),
+      ),
+    ).toBe('TENTATIVA_NAO_ENCONTRADA');
   });
 });
 
@@ -754,6 +875,28 @@ describe('consultas (SPEC-013 §3.5, §3.9)', () => {
       return n;
     });
     expect(deOutraEmpresa).toBe(0);
+  });
+
+  it('erro do FETCH no meio do relatório chega ao chamador sem ser mascarado pelo CLOSE (25P02)', async () => {
+    const empresaId = await novaEmpresa();
+    // Mais de um lote (500): o segundo FETCH acontece depois que o cursor sumiu.
+    const previa = await prepararPrevia(
+      empresaId,
+      Array.from({ length: 501 }, (_, i) => valida(i + 1, `C${i + 1}`)),
+    );
+
+    expect(
+      await erroDe(() =>
+        como(async (cli) => {
+          for await (const linha of listarLinhasParaRelatorio(cli, empresaId, previa.id)) {
+            if (linha.numeroDaLinha === 1) {
+              const { rows } = await cli.query<{ name: string }>(`select name from pg_cursors`);
+              await cli.query(`close ${rows[0]!.name}`);
+            }
+          }
+        }),
+      ),
+    ).toBe('34000');
   });
 
   it('plano: paginado por código, com busca; contagem válida ignora arquivadas; contas vigentes para a validação', async () => {

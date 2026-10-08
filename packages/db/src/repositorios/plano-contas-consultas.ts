@@ -239,6 +239,8 @@ export async function* listarLinhasParaRelatorio(
     [tentativaId, empresaId],
   );
 
+  let falhou = false;
+
   try {
     for (;;) {
       const { rows } = await cliente.query<LinhaDoStagingNoBanco>(`fetch ${LOTE_DO_RELATORIO} from ${cursor}`);
@@ -251,10 +253,28 @@ export async function* listarLinhasParaRelatorio(
         return;
       }
     }
+  } catch (erro) {
+    falhou = true;
+    throw erro;
   } finally {
-    await cliente.query(`close ${cursor}`);
+    await fecharCursor(cliente, cursor, falhou);
   }
 }
+
+/**
+ * Fecha o cursor do relatório. Depois de uma falha a transação está abortada (25P02) e o CLOSE
+ * também falha: o ROLLBACK do chamador descarta o cursor, e o erro que importa é o original —
+ * então, nesse caso, a falha do CLOSE é engolida para não mascará-lo.
+ */
+const fecharCursor = async (cliente: PoolClient, cursor: string, depoisDeFalha: boolean): Promise<void> => {
+  try {
+    await cliente.query(`close ${cursor}`);
+  } catch (erroAoFechar) {
+    if (!depoisDeFalha) {
+      throw erroAoFechar;
+    }
+  }
+};
 
 /** Plano da empresa (ativas e arquivadas, com a marca), por código; busca literal em código ou nome. */
 export const listarPlano = async (

@@ -128,7 +128,8 @@ CREATE TRIGGER empresa_plano_versao_protegida
 
 -- A tentativa nasce JA com o mapeamento: o upload vem antes e a API calcula o hash do arquivo no
 -- servidor. Por isso a identidade idempotente (tenant + empresa + hash + mapeamento, SPEC-013
--- §3.7) e uma UNIQUE simples, sem estado intermediario sem mapeamento.
+-- §3.7) e uma UNIQUE (parcial, ver `importacao_plano_contas_idempotente`), sem estado
+-- intermediario sem mapeamento.
 CREATE TABLE app.importacao_plano_contas (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   tenant_id uuid NOT NULL REFERENCES app.tenant(id),
@@ -167,7 +168,6 @@ CREATE TABLE app.importacao_plano_contas (
   -- Alvo das FKs compostas das filhas (linha, evento, notificacao): a filha nunca aponta para a
   -- tentativa de outra empresa ou de outro tenant.
   CONSTRAINT importacao_plano_contas_escopo UNIQUE (id, empresa_id, tenant_id),
-  CONSTRAINT importacao_plano_contas_idempotente UNIQUE (empresa_id, tenant_id, hash_arquivo, mapeamento),
   CONSTRAINT importacao_plano_contas_termino_condizente CHECK (
     (estado IN ('CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA', 'CANCELADA', 'FALHA'))
     = (finalizado_em IS NOT NULL)
@@ -187,6 +187,14 @@ CREATE TABLE app.importacao_plano_contas (
 
 CREATE INDEX importacao_plano_contas_tenant_id_idx ON app.importacao_plano_contas (tenant_id);
 CREATE INDEX importacao_plano_contas_empresa_id_idx ON app.importacao_plano_contas (empresa_id);
+-- Identidade idempotente (SPEC-013 §3.7): uma tentativa viva ou com resultado reutilizavel
+-- (CONCLUIDA, CONCLUIDA_COM_REJEICOES, REJEITADA) por tenant + empresa + hash + mapeamento.
+-- FALHA e CANCELADA saem do indice: depois de falha tecnica, de cancelamento ou de uma previa
+-- obsoleta cancelada, o mesmo arquivo com o mesmo mapeamento pode ser validado de novo (§3.6,
+-- §3.8, §5.3). A aplicacao usa `ON CONFLICT (...) WHERE estado NOT IN ('FALHA', 'CANCELADA')`.
+CREATE UNIQUE INDEX importacao_plano_contas_idempotente
+  ON app.importacao_plano_contas (empresa_id, tenant_id, hash_arquivo, mapeamento)
+  WHERE estado NOT IN ('FALHA', 'CANCELADA');
 -- Historico: 15 por pagina, mais recente primeiro (SPEC-013 §3.9).
 CREATE INDEX importacao_plano_contas_historico_idx
   ON app.importacao_plano_contas (empresa_id, criado_em DESC, sequencia DESC);
