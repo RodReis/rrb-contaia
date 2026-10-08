@@ -96,6 +96,21 @@ const MENSAGENS: Readonly<Record<string, string>> = {
   [CODIGOS_DE_ERRO.CARTEIRA_DESATUALIZADA]:
     'A carteira mudou desde que você a abriu. Recarregue a página e revise antes de salvar.',
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: 'Você não tem permissão para esta ação.',
+  // Importação do plano de contas por CSV (SPEC-013).
+  [CODIGOS_DE_ERRO.TENTATIVA_NAO_ENCONTRADA]: 'Importação não encontrada nesta empresa.',
+  [CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO]:
+    'Esta ação não é possível no estado atual da importação. Recarregue e veja como ela está.',
+  [CODIGOS_DE_ERRO.FILA_INDISPONIVEL]:
+    'Não foi possível enfileirar a importação agora. Tente de novo em instantes.',
+  [CODIGOS_DE_ERRO.FALHA_TECNICA]:
+    'A importação falhou por um problema técnico. Nenhuma conta foi alterada; tente de novo.',
+  [CODIGOS_DE_ERRO.ARQUIVO_VAZIO]: 'O arquivo não tem nenhuma linha de dados para importar.',
+  [CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE]:
+    'O arquivo passa do limite de 10 MB ou de 10.000 linhas. Divida-o e envie em partes.',
+  [CODIGOS_DE_ERRO.CABECALHO_INVALIDO]:
+    'O cabeçalho do arquivo está ausente, repetido ou em branco. Confira a primeira linha.',
+  [CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO]:
+    'Associe todas as colunas obrigatórias do arquivo antes de continuar.',
   FALHA_DE_REDE: 'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',
   HTTP_401: 'Sua sessão expirou. Entre novamente para continuar.',
   HTTP_403: 'Você não tem alçada para esta ação.',

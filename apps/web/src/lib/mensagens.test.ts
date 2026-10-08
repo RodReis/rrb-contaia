@@ -44,3 +44,30 @@ describe('mensagens de usuários e convite (SPEC-007 §6)', () => {
     expect(mensagemDoCodigo('NAO_EXISTE')).toBe(GENERICA);
   });
 });
+
+describe('mensagens da importação do plano de contas (SPEC-013)', () => {
+  const codigos = [
+    'TENTATIVA_NAO_ENCONTRADA',
+    'ESTADO_INVALIDO_PARA_ACAO',
+    'FILA_INDISPONIVEL',
+    'FALHA_TECNICA',
+    'ARQUIVO_VAZIO',
+    'ARQUIVO_ACIMA_DO_LIMITE',
+    'CABECALHO_INVALIDO',
+    'MAPEAMENTO_INCOMPLETO',
+  ] as const;
+
+  it.each(codigos)('%s tem mensagem própria, não a genérica', (codigo) => {
+    const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO[codigo]);
+
+    expect(mensagem).not.toBe(GENERICA);
+    expect(mensagem.length).toBeGreaterThan(10);
+  });
+
+  it('arquivo acima do limite informa 10 MB e 10.000 linhas', () => {
+    const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE);
+
+    expect(mensagem).toMatch(/10 MB/u);
+    expect(mensagem).toMatch(/10\.000 linhas/u);
+  });
+});

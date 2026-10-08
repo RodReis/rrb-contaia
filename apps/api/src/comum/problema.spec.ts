@@ -219,3 +219,31 @@ describe('status dos códigos de papéis personalizados (SPEC-008 §6)', () => {
     expect(JSON.stringify(corpo)).not.toContain('papel_personalizado_nome_unico');
   });
 });
+
+describe('status dos códigos da importação do plano de contas (SPEC-013)', () => {
+  const casos: ReadonlyArray<readonly [keyof typeof CODIGOS_DE_ERRO, number]> = [
+    ['TENTATIVA_NAO_ENCONTRADA', HttpStatus.NOT_FOUND],
+    ['ESTADO_INVALIDO_PARA_ACAO', HttpStatus.CONFLICT],
+    ['CONFLITO_DE_VERSAO', HttpStatus.CONFLICT],
+    ['FILA_INDISPONIVEL', HttpStatus.SERVICE_UNAVAILABLE],
+    ['FALHA_TECNICA', HttpStatus.INTERNAL_SERVER_ERROR],
+    ['ARQUIVO_ACIMA_DO_LIMITE', HttpStatus.PAYLOAD_TOO_LARGE],
+    ['ARQUIVO_VAZIO', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['CABECALHO_INVALIDO', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['MAPEAMENTO_INCOMPLETO', HttpStatus.UNPROCESSABLE_ENTITY],
+  ];
+
+  it.each(casos)('%s responde %i', (codigo, esperado) => {
+    expect(statusDoErro(new ErroDeDominio(CODIGOS_DE_ERRO[codigo], 'x'))).toBe(esperado);
+  });
+
+  it('arquivo acima do limite sai como problem+json 413 com o código estável', () => {
+    const { status, corpo } = capturar(
+      new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE, 'Arquivo acima de 10 MB.'),
+    );
+
+    expect(status).toBe(HttpStatus.PAYLOAD_TOO_LARGE);
+    expect(corpo.code).toBe('ARQUIVO_ACIMA_DO_LIMITE');
+    expect(corpo.type).toMatch(/arquivo-acima-do-limite$/u);
+  });
+});

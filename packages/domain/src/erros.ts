@@ -151,6 +151,12 @@ export const CODIGOS_DE_ERRO = {
   ESTADO_INVALIDO_PARA_ACAO: 'ESTADO_INVALIDO_PARA_ACAO',
   FILA_INDISPONIVEL: 'FILA_INDISPONIVEL',
   FALHA_TECNICA: 'FALHA_TECNICA',
+  // Recusas do arquivo antes de qualquer prévia (SPEC-013): vazio, acima de 10 MB /
+  // 10.000 linhas, cabeçalho sem as colunas obrigatórias ou mapeamento que não cobre todas.
+  ARQUIVO_VAZIO: 'ARQUIVO_VAZIO',
+  ARQUIVO_ACIMA_DO_LIMITE: 'ARQUIVO_ACIMA_DO_LIMITE',
+  CABECALHO_INVALIDO: 'CABECALHO_INVALIDO',
+  MAPEAMENTO_INCOMPLETO: 'MAPEAMENTO_INCOMPLETO',
 } as const;
 
 export type CodigoDeErro = (typeof CODIGOS_DE_ERRO)[keyof typeof CODIGOS_DE_ERRO];

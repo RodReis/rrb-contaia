@@ -123,6 +123,19 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   // SPEC-012 §7. Signer fora do ar, sem resposta ou recusando o contexto é falha de dependência
   // (503) com `correlationId`: a tela mantém o último estado e diz que está desatualizado.
   [CODIGOS_DE_ERRO.SIGNER_INDISPONIVEL]: HttpStatus.SERVICE_UNAVAILABLE,
+  // SPEC-013. Tentativa de outro tenant/empresa responde como inexistente (404). Ação fora do
+  // estado da tentativa (inclusive a perdedora da corrida de confirmação) é conflito de estado;
+  // o `CONFLITO_DE_VERSAO` da confirmação obsoleta já é 409 acima. Fila fora do ar é falha de
+  // dependência (503); falha técnica da aplicação é 500 com `correlationId`. O tamanho do arquivo
+  // vira 413; arquivo vazio, cabeçalho e mapeamento são regra de negócio (422).
+  [CODIGOS_DE_ERRO.TENTATIVA_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.FILA_INDISPONIVEL]: HttpStatus.SERVICE_UNAVAILABLE,
+  [CODIGOS_DE_ERRO.FALHA_TECNICA]: HttpStatus.INTERNAL_SERVER_ERROR,
+  [CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE]: HttpStatus.PAYLOAD_TOO_LARGE,
+  [CODIGOS_DE_ERRO.ARQUIVO_VAZIO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.CABECALHO_INVALIDO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO]: HttpStatus.UNPROCESSABLE_ENTITY,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>
