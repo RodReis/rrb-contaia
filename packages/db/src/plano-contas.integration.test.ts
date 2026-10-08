@@ -406,6 +406,31 @@ describe('tentativa de importação: idempotência e estado (SPEC-013 §3.7, §3
     ).toBe('42501');
   });
 
+  it('o mapeamento só muda enquanto RECEBIDA', async () => {
+    const id = await como(c.usuarios.naCarteira, (cli) => inserirTentativa(cli, c.empresaA1));
+    const trocarMapeamento = (coluna: string) =>
+      codigoPg(() =>
+        como(c.usuarios.naCarteira, (cli) =>
+          cli.query(`update app.importacao_plano_contas set mapeamento = $2::jsonb where id = $1`, [
+            id,
+            JSON.stringify({ ...MAPEAMENTO, codigo: coluna }),
+          ]),
+        ),
+      );
+    const mudarEstado = (estado: string) =>
+      comoWorker(c.empresaA1, (cli) =>
+        cli.query(`update app.importacao_plano_contas set estado = $2 where id = $1`, [id, estado]),
+      );
+
+    expect(await trocarMapeamento('Conta')).toBe('nao_lancou');
+
+    await mudarEstado('VALIDANDO');
+    expect(await trocarMapeamento('Outra')).toBe('23001');
+
+    await mudarEstado('AGUARDANDO_CONFIRMACAO');
+    expect(await trocarMapeamento('Mais outra')).toBe('23001');
+  });
+
   it('estado terminal não reabre; o reuso idempotente ainda pode ser marcado', async () => {
     const id = await inserirTentativa(admin, c.empresaA1);
     await admin.query(

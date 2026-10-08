@@ -204,6 +204,13 @@ BEGIN
       USING ERRCODE = 'restrict_violation';
   END IF;
 
+  -- O mapeamento faz parte da identidade idempotente e e o "mapeamento utilizado" da previa
+  -- (SPEC-013 §3.9, §6.3): so muda antes da validacao comecar.
+  IF NEW.mapeamento IS DISTINCT FROM OLD.mapeamento AND OLD.estado <> 'RECEBIDA' THEN
+    RAISE EXCEPTION 'o mapeamento da tentativa so muda enquanto RECEBIDA'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+
   RETURN NEW;
 END;
 $$;
