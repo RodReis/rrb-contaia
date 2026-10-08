@@ -9,19 +9,19 @@
 'use client';
 
 import type { PreviaDaImportacao } from '@contaia/shared';
-import { FileSearch, LoaderCircle } from 'lucide-react';
+import { FileSearch, LoaderCircle, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { ErroDaApi } from '@/lib/http';
+import { ErroDaApi, type Problema } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { avisarFalha } from '../escritorio/queries';
 import { baixarArquivo, caminhoDoOriginal, caminhoDoRelatorio } from './api';
 import { APARENCIA_DO_ESTADO, emAndamento, plural } from './apresentacao';
 import { EtapasDaImportacao, etapaDoEstado } from './etapas';
-import { BotaoDeDownload } from './pecas';
+import { BotaoDeDownload, CodigoDeSuporte } from './pecas';
 import type { PermissoesDoPlano } from './permissoes';
 import { Previa } from './previa';
 import { useTentativa } from './queries';
@@ -45,6 +45,40 @@ const anuncioDo = (previa: PreviaDaImportacao): string => {
 
 const nomeDoRelatorio = (previa: PreviaDaImportacao): string =>
   `relatorio-${previa.arquivo.nome.replace(/\.csv$/iu, '')}.csv`;
+
+/**
+ * Leitura que falhou com a tentativa já na tela: o último estado lido continua visível e marcado
+ * como tal, com o código de suporte. Em andamento, o acompanhamento segue tentando sozinho (espera
+ * crescente); "Tentar de novo" relê na hora.
+ */
+const AvisoDeLeituraFalha = ({
+  problema,
+  previa,
+  aoTentar,
+}: {
+  problema: Problema | null;
+  previa: PreviaDaImportacao;
+  aoTentar: () => void;
+}) => (
+  <div
+    role="alert"
+    className="flex flex-col gap-sm rounded-md border border-warning-indicator/40 bg-warning px-md py-sm tablet:flex-row tablet:items-center tablet:justify-between"
+  >
+    <div className="flex flex-col gap-xs text-body-sm text-warning-foreground">
+      <p>
+        <span className="font-semibold">Não foi possível atualizar o andamento desta importação.</span>{' '}
+        {emAndamento(previa.estado)
+          ? 'O que aparece abaixo é a última leitura; a tela continua tentando sozinha.'
+          : 'O que aparece abaixo é a última leitura.'}
+      </p>
+      {problema === null ? null : <CodigoDeSuporte valor={problema.correlationId} />}
+    </div>
+    <Button variante="contorno" tamanho="compacto" onClick={aoTentar}>
+      <RefreshCw aria-hidden="true" />
+      Tentar de novo
+    </Button>
+  </div>
+);
 
 const Progresso = ({ previa }: { previa: PreviaDaImportacao }) => (
   <div className="flex flex-col items-center gap-md rounded-md border border-info-indicator/40 bg-info px-lg py-xl text-center">
@@ -198,6 +232,14 @@ export const Acompanhamento = ({
       <p role="status" aria-live="polite" className="sr-only">
         {anuncioDo(previa)}
       </p>
+
+      {consulta.isError ? (
+        <AvisoDeLeituraFalha
+          previa={previa}
+          problema={consulta.error instanceof ErroDaApi ? consulta.error.problema : null}
+          aoTentar={() => void consulta.refetch()}
+        />
+      ) : null}
 
       {corpo()}
     </div>

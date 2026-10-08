@@ -1,7 +1,7 @@
 'use client';
 
 import type { Mapeamento } from '@contaia/domain';
-import type { PreviaDaImportacao } from '@contaia/shared';
+import type { EstadoDaImportacao, PreviaDaImportacao } from '@contaia/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -39,6 +39,37 @@ export const chavesDoPlano = {
 
 /** Frequência do acompanhamento enquanto o worker valida ou a aplicação roda. */
 export const INTERVALO_DO_ACOMPANHAMENTO_MS = 2_000;
+/** Espera máxima entre leituras quando elas falham em sequência. */
+export const TETO_DO_ACOMPANHAMENTO_MS = 30_000;
+
+/**
+ * Próxima leitura da tentativa: só enquanto há trabalho em curso; cada falha seguida dobra a
+ * espera, até o teto. Uma oscilação de rede não congela o acompanhamento.
+ */
+export const intervaloDoAcompanhamento = (
+  estado: EstadoDaImportacao | undefined,
+  falhasSeguidas: number,
+): number | false =>
+  emAndamento(estado)
+    ? Math.min(INTERVALO_DO_ACOMPANHAMENTO_MS * 2 ** falhasSeguidas, TETO_DO_ACOMPANHAMENTO_MS)
+    : false;
+
+type ContagemDaConsulta = Readonly<{ dataUpdateCount: number; errorUpdateCount: number }>;
+
+/** Por consulta: quantas falhas houve desde a última leitura bem-sucedida. */
+const marcosDasConsultas = new WeakMap<object, ContagemDaConsulta>();
+
+const falhasDesdeOUltimoSucesso = (consulta: object, estado: ContagemDaConsulta): number => {
+  const marco = marcosDasConsultas.get(consulta);
+
+  if (marco === undefined || marco.dataUpdateCount !== estado.dataUpdateCount) {
+    marcosDasConsultas.set(consulta, estado);
+
+    return 0;
+  }
+
+  return estado.errorUpdateCount - marco.errorUpdateCount;
+};
 
 export const useTentativa = (empresaId: string, tentativaId: string) =>
   useQuery({
@@ -46,12 +77,16 @@ export const useTentativa = (empresaId: string, tentativaId: string) =>
     queryFn: () => obterTentativa(empresaId, tentativaId),
     // Estado de processamento não convive com cache velho (FRONTEND.md §6.2).
     staleTime: 0,
-    // Consulta só enquanto há trabalho em curso; falha de leitura para o acompanhamento e a tela
-    // oferece "Tentar de novo", em vez de insistir em silêncio.
+    // Leitura que falha não para o acompanhamento: ele segue com espera crescente, e a tela avisa
+    // a falha (com código de suporte e "Tentar de novo") por cima do último estado lido.
     refetchInterval: (consulta) =>
-      consulta.state.status !== 'error' && emAndamento(consulta.state.data?.estado)
-        ? INTERVALO_DO_ACOMPANHAMENTO_MS
-        : false,
+      intervaloDoAcompanhamento(
+        consulta.state.data?.estado,
+        falhasDesdeOUltimoSucesso(consulta, {
+          dataUpdateCount: consulta.state.dataUpdateCount,
+          errorUpdateCount: consulta.state.errorUpdateCount,
+        }),
+      ),
   });
 
 export const useRejeicoes = (empresaId: string, tentativaId: string, pagina: number, habilitado: boolean) =>

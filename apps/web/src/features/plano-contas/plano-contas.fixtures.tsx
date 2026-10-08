@@ -45,6 +45,12 @@ const criarNavegacao = () => {
   let parametros = new URLSearchParams();
   const ouvintes = new Set<() => void>();
 
+  const ir = (destino: string): void => {
+    const consulta = destino.includes('?') ? destino.slice(destino.indexOf('?') + 1) : '';
+    parametros = new URLSearchParams(consulta);
+    ouvintes.forEach((ouvinte) => ouvinte());
+  };
+
   return {
     ler: (): URLSearchParams => parametros,
     assinar: (ouvinte: () => void): (() => void) => {
@@ -56,11 +62,9 @@ const criarNavegacao = () => {
       parametros = new URLSearchParams(consulta);
       ouvintes.forEach((ouvinte) => ouvinte());
     },
-    replace: vi.fn((destino: string) => {
-      const consulta = destino.includes('?') ? destino.slice(destino.indexOf('?') + 1) : '';
-      parametros = new URLSearchParams(consulta);
-      ouvintes.forEach((ouvinte) => ouvinte());
-    }),
+    /** `replace` troca a entrada do histórico; `push` cria outra (o "voltar" a desfaz). */
+    replace: vi.fn(ir),
+    push: vi.fn(ir),
   };
 };
 
@@ -273,14 +277,23 @@ export const criarBackend = () => {
   return { estado, roteador };
 };
 
-/** `URL.createObjectURL` não existe no jsdom: o download real termina num clique de âncora. */
+/**
+ * `URL.createObjectURL` não existe no jsdom: o download real termina num clique de âncora, que
+ * aqui não navega. `desinstalarDownloads` devolve o jsdom ao estado original (chamar no `afterEach`).
+ */
 export const instalarDownloads = () => {
   const criar = vi.fn(() => 'blob:relatorio');
   const revogar = vi.fn();
 
   Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: criar });
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revogar });
-  HTMLAnchorElement.prototype.click = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
   return { criar, revogar };
+};
+
+export const desinstalarDownloads = (): void => {
+  Reflect.deleteProperty(URL, 'createObjectURL');
+  Reflect.deleteProperty(URL, 'revokeObjectURL');
+  vi.restoreAllMocks();
 };

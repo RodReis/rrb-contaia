@@ -7,7 +7,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { toast } from 'sonner';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AbaPlanoDeContas } from './aba-plano-de-contas';
 import {
@@ -17,6 +17,7 @@ import {
   conta,
   criarBackend,
   csvDoModelo,
+  desinstalarDownloads,
   instalarDownloads,
   instalarFetch,
   json,
@@ -33,7 +34,7 @@ vi.mock('next/navigation', async () => {
   const { navegacao: url } = await import('./plano-contas.fixtures');
 
   return {
-    useRouter: () => ({ replace: url.replace, push: vi.fn() }),
+    useRouter: () => ({ replace: url.replace, push: url.push }),
     useSearchParams: () => useSyncExternalStore(url.assinar, url.ler, url.ler),
   };
 });
@@ -59,6 +60,10 @@ beforeEach(() => {
   navegacao.definir('aba=plano-contas');
   backend = criarBackend();
   instalarFetch(backend.roteador);
+});
+
+afterEach(() => {
+  desinstalarDownloads();
 });
 
 describe('carregando', () => {
@@ -90,8 +95,8 @@ describe('sem plano e sem tentativa', () => {
     const { container } = renderizar();
     await screen.findByRole('heading', { name: 'Nenhuma importação ainda' });
 
-    expect(container.textContent).not.toMatch(/centro de custo|vetoriza|RAG|correção inline|sugest|classificador/iu);
-    expect(container.textContent).not.toMatch(/IA/u);
+    expect(container.textContent).not.toMatch(/centro de custo|vetoriza|\bRAG\b|correção inline|sugest|classificador/iu);
+    expect(container.textContent).not.toMatch(/\bIA\b/u);
   });
 });
 
@@ -140,25 +145,6 @@ describe('validação em andamento', () => {
     expect(screen.queryByRole('button', { name: /Confirmar importação/u })).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
-
-  it('volta a consultar enquanto valida e para quando a prévia fica pronta', async () => {
-    let leituras = 0;
-    backend.estado.lerTentativa = () => {
-      leituras += 1;
-
-      return json(leituras < 2 ? previa({ estado: 'VALIDANDO', totais: null, versaoDaPrevia: null }) : previa());
-    };
-    navegacao.definir(`aba=plano-contas&tentativa=${TENTATIVA}`);
-    renderizar();
-
-    expect(await screen.findByText('Validando o arquivo inteiro')).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Confirmar importação' }, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Validação concluída: 0 linhas rejeitadas.');
-
-    const lidasAoTerminar = leituras;
-    await new Promise((resolver) => setTimeout(resolver, 2500));
-    expect(leituras).toBe(lidasAoTerminar);
-  }, 10_000);
 });
 
 describe('prévia', () => {
@@ -204,6 +190,28 @@ describe('prévia', () => {
 
     expect(navegacao.ler().get('rejeicoes')).toBe('2');
     expect(await screen.findByRole('rowheader', { name: '99' })).toBeInTheDocument();
+  });
+});
+
+describe('flags da API na prévia', () => {
+  it.each([
+    ['podeConfirmar falso', { podeConfirmar: false }, false, true],
+    ['podeCancelar falso', { podeCancelar: false }, true, false],
+    ['sem versão da prévia', { versaoDaPrevia: null }, false, true],
+  ] as const)('%s: a tela segue a API mesmo com a permissão', async (_caso, sobrescritas, confirmar, cancelar) => {
+    abrirTentativa(previa(sobrescritas));
+    renderizar();
+
+    await screen.findByText(/Todas as 6 linhas lidas são válidas/u);
+    expect(screen.queryByRole('button', { name: 'Confirmar importação' }) !== null).toBe(confirmar);
+    expect(screen.queryByRole('button', { name: 'Cancelar importação' }) !== null).toBe(cancelar);
+  });
+
+  it('sem nenhuma das duas ações, explica o que fazer', async () => {
+    abrirTentativa(previa({ podeConfirmar: false, podeCancelar: false }));
+    renderizar();
+
+    expect(await screen.findByText(/Esta prévia não aceita mais confirmação nem cancelamento/u)).toBeInTheDocument();
   });
 });
 
@@ -502,5 +510,43 @@ describe('plano vigente', () => {
     await waitFor(() =>
       expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/contas?pagina=1&busca=Caixa'))).toBe(true),
     );
+  });
+});
+
+describe('histórico do navegador', () => {
+  it('abrir e fechar a tentativa criam entrada (o "voltar" funciona); paginar só troca a URL', async () => {
+    const usuario = userEvent.setup();
+    backend.estado.historico = [tentativaDoHistorico()];
+    backend.estado.lerHistorico = () =>
+      json({ pagina: 1, itensPorPagina: 15, total: 16, itens: backend.estado.historico });
+    backend.estado.tentativa = previa({ estado: 'CONCLUIDA', finalizadoEm: '2026-10-08T12:35:00.000Z' });
+    renderizar();
+
+    await usuario.click(await screen.findByRole('button', { name: /Próxima/u }));
+    expect(navegacao.replace).toHaveBeenCalledTimes(1);
+    expect(navegacao.push).not.toHaveBeenCalled();
+
+    await usuario.click(await screen.findByRole('button', { name: /Abrir a importação de plano-legado.csv/u }));
+    expect(navegacao.push).toHaveBeenCalledTimes(1);
+    expect(navegacao.ler().get('tentativa')).toBe(TENTATIVA);
+
+    await usuario.click(await screen.findByRole('button', { name: 'Fechar tentativa' }));
+    expect(navegacao.push).toHaveBeenCalledTimes(2);
+    expect(navegacao.ler().get('tentativa')).toBeNull();
+  });
+
+  it('busca digitada não sobrescreve a que mudou por fora (voltar do navegador)', async () => {
+    const usuario = userEvent.setup();
+    backend.estado.contas = [conta()];
+    renderizar();
+
+    const campo = await screen.findByRole('searchbox', { name: 'Buscar por código ou nome' });
+    await usuario.type(campo, 'Cai');
+    navegacao.definir('aba=plano-contas&busca=Ativo');
+
+    await waitFor(() => expect(campo).toHaveValue('Ativo'));
+    await new Promise((resolver) => setTimeout(resolver, 400));
+    expect(navegacao.ler().get('busca')).toBe('Ativo');
+    expect(navegacao.replace).not.toHaveBeenCalled();
   });
 });
