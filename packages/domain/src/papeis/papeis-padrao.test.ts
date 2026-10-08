@@ -33,6 +33,17 @@ const DOCUMENTOS_LEITURA = [
   'documentos.analise.consultar',
   'documentos.historico.consultar',
 ];
+const PLANO_CONTAS_TODAS = [
+  'empresas.plano_contas.consultar',
+  'empresas.plano_contas.importar',
+  'empresas.plano_contas.confirmar_importacao',
+  'empresas.plano_contas.baixar_relatorio',
+];
+// SPEC-013: auxiliar e auditor consultam e baixam o relatório, mas não importam nem confirmam.
+const PLANO_CONTAS_LEITURA = [
+  'empresas.plano_contas.consultar',
+  'empresas.plano_contas.baixar_relatorio',
+];
 const OPERACAO = [
   ...DOCUMENTOS_TODAS,
   'pendencias.pendencias.consultar',
@@ -66,6 +77,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.arquivar',
     'empresas.cadastro.reativar',
     'empresas.historico.consultar',
+    ...PLANO_CONTAS_TODAS,
     ...OPERACAO,
     ...CERTIFICADOS_TODAS,
     'historico.global.consultar',
@@ -75,6 +87,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.consultar',
     'empresas.cadastro.criar',
     'empresas.cadastro.editar',
+    ...PLANO_CONTAS_LEITURA,
     ...OPERACAO,
     'certificados.cofre.consultar',
   ],
@@ -82,6 +95,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'escritorio.dados.consultar',
     'empresas.cadastro.consultar',
     'empresas.historico.consultar',
+    ...PLANO_CONTAS_LEITURA,
     ...DOCUMENTOS_LEITURA,
     'pendencias.pendencias.consultar',
     'notificacoes.sino.consultar',

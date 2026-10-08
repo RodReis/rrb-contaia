@@ -21,6 +21,11 @@ const ESPERADO = [
   'empresas.cadastro.arquivar',
   'empresas.cadastro.reativar',
   'empresas.historico.consultar',
+  // SPEC-013: importação do plano de contas por CSV.
+  'empresas.plano_contas.consultar',
+  'empresas.plano_contas.importar',
+  'empresas.plano_contas.confirmar_importacao',
+  'empresas.plano_contas.baixar_relatorio',
   'documentos.exigencias.consultar',
   'documentos.exigencias.criar',
   'documentos.exigencias.dispensar',

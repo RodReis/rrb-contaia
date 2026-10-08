@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '../erros.js';
 import type { ChaveDoCatalogo } from './catalogo.js';
+import { consultaImplicada, dependentesDeConsulta } from './catalogo.js';
 import {
   concederPermissao,
   diferencaDeMatriz,
@@ -120,6 +121,48 @@ describe('edição da matriz', () => {
         'documentos.arquivos.enviar',
       ),
     ).toEqual(['documentos.arquivos.consultar']);
+  });
+
+  it('plano de contas: toda ação nova implica Consultar da própria funcionalidade (SPEC-013)', () => {
+    for (const acao of ['importar', 'confirmar_importacao', 'baixar_relatorio'] as const) {
+      expect(consultaImplicada(`empresas.plano_contas.${acao}`)).toBe(
+        'empresas.plano_contas.consultar',
+      );
+    }
+  });
+
+  it('plano de contas: Consultar arrasta as três ações novas e nada de outra funcionalidade', () => {
+    expect(dependentesDeConsulta('empresas.plano_contas.consultar')).toEqual([
+      'empresas.plano_contas.importar',
+      'empresas.plano_contas.confirmar_importacao',
+      'empresas.plano_contas.baixar_relatorio',
+    ]);
+  });
+
+  it('plano de contas: confirmar importação concede só Consultar, sem Importar (SPEC-013)', () => {
+    expect(concederPermissao([], 'empresas.plano_contas.confirmar_importacao')).toEqual([
+      'empresas.plano_contas.consultar',
+      'empresas.plano_contas.confirmar_importacao',
+    ]);
+    expect(normalizarMatriz(['empresas.plano_contas.baixar_relatorio'])).toEqual([
+      'empresas.plano_contas.consultar',
+      'empresas.plano_contas.baixar_relatorio',
+    ]);
+  });
+
+  it('plano de contas: retirar Consultar revoga importar, confirmar e baixar relatório', () => {
+    expect(
+      revogarPermissao(
+        [
+          'empresas.cadastro.consultar',
+          'empresas.plano_contas.consultar',
+          'empresas.plano_contas.importar',
+          'empresas.plano_contas.confirmar_importacao',
+          'empresas.plano_contas.baixar_relatorio',
+        ],
+        'empresas.plano_contas.consultar',
+      ),
+    ).toEqual(['empresas.cadastro.consultar']);
   });
 
   it('módulo é visível quando alguma funcionalidade tem Consultar', () => {
