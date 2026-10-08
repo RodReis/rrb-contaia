@@ -3,13 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  EstadoDaImportacao,
-  ehEstadoTerminal,
-  proximoEstado,
-  podeTransicionar,
-  type TransicaoInvalida,
-} from './estados.js';
+import { ehEstadoTerminal, proximoEstado, podeTransicionar } from './estados.js';
 
 describe('estados da importação (SPEC-013 §3.11)', () => {
   it('estados terminais são identificados', () => {
