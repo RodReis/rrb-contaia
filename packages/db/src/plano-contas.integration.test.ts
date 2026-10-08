@@ -682,6 +682,10 @@ describe('pendência "plano de contas incompleto" (SPEC-013 §3.10), defeito 8',
     // outras suítes que rodam em paralelo.
     try {
       await cliente.query('begin');
+      // As outras suítes apagam as próprias empresas no `afterAll`: sem a trava, uma empresa lida
+      // pelo backfill pode sumir antes da checagem da FK da pendência (23503 intermitente). SHARE
+      // só segura escrita em `empresa` durante esta transação curta.
+      await cliente.query('lock table app.empresa in share mode');
       const semConta = await idDe(
         cliente,
         `insert into app.empresa (tenant_id, cnpj, razao_social, status) values ($1, $2, 'Sem plano', 'ATIVA') returning id`,

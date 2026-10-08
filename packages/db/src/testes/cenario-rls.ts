@@ -6,6 +6,8 @@
  * `session_replication_role = replica` para apagar tabelas append-only e FKs sem
  * desligar nenhuma trigger de produção.
  */
+import { randomInt } from 'node:crypto';
+
 import type { Pool } from 'pg';
 
 export type Cenario = Readonly<{
@@ -50,7 +52,9 @@ const unico = async (admin: Pool, sql: string, parametros: unknown[]): Promise<s
 };
 
 export const montarCenario = async (admin: Pool): Promise<Cenario> => {
-  const sufixo = `${String(process.pid).padStart(6, '0').slice(-6)}${String(Date.now()).slice(-6)}`;
+  // 12 dígitos: instante + aleatório. Só pid + instante colidia entre suítes do mesmo processo de
+  // workers iniciadas no mesmo milissegundo (`tenant_cnpj_key`).
+  const sufixo = `${String(Date.now()).slice(-6)}${String(randomInt(1_000_000)).padStart(6, '0')}`;
 
   const tenant = (letra: 'A' | 'B'): Promise<string> =>
     unico(
