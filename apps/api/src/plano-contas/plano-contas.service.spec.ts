@@ -7,6 +7,7 @@
  * parcial" sem PostgreSQL. A persistência real tem provas no `.integration.test.ts`.
  */
 import { createHash } from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import type { Readable } from 'node:stream';
 
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, MODELO_CSV } from '@contaia/domain';
@@ -30,6 +31,7 @@ type Banco = {
   tentativas: TentativaDeImportacao[];
   contas: string[];
   eventos: Readonly<{ acao: string; estadoNovo: string; usuarioId: string | null }>[];
+  eventosCompletos: Readonly<Record<string, unknown>>[];
   notificacoes: string[];
   pendenciasAbertas: string[];
   sequencia: number;
@@ -37,9 +39,18 @@ type Banco = {
 
 const { db, falhas, chamadas } = vi.hoisted(() => ({
   db: { atual: null as unknown as Banco },
-  falhas: { aplicar: null as Error | null, notificar: null as Error | null },
+  falhas: {
+    aplicar: null as Error | null,
+    notificar: null as Error | null,
+    ignoradas: [] as string[],
+    /** Erro da 2ª chamada de `confirmar` (a da transação que registra a FALHA). */
+    confirmarDeNovo: null as Error | null,
+  },
   chamadas: {
     ordem: [] as string[],
+    confirmacoes: 0,
+    sqls: [] as string[],
+    clientes: [] as EventEmitter[],
     transacoesAbertas: 0,
     origensConsultadas: [] as (string | null)[],
     relatorioFinalizado: false,
@@ -50,6 +61,7 @@ const bancoVazio = (): Banco => ({
   tentativas: [],
   contas: [],
   eventos: [],
+  eventosCompletos: [],
   notificacoes: [],
   pendenciasAbertas: ['plano-contas:incompleto'],
   sequencia: 0,
@@ -60,6 +72,7 @@ const clonar = (banco: Banco): Banco => ({
   tentativas: banco.tentativas.map((t) => ({ ...t })),
   contas: [...banco.contas],
   eventos: [...banco.eventos],
+  eventosCompletos: [...banco.eventosCompletos],
   notificacoes: [...banco.notificacoes],
   pendenciasAbertas: [...banco.pendenciasAbertas],
 });
@@ -84,8 +97,18 @@ vi.mock('@contaia/db', () => ({
     const antes = clonar(db.atual);
     chamadas.transacoesAbertas += 1;
 
+    const { EventEmitter: Emissor } = await import('node:events');
+    const cliente = Object.assign(new Emissor(), {
+      query: async (sql: string, parametros: readonly unknown[] = []) => {
+        chamadas.sqls.push(`${sql} ${JSON.stringify(parametros)}`);
+
+        return { rows: [], rowCount: 0 };
+      },
+    });
+    chamadas.clientes.push(cliente);
+
     try {
-      return await executar({});
+      return await executar(cliente);
     } catch (erro) {
       db.atual = antes; // ROLLBACK
       throw erro;
@@ -141,6 +164,8 @@ vi.mock('@contaia/db', () => ({
     entrada: { empresaId: string; tentativaId: string; usuarioId: string; versaoDaPrevia: number },
   ) => {
     chamadas.ordem.push('confirmar');
+    chamadas.confirmacoes += 1;
+    if (chamadas.confirmacoes > 1 && falhas.confirmarDeNovo !== null) throw falhas.confirmarDeNovo;
     const atual = daEmpresa(entrada.empresaId, entrada.tentativaId);
 
     if (atual === undefined) throw naoEncontrada();
@@ -157,9 +182,23 @@ vi.mock('@contaia/db', () => ({
 
     if (falhas.aplicar !== null) throw falhas.aplicar;
 
-    return { incluidas: 2, atualizadas: 0, ignoradas: [], versaoDoPlano: 1 };
+    return { incluidas: 2, atualizadas: 0, ignoradas: falhas.ignoradas, versaoDoPlano: 1 };
   },
-  registrarEventoDeImportacao: async (_c: unknown, evento: { acao: string; estadoNovo: string; usuarioId: string | null }) => {
+  registrarFalhaDaImportacao: async (_c: unknown, empresaId: string, id: string, agora: Date) => {
+    chamadas.ordem.push('falha');
+    const atual = daEmpresa(empresaId, id);
+
+    if (atual === undefined) throw naoEncontrada();
+    if (atual.estado !== 'APLICANDO' && atual.estado !== 'VALIDANDO') throw estadoInvalido();
+    trocar(id, { estado: 'FALHA', finalizadoEm: agora });
+
+    return atual.estado;
+  },
+  registrarEventoDeImportacao: async (
+    _c: unknown,
+    evento: { acao: string; estadoNovo: string; usuarioId: string | null } & Record<string, unknown>,
+  ) => {
+    db.atual.eventosCompletos.push(evento);
     chamadas.ordem.push(`evento:${evento.acao}`);
     db.atual.eventos.push({ acao: evento.acao, estadoNovo: evento.estadoNovo, usuarioId: evento.usuarioId });
   },
@@ -273,13 +312,13 @@ class ServicoComRelogio extends PlanoContasService {
   }
 }
 
-const montar = () => {
+const montar = (prazos?: Readonly<{ ociosidadeMs: number; totalMs: number }>) => {
   const storage = {
     enviarComChave: vi.fn().mockResolvedValue(undefined),
     obter: vi.fn().mockResolvedValue({ conteudo: Buffer.from('codigo;nome\n'), tipoConteudo: 'text/csv' }),
   };
   const fila = { enfileirar: vi.fn().mockResolvedValue(undefined) };
-  const servico = new ServicoComRelogio({ instancia: {} } as never, storage as never, fila);
+  const servico = new ServicoComRelogio({ instancia: {} } as never, storage as never, fila, prazos);
 
   return { storage, fila, servico };
 };
@@ -311,6 +350,11 @@ beforeEach(() => {
   db.atual = bancoVazio();
   falhas.aplicar = null;
   falhas.notificar = null;
+  falhas.ignoradas = [];
+  falhas.confirmarDeNovo = null;
+  chamadas.confirmacoes = 0;
+  chamadas.sqls = [];
+  chamadas.clientes = [];
   chamadas.ordem = [];
   chamadas.transacoesAbertas = 0;
   chamadas.origensConsultadas = [];
@@ -595,25 +639,66 @@ describe('confirmar (SPEC-013 §3.6, §3.10)', () => {
     expect(await codigoDo(() => servico.confirmar(CONTEXTO, EMPRESA, id, 7))).toBe(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO);
   });
 
-  it.each([
-    ['na aplicação', 'aplicar'],
-    ['ao notificar, depois de aplicar', 'notificar'],
-  ] as const)('falha técnica %s → FALHA_TECNICA e nenhuma conta alterada', async (_caso, ponto) => {
+  it('falha técnica na aplicação: tudo revertido e, numa 2ª transação, a tentativa vai a FALHA com o código estável', async () => {
     const { servico, id } = await preparar();
     validada(id);
-    falhas[ponto] = new Error('conexão com o banco caiu');
+    falhas.aplicar = new Error('conexão com o banco caiu');
 
     const erro = await servico.confirmar(CONTEXTO, EMPRESA, id, 0).catch((e: unknown) => e);
 
-    expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.FALHA_TECNICA });
+    expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.FALHA_TECNICA, detalhes: { tentativaId: id } });
     expect((erro as Error).message).toContain('Nenhuma conta foi alterada');
     expect((erro as Error).message).not.toContain('conexão com o banco caiu');
     expect(db.atual.contas).toEqual([]);
+    expect(db.atual.pendenciasAbertas).toEqual(['plano-contas:incompleto']);
+    expect(db.atual.tentativas[0]).toMatchObject({ estado: 'FALHA', usuarioConfirmadorId: USUARIO, finalizadoEm: AGORA });
+    expect(db.atual.eventos.map((e) => [e.acao, e.estadoNovo])).toEqual([
+      ['CRIACAO', 'RECEBIDA'],
+      ['CONFIRMAR', 'APLICANDO'],
+      ['FALHA_TECNICA', 'FALHA'],
+    ]);
+    expect(db.atual.eventosCompletos.at(-1)).toMatchObject({ codigo: 'FALHA_NA_APLICACAO', correlationId: CONTEXTO.correlationId });
+    // Terminal: o iniciador é avisado da falha, como no resultado da validação.
+    expect(db.atual.notificacoes).toEqual([id]);
+    expect(chamadas.transacoesAbertas).toBe(0);
+  });
+
+  it('a FALHA só é gravada se a tentativa ainda estiver na mesma prévia; senão, só a resposta 500', async () => {
+    const { servico, id } = await preparar();
+    validada(id);
+    falhas.aplicar = new Error('conexão com o banco caiu');
+    falhas.confirmarDeNovo = estadoInvalido();
+
+    const erro = await servico.confirmar(CONTEXTO, EMPRESA, id, 0).catch((e: unknown) => e);
+
+    expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.FALHA_TECNICA, detalhes: { tentativaId: id } });
     expect(db.atual.tentativas[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
     expect(db.atual.eventos.map((e) => e.acao)).toEqual(['CRIACAO']);
-    expect(db.atual.notificacoes).toEqual([]);
-    expect(db.atual.pendenciasAbertas).toEqual(['plano-contas:incompleto']);
     expect(chamadas.transacoesAbertas).toBe(0);
+  });
+
+  it('se a 2ª transação também falhar, a resposta continua FALHA_TECNICA (sem rejeição solta)', async () => {
+    const { servico, id } = await preparar();
+    validada(id);
+    falhas.notificar = new Error('conexão com o banco caiu');
+
+    const erro = await servico.confirmar(CONTEXTO, EMPRESA, id, 0).catch((e: unknown) => e);
+
+    expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.FALHA_TECNICA, detalhes: { tentativaId: id } });
+    expect(db.atual.contas).toEqual([]);
+    expect(db.atual.tentativas[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
+    expect(chamadas.transacoesAbertas).toBe(0);
+  });
+
+  it('linha válida que achou conta arquivada na aplicação: o plano mudou sob a prévia → CONFLITO_DE_VERSAO', async () => {
+    const { servico, id } = await preparar();
+    validada(id);
+    falhas.ignoradas = ['1.1'];
+
+    expect(await codigoDo(() => servico.confirmar(CONTEXTO, EMPRESA, id, 0))).toBe(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO);
+    expect(db.atual.contas).toEqual([]);
+    expect(db.atual.tentativas[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
+    expect(db.atual.notificacoes).toEqual([]);
   });
 });
 
@@ -766,5 +851,58 @@ describe('relatório CSV (SPEC-013 §3.9)', () => {
       expect(chamadas.transacoesAbertas).toBe(0);
       expect(chamadas.relatorioFinalizado).toBe(true);
     });
+  });
+
+  it('a transação do relatório tem teto de ociosidade (leitor lento não segura a conexão)', async () => {
+    const { servico } = montar({ ociosidadeMs: 1_234, totalMs: 60_000 });
+    const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    validada(tentativaId);
+
+    const { conteudo } = await servico.relatorio(CONTEXTO, EMPRESA, tentativaId);
+    conteudo.resume();
+
+    expect(chamadas.sqls).toContain(`select set_config($1, $2, true) ["idle_in_transaction_session_timeout","1234ms"]`);
+    await vi.waitFor(() => expect(chamadas.transacoesAbertas).toBe(0));
+  });
+
+  it('leitor que nunca consome: o prazo total destrói o fluxo e a transação é encerrada', async () => {
+    const { servico } = montar({ ociosidadeMs: 60_000, totalMs: 30 });
+    const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    validada(tentativaId);
+
+    const { conteudo } = await servico.relatorio(CONTEXTO, EMPRESA, tentativaId);
+    const erros: unknown[] = [];
+    conteudo.on('error', (erro) => erros.push(erro));
+
+    await vi.waitFor(() => {
+      expect(conteudo.destroyed).toBe(true);
+      expect(chamadas.transacoesAbertas).toBe(0);
+      expect(chamadas.relatorioFinalizado).toBe(true);
+    });
+    expect(String(erros[0])).toMatch(/prazo/u);
+  });
+
+  it('conexão derrubada pelo servidor no meio do fluxo: encerra o fluxo sem derrubar o processo', async () => {
+    const { servico } = montar();
+    const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    validada(tentativaId);
+
+    const { conteudo } = await servico.relatorio(CONTEXTO, EMPRESA, tentativaId);
+    conteudo.on('error', () => undefined);
+    chamadas.clientes.at(-1)!.emit('error', new Error('terminating connection due to idle-in-transaction timeout'));
+
+    await vi.waitFor(() => {
+      expect(conteudo.destroyed).toBe(true);
+      expect(chamadas.transacoesAbertas).toBe(0);
+    });
+  });
+
+  it('FALHA sem staging (nunca validada) não tem relatório', async () => {
+    const { servico } = montar();
+    const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    trocar(tentativaId, { estado: 'FALHA', totais: null, finalizadoEm: AGORA });
+
+    expect((await servico.previa(CONTEXTO, EMPRESA, tentativaId)).relatorioDisponivel).toBe(false);
+    expect(await codigoDo(() => servico.relatorio(CONTEXTO, EMPRESA, tentativaId))).toBe(CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO);
   });
 });

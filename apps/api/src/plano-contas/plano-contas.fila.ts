@@ -11,7 +11,7 @@
  * A API sobe sem Redis (modo local sem fila): sem `REDIS_URL`, enfileirar falha e o caso de uso
  * responde `FILA_INDISPONIVEL`, com a tentativa preservada em `RECEBIDA` para nova tentativa.
  */
-import { Logger, type Provider } from '@nestjs/common';
+import { Logger, type OnModuleDestroy, type Provider } from '@nestjs/common';
 import {
   ComandoValidarImportacaoSchema,
   FILA_DE_VALIDACAO_PLANO_CONTAS,
@@ -90,12 +90,16 @@ export const enfileirarValidacao = async (
   );
 };
 
+/** A fila do provider: o Nest chama `onModuleDestroy` no shutdown (fecha a fila e a conexão Redis). */
+export type FilaDeValidacaoGerenciada = FilaDeValidacaoDoPlano & OnModuleDestroy & Readonly<{ onModuleDestroy(): Promise<void> }>;
+
 /** Sem `REDIS_URL` (modo local sem fila): toda tentativa de enfileirar falha, sem rede. */
-const filaDesligada = (): FilaDeValidacaoDoPlano => ({
+const filaDesligada = (): FilaDeValidacaoGerenciada => ({
   enfileirar: () => Promise.reject(new Error('REDIS_URL ausente: validação do plano de contas não enfileirada')),
+  onModuleDestroy: () => Promise.resolve(),
 });
 
-export const criarFilaDeValidacaoDoPlano = (env: NodeJS.ProcessEnv): FilaDeValidacaoDoPlano => {
+export const criarFilaDeValidacaoDoPlano = (env: NodeJS.ProcessEnv): FilaDeValidacaoGerenciada => {
   const url = env['REDIS_URL']?.trim();
   const logger = new Logger('FilaDoPlanoDeContas');
 
@@ -108,12 +112,12 @@ export const criarFilaDeValidacaoDoPlano = (env: NodeJS.ProcessEnv): FilaDeValid
   // Criada no primeiro envio: o BullMQ conecta ao construir, e a API (e o teste de DI) não deve
   // abrir conexão com Redis só por subir.
   let fila: Queue | null = null;
+  let conexao: Redis | null = null;
   const obterFila = (): Queue => {
     if (fila === null) {
       // Produtor: não precisa de `maxRetriesPerRequest: null` (isso é do Worker).
-      fila = new Queue(FILA_DE_VALIDACAO_PLANO_CONTAS, {
-        connection: new Redis(url, { maxRetriesPerRequest: 3 }),
-      });
+      conexao = new Redis(url, { maxRetriesPerRequest: 3 });
+      fila = new Queue(FILA_DE_VALIDACAO_PLANO_CONTAS, { connection: conexao });
       // Sem ouvinte, o `error` de conexão derrubaria o processo. Só a mensagem: nada de payload.
       fila.on('error', (erro: Error) => logger.warn(`fila do plano de contas indisponível: ${erro.message}`));
     }
@@ -123,6 +127,13 @@ export const criarFilaDeValidacaoDoPlano = (env: NodeJS.ProcessEnv): FilaDeValid
 
   return {
     enfileirar: (comando) => enfileirarValidacao(obterFila(), comando),
+    // A conexão foi passada pronta ao BullMQ, que não a fecha no `close()`: fecha-se aqui também.
+    onModuleDestroy: async () => {
+      await fila?.close();
+      await conexao?.quit().catch(() => conexao?.disconnect());
+      fila = null;
+      conexao = null;
+    },
   };
 };
 

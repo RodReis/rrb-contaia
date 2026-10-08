@@ -74,3 +74,15 @@ describe('criarFilaDeValidacaoDoPlano', () => {
     await expect(criarFilaDeValidacaoDoPlano({}).enfileirar(COMANDO)).rejects.toThrow(/REDIS_URL/u);
   });
 });
+
+describe('ciclo de vida da fila', () => {
+  it('encerra no shutdown do módulo mesmo sem nunca ter conectado', async () => {
+    const fila = criarFilaDeValidacaoDoPlano({ REDIS_URL: 'redis://127.0.0.1:1' });
+
+    await expect(fila.onModuleDestroy()).resolves.toBeUndefined();
+  });
+
+  it('a fila desligada (sem REDIS_URL) também encerra sem erro', async () => {
+    await expect(criarFilaDeValidacaoDoPlano({}).onModuleDestroy()).resolves.toBeUndefined();
+  });
+});

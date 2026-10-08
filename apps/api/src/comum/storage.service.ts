@@ -82,7 +82,7 @@ export class StorageService implements OnModuleInit {
   /**
    * Sobe o arquivo numa chave decidida pelo caso de uso — nunca derivada do nome do usuário. Serve
    * ao armazenamento endereçado por conteúdo (SPEC-013: `…/<sha256>.csv`): reenviar os mesmos bytes
-   * sobrescreve o objeto com conteúdo idêntico e não deixa original órfão.
+   * sobrescreve o objeto com conteúdo idêntico (sem duplicados).
    */
   async enviarComChave(chave: string, conteudo: Buffer, tipoConteudo: string): Promise<void> {
     await this.cliente.send(

@@ -17,6 +17,7 @@ import {
   criarPoolDaAplicacao,
   gravarResultadoDaValidacao,
   iniciarValidacaoDaImportacao,
+  obterUrlDaAplicacao,
   type LinhaDeStaging,
 } from '@contaia/db';
 import { CODIGOS_DE_ERRO, MODELO_CSV, contextoTecnico, permissoesDosPapeisPadrao, type PapelPadrao } from '@contaia/domain';
@@ -26,7 +27,7 @@ import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
-import type { Pool } from 'pg';
+import { Pool } from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -40,7 +41,7 @@ import { StorageService } from '../comum/storage.service';
 import { EmpresaService } from '../empresa/empresa.service';
 import { reconciliarPendenciaDoPlano } from './pendencia-do-plano';
 import { PlanoContasDaEmpresaController } from './plano-contas.controller';
-import { enfileirarValidacao, type FilaDeValidacaoDoPlano } from './plano-contas.fila';
+import { criarFilaDeValidacaoDoPlano, enfileirarValidacao, type FilaDeValidacaoDoPlano } from './plano-contas.fila';
 import { PlanoContasService, type ContextoDaImportacao } from './plano-contas.service';
 
 const admin: Pool = criarPool();
@@ -78,6 +79,9 @@ let usuarioB = '';
 let empresa = '';
 let outraDaCarteira = '';
 let aAtivar = '';
+let empresaFalha = '';
+let empresaArquivada = '';
+let empresaGrande = '';
 let empresaB = '';
 let http: INestApplication;
 
@@ -225,7 +229,10 @@ beforeAll(async () => {
      values ($1, $2, '01310100', 'Avenida Paulista', '1000', 'Bela Vista', 'São Paulo', 'SP')`,
     [tenantA, aAtivar],
   );
-  for (const empresaId of [empresa, outraDaCarteira, aAtivar]) {
+  empresaFalha = await novaEmpresa(tenantA, 'F');
+  empresaArquivada = await novaEmpresa(tenantA, 'Q');
+  empresaGrande = await novaEmpresa(tenantA, 'G');
+  for (const empresaId of [empresa, outraDaCarteira, aAtivar, empresaFalha, empresaArquivada, empresaGrande]) {
     await vincular(tenantA, contador, empresaId);
   }
   await vincular(tenantA, auxiliar, empresa);
@@ -412,6 +419,119 @@ describe('confirmação, pendência e relatório', () => {
     await empresas.ativar(tenantA, contador, aAtivar, true);
 
     expect(await pendenciaDoPlano(aAtivar)).toBe('ABERTA');
+  });
+});
+
+describe('falhas na confirmação e no relatório', () => {
+  it('falha técnica na aplicação: nada aplicado, tentativa em FALHA com um evento de código estável, reenvio cria nova', async () => {
+    const arquivo = { buffer: csv(['5;Cinco;sintetica;devedora;FANTASMA']), nome: 'falha.csv', mimetype: 'text/csv' };
+    const enviada = await servico.enviar(contexto(contador), empresaFalha, arquivo, MAPEAMENTO);
+    // Staging "válido" com pai inexistente: a FK diferida da conta-pai recusa na aplicação (23503),
+    // falha técnica determinística (a validação real nunca deixaria passar).
+    await validarComoWorker(empresaFalha, enviada.tentativaId, [valida(2, '5', 'FANTASMA')]);
+
+    const erro = await servico.confirmar(contexto(contador), empresaFalha, enviada.tentativaId, 0).catch((e: unknown) => e);
+
+    expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.FALHA_TECNICA, detalhes: { tentativaId: enviada.tentativaId } });
+    const tentativa = await admin.query<{ estado: string; usuario_confirmador_id: string; finalizado_em: Date | null }>(
+      `select estado, usuario_confirmador_id, finalizado_em from app.importacao_plano_contas where id = $1`,
+      [enviada.tentativaId],
+    );
+    expect(tentativa.rows[0]).toMatchObject({ estado: 'FALHA', usuario_confirmador_id: contador });
+    expect(tentativa.rows[0]!.finalizado_em).not.toBeNull();
+    const falhas = await admin.query<{ codigo: string; correlation_id: string; estado_anterior: string }>(
+      `select codigo, correlation_id, estado_anterior from app.importacao_plano_contas_evento
+        where tentativa_id = $1 and acao = 'FALHA_TECNICA'`,
+      [enviada.tentativaId],
+    );
+    expect(falhas.rows).toEqual([{ codigo: 'FALHA_NA_APLICACAO', correlation_id: `corr-plano-${sufixo}`, estado_anterior: 'APLICANDO' }]);
+    const contas = await admin.query(`select 1 from app.conta_contabil where empresa_id = $1`, [empresaFalha]);
+    expect(contas.rowCount).toBe(0);
+
+    // O índice de idempotência ignora FALHA: o mesmo arquivo com o mesmo mapeamento vira tentativa nova.
+    const nova = await servico.enviar(contexto(contador), empresaFalha, arquivo, MAPEAMENTO);
+    expect(nova.tentativaId).not.toBe(enviada.tentativaId);
+    expect(nova.estado).toBe('RECEBIDA');
+    poolLivre();
+  });
+
+  it('conta arquivada depois da prévia: CONFLITO_DE_VERSAO, nada aplicado e a tentativa segue aguardando', async () => {
+    await admin.query(
+      `insert into app.conta_contabil (tenant_id, empresa_id, codigo, nome, tipo, natureza, arquivada, arquivada_em)
+       values ($1, $2, 'Z', 'Zeta original', 'sintetica', 'devedora', true, now())`,
+      [tenantA, empresaArquivada],
+    );
+    const enviada = await servico.enviar(
+      contexto(contador),
+      empresaArquivada,
+      { buffer: csv(['Z;Zeta nova;sintetica;devedora;']), nome: 'arquivada.csv', mimetype: 'text/csv' },
+      MAPEAMENTO,
+    );
+    await validarComoWorker(empresaArquivada, enviada.tentativaId, [valida(2, 'Z', null)]);
+
+    const erro = await servico.confirmar(contexto(contador), empresaArquivada, enviada.tentativaId, 0).catch((e: unknown) => e);
+
+    expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO });
+    const estado = await admin.query<{ estado: string }>(`select estado from app.importacao_plano_contas where id = $1`, [
+      enviada.tentativaId,
+    ]);
+    expect(estado.rows[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
+    const conta = await admin.query<{ nome: string }>(`select nome from app.conta_contabil where empresa_id = $1`, [empresaArquivada]);
+    expect(conta.rows).toEqual([{ nome: 'Zeta original' }]);
+  });
+
+  it('leitores que nunca consomem o relatório não esgotam o pool: o servidor encerra a sessão ociosa', async () => {
+    const enviada = await servico.enviar(
+      contexto(contador),
+      empresaGrande,
+      { buffer: csv(['1;Grande;sintetica;devedora;']), nome: 'grande.csv', mimetype: 'text/csv' },
+      MAPEAMENTO,
+    );
+    await validarComoWorker(
+      empresaGrande,
+      enviada.tentativaId,
+      Array.from({ length: 3_000 }, (_v, i) => valida(i + 2, `G${String(i).padStart(5, '0')}`, null)),
+    );
+
+    // Pool de 2: se as duas conexões ficassem presas, a terceira consulta esperaria para sempre.
+    const pequeno = new Pool({ connectionString: obterUrlDaAplicacao(), max: 2 });
+    pequeno.on('error', () => undefined);
+    const lento = new PlanoContasService({ instancia: pequeno } as PoolDoBanco, storage, filaDaApi, {
+      ociosidadeMs: 300,
+      totalMs: 60_000,
+    });
+
+    try {
+      const relatorios = await Promise.all([
+        lento.relatorio(contexto(contador), empresaGrande, enviada.tentativaId),
+        lento.relatorio(contexto(contador), empresaGrande, enviada.tentativaId),
+      ]);
+      for (const { conteudo } of relatorios) {
+        conteudo.on('error', () => undefined);
+      }
+
+      await vi.waitFor(
+        () => {
+          expect(relatorios.every(({ conteudo }) => conteudo.destroyed)).toBe(true);
+          expect(pequeno.waitingCount).toBe(0);
+          expect(pequeno.idleCount).toBe(pequeno.totalCount);
+        },
+        { timeout: 10_000, interval: 100 },
+      );
+
+      const previa = await lento.previa(contexto(contador), empresaGrande, enviada.tentativaId);
+      expect(previa.totais).toMatchObject({ lidas: 3_000 });
+    } finally {
+      await pequeno.end();
+    }
+  });
+
+  it('a fila do provider fecha a conexão Redis no shutdown, mesmo depois de usada', async () => {
+    const provida = criarFilaDeValidacaoDoPlano({ REDIS_URL: process.env['REDIS_URL'] ?? 'redis://127.0.0.1:16379' });
+
+    // Comando fora do contrato: cria a fila (e a conexão) e é recusado antes de qualquer job.
+    await expect(provida.enfileirar({ tenantId: 'x' } as never)).rejects.toThrow();
+    await expect(provida.onModuleDestroy()).resolves.toBeUndefined();
   });
 });
 

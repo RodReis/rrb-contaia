@@ -64,6 +64,14 @@ describe('mensagens da importação do plano de contas (SPEC-013)', () => {
     expect(mensagem.length).toBeGreaterThan(10);
   });
 
+  it('falha técnica diz que nada foi alterado e que é preciso um novo envio (a tentativa termina em FALHA)', () => {
+    const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO.FALHA_TECNICA);
+
+    expect(mensagem).toMatch(/Nenhuma conta foi alterada/u);
+    expect(mensagem).toMatch(/envie o arquivo de novo/iu);
+    expect(mensagem).not.toMatch(/confirme de novo|tente de novo/iu);
+  });
+
   it('arquivo acima do limite informa 10 MB e 10.000 linhas', () => {
     const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE);
 

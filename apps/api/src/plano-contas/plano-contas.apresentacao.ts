@@ -3,7 +3,6 @@
  * nunca sai como veio: tenant, iniciador, chave do storage e a versão interna da conta ficam no
  * servidor. As flags de ação saem do estado — a permissão continua conferida em cada rota.
  */
-import type { EstadoDaImportacao } from '@contaia/domain';
 import type {
   ContaDoPlano,
   PaginaDeRejeicoes,
@@ -19,14 +18,17 @@ import type {
   RejeicaoDaImportacao,
 } from '@contaia/shared';
 
-/** Estados que ainda não têm staging: sem prévia, sem rejeições, sem relatório. */
-const SEM_RESULTADO: readonly EstadoDaImportacao[] = ['RECEBIDA', 'VALIDANDO'];
+type SituacaoDaTentativa = Pick<TentativaDeImportacao, 'estado' | 'totais'>;
 
-export const temResultadoDaValidacao = (estado: EstadoDaImportacao): boolean => !SEM_RESULTADO.includes(estado);
+/**
+ * Há staging quando a validação gravou o resultado (os totais saem dele). RECEBIDA, VALIDANDO e a
+ * FALHA de validação não têm: sem rejeições nem relatório.
+ */
+export const temResultadoDaValidacao = (tentativa: SituacaoDaTentativa): boolean => tentativa.totais !== null;
 
-/** Relatório existe para a prévia e para os terminais; `APLICANDO` nunca é visto fora da transação. */
-export const relatorioDisponivel = (estado: EstadoDaImportacao): boolean =>
-  temResultadoDaValidacao(estado) && estado !== 'APLICANDO';
+/** Relatório existe para a prévia e para os terminais com staging; `APLICANDO` nunca é visto fora da transação. */
+export const relatorioDisponivel = (tentativa: SituacaoDaTentativa): boolean =>
+  temResultadoDaValidacao(tentativa) && tentativa.estado !== 'APLICANDO';
 
 const paraRejeicao = (rejeicao: RejeicaoDaLinha): RejeicaoDaImportacao => ({
   numeroDaLinha: rejeicao.numeroDaLinha,
@@ -63,7 +65,7 @@ export const paraPrevia = (
     reutilizadaPorIdempotencia: tentativa.reutilizadaPorIdempotencia,
     podeConfirmar: aguardando,
     podeCancelar: aguardando,
-    relatorioDisponivel: relatorioDisponivel(tentativa.estado),
+    relatorioDisponivel: relatorioDisponivel(tentativa),
   };
 };
 

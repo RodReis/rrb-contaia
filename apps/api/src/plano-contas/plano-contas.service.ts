@@ -18,6 +18,7 @@ import { pipeline } from 'node:stream/promises';
 import {
   CAMPOS_DO_CONTRATO,
   CODIGOS_DE_ERRO,
+  ErroDeConflito,
   ErroDeDominio,
   gerarRelatorioCsv,
   validarMapeamento,
@@ -38,6 +39,7 @@ import {
   listarPlanoDeContas,
   listarRejeicoesDaImportacao,
   registrarEventoDeImportacao,
+  registrarFalhaDaImportacao,
   type NovoEventoDeImportacao,
   type ResultadoDaAplicacao,
   type TentativaDeImportacao,
@@ -53,7 +55,7 @@ import {
   type PaginaDoPlanoDeContas,
   type PreviaDaImportacao,
 } from '@contaia/shared';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 
 import { PoolDoBanco } from '../banco/pool.provider';
@@ -87,7 +89,11 @@ export const ITENS_POR_PAGINA_DE_REJEICOES = 20;
 export const ITENS_POR_PAGINA_DO_PLANO = 50;
 const LIMITE_DO_NOME_DO_ARQUIVO = 255;
 
-/** Chave endereçada por conteúdo: reenviar os mesmos bytes não deixa original órfão. */
+/**
+ * Chave endereçada por conteúdo: o mesmo arquivo ocupa um objeto só (sem duplicados). O PUT acontece
+ * antes do commit da tentativa; se ela não nascer, o objeto fica — inofensivo, e o próximo envio do
+ * mesmo conteúdo o sobrescreve com bytes idênticos.
+ */
 export const chaveDoOriginal = (tenantId: string, empresaId: string, hash: string): string =>
   `${tenantId}/${empresaId}/plano-contas/${hash}.csv`;
 
@@ -96,7 +102,25 @@ const sha256 = (conteudo: Buffer): string => createHash('sha256').update(conteud
 const naoEncontrada = (): ErroDeDominio =>
   new ErroDeDominio(CODIGOS_DE_ERRO.TENTATIVA_NAO_ENCONTRADA, 'Tentativa de importação não encontrada.');
 
-const falhaTecnica = (mensagem: string): ErroDeDominio => new ErroDeDominio(CODIGOS_DE_ERRO.FALHA_TECNICA, mensagem);
+const falhaTecnica = (mensagem: string, detalhes: Readonly<Record<string, unknown>> = {}): ErroDeDominio =>
+  new ErroDeDominio(CODIGOS_DE_ERRO.FALHA_TECNICA, mensagem, [], detalhes);
+
+/** Código estável do evento de falha técnica na aplicação (nunca a mensagem da exceção). */
+export const CODIGO_DA_FALHA_NA_APLICACAO = 'FALHA_NA_APLICACAO';
+
+/** Token opcional dos prazos do relatório (os testes encurtam; a API usa os padrões). */
+export const PRAZOS_DO_RELATORIO = Symbol('PRAZOS_DO_RELATORIO');
+
+export type PrazosDoRelatorio = Readonly<{ ociosidadeMs: number; totalMs: number }>;
+
+/**
+ * Enquanto o cliente não lê, o cursor espera a contrapressão do fluxo — e a sessão fica "idle in
+ * transaction" segurando uma conexão do pool (10). Acima disto o próprio PostgreSQL encerra a
+ * sessão; o erro da conexão destrói o fluxo e a conexão sai do pool.
+ */
+export const OCIOSIDADE_MAXIMA_DO_RELATORIO_MS = 30_000;
+/** Teto do download inteiro, mesmo com um leitor que lê aos pinguinhos. */
+export const PRAZO_TOTAL_DO_RELATORIO_MS = 5 * 60_000;
 
 /** Só o tipo e o código técnico: a mensagem de um erro do banco pode carregar valores da linha. */
 const descreverFalha = (erro: unknown): string => {
@@ -158,23 +182,27 @@ const exigirMapeamentoCompleto = (cabecalho: readonly string[], mapeamento: Mape
 
 const nomeDoArquivo = (nome: string): string => nome.trim().slice(0, LIMITE_DO_NOME_DO_ARQUIVO) || 'plano-de-contas.csv';
 
-/** Rejeitadas da validação mais as válidas que acharam conta arquivada na aplicação (não tocadas). */
 const totaisFinais = (validacao: TotaisDaImportacao | null, aplicacao: ResultadoDaAplicacao): TotaisDaImportacao => ({
   lidas: validacao?.lidas ?? 0,
   novas: aplicacao.incluidas,
   atualizadas: aplicacao.atualizadas,
-  rejeitadas: (validacao?.rejeitadas ?? 0) + aplicacao.ignoradas.length,
+  rejeitadas: validacao?.rejeitadas ?? 0,
 });
 
 @Injectable()
 export class PlanoContasService {
   private readonly logger = new Logger(PlanoContasService.name);
 
+  private readonly prazos: PrazosDoRelatorio;
+
   constructor(
     private readonly pool: PoolDoBanco,
     private readonly storage: StorageService,
     @Inject(FILA_DE_VALIDACAO_DO_PLANO) private readonly fila: FilaDeValidacaoDoPlano,
-  ) {}
+    @Optional() @Inject(PRAZOS_DO_RELATORIO) prazos?: PrazosDoRelatorio,
+  ) {
+    this.prazos = prazos ?? { ociosidadeMs: OCIOSIDADE_MAXIMA_DO_RELATORIO_MS, totalMs: PRAZO_TOTAL_DO_RELATORIO_MS };
+  }
 
   /** Único ponto que lê o relógio (I-11): os testes o substituem. */
   protected agora(): Date {
@@ -290,7 +318,18 @@ export class PlanoContasService {
           }),
         );
 
-        const totais = totaisFinais(confirmada.totais, await aplicarLinhasNoPlano(cliente, empresaId, tentativaId, agora));
+        const aplicacao = await aplicarLinhasNoPlano(cliente, empresaId, tentativaId, agora);
+
+        // Linha válida que achou a conta arquivada: o plano mudou sob a prévia (o arquivamento não
+        // sobe a versão). Nada é aplicado; a prévia precisa ser refeita.
+        if (aplicacao.ignoradas.length > 0) {
+          throw new ErroDeConflito(
+            CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,
+            'O plano de contas mudou depois da prévia (há conta arquivada). Valide o arquivo novamente.',
+          );
+        }
+
+        const totais = totaisFinais(confirmada.totais, aplicacao);
         const estadoFinal = totais.rejeitadas > 0 ? 'CONCLUIDA_COM_REJEICOES' : 'CONCLUIDA';
 
         await registrarEventoDeImportacao(
@@ -322,7 +361,61 @@ export class PlanoContasService {
       this.logger.error(
         `falha técnica ao aplicar a tentativa ${tentativaId} [${contexto.correlationId}]: ${descreverFalha(erro)}`,
       );
-      throw falhaTecnica('A importação não pôde ser aplicada por um problema técnico. Nenhuma conta foi alterada; confirme de novo.');
+      await this.registrarFalhaDaAplicacao(contexto, empresaId, tentativaId, versaoDaPrevia);
+      throw falhaTecnica(
+        'A importação não pôde ser aplicada por um problema técnico. Nenhuma conta foi alterada; envie o arquivo de novo para uma nova tentativa.',
+        { tentativaId },
+      );
+    }
+  }
+
+  /**
+   * Depois do ROLLBACK da aplicação, numa transação curta e separada: a tentativa passa por
+   * APLICANDO (com o confirmador) e termina em FALHA, com evento append-only de código estável e o
+   * aviso ao iniciador (SPEC-013 §3.10, §3.11). Só acontece se ela ainda estiver na MESMA prévia
+   * (o `confirmar` do repositório é o UPDATE condicional); se algo mudou ou esta transação também
+   * falhar, fica só o registro no log — a resposta continua sendo `FALHA_TECNICA`.
+   */
+  private async registrarFalhaDaAplicacao(
+    contexto: ContextoDaImportacao,
+    empresaId: string,
+    tentativaId: string,
+    versaoDaPrevia: number,
+  ): Promise<void> {
+    const agora = this.agora();
+
+    try {
+      await comContextoHumano(this.pool.instancia, contexto, async (cliente) => {
+        const confirmada = await confirmarImportacao(cliente, {
+          empresaId,
+          tentativaId,
+          usuarioId: contexto.usuarioId,
+          versaoDaPrevia,
+        });
+        await registrarEventoDeImportacao(
+          cliente,
+          this.evento(contexto, confirmada, agora, {
+            acao: 'CONFIRMAR',
+            estadoAnterior: 'AGUARDANDO_CONFIRMACAO',
+            estadoNovo: 'APLICANDO',
+            totais: null,
+          }),
+        );
+        await registrarFalhaDaImportacao(cliente, empresaId, tentativaId, agora);
+        await registrarEventoDeImportacao(cliente, {
+          ...this.evento(contexto, confirmada, agora, {
+            acao: 'FALHA_TECNICA',
+            estadoAnterior: 'APLICANDO',
+            estadoNovo: 'FALHA',
+            totais: confirmada.totais,
+          }),
+          codigo: CODIGO_DA_FALHA_NA_APLICACAO,
+        });
+        await criarNotificacaoDeImportacao(cliente, { empresaId, tentativaId, agora });
+      });
+    } catch (erro) {
+      const motivo = erro instanceof ErroDeDominio ? erro.codigo : descreverFalha(erro);
+      this.logger.error(`FALHA da tentativa ${tentativaId} não registrada [${contexto.correlationId}]: ${motivo}`);
     }
   }
 
@@ -422,19 +515,38 @@ export class PlanoContasService {
     void comContextoHumano(this.pool.instancia, contexto, async (cliente) => {
       const tentativa = await this.exigirTentativa(cliente, empresaId, tentativaId);
 
-      if (!relatorioDisponivel(tentativa.estado)) {
+      if (!relatorioDisponivel(tentativa)) {
         throw new ErroDeDominio(
           CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO,
           'O relatório fica disponível quando a validação terminar.',
         );
       }
 
+      await cliente.query('select set_config($1, $2, true)', [
+        'idle_in_transaction_session_timeout',
+        `${this.prazos.ociosidadeMs}ms`,
+      ]);
+
       aberta = true;
       abrir(tentativa);
-      await pipeline(
-        Readable.from(gerarRelatorioCsv(listarLinhasParaRelatorio(cliente, empresaId, tentativaId))),
-        conteudo,
-      );
+
+      // Conexão derrubada (ociosidade estourada) ou prazo total: destruir o fluxo faz o pipeline
+      // falhar, o cursor fechar e a transação reverter — a conexão volta (ou sai) do pool.
+      const interromper = (erro: Error): void => {
+        conteudo.destroy(erro);
+      };
+      const prazo = setTimeout(() => interromper(new Error('prazo do relatório esgotado')), this.prazos.totalMs);
+      cliente.on('error', interromper);
+
+      try {
+        await pipeline(
+          Readable.from(gerarRelatorioCsv(listarLinhasParaRelatorio(cliente, empresaId, tentativaId))),
+          conteudo,
+        );
+      } finally {
+        clearTimeout(prazo);
+        cliente.removeListener('error', interromper);
+      }
     }).catch((erro: unknown) => {
       recusar(erro);
 
@@ -472,7 +584,7 @@ export class PlanoContasService {
   }
 
   private async montarPrevia(cliente: PoolClient, tentativa: TentativaDeImportacao): Promise<PreviaDaImportacao> {
-    const amostra = temResultadoDaValidacao(tentativa.estado)
+    const amostra = temResultadoDaValidacao(tentativa)
       ? (await listarRejeicoesDaImportacao(cliente, tentativa.empresaId, tentativa.id, 1, ITENS_POR_PAGINA_DE_REJEICOES)).itens
       : [];
 

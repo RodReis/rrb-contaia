@@ -103,7 +103,7 @@ const MENSAGENS: Readonly<Record<string, string>> = {
   [CODIGOS_DE_ERRO.FILA_INDISPONIVEL]:
     'Não foi possível enfileirar a importação agora. Tente de novo em instantes.',
   [CODIGOS_DE_ERRO.FALHA_TECNICA]:
-    'A importação falhou por um problema técnico. Nenhuma conta foi alterada; tente de novo.',
+    'A importação falhou por um problema técnico. Nenhuma conta foi alterada; envie o arquivo de novo para uma nova tentativa.',
   [CODIGOS_DE_ERRO.ARQUIVO_VAZIO]: 'O arquivo não tem nenhuma linha de dados para importar.',
   [CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE]:
     'O arquivo passa do limite de 10 MB ou de 10.000 linhas. Divida-o e envie em partes.',
