@@ -23,6 +23,8 @@ export interface LinhaDeEntrada {
  * `normalizarLinhas`, mas possivelmente fora do domínio ou em branco). `validarLinhasDoPlano`
  * rejeita o que não for do domínio; `LinhaDeEntrada` é atribuível a este tipo.
  */
+export type DefeitoDeEstrutura = 'CAMPOS_A_MAIS';
+
 export interface LinhaBrutaDeEntrada {
   readonly numeroDaLinha: number;
   readonly codigo: string;
@@ -30,6 +32,11 @@ export interface LinhaBrutaDeEntrada {
   readonly tipo: string;
   readonly natureza: string;
   readonly contaPai: string | null;
+  /**
+   * Defeito de leitura da linha (não do conteúdo): `CAMPOS_A_MAIS` = mais campos preenchidos que
+   * o cabeçalho, o que torna as colunas da linha inconfiáveis. A linha é rejeitada.
+   */
+  readonly defeitoDeEstrutura?: DefeitoDeEstrutura;
 }
 
 export interface ContaVigente {
@@ -54,6 +61,8 @@ export interface LinhaRejeitada {
   readonly codigo: string | null;
   readonly campo: string | null;
   readonly codigoDeErro: CodigoDeErroDaLinha;
+  /** Texto acionável em PT-BR quando a rejeição não deriva só do código (ex.: defeito de estrutura). */
+  readonly mensagem?: string;
 }
 
 export interface LinhaAceita {
@@ -72,6 +81,8 @@ export interface ResultadoDaValidacao {
 
 const TIPOS_VALIDOS: readonly TipoDaConta[] = ['analitica', 'sintetica'];
 const NATUREZAS_VALIDAS: readonly NaturezaDaConta[] = ['devedora', 'credora'];
+
+const MENSAGEM_CAMPOS_A_MAIS = "A linha tem mais campos do que o cabeçalho; confira ';' ou aspas no texto.";
 
 const ehTipoDaConta = (valor: string): valor is TipoDaConta =>
   (TIPOS_VALIDOS as readonly string[]).includes(valor);
@@ -96,6 +107,9 @@ const rejeicao = (
  * domínio → valor fora do domínio. Não decide hierarquia, duplicidade nem conflito com o vigente.
  */
 const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | LinhaDeEntrada => {
+  if (linha.defeitoDeEstrutura === 'CAMPOS_A_MAIS') {
+    return { ...rejeicao(linha, 'VALOR_FORA_DO_DOMINIO'), mensagem: MENSAGEM_CAMPOS_A_MAIS };
+  }
   if (!linha.codigo) {
     return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'codigo');
   }

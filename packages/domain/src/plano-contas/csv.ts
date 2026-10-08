@@ -61,10 +61,12 @@ const decodificarBytes = (bytes: Uint8Array): string => {
  * Primeiro registro (cabeçalho) respeitando aspas, e o texto que vem depois dele. Ignora linhas
  * em branco antes do cabeçalho.
  */
-const separarCabecalho = (texto: string): Readonly<{ cabecalho: string; resto: string }> => {
+const separarCabecalho = (
+  texto: string,
+): Readonly<{ cabecalho: string; resto: string; aspasAbertas: boolean }> => {
   const inicio = texto.search(/\S/u);
   if (inicio < 0) {
-    return { cabecalho: '', resto: '' };
+    return { cabecalho: '', resto: '', aspasAbertas: false };
   }
 
   let dentroDeAspas = false;
@@ -73,11 +75,11 @@ const separarCabecalho = (texto: string): Readonly<{ cabecalho: string; resto: s
     if (caractere === '"') {
       dentroDeAspas = !dentroDeAspas;
     } else if (!dentroDeAspas && (caractere === '\n' || caractere === '\r')) {
-      return { cabecalho: texto.slice(inicio, indice), resto: texto.slice(indice) };
+      return { cabecalho: texto.slice(inicio, indice), resto: texto.slice(indice), aspasAbertas: false };
     }
   }
 
-  return { cabecalho: texto.slice(inicio), resto: '' };
+  return { cabecalho: texto.slice(inicio), resto: '', aspasAbertas: dentroDeAspas };
 };
 
 const contarForaDeAspas = (registro: string, delimitador: Delimitador): number => {
@@ -115,6 +117,7 @@ const arquivoVazio = (): ErroDeDominio =>
  * - mais de 10 MB → `ARQUIVO_ACIMA_DO_LIMITE` (antes de ler o conteúdo);
  * - BOM UTF-8 removido; UTF-8 estrito, senão Windows-1252 (Latin-1); UTF-16 só com BOM;
  * - conteúdo binário (caracteres de controle) → `ARQUIVO_INVALIDO`;
+ * - aspas sem fechar no cabeçalho → `ARQUIVO_INVALIDO`;
  * - vazio ou só cabeçalho → `ARQUIVO_VAZIO`.
  */
 export const decodificarCsv = (bytes: Uint8Array): Readonly<{ texto: string; delimitador: Delimitador }> => {
@@ -137,7 +140,13 @@ export const decodificarCsv = (bytes: Uint8Array): Readonly<{ texto: string; del
     );
   }
 
-  const { cabecalho, resto } = separarCabecalho(texto);
+  const { cabecalho, resto, aspasAbertas } = separarCabecalho(texto);
+  if (aspasAbertas) {
+    throw new ErroDeDominio(
+      CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,
+      'O CSV está malformado: há aspas sem fechar no cabeçalho.',
+    );
+  }
   if (cabecalho === '' || resto.trim() === '') {
     throw arquivoVazio();
   }
@@ -215,31 +224,43 @@ const indicesDasColunas = (
 };
 
 /**
- * Linhas tokenizadas → entrada da validação. `numerosDasLinhas` traz a linha física de cada
- * registro no arquivo (cabeçalho = 1); sem ele, assume registros consecutivos a partir da 2.
+ * Registro de dados já tokenizado. O número da linha física viaja junto com as células (cabeçalho
+ * = linha 1; um registro com quebra de linha entre aspas ocupa várias linhas), então não há como
+ * a numeração se descolar dos dados.
+ */
+export type RegistroDoCsv = Readonly<{
+  numeroDaLinha: number;
+  /** Exatamente a largura do cabeçalho. */
+  celulas: readonly string[];
+  /** Campos preenchidos além do cabeçalho (ex.: `;` sem aspas dentro do nome). 0 = nenhum. */
+  camposAMais: number;
+}>;
+
+/**
+ * Registros tokenizados → entrada da validação.
  *
  * Todo texto é aparado; o código é preservado como texto (`01` ≠ `1`); conta-pai em branco → `null`;
- * tipo e natureza reconhecidos viram o valor do domínio e os demais seguem crus.
+ * tipo e natureza reconhecidos viram o valor do domínio e os demais seguem crus. Registro com
+ * campos a mais leva `defeitoDeEstrutura`, que a validação transforma em rejeição da linha.
  */
 export const normalizarLinhas = (
   cabecalho: readonly string[],
-  linhas: readonly (readonly string[])[],
+  registros: readonly RegistroDoCsv[],
   mapeamento: Mapeamento,
-  numerosDasLinhas?: readonly number[],
 ): readonly LinhaBrutaDeEntrada[] => {
   const indices = indicesDasColunas(cabecalho, mapeamento);
-  const celula = (linha: readonly string[], campo: CampoDoContrato): string =>
-    (linha[indices[campo]] ?? '').trim();
 
-  return linhas.map((linha, posicao) => {
-    const contaPai = celula(linha, 'conta_pai');
+  return registros.map((registro) => {
+    const celula = (campo: CampoDoContrato): string => (registro.celulas[indices[campo]] ?? '').trim();
+    const contaPai = celula('conta_pai');
     return {
-      numeroDaLinha: numerosDasLinhas?.[posicao] ?? posicao + 2,
-      codigo: celula(linha, 'codigo'),
-      nome: celula(linha, 'nome'),
-      tipo: normalizarEnumerado(celula(linha, 'tipo'), TIPOS),
-      natureza: normalizarEnumerado(celula(linha, 'natureza'), NATUREZAS),
+      numeroDaLinha: registro.numeroDaLinha,
+      codigo: celula('codigo'),
+      nome: celula('nome'),
+      tipo: normalizarEnumerado(celula('tipo'), TIPOS),
+      natureza: normalizarEnumerado(celula('natureza'), NATUREZAS),
       contaPai: contaPai === '' ? null : contaPai,
+      ...(registro.camposAMais > 0 ? { defeitoDeEstrutura: 'CAMPOS_A_MAIS' as const } : {}),
     };
   });
 };

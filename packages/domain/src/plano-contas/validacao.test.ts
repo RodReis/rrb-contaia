@@ -230,3 +230,51 @@ describe('validarLinhasDoPlano — valores crus vindos do CSV (SPEC-013 §3.3)',
     ]);
   });
 });
+
+describe('validarLinhasDoPlano — defeito de estrutura da linha (SPEC-013 §3.4)', () => {
+  const linhaBruta = (dados: Partial<LinhaBrutaDeEntrada> & { numeroDaLinha: number }): LinhaBrutaDeEntrada => ({
+    codigo: '1',
+    nome: 'Ativo',
+    tipo: 'sintetica',
+    natureza: 'devedora',
+    contaPai: null,
+    ...dados,
+  });
+
+  it('rejeita só a linha com campos a mais, como VALOR_FORA_DO_DOMINIO sem campo e com mensagem em PT-BR', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [
+        linhaBruta({ numeroDaLinha: 2, codigo: '1' }),
+        linhaBruta({ numeroDaLinha: 3, codigo: '3', defeitoDeEstrutura: 'CAMPOS_A_MAIS' }),
+        linhaBruta({ numeroDaLinha: 4, codigo: '4', tipo: 'analitica', contaPai: '1' }),
+      ],
+      contasVigentes: [],
+    });
+
+    expect(resultado.aceitas.map((a) => a.codigo)).toEqual(['1', '4']);
+    expect(resultado.rejeitadas).toEqual([
+      {
+        numeroDaLinha: 3,
+        codigo: '3',
+        campo: null,
+        codigoDeErro: 'VALOR_FORA_DO_DOMINIO',
+        mensagem: "A linha tem mais campos do que o cabeçalho; confira ';' ou aspas no texto.",
+      },
+    ]);
+  });
+
+  it('a linha com defeito não entra na hierarquia: a filha dela é rejeitada com CONTA_PAI_REJEITADA', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [
+        linhaBruta({ numeroDaLinha: 2, codigo: '3', defeitoDeEstrutura: 'CAMPOS_A_MAIS' }),
+        linhaBruta({ numeroDaLinha: 3, codigo: '3.1', tipo: 'analitica', contaPai: '3' }),
+      ],
+      contasVigentes: [],
+    });
+
+    expect(resultado.rejeitadas.map((r) => [r.numeroDaLinha, r.codigoDeErro])).toEqual([
+      [2, 'VALOR_FORA_DO_DOMINIO'],
+      [3, 'CONTA_PAI_REJEITADA'],
+    ]);
+  });
+});

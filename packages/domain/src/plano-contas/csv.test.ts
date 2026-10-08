@@ -12,7 +12,7 @@ import {
   normalizarLinhas,
   validarMapeamento,
 } from './csv.js';
-import type { Mapeamento } from './csv.js';
+import type { Mapeamento, RegistroDoCsv } from './csv.js';
 import { validarLinhasDoPlano } from './validacao.js';
 
 const utf8 = (texto: string): Uint8Array => new TextEncoder().encode(texto);
@@ -100,6 +100,11 @@ describe('decodificarCsv', () => {
     expect(codigoDoErro(() => decodificarCsv(utf8('"a\nb";c\n1;2\n')))).toBeUndefined();
   });
 
+  it('aspas sem fechar no cabeçalho → ARQUIVO_INVALIDO (e não ARQUIVO_VAZIO)', () => {
+    expect(codigoDoErro(() => decodificarCsv(utf8('"codigo;nome\r\n1;Ativo\r\n')))).toBe('ARQUIVO_INVALIDO');
+    expect(codigoDoErro(() => decodificarCsv(utf8('codigo;"nome')))).toBe('ARQUIVO_INVALIDO');
+  });
+
   it('exatamente 10 MB passa; 10 MB + 1 byte → ARQUIVO_ACIMA_DO_LIMITE antes de decodificar', () => {
     const noLimite = new Uint8Array(LIMITE_DE_BYTES).fill(0x61);
     noLimite.set(utf8('a;b\r\n'), 0);
@@ -155,11 +160,15 @@ describe('validarMapeamento', () => {
 });
 
 describe('normalizarLinhas', () => {
+  /** Registros consecutivos a partir da linha 2 (cabeçalho na 1), sem campos a mais. */
+  const registros = (linhas: readonly (readonly string[])[]): readonly RegistroDoCsv[] =>
+    linhas.map((celulas, posicao) => ({ numeroDaLinha: posicao + 2, celulas, camposAMais: 0 }));
+
   const normalizar = (
     linhas: readonly (readonly string[])[],
     mapeamento: Mapeamento = MAPEAMENTO_PADRAO,
     cabecalho: readonly string[] = CABECALHO_PADRAO,
-  ) => normalizarLinhas(cabecalho, linhas, mapeamento);
+  ) => normalizarLinhas(cabecalho, registros(linhas), mapeamento);
 
   it("'Analítica ' → 'analitica' e demais variantes de acento e caixa", () => {
     const [a, b, c, d] = normalizar([
@@ -211,15 +220,14 @@ describe('normalizarLinhas', () => {
     expect(resultado.map((l) => l.numeroDaLinha)).toEqual([2, 3]);
   });
 
-  it('usa os números físicos informados quando há linhas em branco ou quebras internas', () => {
+  it('usa o número físico que viaja com cada registro (linhas em branco ou quebras internas)', () => {
     const resultado = normalizarLinhas(
       CABECALHO_PADRAO,
       [
-        ['1', 'A', 'sintetica', 'devedora', ''],
-        ['2', 'B', 'sintetica', 'devedora', ''],
+        { numeroDaLinha: 2, celulas: ['1', 'A', 'sintetica', 'devedora', ''], camposAMais: 0 },
+        { numeroDaLinha: 7, celulas: ['2', 'B', 'sintetica', 'devedora', ''], camposAMais: 0 },
       ],
       MAPEAMENTO_PADRAO,
-      [2, 7],
     );
 
     expect(resultado.map((l) => l.numeroDaLinha)).toEqual([2, 7]);
@@ -251,6 +259,21 @@ describe('normalizarLinhas', () => {
     const [linha] = normalizar([['1', 'A']]);
 
     expect(linha).toMatchObject({ tipo: '', natureza: '', contaPai: null });
+  });
+
+  it('registro com campos a mais carrega o defeito de estrutura; sem sobra, a chave nem existe', () => {
+    const [comSobra, semSobra] = normalizarLinhas(
+      CABECALHO_PADRAO,
+      [
+        { numeroDaLinha: 4, celulas: ['3', 'Caixa', 'Bancos', 'analitica', 'devedora'], camposAMais: 1 },
+        { numeroDaLinha: 5, celulas: ['4', 'B', 'analitica', 'devedora', ''], camposAMais: 0 },
+      ],
+      MAPEAMENTO_PADRAO,
+    );
+
+    expect(comSobra).toMatchObject({ numeroDaLinha: 4, defeitoDeEstrutura: 'CAMPOS_A_MAIS' });
+    expect(semSobra).toBeDefined();
+    expect(semSobra && 'defeitoDeEstrutura' in semSobra).toBe(false);
   });
 
   it('mapeamento que não cobre o cabeçalho → MAPEAMENTO_INCOMPLETO', () => {
@@ -293,7 +316,12 @@ describe('MODELO_CSV', () => {
       .split('\r\n')
       .map((linha) => linha.split(';'));
 
-    const linhas = normalizarLinhas(cabecalho ?? [], dados, MAPEAMENTO_PADRAO);
+    const registros: readonly RegistroDoCsv[] = dados.map((celulas, posicao) => ({
+      numeroDaLinha: posicao + 2,
+      celulas,
+      camposAMais: 0,
+    }));
+    const linhas = normalizarLinhas(cabecalho ?? [], registros, MAPEAMENTO_PADRAO);
     const { aceitas, rejeitadas } = validarLinhasDoPlano({ linhas, contasVigentes: [] });
 
     expect(rejeitadas).toEqual([]);

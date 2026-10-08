@@ -334,6 +334,7 @@ export {
   validarLinhasDoPlano,
   type LinhaDeEntrada,
   type LinhaBrutaDeEntrada,
+  type DefeitoDeEstrutura,
   type ContaVigente,
   type LinhaAceita,
   type LinhaRejeitada,
@@ -372,6 +373,7 @@ export {
   type Mapeamento,
   type Delimitador,
   type PendenciaDoMapeamento,
+  type RegistroDoCsv,
 } from './plano-contas/csv.js';
 
 export { gerarRelatorioCsv, type LinhaDoRelatorio } from './plano-contas/relatorio.js';
