@@ -14,6 +14,16 @@ import { COOKIE_DE_SESSAO } from '@/lib/oidc';
 
 const urlDaApi = (): string => process.env['API_ORIGIN'] ?? 'http://127.0.0.1:15101';
 
+/**
+ * Mesmo formato que a API aceita (`apps/api/src/comum/problema.ts`): o id que a tela gerou para a
+ * ação chega à fila, ao evento e ao erro (SPEC-013 §10). Fora do formato, não é repassado e a API
+ * gera o seu.
+ */
+const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
+
+/** Cabeçalhos da resposta que a tela usa: nome do arquivo baixado e o id de correlação. */
+const CABECALHOS_DEVOLVIDOS = ['content-disposition', 'x-correlation-id'] as const;
+
 const semSessao = (): NextResponse =>
   NextResponse.json(
     {
@@ -48,6 +58,12 @@ const encaminhar = async (
     cabecalhos.set('x-forwarded-for', cliente);
   }
 
+  const correlacao = requisicao.headers.get('x-correlation-id');
+
+  if (correlacao !== null && CORRELATION_ID_VALIDO.test(correlacao)) {
+    cabecalhos.set('x-correlation-id', correlacao);
+  }
+
   const tipoDoConteudo = requisicao.headers.get('content-type');
 
   if (tipoDoConteudo !== null) {
@@ -79,13 +95,19 @@ const encaminhar = async (
   }
 
   const corpo = await resposta.arrayBuffer();
-
-  return new NextResponse(corpo, {
-    status: resposta.status,
-    headers: {
-      'content-type': resposta.headers.get('content-type') ?? 'application/json',
-    },
+  const devolvidos = new Headers({
+    'content-type': resposta.headers.get('content-type') ?? 'application/json',
   });
+
+  for (const nome of CABECALHOS_DEVOLVIDOS) {
+    const valor = resposta.headers.get(nome);
+
+    if (valor !== null) {
+      devolvidos.set(nome, valor);
+    }
+  }
+
+  return new NextResponse(corpo, { status: resposta.status, headers: devolvidos });
 };
 
 type Contexto = { params: Promise<{ caminho: string[] }> };
