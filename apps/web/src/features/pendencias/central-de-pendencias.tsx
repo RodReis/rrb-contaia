@@ -43,6 +43,8 @@ import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { DialogoDeJustificativa } from '../empresa/dialogo-de-justificativa';
+import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
+import { useSessao } from '../usuarios/queries';
 import type {
   EstadoDaPendencia,
   OrigemDaPendencia,
@@ -161,13 +163,37 @@ const Cabecalho = ({ total }: { total: number | null }) => (
   </header>
 );
 
+/**
+ * Atalho da pendência de plano de contas para a aba da empresa, só para quem consulta o plano
+ * (SPEC-013 §3.10, §3.12). A sessão é lida aqui, e não na linha, para as demais origens não
+ * dependerem dela.
+ */
+const AtalhoDoPlanoDeContas = ({ pendencia }: { pendencia: Pendencia }) => {
+  const { data: sessao } = useSessao();
+
+  if (sessao === undefined || !concede(sessao, CONSULTA_DO_PLANO)) {
+    return null;
+  }
+
+  return (
+    <Button asChild variante="contorno" tamanho="compacto">
+      <Link
+        href={`/empresas/${pendencia.empresaId}?aba=plano-contas`}
+        aria-label={`Abrir a aba Plano de contas de ${pendencia.empresaNome}`}
+      >
+        Abrir aba Plano de contas
+      </Link>
+    </Button>
+  );
+};
+
 const AcaoDeDispensa = ({ pendencia }: { pendencia: Pendencia }) => {
   const dispensar = useDispensarPendencia();
 
   // Plano de contas incompleto também não se dispensa (SPEC-013 §3.10): resolve-se com a
-  // primeira conta válida. O atalho para a aba "Plano de contas" chega com a interface da F13.
+  // primeira conta válida, na aba "Plano de contas" da empresa.
   if (pendencia.origem === 'PLANO_CONTAS') {
-    return null;
+    return <AtalhoDoPlanoDeContas pendencia={pendencia} />;
   }
 
   // Pendência do cofre não se dispensa: resolve-se cadastrando o certificado ou escolhendo o

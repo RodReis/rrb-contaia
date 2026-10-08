@@ -1,9 +1,9 @@
 /**
  * Pendência de plano de contas incompleto na Central (SPEC-013 §3.10): aparece com rótulo
  * próprio e não se dispensa — resolve-se importando ou cadastrando a primeira conta válida.
- * O atalho para a aba "Plano de contas" chega com a interface da F13.
+ * A ação leva à aba "Plano de contas" da empresa, só para quem consulta o plano.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { axe } from 'jest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -32,13 +32,22 @@ const planoIncompleto = {
 };
 
 let pendencias: readonly (typeof planoIncompleto)[] = [];
+let permissoes: readonly string[] = [];
 
-const roteador: Roteador = (url) =>
-  url.includes('/api/proxy/pendencias?') ? json({ pendencias, total: pendencias.length }) : undefined;
+const roteador: Roteador = (url) => {
+  if (url.includes('/api/proxy/pendencias?')) {
+    return json({ pendencias, total: pendencias.length });
+  }
+
+  return url.endsWith('/api/proxy/usuarios/eu')
+    ? json({ papeis: ['contador'], permissoes, escopoDeEmpresas: 'CARTEIRA' })
+    : undefined;
+};
 
 beforeEach(() => {
   parametrosAtuais = new URLSearchParams();
   pendencias = [planoIncompleto];
+  permissoes = ['empresas.plano_contas.consultar'];
   instalarFetch(roteador);
 });
 
@@ -49,6 +58,25 @@ describe('Central de Pendências — origem Plano de contas', () => {
     expect((await screen.findAllByText('Plano de contas incompleto')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Plano de contas').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Dispensar' })).not.toBeInTheDocument();
+  });
+
+  it('leva à aba Plano de contas da empresa quem consulta o plano', async () => {
+    render(<CentralDePendencias />, { wrapper: Envolvido });
+
+    const acoes = await screen.findAllByRole('link', { name: 'Abrir a aba Plano de contas de Padaria Aurora' });
+
+    expect(acoes[0]).toHaveAttribute('href', '/empresas/empresa-1?aba=plano-contas');
+    expect(acoes[0]).toHaveTextContent('Abrir aba Plano de contas');
+  });
+
+  it('não oferece o atalho a quem não consulta o plano de contas', async () => {
+    permissoes = ['pendencias.central.consultar'];
+
+    render(<CentralDePendencias />, { wrapper: Envolvido });
+    await screen.findAllByText('Padaria Aurora');
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/usuarios/eu'))).toBe(true));
+
+    expect(screen.queryByRole('link', { name: /Plano de contas de Padaria Aurora/u })).not.toBeInTheDocument();
   });
 
   it('o filtro de origem oferece "Plano de contas"', async () => {
