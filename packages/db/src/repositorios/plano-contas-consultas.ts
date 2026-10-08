@@ -362,3 +362,34 @@ export const carregarContasVigentes = async (
     temFilhas: linha.tem_filhas,
   }));
 };
+
+/** Desfecho que carrega diagnóstico: a falha técnica e a rejeição do arquivo inteiro. */
+export type DiagnosticoDaTentativa = Readonly<{
+  acao: 'FALHA_TECNICA' | 'VALIDACAO_REJEITADA';
+  /** Código estável (`^[A-Z][A-Z0-9_]*$`), nunca mensagem crua. */
+  codigo: string;
+}>;
+
+/**
+ * Último evento de falha técnica ou de rejeição do arquivo que tenha código (SPEC-013 §3.10, §7:
+ * desfecho acionável). Rejeição só por conteúdo das linhas não tem código: devolve `null`, como a
+ * tentativa de outra empresa, de outro tenant ou sem evento assim.
+ */
+export const buscarDiagnosticoDaTentativa = async (
+  cliente: PoolClient,
+  empresaId: string,
+  tentativaId: string,
+): Promise<DiagnosticoDaTentativa | null> => {
+  const { rows } = await cliente.query<DiagnosticoDaTentativa>(
+    `select acao, codigo
+       from app.importacao_plano_contas_evento
+      where tentativa_id = $1 and empresa_id = $2
+        and acao in ('FALHA_TECNICA', 'VALIDACAO_REJEITADA')
+        and codigo is not null
+      order by sequencia desc
+      limit 1`,
+    [tentativaId, empresaId],
+  );
+
+  return rows[0] ?? null;
+};

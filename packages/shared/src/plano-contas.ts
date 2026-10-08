@@ -101,6 +101,12 @@ const totaisSchema = z.strictObject({
   rejeitadas: z.number().int().min(0),
 });
 
+export const DiagnosticoDaImportacaoSchema = z.strictObject({
+  codigo: z.string().regex(/^[A-Z][A-Z0-9_]*$/u).max(64),
+  mensagem: z.string().min(1).max(500),
+});
+export type DiagnosticoDaImportacao = z.infer<typeof DiagnosticoDaImportacaoSchema>;
+
 /**
  * Visão da tentativa que a API devolve no envio, na prévia, na confirmação e no cancelamento.
  * `totais` e `versaoDaPrevia` são nulos até a validação terminar; `amostraRejeicoes` é a primeira
@@ -127,6 +133,12 @@ export const PreviaDaImportacaoSchema = z.strictObject({
   podeConfirmar: z.boolean(),
   podeCancelar: z.boolean(),
   relatorioDisponivel: z.boolean(),
+  /**
+   * Desfecho acionável (aditivo, v1): em FALHA e na REJEITADA do arquivo inteiro, o código estável
+   * do último evento de falha/rejeição e a mensagem PT-BR fechada que a API associa a ele. Nulo ou
+   * ausente nos demais casos. Nunca a mensagem crua de uma exceção.
+   */
+  diagnostico: DiagnosticoDaImportacaoSchema.nullable().optional(),
 });
 export type PreviaDaImportacao = z.infer<typeof PreviaDaImportacaoSchema>;
 

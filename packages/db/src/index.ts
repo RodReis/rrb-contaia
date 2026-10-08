@@ -345,6 +345,7 @@ export type {
 } from './repositorios/plano-contas.js';
 export {
   ITENS_DO_HISTORICO as ITENS_DO_HISTORICO_DE_IMPORTACOES,
+  buscarDiagnosticoDaTentativa,
   carregarContasVigentes,
   contarContasValidas,
   listarHistorico as listarHistoricoDeImportacoes,
@@ -354,6 +355,7 @@ export {
 } from './repositorios/plano-contas-consultas.js';
 export type {
   ContaDoPlano,
+  DiagnosticoDaTentativa,
   LinhaDoRelatorio,
   PaginaDeRejeicoes,
   PaginaDoPlano,

@@ -87,6 +87,17 @@ describe('visão da tentativa (prévia) devolvida pela API', () => {
     expect(PreviaDaImportacaoSchema.safeParse({ ...visao, tenantId: TENANT }).success).toBe(false);
   });
 
+  it('diagnóstico (aditivo): ausente, nulo ou código estável + mensagem; nunca formato livre', () => {
+    const falha = { ...visao, estado: 'FALHA', totais: null, versaoDaPrevia: null, amostraRejeicoes: [] };
+    const diagnostico = { codigo: 'ARMAZENAMENTO_INDISPONIVEL', mensagem: 'O arquivo não pôde ser lido agora.' };
+
+    expect(PreviaDaImportacaoSchema.safeParse(falha).success).toBe(true);
+    expect(PreviaDaImportacaoSchema.safeParse({ ...falha, diagnostico: null }).success).toBe(true);
+    expect(PreviaDaImportacaoSchema.parse({ ...falha, diagnostico }).diagnostico).toEqual(diagnostico);
+    expect(PreviaDaImportacaoSchema.safeParse({ ...falha, diagnostico: { ...diagnostico, codigo: 'texto livre' } }).success).toBe(false);
+    expect(PreviaDaImportacaoSchema.safeParse({ ...falha, diagnostico: { ...diagnostico, pilha: 'x' } }).success).toBe(false);
+  });
+
   it('páginas de rejeições e do plano têm contrato próprio', () => {
     expect(
       PaginaDeRejeicoesDaImportacaoSchema.safeParse({
