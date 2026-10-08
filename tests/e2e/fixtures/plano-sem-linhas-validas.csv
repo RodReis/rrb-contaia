@@ -1,0 +1,4 @@
+codigo;nome;tipo;natureza;conta_pai
+1;Ativo;grupo;devedora;
+1.1;Ativo Circulante;grupo;devedora;1
+2;Passivo;sintetica;positiva;

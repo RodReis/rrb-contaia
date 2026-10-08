@@ -1,0 +1,13 @@
+codigo;nome;tipo;natureza;conta_pai
+1;Ativo;sintetica;devedora;
+1.1;Ativo Circulante;sintetica;devedora;1
+1.1.01;Caixa;analitica;devedora;1.1
+5.1;Ciclo A;sintetica;devedora;5.2
+5.2;Ciclo B;sintetica;devedora;5.1
+6.1;Despesas Sem Pai;analitica;devedora;6
+7;Duplicada;sintetica;credora;
+7;Duplicada de Novo;sintetica;credora;
+7.1;Filha da Duplicada;analitica;credora;7
+3.9;Receitas Antigas;analitica;credora;3
+2;Passivo;sintetica;credora;
+2.1;Fornecedores;analitica;credora;2

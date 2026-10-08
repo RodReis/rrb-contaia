@@ -2,3 +2,6 @@
 # `#!/usr/bin/env node\r` quebra o parse no Vitest. Ficam sempre em LF.
 scripts/gerar-pki-de-teste.mjs text eol=lf
 infra/docker/vault/bootstrap.mjs text eol=lf
+# Fixtures CSV do plano de contas (SPEC-013): BOM, CRLF e Latin-1 SÃO o que a prova exercita.
+# Sem conversão de fim de linha nem de texto, os bytes do repositório são os do arquivo.
+tests/e2e/fixtures/*.csv -text

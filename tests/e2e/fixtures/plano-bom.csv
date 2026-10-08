@@ -1,0 +1,7 @@
+﻿codigo;nome;tipo;natureza;conta_pai
+1;Ativo;sintética;devedora;
+1.1;Ativo Circulante;sintética;devedora;1
+1.1.01;Caixa;analítica;devedora;1.1
+1.1.02;Bancos Conta Movimento;analítica;devedora;1.1
+2;Passivo;sintética;credora;
+2.1;Fornecedores;analítica;credora;2
