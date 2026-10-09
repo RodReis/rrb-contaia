@@ -5,7 +5,8 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, Copy, Download, LoaderCircle } from 'lucide-react';
-import { useState, type ComponentProps, type ReactNode, type Ref } from 'react';
+import { Fragment, useState, type ComponentProps, type ReactNode, type Ref } from 'react';
+import { clsx } from 'clsx';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -244,3 +245,30 @@ export const Secao = ({
     {children}
   </section>
 );
+
+/**
+ * Código estável (`CODIGO_DUPLICADO_NO_ARQUIVO`) que só quebra linha depois de cada `_`. O `<wbr>`
+ * não vira texto: copiar devolve o código exato. `break-word` fica como último recurso para um
+ * pedaço longo demais; `anywhere` não serve, porque entra na largura mínima da coluna da tabela e
+ * a encolhe até quebrar o código no meio da palavra.
+ */
+export const CodigoQuebravel = ({ codigo, className }: { codigo: string; className?: string }) => {
+  const partes = codigo.split('_');
+
+  return (
+    // `clsx`, não `cn`: o tailwind-merge não conhece os tamanhos do tema (`text-code-xs`) e os descartaria
+    // como conflito com a cor (`text-muted-foreground`).
+    <code className={clsx('font-mono [overflow-wrap:break-word]', className)}>
+      {partes.map((parte, indice) => (
+        <Fragment key={indice}>
+          {parte}
+          {indice < partes.length - 1 ? (
+            <>
+              _<wbr />
+            </>
+          ) : null}
+        </Fragment>
+      ))}
+    </code>
+  );
+};

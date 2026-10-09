@@ -79,13 +79,26 @@ describe('regiões roláveis na horizontal (WCAG 2.1.1, axe scrollable-region-fo
     return regiao;
   };
 
-  it('a tabela de rejeições é uma região focável e o código de erro quebra em qualquer ponto', async () => {
+  it('a tabela de rejeições é uma região focável e o código de erro quebra só depois de "_"', async () => {
     abrirTentativa(previaParcial());
     const { container } = renderizar();
     await screen.findByRole('table', { name: /Linhas rejeitadas de plano-legado.csv/u });
 
     const regiao = regiaoFocavel('Tabela das rejeições, rolável na horizontal');
-    expect(within(regiao).getByText('CODIGO_DUPLICADO_NO_ARQUIVO').className).toMatch(/\[overflow-wrap:anywhere\]/u);
+    const codigo = within(regiao).getByText('CODIGO_DUPLICADO_NO_ARQUIVO');
+    // Um <wbr> depois de cada "_"; o texto (e o que se copia) segue o código exato, sem caractere invisível.
+    expect(codigo.querySelectorAll('wbr')).toHaveLength(3);
+    expect(codigo.textContent).toBe('CODIGO_DUPLICADO_NO_ARQUIVO');
+    // `break-word` não entra na largura mínima da coluna (`anywhere` entrava e quebrava no meio da palavra).
+    expect(codigo.className).toMatch(/\[overflow-wrap:break-word\]/u);
+    expect(codigo.className).not.toMatch(/anywhere/u);
+    // O tamanho do tema sobrevive à composição de classes (o tailwind-merge o descartava).
+    expect(codigo).toHaveClass('text-code-xs', 'text-muted-foreground');
+    // A trilha das etapas cabe no cartão: colunas iguais que quebram o rótulo, sem corte na borda.
+    expect(screen.getByRole('navigation', { name: 'Etapas da importação' }).querySelector('ol')).toHaveClass(
+      'tablet:grid-flow-col',
+      'tablet:auto-cols-fr',
+    );
     expect(await axe(container)).toHaveNoViolations();
   });
 
