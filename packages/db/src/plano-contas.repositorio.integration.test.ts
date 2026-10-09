@@ -875,7 +875,8 @@ describe('consultas (SPEC-013 §3.5, §3.9)', () => {
       return n;
     });
     expect(deOutraEmpresa).toBe(0);
-  });
+    // 2.600 linhas de staging gravadas e lidas de volta: no runner da CI isso passa dos 5 s padrão.
+  }, 30_000);
 
   it('erro do FETCH no meio do relatório chega ao chamador sem ser mascarado pelo CLOSE (25P02)', async () => {
     const empresaId = await novaEmpresa();
