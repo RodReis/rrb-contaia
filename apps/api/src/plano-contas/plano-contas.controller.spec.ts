@@ -177,6 +177,7 @@ describe('downloads', () => {
     expect(resposta.headers['content-type']).toBe('text/csv; charset=utf-8');
     expect(resposta.headers['content-disposition']).toBe('attachment; filename="modelo-plano-de-contas.csv"');
     expect(resposta.headers['x-content-type-options']).toBe('nosniff');
+    expect(resposta.headers['cache-control']).toBe('no-store');
     expect(resposta.text.startsWith(`${BOM}codigo;nome;tipo;natureza;conta_pai`)).toBe(true);
   });
 
@@ -197,6 +198,8 @@ describe('downloads', () => {
     );
     expect(resposta.headers['x-injetado']).toBeUndefined();
     expect(resposta.headers['x-content-type-options']).toBe('nosniff');
+    // Plano e relatório de um cliente não ficam em cache de navegador nem de proxy.
+    expect(resposta.headers['cache-control']).toBe('no-store');
     expect(resposta.text).toBe(`${BOM}linha;codigo\r\n2;'=1+1\r\n`);
     expect(servico.relatorio).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT }), EMPRESA, TENTATIVA);
   });
@@ -218,6 +221,7 @@ describe('downloads', () => {
     expect(resposta.headers['content-type']).toMatch(/^text\/csv/u);
     expect(resposta.headers['content-disposition']).toBe('attachment; filename="plano _legado_.csv"');
     expect(resposta.headers['x-content-type-options']).toBe('nosniff');
+    expect(resposta.headers['cache-control']).toBe('no-store');
   });
 
   it('consultar sem baixar_relatorio não baixa (papel sem a chave)', async () => {

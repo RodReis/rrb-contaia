@@ -4,9 +4,11 @@
  * Regras puras: nada aqui consulta banco ou o relógio do sistema — o "agora"
  * entra por parâmetro (CLAUDE.md, convenção do repositório).
  *
- * A fatia reconcilia duas fontes já existentes (cadastro de F3, documentos de
- * F4) para decidir quais pendências deveriam estar abertas agora, e compara
- * com o que já está aberto no banco para não duplicar (idempotência, §2).
+ * A Central reconcilia quatro fontes — cadastro (F3) e documentos (F4), cujas
+ * regras estão aqui, cofre de certificados (F11, `certificados/pendencias.ts`)
+ * e plano de contas (F13, `plano-contas/pendencias.ts`) — para decidir quais
+ * pendências deveriam estar abertas agora, e compara com o que já está aberto
+ * no banco para não duplicar (idempotência, §2).
  */
 import type { EstadoDoDocumento } from '../empresa/documentos.js';
 import { dataCivilEmSaoPaulo } from '../empresa/manutencao.js';

@@ -61,13 +61,18 @@ const contextoDa = (requisicao: RequisicaoAutenticada): ContextoDaImportacao => 
   correlationId: obterCorrelationId(requisicao),
 });
 
-/** Cabeçalho de download: nome saneado (vem do usuário) e sem inferência de tipo pelo navegador. */
+/**
+ * Cabeçalho de download: nome saneado (vem do usuário), sem inferência de tipo pelo navegador e
+ * sem cache (`no-store`: plano, relatório e original de um cliente não ficam no navegador nem em
+ * proxy intermediário; o proxy do web repassa este cabeçalho).
+ */
 export const comoAnexo = (resposta: Response, tipo: string, nome: string): Response =>
   resposta
     .status(200)
     .setHeader('Content-Type', tipo)
     .setHeader('Content-Disposition', `attachment; filename="${nomeSeguro(nome, 'plano-de-contas.csv')}"`)
-    .setHeader('X-Content-Type-Options', 'nosniff');
+    .setHeader('X-Content-Type-Options', 'nosniff')
+    .setHeader('Cache-Control', 'no-store');
 
 const MultipartDoPlano = FileInterceptor('arquivo', {
   // O multer corta o upload no limite, antes de o processo carregar o excedente; o caso de uso

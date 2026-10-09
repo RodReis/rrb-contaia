@@ -74,11 +74,11 @@ const linhaParaPendencia = (linha: LinhaDaPendencia): PendenciaPersistida => ({
 });
 
 /**
- * `origem` filtra a reconciliação por fonte (§2, §5.2, §9): o hook cadastral só
- * conhece causas `campo:*` e o documental só conhece causas `exigencia:*` —
- * misturar as duas faria um hook resolver, por engano, pendência aberta da
- * outra origem (evento `RESOLUCAO` falso, append-only, não corrigível depois).
- * `null` devolve as duas origens juntas, para quem realmente precisa ver tudo
+ * `origem` filtra a reconciliação por fonte (§2, §5.2, §9): cada hook só
+ * conhece as próprias causas (`campo:*`, `exigencia:*`, do cofre, `plano-contas:*`)
+ * — misturar faria um hook resolver, por engano, pendência aberta de outra
+ * origem (evento `RESOLUCAO` falso, append-only, não corrigível depois).
+ * `null` devolve todas as origens juntas, para quem realmente precisa ver tudo
  * (nenhum chamador de produção usa isso hoje; preservado para não estreitar a
  * função além do que o bug pede).
  */

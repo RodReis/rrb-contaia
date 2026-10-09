@@ -23,7 +23,8 @@ const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
 
 /**
  * Cabeçalhos da resposta repassados ao navegador (lista fechada): nome do arquivo baixado, id de
- * correlação e as proteções que a API põe em documento e relatório (`nosniff`, sem cache).
+ * correlação e as proteções que a API põe nos downloads (`X-Content-Type-Options: nosniff` e
+ * `Cache-Control: no-store`, emitidos pela API — este proxy só os repassa, não os cria).
  */
 const CABECALHOS_DEVOLVIDOS = [
   'content-disposition',

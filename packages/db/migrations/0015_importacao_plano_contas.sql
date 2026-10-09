@@ -147,7 +147,8 @@ CREATE TABLE app.importacao_plano_contas (
     'RECEBIDA', 'VALIDANDO', 'AGUARDANDO_CONFIRMACAO', 'APLICANDO',
     'CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA', 'CANCELADA', 'FALHA'
   )),
-  -- Versao do plano lida no inicio da validacao (empresa_plano_versao).
+  -- Versao do plano (empresa_plano_versao) sobre a qual a previa foi formada: fixada junto com o
+  -- staging em gravarResultadoDaValidacao (nula ate a validacao terminar); a confirmacao a compara.
   plano_versao_na_validacao bigint CHECK (plano_versao_na_validacao >= 0),
   -- {lidas, novas, atualizadas, rejeitadas}; nulo ate a validacao terminar.
   totais jsonb CHECK (totais IS NULL OR jsonb_typeof(totais) = 'object'),

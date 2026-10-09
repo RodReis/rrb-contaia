@@ -13,8 +13,10 @@
  *
  * Reentrega: tentativa já além de VALIDANDO → `ESTADO_INVALIDO_PARA_ACAO` → ack sem efeito; ainda
  * em VALIDANDO (queda no meio) → refaz e o staging não duplica. Falha transitória relança (o BullMQ
- * repete com backoff); definitiva vira `UnrecoverableError(<código estável>)`. Esgotadas as
- * tentativas, `registrarFalhaDaValidacao` leva a tentativa a FALHA (ver o consumidor).
+ * repete com backoff); definitiva vira `UnrecoverableError(<código estável>)`. Na última tentativa
+ * (ou na irrecuperável), o PROCESSADOR (`processador.ts`) chama `registrarFalhaDaValidacao` com o
+ * job ainda ativo e leva a tentativa a FALHA; o consumidor só copia o job para a fila morta e
+ * repete a FALHA como reforço idempotente.
  */
 import {
   buscarTentativaDeImportacao,
