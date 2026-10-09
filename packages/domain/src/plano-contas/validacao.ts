@@ -3,8 +3,11 @@
  *
  * O worker valida o arquivo inteiro antes de formar a prévia. A ordem física das linhas não
  * define a hierarquia: uma conta-pai válida pode aparecer depois da filha. Erro de linha não
- * interrompe a validação das demais.
+ * interrompe a validação das demais. A hierarquia é decidida sobre o plano RESULTANTE (vigente +
+ * lote): ver `hierarquia.ts`.
  */
+
+import { resolverHierarquia, type MotivoDeRejeicaoNaHierarquia } from './hierarquia.js';
 
 export type TipoDaConta = 'analitica' | 'sintetica';
 export type NaturezaDaConta = 'devedora' | 'credora';
@@ -43,18 +46,27 @@ export interface ContaVigente {
   readonly codigo: string;
   readonly tipo: TipoDaConta;
   readonly arquivada: boolean;
+  /** Tem ao menos uma filha no plano vigente, inclusive arquivada. */
   readonly temFilhas: boolean;
+  /** Pai no plano vigente (`null` na raiz): o ciclo é avaliado no plano resultante (SPEC §3.4). */
+  readonly contaPai: string | null;
 }
 
-export type CodigoDeErroDaLinha =
-  | 'CAMPO_OBRIGATORIO_AUSENTE'
-  | 'VALOR_FORA_DO_DOMINIO'
-  | 'CODIGO_DUPLICADO_NO_ARQUIVO'
-  | 'CONTA_PAI_INEXISTENTE'
-  | 'CONTA_PAI_REJEITADA'
-  | 'CICLO_HIERARQUICO'
-  | 'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA'
-  | 'CONTA_ARQUIVADA';
+/**
+ * Códigos estáveis de rejeição de linha. O contrato do `@contaia/shared` repete a lista (a prévia é
+ * lida com parse estrito no web); um teste do shared garante que as duas são iguais.
+ */
+export const CODIGOS_DE_ERRO_DA_LINHA = [
+  'CAMPO_OBRIGATORIO_AUSENTE',
+  'VALOR_FORA_DO_DOMINIO',
+  'CODIGO_DUPLICADO_NO_ARQUIVO',
+  'CONTA_PAI_INEXISTENTE',
+  'CONTA_PAI_REJEITADA',
+  'CICLO_HIERARQUICO',
+  'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA',
+  'CONTA_ARQUIVADA',
+] as const;
+export type CodigoDeErroDaLinha = (typeof CODIGOS_DE_ERRO_DA_LINHA)[number];
 
 export interface LinhaRejeitada {
   readonly numeroDaLinha: number;
@@ -83,6 +95,7 @@ const TIPOS_VALIDOS: readonly TipoDaConta[] = ['analitica', 'sintetica'];
 const NATUREZAS_VALIDAS: readonly NaturezaDaConta[] = ['devedora', 'credora'];
 
 const MENSAGEM_CAMPOS_A_MAIS = "A linha tem mais campos do que o cabeçalho; confira ';' ou aspas no texto.";
+const MENSAGEM_PAI_ANALITICO = 'A conta-pai é analítica; apenas conta sintética pode ter filhas.';
 
 /**
  * Limites do contrato da conta (os mesmos dos schemas do `@contaia/shared`). Excedê-los é erro de
@@ -179,33 +192,27 @@ const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | Linh
 const ehRejeicao = (resultado: LinhaRejeitada | LinhaDeEntrada): resultado is LinhaRejeitada =>
   'codigoDeErro' in resultado;
 
+const rejeicaoDaHierarquia = (linha: LinhaDeEntrada, motivo: MotivoDeRejeicaoNaHierarquia): LinhaRejeitada =>
+  motivo === 'PAI_ANALITICO'
+    ? // Interpretação da SPEC §3.4 ("analítica não tem filhas") sem código novo: o valor da conta-pai
+      // está fora do domínio aceito para uma filha. A filha é a linha recusada.
+      { ...rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'conta_pai'), mensagem: MENSAGEM_PAI_ANALITICO }
+    : rejeicao(linha, motivo);
+
 /**
- * Detecta ciclos no grafo de conta-pai formado só pelas linhas candidatas (já aprovadas nas
- * etapas anteriores). Toda linha que participa de um ciclo é rejeitada.
+ * Sintética que viraria analítica tendo filhas (SPEC §3.4) — avaliado sobre o plano resultante:
+ * filhas no plano vigente (mesmo que o lote as mova, pois a linha delas pode ser recusada e a filha
+ * ficar sob o pai antigo) ou filhas que o próprio lote lhe dá.
  */
-const codigosEmCiclo = (candidatas: readonly LinhaDeEntrada[]): ReadonlySet<string> => {
-  const paiPorCodigo = new Map<string, string | null>(candidatas.map((l) => [l.codigo, l.contaPai]));
-  const emCiclo = new Set<string>();
-
-  for (const inicial of candidatas) {
-    const visitados = new Set<string>();
-    let atual: string | null = inicial.codigo;
-
-    while (atual !== null) {
-      if (visitados.has(atual)) {
-        if (atual === inicial.codigo || visitados.has(inicial.codigo)) {
-          emCiclo.add(inicial.codigo);
-        }
-        break;
-      }
-      visitados.add(atual);
-      const proximoPai = paiPorCodigo.get(atual);
-      atual = proximoPai === undefined ? null : proximoPai;
-    }
-  }
-
-  return emCiclo;
-};
+const viraAnaliticaComFilhas = (
+  linha: LinhaDeEntrada,
+  vigente: ContaVigente | undefined,
+  paisNoLote: ReadonlySet<string>,
+): boolean =>
+  vigente !== undefined &&
+  vigente.tipo === 'sintetica' &&
+  linha.tipo === 'analitica' &&
+  (vigente.temFilhas || paisNoLote.has(linha.codigo));
 
 export const validarLinhasDoPlano = (entrada: {
   readonly linhas: readonly LinhaBrutaDeEntrada[];
@@ -226,101 +233,50 @@ export const validarLinhasDoPlano = (entrada: {
     }
   }
 
-  // 2) duplicidade de código no arquivo — toda ocorrência do código repetido é rejeitada.
-  const ocorrenciasPorCodigo = new Map<string, LinhaDeEntrada[]>();
-  for (const linha of comCamposValidos) {
-    const lista = ocorrenciasPorCodigo.get(linha.codigo) ?? [];
-    lista.push(linha);
-    ocorrenciasPorCodigo.set(linha.codigo, lista);
+  // 2) duplicidade de código no arquivo — o código que aparece mais de uma vez em QUALQUER linha
+  //    (válida ou não) tem todas as ocorrências rejeitadas; a inválida mantém o próprio erro.
+  const repeticoes = new Map<string, number>();
+  for (const linha of linhas) {
+    if (linha.codigo) repeticoes.set(linha.codigo, (repeticoes.get(linha.codigo) ?? 0) + 1);
   }
   const semDuplicidade: LinhaDeEntrada[] = [];
-  for (const [, ocorrencias] of ocorrenciasPorCodigo) {
-    if (ocorrencias.length > 1) {
-      for (const linha of ocorrencias) {
-        rejeitadas.push(rejeicao(linha, 'CODIGO_DUPLICADO_NO_ARQUIVO'));
-      }
+  for (const linha of comCamposValidos) {
+    if ((repeticoes.get(linha.codigo) ?? 0) > 1) {
+      rejeitadas.push(rejeicao(linha, 'CODIGO_DUPLICADO_NO_ARQUIVO'));
     } else {
-      semDuplicidade.push(ocorrencias[0]!);
+      semDuplicidade.push(linha);
     }
   }
 
-  // 3) conflito estrutural com o plano vigente: arquivada, ou sintética-com-filhas virando analítica.
-  const semConflitoVigente: LinhaDeEntrada[] = [];
+  // 3) conflito com o plano vigente: conta arquivada; sintética com filhas que viraria analítica.
+  const naoArquivadas: LinhaDeEntrada[] = [];
   for (const linha of semDuplicidade) {
-    const vigente = vigentePorCodigo.get(linha.codigo);
-    if (vigente?.arquivada) {
+    if (vigentePorCodigo.get(linha.codigo)?.arquivada) {
       rejeitadas.push(rejeicao(linha, 'CONTA_ARQUIVADA'));
-      continue;
-    }
-    if (vigente?.temFilhas && vigente.tipo === 'sintetica' && linha.tipo === 'analitica') {
-      rejeitadas.push(rejeicao(linha, 'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA'));
-      continue;
-    }
-    semConflitoVigente.push(linha);
-  }
-
-  // 4) ciclo hierárquico entre as linhas candidatas restantes.
-  const codigosCandidatos = new Set(semConflitoVigente.map((l) => l.codigo));
-  const candidatasParaCiclo = semConflitoVigente.filter(
-    (l) => l.contaPai === null || codigosCandidatos.has(l.contaPai),
-  );
-  const emCiclo = codigosEmCiclo(candidatasParaCiclo);
-  const semCiclo: LinhaDeEntrada[] = [];
-  for (const linha of semConflitoVigente) {
-    if (emCiclo.has(linha.codigo)) {
-      rejeitadas.push(rejeicao(linha, 'CICLO_HIERARQUICO'));
     } else {
-      semCiclo.push(linha);
+      naoArquivadas.push(linha);
+    }
+  }
+  const paisNoLote = new Set(
+    naoArquivadas.filter((l) => l.contaPai !== null && l.contaPai !== l.codigo).map((l) => l.contaPai as string),
+  );
+  const candidatas: LinhaDeEntrada[] = [];
+  for (const linha of naoArquivadas) {
+    if (viraAnaliticaComFilhas(linha, vigentePorCodigo.get(linha.codigo), paisNoLote)) {
+      rejeitadas.push(rejeicao(linha, 'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA'));
+    } else {
+      candidatas.push(linha);
     }
   }
 
-  // 5) conta-pai inexistente ou rejeitada — resolvido por ponto fixo, pois pai válido pode
-  //    aparecer depois da filha e rejeição de pai propaga para a filha.
-  const codigosValidosNoLote = new Set(semCiclo.map((l) => l.codigo));
+  // 4) hierarquia resultante: pai inexistente ou rejeitado, pai analítico e ciclo — com o vigente.
   const codigosRejeitados = new Set(rejeitadas.map((r) => r.codigo).filter((c): c is string => c !== null));
-  const pendentes = new Map(semCiclo.map((l) => [l.codigo, l]));
-  const aceitas: LinhaAceita[] = [];
-
-  let mudou = true;
-  while (mudou) {
-    mudou = false;
-    for (const [codigo, linha] of pendentes) {
-      if (linha.contaPai === null) {
-        aceitas.push(linha);
-        pendentes.delete(codigo);
-        mudou = true;
-        continue;
-      }
-      if (vigentePorCodigo.has(linha.contaPai) && !vigentePorCodigo.get(linha.contaPai)?.arquivada) {
-        aceitas.push(linha);
-        pendentes.delete(codigo);
-        mudou = true;
-        continue;
-      }
-      if (aceitas.some((a) => a.codigo === linha.contaPai)) {
-        aceitas.push(linha);
-        pendentes.delete(codigo);
-        mudou = true;
-        continue;
-      }
-      if (codigosRejeitados.has(linha.contaPai) || !codigosValidosNoLote.has(linha.contaPai)) {
-        if (!vigentePorCodigo.has(linha.contaPai)) {
-          rejeitadas.push(rejeicao(linha, codigosRejeitados.has(linha.contaPai) ? 'CONTA_PAI_REJEITADA' : 'CONTA_PAI_INEXISTENTE'));
-          codigosRejeitados.add(linha.codigo);
-          pendentes.delete(codigo);
-          mudou = true;
-        }
-      }
-    }
+  const hierarquia = resolverHierarquia(candidatas, vigentePorCodigo, codigosRejeitados);
+  for (const { linha, motivo } of hierarquia.rejeicoes) {
+    rejeitadas.push(rejeicaoDaHierarquia(linha, motivo));
   }
 
-  // linhas restantes em `pendentes` dependem de um pai que também está pendente e nunca resolveu
-  // (situação coberta pela detecção de ciclo acima; chegar aqui indica pai ausente do lote).
-  for (const [, linha] of pendentes) {
-    rejeitadas.push(rejeicao(linha, 'CONTA_PAI_INEXISTENTE'));
-  }
-
-  aceitas.sort((a, b) => a.numeroDaLinha - b.numeroDaLinha);
+  const aceitas: LinhaAceita[] = [...hierarquia.aceitas].sort((a, b) => a.numeroDaLinha - b.numeroDaLinha);
   rejeitadas.sort((a, b) => a.numeroDaLinha - b.numeroDaLinha);
 
   return { aceitas, rejeitadas };

@@ -331,6 +331,7 @@ export {
 export type { EfeitoDoMonitor, EstadoDoMonitor, TransicaoDoMonitor } from './signer/incidente.js';
 
 export {
+  CODIGOS_DE_ERRO_DA_LINHA,
   LIMITE_DO_CODIGO_DA_CONTA,
   LIMITE_DO_NOME_DA_CONTA,
   validarLinhasDoPlano,

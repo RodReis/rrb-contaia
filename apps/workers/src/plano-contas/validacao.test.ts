@@ -163,7 +163,7 @@ beforeEach(() => {
 
 describe('processarValidacao: desfechos da validação', () => {
   it('CSV bom → AGUARDANDO_CONFIRMACAO com totais, linhas no staging e ação INCLUIR/ATUALIZAR; sem notificação', async () => {
-    banco.contas = [{ codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: false }];
+    banco.contas = [{ codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: false, contaPai: null }];
     comArquivo(csv(['1;Ativo;sintetica;devedora;', '1.1;Caixa;analitica;devedora;1', '2;Passivo;sintética;Credora;']));
 
     const resultado = await processarValidacao(deps, comando);

@@ -339,15 +339,23 @@ export const contarContasValidas = async (cliente: PoolClient, empresaId: string
 };
 
 /**
- * Plano vigente no formato da validação do domínio: código, tipo, arquivada e se tem filhas
- * (qualquer filha, inclusive arquivada). Chamar DEPOIS de `iniciarValidacao`.
+ * Plano vigente no formato da validação do domínio: código, tipo, arquivada, se tem filhas
+ * (qualquer filha, inclusive arquivada) e a conta-pai — a validação monta a hierarquia RESULTANTE
+ * (vigente + lote) para recusar ciclos formados com contas vigentes (SPEC-013 §3.4, §7).
+ * Chamar DEPOIS de `iniciarValidacao`.
  */
 export const carregarContasVigentes = async (
   cliente: PoolClient,
   empresaId: string,
 ): Promise<readonly ContaVigente[]> => {
-  const { rows } = await cliente.query<{ codigo: string; tipo: TipoDaConta; arquivada: boolean; tem_filhas: boolean }>(
-    `select cc.codigo, cc.tipo, cc.arquivada,
+  const { rows } = await cliente.query<{
+    codigo: string;
+    tipo: TipoDaConta;
+    arquivada: boolean;
+    tem_filhas: boolean;
+    conta_pai: string | null;
+  }>(
+    `select cc.codigo, cc.tipo, cc.arquivada, cc.conta_pai,
             exists (select 1 from app.conta_contabil f
                      where f.empresa_id = cc.empresa_id and f.conta_pai = cc.codigo) as tem_filhas
        from app.conta_contabil cc
@@ -360,6 +368,7 @@ export const carregarContasVigentes = async (
     tipo: linha.tipo,
     arquivada: linha.arquivada,
     temFilhas: linha.tem_filhas,
+    contaPai: linha.conta_pai,
   }));
 };
 

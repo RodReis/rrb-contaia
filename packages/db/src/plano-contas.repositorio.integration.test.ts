@@ -921,10 +921,10 @@ describe('consultas (SPEC-013 §3.5, §3.9)', () => {
     expect(await contarContasValidasDe(empresaId)).toBe(3);
     const vigentes = await comoWorker(empresaId, (cli) => carregarContasVigentes(cli, empresaId));
     expect([...vigentes].sort((a, b) => a.codigo.localeCompare(b.codigo))).toEqual([
-      { codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: true },
-      { codigo: '1.1', tipo: 'analitica', arquivada: false, temFilhas: false },
-      { codigo: '2', tipo: 'sintetica', arquivada: false, temFilhas: false },
-      { codigo: '3', tipo: 'sintetica', arquivada: true, temFilhas: false },
+      { codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: null },
+      { codigo: '1.1', tipo: 'analitica', arquivada: false, temFilhas: false, contaPai: '1' },
+      { codigo: '2', tipo: 'sintetica', arquivada: false, temFilhas: false, contaPai: null },
+      { codigo: '3', tipo: 'sintetica', arquivada: true, temFilhas: false, contaPai: null },
     ]);
   });
 });

@@ -118,7 +118,7 @@ describe('validarLinhasDoPlano — SPEC-013 §3.4', () => {
 
   it('rejeita tentativa de transformar em analítica uma conta vigente que possui filhas', () => {
     const contasVigentes: ContaVigente[] = [
-      { codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: true },
+      { codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: null },
     ];
     const linhas: LinhaDeEntrada[] = [linha({ numeroDaLinha: 1, codigo: '1', tipo: 'analitica', contaPai: null })];
 
@@ -131,7 +131,7 @@ describe('validarLinhasDoPlano — SPEC-013 §3.4', () => {
 
   it('rejeita código correspondente a conta arquivada e orienta reativação separada', () => {
     const contasVigentes: ContaVigente[] = [
-      { codigo: '1', tipo: 'sintetica', arquivada: true, temFilhas: false },
+      { codigo: '1', tipo: 'sintetica', arquivada: true, temFilhas: false, contaPai: null },
     ];
     const linhas: LinhaDeEntrada[] = [linha({ numeroDaLinha: 1, codigo: '1', contaPai: null })];
 
@@ -361,8 +361,8 @@ describe('validarLinhasDoPlano — limites de coluna (SPEC-013 §3.3–§3.4)', 
 describe('validarLinhasDoPlano — campo de cada rejeição (SPEC-013 §3.4)', () => {
   it('toda rejeição informa o campo de forma determinística pelo código de erro', () => {
     const vigentes: ContaVigente[] = [
-      { codigo: '8', tipo: 'sintetica', arquivada: false, temFilhas: true },
-      { codigo: '9', tipo: 'analitica', arquivada: true, temFilhas: false },
+      { codigo: '8', tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: null },
+      { codigo: '9', tipo: 'analitica', arquivada: true, temFilhas: false, contaPai: null },
     ];
     const linhas: LinhaBrutaDeEntrada[] = [
       { numeroDaLinha: 2, codigo: '1', nome: 'Ativo', tipo: 'sintetica', natureza: 'devedora', contaPai: null },
