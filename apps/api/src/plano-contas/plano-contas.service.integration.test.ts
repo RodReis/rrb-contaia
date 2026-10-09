@@ -244,6 +244,13 @@ beforeAll(async () => {
     [tenantA, `J${sufixo}`.slice(0, 14).padEnd(14, '0')],
   );
   adminDoTenant = await novoUsuario(tenantA, 'admin');
+  // O papel precisa existir no BANCO, não só na sessão dublada: a RLS (`app.usuario_admin_atual`)
+  // é quem abre a empresa arquivada ao administrador sem vínculo. Sem esta linha a empresa some
+  // sob a RLS e a escrita cai em 404 antes da regra "arquivada é somente consulta" (409).
+  await admin.query(`insert into app.usuario_papel (tenant_id, usuario_id, papel) values ($1, $2, 'admin_escritorio')`, [
+    tenantA,
+    adminDoTenant,
+  ]);
   for (const empresaId of [empresa, outraDaCarteira, aAtivar, empresaFalha, empresaArquivada, empresaGrande, empresaParalela, empresaAArquivar]) {
     await vincular(tenantA, contador, empresaId);
   }
