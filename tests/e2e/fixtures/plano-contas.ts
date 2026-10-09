@@ -512,6 +512,12 @@ export type OpcoesDaProva = Readonly<{
   preparar?: (page: Page) => Promise<void>;
   /** Captura só esta região (ex.: a tabela de rejeições), em vez da página inteira. */
   recorte?: (page: Page) => Locator;
+  /**
+   * Espera os toasts saírem antes da captura e do axe: o aviso passageiro (ex.: "Empresa ativada.")
+   * não é a tela sob prova. O contraste do toast `richColors` é o padrão do Sonner, global e fora
+   * desta fatia (registrado no Card #15 do DEVELOPMENT.md).
+   */
+  semToasts?: boolean;
 }>;
 
 /**
@@ -553,6 +559,9 @@ export const provarVisualmente = async (
       await expect(opcoes.pronto(page).first()).toBeVisible({ timeout: 30_000 });
       // Sem animação em curso na captura (spinner, transição de opacidade).
       await page.evaluate(() => document.fonts.ready);
+      if (opcoes.semToasts === true) {
+        await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 });
+      }
       const arquivo = join(pasta, `${estado}-${tema}-${largura}.png`);
 
       if (opcoes.recorte === undefined) {

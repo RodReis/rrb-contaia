@@ -912,6 +912,7 @@ test('onboarding: depois de ativar, a etapa opcional "Plano de contas"; sem impo
 
   await provar(admin, 'onboarding-plano-de-contas', {
     recarregar: false,
+    semToasts: true,
     pronto: (page) => page.getByText('Etapa opcional'),
   });
 
