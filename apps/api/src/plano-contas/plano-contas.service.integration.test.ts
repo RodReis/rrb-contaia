@@ -83,6 +83,10 @@ let empresaFalha = '';
 let empresaArquivada = '';
 let empresaGrande = '';
 let empresaB = '';
+let adminDoTenant = '';
+let empresaParalela = '';
+let empresaAArquivar = '';
+let empresaJaArquivada = '';
 let http: INestApplication;
 
 const unico = async (sql: string, parametros: unknown[]): Promise<string> =>
@@ -232,7 +236,15 @@ beforeAll(async () => {
   empresaFalha = await novaEmpresa(tenantA, 'F');
   empresaArquivada = await novaEmpresa(tenantA, 'Q');
   empresaGrande = await novaEmpresa(tenantA, 'G');
-  for (const empresaId of [empresa, outraDaCarteira, aAtivar, empresaFalha, empresaArquivada, empresaGrande]) {
+  empresaParalela = await novaEmpresa(tenantA, 'P');
+  empresaAArquivar = await novaEmpresa(tenantA, 'R');
+  // Arquivada desde o início e sem vínculo: só o administrador a alcança (SPEC-009).
+  empresaJaArquivada = await unico(
+    `insert into app.empresa (tenant_id, cnpj, razao_social, status, situacao) values ($1, $2, 'Encerrada', 'ATIVA', 'arquivado') returning id`,
+    [tenantA, `J${sufixo}`.slice(0, 14).padEnd(14, '0')],
+  );
+  adminDoTenant = await novoUsuario(tenantA, 'admin');
+  for (const empresaId of [empresa, outraDaCarteira, aAtivar, empresaFalha, empresaArquivada, empresaGrande, empresaParalela, empresaAArquivar]) {
     await vincular(tenantA, contador, empresaId);
   }
   await vincular(tenantA, auxiliar, empresa);
@@ -537,6 +549,99 @@ describe('falhas na confirmação e no relatório', () => {
     // Comando fora do contrato: cria a fila (e a conexão) e é recusado antes de qualquer job.
     await expect(provida.enfileirar({ tenantId: 'x' } as never)).rejects.toThrow();
     await expect(provida.onModuleDestroy()).resolves.toBeUndefined();
+  });
+});
+
+describe('confirmações concorrentes de prévias diferentes da mesma empresa (SPEC-013 §3.6, §6.3)', () => {
+  it('duas prévias distintas confirmadas em paralelo: uma aplica, a outra recebe CONFLITO_DE_VERSAO e segue aguardando', async () => {
+    const primeira = await servico.enviar(
+      contexto(contador),
+      empresaParalela,
+      { buffer: csv(['P1;Primeira;sintetica;devedora;']), nome: 'primeira.csv', mimetype: 'text/csv' },
+      MAPEAMENTO,
+    );
+    const segunda = await servico.enviar(
+      contexto(contador),
+      empresaParalela,
+      { buffer: csv(['P2;Segunda;sintetica;devedora;']), nome: 'segunda.csv', mimetype: 'text/csv' },
+      MAPEAMENTO,
+    );
+    await validarComoWorker(empresaParalela, primeira.tentativaId, [valida(2, 'P1', null)]);
+    await validarComoWorker(empresaParalela, segunda.tentativaId, [valida(2, 'P2', null)]);
+    const versoes = await Promise.all([
+      servico.previa(contexto(contador), empresaParalela, primeira.tentativaId),
+      servico.previa(contexto(contador), empresaParalela, segunda.tentativaId),
+    ]);
+    // As duas foram validadas sobre o mesmo plano.
+    expect(versoes.map((v) => v.versaoDaPrevia)).toEqual([0, 0]);
+
+    const resultados = await Promise.allSettled([
+      servico.confirmar(contexto(contador), empresaParalela, primeira.tentativaId, 0),
+      servico.confirmar(contexto(contador), empresaParalela, segunda.tentativaId, 0),
+    ]);
+
+    const aplicadas = resultados.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+    const recusadas = resultados.flatMap((r) => (r.status === 'rejected' ? [r.reason as { codigo?: string }] : []));
+    expect(aplicadas).toHaveLength(1);
+    expect(recusadas.map((r) => r.codigo)).toEqual([CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO]);
+    const vencedora = aplicadas[0]!.tentativaId;
+    const perdedora = vencedora === primeira.tentativaId ? segunda.tentativaId : primeira.tentativaId;
+    expect(aplicadas[0]!.estado).toBe('CONCLUIDA');
+    expect((await servico.previa(contexto(contador), empresaParalela, perdedora)).estado).toBe('AGUARDANDO_CONFIRMACAO');
+
+    const contas = await admin.query<{ codigo: string }>(`select codigo from app.conta_contabil where empresa_id = $1`, [empresaParalela]);
+    expect(contas.rows.map((r) => r.codigo)).toEqual([vencedora === primeira.tentativaId ? 'P1' : 'P2']);
+    poolLivre();
+  });
+});
+
+describe('empresa arquivada é somente consulta, inclusive para o administrador (HTTP)', () => {
+  const base = (empresaId: string): string => `/empresas/${empresaId}/plano-contas`;
+
+  it('admin não envia arquivo a empresa arquivada sem vínculo: 409 EMPRESA_ARQUIVADA, sem tentativa', async () => {
+    const resposta = await request(http.getHttpServer())
+      .post(`${base(empresaJaArquivada)}/importacoes`)
+      .set('x-papel', 'admin_escritorio')
+      .set('x-usuario', adminDoTenant)
+      .attach('arquivo', csv(['9;Nova;sintetica;devedora;']), { filename: 'plano.csv', contentType: 'text/csv' })
+      .field('mapeamento', JSON.stringify(MAPEAMENTO))
+      .expect(409);
+
+    expect(resposta.body).toMatchObject({ code: CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA });
+    const tentativas = await admin.query(`select 1 from app.importacao_plano_contas where empresa_id = $1`, [empresaJaArquivada]);
+    expect(tentativas.rowCount).toBe(0);
+  });
+
+  it('prévia aberta antes do arquivamento: confirmar e cancelar → 409; prévia e histórico continuam legíveis', async () => {
+    const enviada = await servico.enviar(
+      contexto(contador),
+      empresaAArquivar,
+      { buffer: csv(['R1;Antes;sintetica;devedora;']), nome: 'antes.csv', mimetype: 'text/csv' },
+      MAPEAMENTO,
+    );
+    await validarComoWorker(empresaAArquivar, enviada.tentativaId, [valida(2, 'R1', null)]);
+    await admin.query(`update app.empresa set situacao = 'arquivado' where id = $1`, [empresaAArquivar]);
+    const comoAdmin = (rota: string) =>
+      request(http.getHttpServer()).post(`${base(empresaAArquivar)}/importacoes/${enviada.tentativaId}${rota}`).set('x-papel', 'admin_escritorio').set('x-usuario', adminDoTenant);
+
+    const confirmacao = await comoAdmin('/confirmar').send({ versaoDaPrevia: 0 }).expect(409);
+    expect(confirmacao.body).toMatchObject({ code: CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA });
+    const cancelamento = await comoAdmin('/cancelar').expect(409);
+    expect(cancelamento.body).toMatchObject({ code: CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA });
+
+    const previa = await request(http.getHttpServer())
+      .get(`${base(empresaAArquivar)}/importacoes/${enviada.tentativaId}`)
+      .set('x-papel', 'admin_escritorio')
+      .set('x-usuario', adminDoTenant)
+      .expect(200);
+    expect(previa.body).toMatchObject({ estado: 'AGUARDANDO_CONFIRMACAO' });
+    await request(http.getHttpServer())
+      .get(`${base(empresaAArquivar)}/importacoes`)
+      .set('x-papel', 'admin_escritorio')
+      .set('x-usuario', adminDoTenant)
+      .expect(200);
+    const contas = await admin.query(`select 1 from app.conta_contabil where empresa_id = $1`, [empresaAArquivar]);
+    expect(contas.rowCount).toBe(0);
   });
 });
 

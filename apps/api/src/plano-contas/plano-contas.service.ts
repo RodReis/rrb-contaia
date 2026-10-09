@@ -7,9 +7,12 @@
  * 1. **Arquivo recusado não deixa rastro** (§3.2): tamanho, formato, cabeçalho e mapeamento são
  *    conferidos ANTES de qualquer storage, tentativa ou job.
  * 2. **A confirmação é uma transação só** (§3.6): confirmar → aplicar → eventos → finalizar →
- *    pendência → notificação. Qualquer falha reverte tudo — inclusive a mudança de estado —, então
- *    a tentativa volta a `AGUARDANDO_CONFIRMACAO` e "nenhuma conta foi alterada" é verdade.
+ *    pendência → notificação. Qualquer falha reverte tudo; numa 2ª transação curta a tentativa
+ *    passa por APLICANDO e termina em `FALHA` (evento append-only com código estável). Só quando
+ *    essa FALHA é registrada a resposta afirma que "nenhuma conta foi alterada".
  * 3. **Nada do conteúdo vai para log**: só ids, `correlationId` e o código técnico da falha.
+ * 4. **Empresa arquivada ou em cadastro é somente consulta** (SPEC-003 §3.5): enviar, confirmar e
+ *    cancelar recusam; prévia, histórico, plano, relatório e arquivo continuam disponíveis.
  */
 import { createHash } from 'node:crypto';
 import { PassThrough, Readable } from 'node:stream';
@@ -30,6 +33,7 @@ import {
   buscarDiagnosticoDaTentativa,
   buscarTentativaDeImportacao,
   cancelarImportacao,
+  carregarSituacaoDaEmpresa,
   comContextoHumano,
   confirmarImportacao,
   criarNotificacaoDeImportacao,
@@ -182,6 +186,38 @@ const exigirMapeamentoCompleto = (cabecalho: readonly string[], mapeamento: Mape
   }
 };
 
+/**
+ * Escrita no plano só em empresa ATIVA e não arquivada, com os códigos que o resto do repositório
+ * já usa para isso (documentos, cofre). Fora do alcance responde como empresa inexistente.
+ */
+const exigirEmpresaQueAceitaImportacao = async (cliente: PoolClient, empresaId: string): Promise<void> => {
+  const situacao = await carregarSituacaoDaEmpresa(cliente, empresaId);
+
+  if (situacao === null) {
+    throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada neste escritório.');
+  }
+
+  if (situacao.arquivada) {
+    throw new ErroDeDominio(
+      CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA,
+      'Empresa arquivada fica somente para consulta; reative-a antes de importar o plano de contas.',
+    );
+  }
+
+  if (!situacao.ativa) {
+    throw new ErroDeDominio(
+      CODIGOS_DE_ERRO.EMPRESA_NAO_ATIVA,
+      'Conclua o cadastro da empresa antes de importar o plano de contas.',
+    );
+  }
+};
+
+/** Resposta da falha técnica na confirmação: só promete "nada mudou" quando a FALHA foi gravada. */
+const MENSAGEM_DA_FALHA_REGISTRADA =
+  'A importação não pôde ser aplicada por um problema técnico. Nenhuma conta foi alterada; envie o arquivo de novo para uma nova tentativa.';
+const MENSAGEM_DA_FALHA_SEM_REGISTRO =
+  'A confirmação não pôde ser concluída por um problema técnico. Consulte o estado atual da importação antes de tentar de novo.';
+
 const nomeDoArquivo = (nome: string): string => nome.trim().slice(0, LIMITE_DO_NOME_DO_ARQUIVO) || 'plano-de-contas.csv';
 
 const totaisFinais = (validacao: TotaisDaImportacao | null, aplicacao: ResultadoDaAplicacao): TotaisDaImportacao => ({
@@ -224,6 +260,9 @@ export class PlanoContasService {
     const mapeamento = normalizarMapeamento(informado);
     exigirMapeamentoCompleto(lido.cabecalho, mapeamento);
 
+    // Antes do storage: arquivo recusado não deixa rastro (rechecado dentro da transação abaixo).
+    await comContextoHumano(this.pool.instancia, contexto, (cliente) => exigirEmpresaQueAceitaImportacao(cliente, empresaId));
+
     const hash = sha256(arquivo.buffer);
     const chave = chaveDoOriginal(contexto.tenantId, empresaId, hash);
 
@@ -236,6 +275,7 @@ export class PlanoContasService {
 
     const agora = this.agora();
     const { tentativa, previa } = await comContextoHumano(this.pool.instancia, contexto, async (cliente) => {
+      await exigirEmpresaQueAceitaImportacao(cliente, empresaId);
       const criada = await criarTentativaDeImportacao(cliente, {
         tenantId: contexto.tenantId,
         empresaId,
@@ -306,6 +346,7 @@ export class PlanoContasService {
 
     try {
       return await comContextoHumano(this.pool.instancia, contexto, async (cliente) => {
+        await exigirEmpresaQueAceitaImportacao(cliente, empresaId);
         const confirmada = await confirmarImportacao(cliente, {
           empresaId,
           tentativaId,
@@ -365,11 +406,8 @@ export class PlanoContasService {
       this.logger.error(
         `falha técnica ao aplicar a tentativa ${tentativaId} [${contexto.correlationId}]: ${descreverFalha(erro)}`,
       );
-      await this.registrarFalhaDaAplicacao(contexto, empresaId, tentativaId, versaoDaPrevia);
-      throw falhaTecnica(
-        'A importação não pôde ser aplicada por um problema técnico. Nenhuma conta foi alterada; envie o arquivo de novo para uma nova tentativa.',
-        { tentativaId },
-      );
+      const registrada = await this.registrarFalhaDaAplicacao(contexto, empresaId, tentativaId, versaoDaPrevia);
+      throw falhaTecnica(registrada ? MENSAGEM_DA_FALHA_REGISTRADA : MENSAGEM_DA_FALHA_SEM_REGISTRO, { tentativaId });
     }
   }
 
@@ -378,14 +416,16 @@ export class PlanoContasService {
    * APLICANDO (com o confirmador) e termina em FALHA, com evento append-only de código estável e o
    * aviso ao iniciador (SPEC-013 §3.10, §3.11). Só acontece se ela ainda estiver na MESMA prévia
    * (o `confirmar` do repositório é o UPDATE condicional); se algo mudou ou esta transação também
-   * falhar, fica só o registro no log — a resposta continua sendo `FALHA_TECNICA`.
+   * falhar, fica só o registro no log — a resposta continua sendo `FALHA_TECNICA`. Devolve se a
+   * FALHA foi gravada: sem ela não há prova de que nada mudou (commit ambíguo da 1ª transação ou
+   * confirmação concorrente que venceu), e a resposta não pode afirmar isso.
    */
   private async registrarFalhaDaAplicacao(
     contexto: ContextoDaImportacao,
     empresaId: string,
     tentativaId: string,
     versaoDaPrevia: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const agora = this.agora();
 
     try {
@@ -417,9 +457,13 @@ export class PlanoContasService {
         });
         await criarNotificacaoDeImportacao(cliente, { empresaId, tentativaId, agora });
       });
+
+      return true;
     } catch (erro) {
       const motivo = erro instanceof ErroDeDominio ? erro.codigo : descreverFalha(erro);
       this.logger.error(`FALHA da tentativa ${tentativaId} não registrada [${contexto.correlationId}]: ${motivo}`);
+
+      return false;
     }
   }
 
@@ -427,6 +471,7 @@ export class PlanoContasService {
     const agora = this.agora();
 
     return comContextoHumano(this.pool.instancia, contexto, async (cliente) => {
+      await exigirEmpresaQueAceitaImportacao(cliente, empresaId);
       const cancelada = await cancelarImportacao(cliente, {
         empresaId,
         tentativaId,

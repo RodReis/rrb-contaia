@@ -347,6 +347,7 @@ export {
   ITENS_DO_HISTORICO as ITENS_DO_HISTORICO_DE_IMPORTACOES,
   buscarDiagnosticoDaTentativa,
   carregarContasVigentes,
+  carregarSituacaoDaEmpresa,
   contarContasValidas,
   listarHistorico as listarHistoricoDeImportacoes,
   listarLinhasParaRelatorio,
@@ -360,4 +361,5 @@ export type {
   PaginaDeRejeicoes,
   PaginaDoPlano,
   RejeicaoDaLinha,
+  SituacaoDaEmpresaParaImportacao,
 } from './repositorios/plano-contas-consultas.js';

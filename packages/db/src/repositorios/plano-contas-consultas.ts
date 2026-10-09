@@ -328,6 +328,27 @@ export const listarPlano = async (
   };
 };
 
+/** Situação do cadastro que decide se a empresa aceita escrita no plano de contas. */
+export type SituacaoDaEmpresaParaImportacao = Readonly<{ arquivada: boolean; ativa: boolean }>;
+
+/**
+ * Situação da empresa sob a RLS da sessão (`null` fora do alcance). Empresa arquivada é somente
+ * consulta (SPEC-003 §3.5) — o administrador a alcança sem vínculo, então o caso de uso precisa
+ * recusar a escrita explicitamente; empresa em cadastro ainda não tem plano a importar.
+ */
+export const carregarSituacaoDaEmpresa = async (
+  cliente: PoolClient,
+  empresaId: string,
+): Promise<SituacaoDaEmpresaParaImportacao | null> => {
+  const { rows } = await cliente.query<{ situacao: string; status: string }>(
+    `select situacao, status from app.empresa where id = $1`,
+    [empresaId],
+  );
+  const linha = rows[0];
+
+  return linha === undefined ? null : { arquivada: linha.situacao === 'arquivado', ativa: linha.status === 'ATIVA' };
+};
+
 /** Contas válidas (não arquivadas): zero mantém a pendência de plano incompleto (SPEC-013 §3.10). */
 export const contarContasValidas = async (cliente: PoolClient, empresaId: string): Promise<number> => {
   const { rows } = await cliente.query<{ total: number }>(

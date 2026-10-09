@@ -37,8 +37,10 @@ type Banco = {
   sequencia: number;
 };
 
-const { db, falhas, chamadas } = vi.hoisted(() => ({
+const { db, falhas, chamadas, empresas } = vi.hoisted(() => ({
   db: { atual: null as unknown as Banco },
+  /** Situação do cadastro: empresa fora dos dois conjuntos é ATIVA e não arquivada. */
+  empresas: { arquivadas: new Set<string>(), incompletas: new Set<string>() },
   falhas: {
     aplicar: null as Error | null,
     notificar: null as Error | null,
@@ -231,6 +233,10 @@ vi.mock('@contaia/db', () => ({
     return true;
   },
   contarContasValidas: async () => db.atual.contas.length,
+  carregarSituacaoDaEmpresa: async (_c: unknown, empresaId: string) => ({
+    arquivada: empresas.arquivadas.has(empresaId),
+    ativa: !empresas.incompletas.has(empresaId),
+  }),
   buscarDiagnosticoDaTentativa: async (_c: unknown, _empresaId: string, tentativaId: string) => {
     chamadas.ordem.push('diagnostico');
     const evento = [...db.atual.eventosCompletos]
@@ -356,6 +362,8 @@ const validada = (id: string, rejeitadas = 1): void => {
 
 beforeEach(() => {
   db.atual = bancoVazio();
+  empresas.arquivadas.clear();
+  empresas.incompletas.clear();
   falhas.aplicar = null;
   falhas.notificar = null;
   falhas.ignoradas = [];
@@ -706,6 +714,10 @@ describe('confirmar (SPEC-013 §3.6, §3.10)', () => {
     const erro = await servico.confirmar(CONTEXTO, EMPRESA, id, 0).catch((e: unknown) => e);
 
     expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.FALHA_TECNICA, detalhes: { tentativaId: id } });
+    // Sem a FALHA registrada não há prova de que nada mudou (commit ambíguo, confirmação
+    // concorrente vencedora): a mensagem não promete isso e manda consultar o estado atual.
+    expect((erro as Error).message).not.toContain('Nenhuma conta foi alterada');
+    expect((erro as Error).message).toContain('Consulte o estado atual');
     expect(db.atual.tentativas[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
     expect(db.atual.eventos.map((e) => e.acao)).toEqual(['CRIACAO']);
     expect(chamadas.transacoesAbertas).toBe(0);
@@ -719,6 +731,7 @@ describe('confirmar (SPEC-013 §3.6, §3.10)', () => {
     const erro = await servico.confirmar(CONTEXTO, EMPRESA, id, 0).catch((e: unknown) => e);
 
     expect(erro).toMatchObject({ codigo: CODIGOS_DE_ERRO.FALHA_TECNICA, detalhes: { tentativaId: id } });
+    expect((erro as Error).message).not.toContain('Nenhuma conta foi alterada');
     expect(db.atual.contas).toEqual([]);
     expect(db.atual.tentativas[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
     expect(chamadas.transacoesAbertas).toBe(0);
@@ -756,6 +769,64 @@ describe('cancelar (SPEC-013 §3.8)', () => {
 
     expect(await codigoDo(() => servico.cancelar(CONTEXTO, EMPRESA, tentativaId))).toBe(CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO);
     expect(await codigoDo(() => servico.cancelar(CONTEXTO, OUTRA_EMPRESA, tentativaId))).toBe(CODIGOS_DE_ERRO.TENTATIVA_NAO_ENCONTRADA);
+  });
+});
+
+describe('empresa arquivada ou em cadastro é somente consulta (SPEC-003 §3.5, SPEC-013 §3.12)', () => {
+  it('enviar em empresa arquivada → EMPRESA_ARQUIVADA, sem storage, tentativa nem job', async () => {
+    const { storage, fila, servico } = montar();
+    empresas.arquivadas.add(EMPRESA);
+
+    expect(await codigoDo(() => servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO))).toBe(CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA);
+    expect(storage.enviarComChave).not.toHaveBeenCalled();
+    expect(fila.enfileirar).not.toHaveBeenCalled();
+    expect(db.atual.tentativas).toEqual([]);
+  });
+
+  it('enviar em empresa com cadastro incompleto → EMPRESA_NAO_ATIVA, sem tentativa', async () => {
+    const { storage, servico } = montar();
+    empresas.incompletas.add(EMPRESA);
+
+    expect(await codigoDo(() => servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO))).toBe(CODIGOS_DE_ERRO.EMPRESA_NAO_ATIVA);
+    expect(storage.enviarComChave).not.toHaveBeenCalled();
+    expect(db.atual.tentativas).toEqual([]);
+  });
+
+  it('confirmar depois que a empresa foi arquivada → EMPRESA_ARQUIVADA; nada aplicado e a prévia segue aguardando', async () => {
+    const { servico } = montar();
+    const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    validada(tentativaId);
+    empresas.arquivadas.add(EMPRESA);
+    chamadas.ordem = [];
+
+    expect(await codigoDo(() => servico.confirmar(CONTEXTO, EMPRESA, tentativaId, 0))).toBe(CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA);
+    expect(chamadas.ordem).toEqual([]);
+    expect(db.atual.contas).toEqual([]);
+    expect(db.atual.notificacoes).toEqual([]);
+    expect(db.atual.tentativas[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
+  });
+
+  it('cancelar em empresa arquivada → EMPRESA_ARQUIVADA; a prévia não muda', async () => {
+    const { servico } = montar();
+    const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    validada(tentativaId);
+    empresas.arquivadas.add(EMPRESA);
+
+    expect(await codigoDo(() => servico.cancelar(CONTEXTO, EMPRESA, tentativaId))).toBe(CODIGOS_DE_ERRO.EMPRESA_ARQUIVADA);
+    expect(db.atual.tentativas[0]!.estado).toBe('AGUARDANDO_CONFIRMACAO');
+    expect(db.atual.eventos.map((e) => e.acao)).toEqual(['CRIACAO']);
+  });
+
+  it('leituras continuam em empresa arquivada: prévia, histórico, rejeições e plano', async () => {
+    const { servico } = montar();
+    const { tentativaId } = await servico.enviar(CONTEXTO, EMPRESA, arquivo(), MAPEAMENTO);
+    validada(tentativaId);
+    empresas.arquivadas.add(EMPRESA);
+
+    expect((await servico.previa(CONTEXTO, EMPRESA, tentativaId)).estado).toBe('AGUARDANDO_CONFIRMACAO');
+    expect((await servico.historico(CONTEXTO, EMPRESA, 1)).pagina).toBe(1);
+    expect((await servico.rejeicoes(CONTEXTO, EMPRESA, tentativaId, 1)).total).toBe(1);
+    expect((await servico.plano(CONTEXTO, EMPRESA, 1)).total).toBe(1);
   });
 });
 
