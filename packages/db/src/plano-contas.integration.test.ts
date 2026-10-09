@@ -384,6 +384,7 @@ describe('tentativa de importação: idempotência e estado (SPEC-013 §3.7, §3
       'finalizado_em',
       'iniciado_em',
       'mapeamento',
+      'obsoleta',
       'plano_versao_na_validacao',
       'reutilizada_por_idempotencia',
       'totais',
@@ -467,6 +468,38 @@ describe('tentativa de importação: idempotência e estado (SPEC-013 §3.7, §3
 
     expect(await atualizar(`estado = 'VALIDANDO', finalizado_em = null`)).toBe('23001');
     expect(await atualizar(`reutilizada_por_idempotencia = true`)).toBe('nao_lancou');
+  });
+
+  it('FIX #107: resultado obsoleto sai da identidade; a marca só sobe, sozinha, e só em resultado reutilizável', async () => {
+    const hash = hex64();
+    const id = await inserirTentativa(admin, c.empresaA1, { hash });
+    await admin.query(
+      `update app.importacao_plano_contas set estado = 'CONCLUIDA', finalizado_em = now(), iniciado_em = now() where id = $1`,
+      [id],
+    );
+    const atualizar = (definicao: string, alvo: string = id) =>
+      codigoPg(() =>
+        como(c.usuarios.naCarteira, (cli) =>
+          cli.query(`update app.importacao_plano_contas set ${definicao} where id = $1`, [alvo]),
+        ),
+      );
+
+    // Junto com outra coluna, o terminal continua congelado.
+    expect(await atualizar(`obsoleta = true, totais = '{}'::jsonb`)).toBe('23001');
+    expect(await atualizar(`obsoleta = true`)).toBe('nao_lancou');
+    expect(await atualizar(`obsoleta = false`)).toBe('23001');
+    expect(await codigoPg(() => admin.query(`update app.importacao_plano_contas set obsoleta = false where id = $1`, [id]))).toBe(
+      '23001',
+    );
+
+    // Obsoleta, a tentativa libera a identidade: o mesmo arquivo e mapeamento entram de novo.
+    expect(await codigoPg(() => como(c.usuarios.naCarteira, (cli) => inserirTentativa(cli, c.empresaA1, { hash })))).toBe(
+      'nao_lancou',
+    );
+
+    // Tentativa viva nunca fica obsoleta (sairia da identidade e o reenvio a duplicaria).
+    const viva = await como(c.usuarios.naCarteira, (cli) => inserirTentativa(cli, c.empresaA1));
+    expect(await atualizar(`obsoleta = true`, viva)).toBe('23514');
   });
 });
 

@@ -156,8 +156,12 @@ const rejeitada = (numeroDaLinha: number, codigo: string | null): LinhaDeStaging
 });
 
 /** Upload → validação no worker → prévia em AGUARDANDO_CONFIRMACAO (ou REJEITADA). */
-const prepararPrevia = async (empresaId: string, linhas: readonly LinhaDeStaging[]): Promise<TentativaDeImportacao> => {
-  const criada = await como((cli) => criarTentativa(cli, novaTentativa(empresaId)));
+const prepararPrevia = async (
+  empresaId: string,
+  linhas: readonly LinhaDeStaging[],
+  hash: string = hex64(),
+): Promise<TentativaDeImportacao> => {
+  const criada = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
   const inicio = await comoWorker(empresaId, (cli) => iniciarValidacao(cli, empresaId, criada.id, agora()));
   await comoWorker(empresaId, (cli) =>
     gravarResultadoDaValidacao(cli, empresaId, criada.id, linhas, inicio.planoVersaoNaValidacao, agora()),
@@ -338,6 +342,81 @@ describe('tentativa: criação idempotente e leitura por empresa (SPEC-013 §3.7
       [empresaId],
     );
     expect(rows[0]!.n).toBe(1);
+  });
+
+  it('FIX #107: reenvio depois de outra importação mudar o plano abre tentativa nova; sem mudança, reutiliza', async () => {
+    const empresaId = await novaEmpresa();
+    const hash = hex64();
+    const primeira = await prepararPrevia(empresaId, [valida(1, 'X1')], hash);
+    await confirmarEAplicar(empresaId, primeira);
+
+    // Logo depois da própria aplicação o plano é o que ela deixou: reuso (I-9), sem tentativa nova.
+    const imediato = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
+    expect(imediato).toMatchObject({ id: primeira.id, estado: 'CONCLUIDA', reutilizada: true, reutilizadaPorIdempotencia: true });
+
+    // Outra importação muda o plano.
+    await confirmarEAplicar(empresaId, await prepararPrevia(empresaId, [valida(1, 'Y1')]));
+    const linhaDa = async (id: string): Promise<Record<string, unknown>> =>
+      (await admin.query(`select * from app.importacao_plano_contas where id = $1`, [id])).rows[0] as Record<string, unknown>;
+    const antes = await linhaDa(primeira.id);
+
+    const reenvio = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
+
+    expect(reenvio).toMatchObject({ estado: 'RECEBIDA', reutilizada: false, reutilizadaPorIdempotencia: false });
+    expect(reenvio.id).not.toBe(primeira.id);
+    // A antiga fica no histórico intacta: só a marca de obsoleta sobe.
+    expect(antes['obsoleta']).toBe(false);
+    expect(await linhaDa(primeira.id)).toEqual({ ...antes, obsoleta: true });
+
+    // O próximo reenvio cai na tentativa nova, não na obsoleta.
+    const deNovo = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
+    expect(deNovo).toMatchObject({ id: reenvio.id, reutilizada: true });
+  });
+
+  it('FIX #107: REJEITADA é revalidada depois que o plano muda; com o plano igual, reutiliza', async () => {
+    const empresaId = await novaEmpresa();
+    const hash = hex64();
+    const recusada = await prepararPrevia(empresaId, [rejeitada(1, 'X')], hash);
+    expect(recusada.estado).toBe('REJEITADA');
+
+    const comPlanoIgual = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
+    expect(comPlanoIgual).toMatchObject({ id: recusada.id, reutilizada: true });
+
+    await confirmarEAplicar(empresaId, await prepararPrevia(empresaId, [valida(1, 'PAI')]));
+    const comPlanoNovo = await como((cli) => criarTentativa(cli, novaTentativa(empresaId, { hash })));
+
+    expect(comPlanoNovo).toMatchObject({ estado: 'RECEBIDA', reutilizada: false });
+    expect(comPlanoNovo.id).not.toBe(recusada.id);
+    expect(await estadoNoBanco(recusada.id)).toBe('REJEITADA');
+  });
+
+  it('FIX #107: dois reenvios simultâneos de resultado obsoleto abrem uma só tentativa nova', async () => {
+    const empresaId = await novaEmpresa();
+    const hash = hex64();
+    const primeira = await prepararPrevia(empresaId, [valida(1, 'X1')], hash);
+    await confirmarEAplicar(empresaId, primeira);
+    await confirmarEAplicar(empresaId, await prepararPrevia(empresaId, [valida(1, 'Y1')]));
+    const enviar = (): Promise<TentativaDeImportacao & { reutilizada: boolean }> =>
+      como(async (cli) => {
+        const criada = await criarTentativa(cli, novaTentativa(empresaId, { hash }));
+        await cli.query('select pg_sleep(0.2)');
+
+        return criada;
+      });
+
+    const [a, b] = await Promise.all([enviar(), enviar()]);
+
+    expect(a.id).toBe(b.id);
+    expect(a.id).not.toBe(primeira.id);
+    expect([a.reutilizada, b.reutilizada].sort()).toEqual([false, true]);
+    const { rows } = await admin.query<{ id: string; obsoleta: boolean }>(
+      `select id, obsoleta from app.importacao_plano_contas where empresa_id = $1 and hash_arquivo = $2 order by sequencia`,
+      [empresaId, hash],
+    );
+    expect(rows).toEqual([
+      { id: primeira.id, obsoleta: true },
+      { id: a.id, obsoleta: false },
+    ]);
   });
 
   it('buscarTentativa só encontra pela empresa certa e dentro do tenant e da carteira', async () => {

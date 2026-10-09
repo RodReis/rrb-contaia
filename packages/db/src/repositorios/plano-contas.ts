@@ -199,8 +199,17 @@ const COLUNAS_DA_TENTATIVA = `id, tenant_id, empresa_id, hash_arquivo, mapeament
 
 /** Resultado terminal que o reenvio idêntico reaproveita (SPEC-013 §3.7). */
 const RESULTADOS_REUTILIZAVEIS_SQL = `('CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA')`;
-/** Predicado da UNIQUE parcial `importacao_plano_contas_idempotente` (migration 0015), literal. */
-const PREDICADO_DA_IDENTIDADE_SQL = `estado not in ('FALHA', 'CANCELADA')`;
+/** Predicado da UNIQUE parcial `importacao_plano_contas_idempotente` (migration 0016), literal. */
+const PREDICADO_DA_IDENTIDADE_SQL = `estado not in ('FALHA', 'CANCELADA') and not obsoleta`;
+/**
+ * O plano mudou depois que o resultado terminal `t` terminou (FIX #107). REJEITADA terminou na
+ * versão da validação; CONCLUIDA* nela + 1 (a confirmação exige a versão validada e a aplicação a
+ * sobe uma vez, na mesma transação — `aplicarLinhas`). Versão desconhecida → não obsoleto.
+ */
+const PLANO_MUDOU_DEPOIS_DO_RESULTADO_SQL = `exists (
+  select 1 from app.empresa_plano_versao v
+   where v.empresa_id = t.empresa_id and v.tenant_id = t.tenant_id
+     and v.versao <> t.plano_versao_na_validacao + case when t.estado = 'REJEITADA' then 0 else 1 end)`;
 
 const paraTentativa = (linha: LinhaDaTentativa): TentativaDeImportacao => ({
   id: linha.id,
@@ -278,24 +287,22 @@ const erroDaTransicao = async (
 
 // --- tentativa -----------------------------------------------------------------------------------
 
-/**
- * Cria a tentativa RECEBIDA, já com o mapeamento. A identidade idempotente (tenant + empresa +
- * hash + mapeamento) é a UNIQUE parcial da tabela, que ignora FALHA e CANCELADA: o pedido
- * repetido devolve a tentativa viva ou com resultado reutilizável, com `reutilizada = true`, numa
- * única instrução (sem corrida entre ler e inserir; o segundo de dois envios simultâneos espera o
- * primeiro e cai no reuso). Depois de FALHA ou CANCELADA nasce uma tentativa nova. Se a existente
- * tem resultado reutilizável, a marca de reuso do histórico também sobe.
- */
-export const criarTentativa = async (cliente: PoolClient, nova: NovaTentativa): Promise<TentativaCriada> => {
-  const { rows } = await cliente.query<LinhaDaTentativa & { nova: boolean }>(
+/** Uma instrução: insere a tentativa ou cai na existente da identidade (ver `criarTentativa`). */
+const inserirOuReutilizar = async (
+  cliente: PoolClient,
+  nova: NovaTentativa,
+): Promise<Readonly<{ tentativa: TentativaCriada; obsoleta: boolean }>> => {
+  const { rows } = await cliente.query<LinhaDaTentativa & { nova: boolean; obsoleta: boolean }>(
     `insert into app.importacao_plano_contas as t
        (tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome, arquivo_tamanho, arquivo_chave,
         usuario_iniciador_id, correlation_id, criado_em)
      values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10)
      on conflict (empresa_id, tenant_id, hash_arquivo, mapeamento) where ${PREDICADO_DA_IDENTIDADE_SQL}
      do update
-       set reutilizada_por_idempotencia = t.reutilizada_por_idempotencia or t.estado in ${RESULTADOS_REUTILIZAVEIS_SQL}
-     returning ${COLUNAS_DA_TENTATIVA}, (xmax = 0) as nova`,
+       set obsoleta = t.estado in ${RESULTADOS_REUTILIZAVEIS_SQL} and ${PLANO_MUDOU_DEPOIS_DO_RESULTADO_SQL},
+           reutilizada_por_idempotencia = t.reutilizada_por_idempotencia
+             or (t.estado in ${RESULTADOS_REUTILIZAVEIS_SQL} and not ${PLANO_MUDOU_DEPOIS_DO_RESULTADO_SQL})
+     returning ${COLUNAS_DA_TENTATIVA}, (xmax = 0) as nova, obsoleta`,
     [
       nova.tenantId,
       nova.empresaId,
@@ -311,7 +318,30 @@ export const criarTentativa = async (cliente: PoolClient, nova: NovaTentativa): 
   );
   const linha = rows[0]!;
 
-  return { ...paraTentativa(linha), reutilizada: !linha.nova };
+  return { tentativa: { ...paraTentativa(linha), reutilizada: !linha.nova }, obsoleta: linha.obsoleta };
+};
+
+/**
+ * Cria a tentativa RECEBIDA, já com o mapeamento. A identidade idempotente (tenant + empresa +
+ * hash + mapeamento) é a UNIQUE parcial da tabela, que ignora FALHA e CANCELADA: o pedido
+ * repetido devolve a tentativa viva ou com resultado reutilizável, com `reutilizada = true`, numa
+ * única instrução (sem corrida entre ler e inserir; o segundo de dois envios simultâneos espera o
+ * primeiro e cai no reuso). Depois de FALHA ou CANCELADA nasce uma tentativa nova. Se a existente
+ * tem resultado reutilizável, a marca de reuso do histórico também sobe.
+ *
+ * Resultado terminal de um plano que já mudou (FIX #107) não é reaproveitado: a mesma instrução,
+ * com a linha travada, o marca `obsoleta` (sai da identidade, fica intacto no histórico) e a
+ * inserção é refeita, abrindo a tentativa nova. O envio simultâneo espera essa transação e cai no
+ * reuso da nova (I-9: uma só).
+ */
+export const criarTentativa = async (cliente: PoolClient, nova: NovaTentativa): Promise<TentativaCriada> => {
+  const primeira = await inserirOuReutilizar(cliente, nova);
+
+  if (!primeira.obsoleta) {
+    return primeira.tentativa;
+  }
+
+  return (await inserirOuReutilizar(cliente, nova)).tentativa;
 };
 
 /** Tentativa da empresa informada; de outra empresa, tenant ou fora da carteira → `null`. */

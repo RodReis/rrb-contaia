@@ -87,6 +87,7 @@ let adminDoTenant = '';
 let empresaParalela = '';
 let empresaAArquivar = '';
 let empresaJaArquivada = '';
+let empresaReenvio = '';
 let http: INestApplication;
 
 const unico = async (sql: string, parametros: unknown[]): Promise<string> =>
@@ -238,6 +239,7 @@ beforeAll(async () => {
   empresaGrande = await novaEmpresa(tenantA, 'G');
   empresaParalela = await novaEmpresa(tenantA, 'P');
   empresaAArquivar = await novaEmpresa(tenantA, 'R');
+  empresaReenvio = await novaEmpresa(tenantA, 'V');
   // Arquivada desde o início e sem vínculo: só o administrador a alcança (SPEC-009).
   empresaJaArquivada = await unico(
     `insert into app.empresa (tenant_id, cnpj, razao_social, status, situacao) values ($1, $2, 'Encerrada', 'ATIVA', 'arquivado') returning id`,
@@ -251,7 +253,7 @@ beforeAll(async () => {
     tenantA,
     adminDoTenant,
   ]);
-  for (const empresaId of [empresa, outraDaCarteira, aAtivar, empresaFalha, empresaArquivada, empresaGrande, empresaParalela, empresaAArquivar]) {
+  for (const empresaId of [empresa, outraDaCarteira, aAtivar, empresaFalha, empresaArquivada, empresaGrande, empresaParalela, empresaAArquivar, empresaReenvio]) {
     await vincular(tenantA, contador, empresaId);
   }
   await vincular(tenantA, auxiliar, empresa);
@@ -556,6 +558,53 @@ describe('falhas na confirmação e no relatório', () => {
     // Comando fora do contrato: cria a fila (e a conexão) e é recusado antes de qualquer job.
     await expect(provida.enfileirar({ tenantId: 'x' } as never)).rejects.toThrow();
     await expect(provida.onModuleDestroy()).resolves.toBeUndefined();
+  });
+});
+
+describe('reenvio depois de o plano mudar (FIX #107, SPEC-013 §3.7)', () => {
+  it('importar X, importar Y, reenviar X: tentativa nova enfileirada; a antiga fica intacta e obsoleta', async () => {
+    const arquivoX = { buffer: csv(['X1;Xis;sintetica;devedora;']), nome: 'x.csv', mimetype: 'text/csv' };
+    const arquivoY = { buffer: csv(['Y1;Ipsilon;sintetica;devedora;']), nome: 'y.csv', mimetype: 'text/csv' };
+    const importar = async (arquivo: typeof arquivoX, codigo: string): Promise<string> => {
+      const enviada = await servico.enviar(contexto(contador), empresaReenvio, arquivo, MAPEAMENTO);
+      await validarComoWorker(empresaReenvio, enviada.tentativaId, [valida(2, codigo, null)]);
+      const previa = await servico.previa(contexto(contador), empresaReenvio, enviada.tentativaId);
+      await servico.confirmar(contexto(contador), empresaReenvio, enviada.tentativaId, previa.versaoDaPrevia!);
+
+      return enviada.tentativaId;
+    };
+    const tentativasDeX = async (): Promise<Array<{ id: string; estado: string; obsoleta: boolean }>> =>
+      (
+        await admin.query<{ id: string; estado: string; obsoleta: boolean }>(
+          `select id, estado, obsoleta from app.importacao_plano_contas
+            where empresa_id = $1 and arquivo_nome = 'x.csv' order by sequencia`,
+          [empresaReenvio],
+        )
+      ).rows;
+
+    const x = await importar(arquivoX, 'X1');
+
+    // Reenvio logo depois, com o plano que a própria X deixou: reuso, sem job novo.
+    const imediato = await servico.enviar(contexto(contador), empresaReenvio, arquivoX, MAPEAMENTO);
+    expect(imediato).toMatchObject({ tentativaId: x, estado: 'CONCLUIDA', reutilizadaPorIdempotencia: true });
+    expect(await tentativasDeX()).toEqual([{ id: x, estado: 'CONCLUIDA', obsoleta: false }]);
+
+    await importar(arquivoY, 'Y1');
+    const reenvio = await servico.enviar(contexto(contador), empresaReenvio, arquivoX, MAPEAMENTO);
+
+    expect(reenvio.tentativaId).not.toBe(x);
+    expect(reenvio).toMatchObject({ estado: 'RECEBIDA', reutilizadaPorIdempotencia: false });
+    expect((await fila.getJob(idDoJobDeValidacao(reenvio.tentativaId)))?.data).toMatchObject({
+      empresaId: empresaReenvio,
+      tentativaId: reenvio.tentativaId,
+    });
+    expect(await tentativasDeX()).toEqual([
+      { id: x, estado: 'CONCLUIDA', obsoleta: true },
+      { id: reenvio.tentativaId, estado: 'RECEBIDA', obsoleta: false },
+    ]);
+    // O resultado antigo continua legível pelo histórico.
+    expect((await servico.previa(contexto(contador), empresaReenvio, x)).estado).toBe('CONCLUIDA');
+    poolLivre();
   });
 });
 
