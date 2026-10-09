@@ -38,5 +38,5 @@ export const EtapasDaImportacao = ({ atual }: { atual: EtapaDaImportacao }) => {
     situacao: indice < posicao ? 'concluida' : indice === posicao ? 'atual' : 'pendente',
   }));
 
-  return <Stepper etapas={etapas} rotulo="Etapas da importação" />;
+  return <Stepper etapas={etapas} rotulo="Etapas da importação" compacto />;
 };
