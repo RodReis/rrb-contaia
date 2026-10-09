@@ -7,8 +7,6 @@ import { z } from 'zod';
  * Todos schemas `.strict()` — campo extra = recusa.
  */
 
-export const VERSAO_DO_CONTRATO_DO_PLANO_CONTAS = 'v1';
-
 export const ESTADOS_DA_IMPORTACAO = [
   'RECEBIDA',
   'VALIDANDO',
@@ -44,44 +42,6 @@ const identificador = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
 const chaveTextual = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/u);
-
-const linhaDeEntradaSchema = z.strictObject({
-  numeroDaLinha: z.number().int().min(1),
-  codigo: z.string().min(1).max(64),
-  nome: z.string().min(1).max(255),
-  tipo: z.enum(TIPOS_DE_CONTA),
-  natureza: z.enum(NATUREZAS_DE_CONTA),
-  contaPai: z.string().max(64).nullable(),
-});
-
-export const LinhaDeEntradaSchema = linhaDeEntradaSchema;
-export type LinhaDeEntrada = z.infer<typeof LinhaDeEntradaSchema>;
-
-export const ContaVigenteSchema = z.strictObject({
-  codigo: z.string().min(1).max(64),
-  tipo: z.enum(TIPOS_DE_CONTA),
-  arquivada: z.boolean(),
-  temFilhas: z.boolean(),
-});
-export type ContaVigente = z.infer<typeof ContaVigenteSchema>;
-
-export const LinhaRejeitadaSchema = z.strictObject({
-  numeroDaLinha: z.number().int().min(1),
-  codigo: z.string().max(64).nullable(),
-  campo: z.string().max(64).nullable(),
-  codigoDeErro: z.enum(CODIGOS_DE_ERRO_DA_LINHA),
-});
-export type LinhaRejeitada = z.infer<typeof LinhaRejeitadaSchema>;
-
-export const LinhaAceitaSchema = z.strictObject({
-  numeroDaLinha: z.number().int().min(1),
-  codigo: z.string().min(1).max(64),
-  nome: z.string().min(1).max(255),
-  tipo: z.enum(TIPOS_DE_CONTA),
-  natureza: z.enum(NATUREZAS_DE_CONTA),
-  contaPai: z.string().max(64).nullable(),
-});
-export type LinhaAceita = z.infer<typeof LinhaAceitaSchema>;
 
 /** Rejeição como a API a mostra (amostra da prévia e páginas): com a mensagem acionável. */
 export const RejeicaoDaImportacaoSchema = z.strictObject({

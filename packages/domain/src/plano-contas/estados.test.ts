@@ -1,59 +1,53 @@
 /**
- * Estados da importação do plano de contas (SPEC-013 §3.11, I-7, I-9).
+ * Estados da importação do plano de contas (SPEC-013 §3.11).
  */
 import { describe, expect, it } from 'vitest';
 
-import { ehEstadoTerminal, proximoEstado, podeTransicionar } from './estados.js';
+import { podeTransicionar, type EstadoDaImportacao, type EventoDaImportacao } from './estados.js';
+
+const TERMINAIS: readonly EstadoDaImportacao[] = ['CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA', 'CANCELADA', 'FALHA'];
+const EVENTOS: readonly EventoDaImportacao[] = [
+  'INICIAR_VALIDACAO',
+  'VALIDACAO_SUCESSO',
+  'VALIDACAO_REJEITADA',
+  'FALHA_TECNICA',
+  'CONFIRMAR',
+  'CANCELAR',
+  'APLICACAO_SUCESSO',
+  'APLICACAO_SUCESSO_COM_REJEICOES',
+];
 
 describe('estados da importação (SPEC-013 §3.11)', () => {
-  it('estados terminais são identificados', () => {
-    for (const estado of ['CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA', 'CANCELADA', 'FALHA'] as const) {
-      expect(ehEstadoTerminal(estado)).toBe(true);
-    }
-    for (const estado of ['RECEBIDA', 'VALIDANDO', 'AGUARDANDO_CONFIRMACAO', 'APLICANDO'] as const) {
-      expect(ehEstadoTerminal(estado)).toBe(false);
+  it('aceita exatamente as transições do diagrama', () => {
+    const validas: readonly (readonly [EstadoDaImportacao, EventoDaImportacao])[] = [
+      ['RECEBIDA', 'INICIAR_VALIDACAO'],
+      ['VALIDANDO', 'VALIDACAO_SUCESSO'],
+      ['VALIDANDO', 'VALIDACAO_REJEITADA'],
+      ['VALIDANDO', 'FALHA_TECNICA'],
+      ['AGUARDANDO_CONFIRMACAO', 'CONFIRMAR'],
+      ['AGUARDANDO_CONFIRMACAO', 'CANCELAR'],
+      ['APLICANDO', 'APLICACAO_SUCESSO'],
+      ['APLICANDO', 'APLICACAO_SUCESSO_COM_REJEICOES'],
+      ['APLICANDO', 'FALHA_TECNICA'],
+    ];
+    const estados: readonly EstadoDaImportacao[] = ['RECEBIDA', 'VALIDANDO', 'AGUARDANDO_CONFIRMACAO', 'APLICANDO', ...TERMINAIS];
+
+    for (const estado of estados) {
+      for (const evento of EVENTOS) {
+        const esperado = validas.some(([e, ev]) => e === estado && ev === evento);
+        expect({ estado, evento, pode: podeTransicionar(estado, evento) }).toEqual({ estado, evento, pode: esperado });
+      }
     }
   });
 
-  it('transições válidas', () => {
-    expect(proximoEstado('RECEBIDA', 'INICIAR_VALIDACAO')).toBe('VALIDANDO');
-    expect(proximoEstado('VALIDANDO', 'VALIDACAO_SUCESSO')).toBe('AGUARDANDO_CONFIRMACAO');
-    expect(proximoEstado('VALIDANDO', 'VALIDACAO_REJEITADA')).toBe('REJEITADA');
-    expect(proximoEstado('VALIDANDO', 'FALHA_TECNICA')).toBe('FALHA');
-    expect(proximoEstado('AGUARDANDO_CONFIRMACAO', 'CONFIRMAR')).toBe('APLICANDO');
-    expect(proximoEstado('AGUARDANDO_CONFIRMACAO', 'CANCELAR')).toBe('CANCELADA');
-    expect(proximoEstado('APLICANDO', 'APLICACAO_SUCESSO')).toBe('CONCLUIDA');
-    expect(proximoEstado('APLICANDO', 'APLICACAO_SUCESSO_COM_REJEICOES')).toBe('CONCLUIDA_COM_REJEICOES');
-    expect(proximoEstado('APLICANDO', 'FALHA_TECNICA')).toBe('FALHA');
+  it('estado terminal não transiciona com nenhum evento (não reabre)', () => {
+    for (const estado of TERMINAIS) {
+      expect(EVENTOS.some((evento) => podeTransicionar(estado, evento))).toBe(false);
+    }
   });
 
-  it('podeTransicionar espelha as transições válidas', () => {
-    expect(podeTransicionar('RECEBIDA', 'INICIAR_VALIDACAO')).toBe(true);
-    expect(podeTransicionar('VALIDANDO', 'CONFIRMAR')).toBe(false);
+  it('o mesmo evento não se repete depois de aplicado (a origem já mudou)', () => {
+    expect(podeTransicionar('VALIDANDO', 'VALIDACAO_SUCESSO')).toBe(true);
     expect(podeTransicionar('AGUARDANDO_CONFIRMACAO', 'VALIDACAO_SUCESSO')).toBe(false);
-  });
-
-  it('tentativa de transição a partir de estado terminal retorna erro', () => {
-    for (const estado of ['CONCLUIDA', 'CANCELADA', 'FALHA'] as const) {
-      const resultado = proximoEstado(estado, 'INICIAR_VALIDACAO');
-      expect(resultado).toMatchObject({ codigo: 'ESTADO_TERMINAL_NAO_TRANSICIONA' });
-    }
-  });
-
-  it('evento desconhecido no estado atual retorna erro', () => {
-    const resultado = proximoEstado('RECEBIDA', 'EVENTO_INEXISTENTE');
-    expect(resultado).toMatchObject({ codigo: 'TRANSICAO_INVALIDA' });
-  });
-
-  it('mesmo evento no mesmo estado não terminal não duplica transição (idempotente na fronteira)', () => {
-    // SPEC: "Estados terminais não são reabertos nem apagados. Nova correção gera nova tentativa."
-    // A transição já aconteceu — tentar aplicar o mesmo evento novamente não deve mudar o estado,
-    // mas sim retornar erro de transição inválida (já não está mais no estado de origem).
-    // Na prática, isso é controlado na borda (API/worker) que lê o estado atual antes de chamar.
-    expect(proximoEstado('VALIDANDO', 'VALIDACAO_SUCESSO')).toBe('AGUARDANDO_CONFIRMACAO');
-    // Se alguém tentar aplicar VALIDACAO_SUCESSO de novo, agora o estado é AGUARDANDO_CONFIRMACAO
-    expect(proximoEstado('AGUARDANDO_CONFIRMACAO', 'VALIDACAO_SUCESSO')).toMatchObject({
-      codigo: 'TRANSICAO_INVALIDA',
-    });
   });
 });

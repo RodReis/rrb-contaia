@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { CODIGOS_DE_ERRO_DA_LINHA as CODIGOS_DO_DOMINIO, type CodigoDeErroDaLinha as CodigoDoDominio } from '@contaia/domain';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  CODIGOS_DE_ERRO_DA_LINHA,
   ComandoValidarImportacaoSchema,
   FILA_DE_VALIDACAO_PLANO_CONTAS,
   FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA,
@@ -9,6 +11,7 @@ import {
   PaginaDoPlanoDeContasSchema,
   PreviaDaImportacaoSchema,
   idDoJobDeValidacao,
+  type CodigoDeErroDaLinha,
 } from './plano-contas.js';
 
 const TENANT = '0198f3c2-0000-7000-8000-000000000001';
@@ -126,5 +129,13 @@ describe('visão da tentativa (prévia) devolvida pela API', () => {
         ],
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('códigos de erro da linha: contrato × domínio (SPEC-013 §3.4)', () => {
+  // O web lê a prévia com parse estrito: um código que só o domínio conhece quebraria a tela.
+  it('a lista do contrato é exatamente a do domínio', () => {
+    expect([...CODIGOS_DE_ERRO_DA_LINHA].sort()).toEqual([...CODIGOS_DO_DOMINIO].sort());
+    expectTypeOf<CodigoDeErroDaLinha>().toEqualTypeOf<CodigoDoDominio>();
   });
 });

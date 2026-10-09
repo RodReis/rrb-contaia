@@ -34,14 +34,6 @@ export type EventoDaImportacao =
   | 'APLICACAO_SUCESSO'
   | 'APLICACAO_SUCESSO_COM_REJEICOES';
 
-export interface TransicaoInvalida {
-  readonly codigo: 'ESTADO_TERMINAL_NAO_TRANSICIONA' | 'TRANSICAO_INVALIDA';
-  readonly estadoAtual: EstadoDaImportacao;
-  readonly evento: string;
-}
-
-type ProximoEstado = EstadoDaImportacao | TransicaoInvalida;
-
 const TRANSICOES = new Map<EstadoDaImportacao, Map<EventoDaImportacao, EstadoDaImportacao>>([
   ['RECEBIDA', new Map([['INICIAR_VALIDACAO', 'VALIDANDO']])],
   [
@@ -77,24 +69,12 @@ const ESTADOS_TERMINAIS: readonly EstadoDaImportacao[] = [
   'FALHA',
 ];
 
-export const ehEstadoTerminal = (estado: EstadoDaImportacao): boolean =>
-  ESTADOS_TERMINAIS.includes(estado);
+const ehEstadoTerminal = (estado: EstadoDaImportacao): boolean => ESTADOS_TERMINAIS.includes(estado);
 
-export const proximoEstado = (estado: EstadoDaImportacao, evento: EventoDaImportacao | string): ProximoEstado => {
-  if (ehEstadoTerminal(estado)) {
-    return { codigo: 'ESTADO_TERMINAL_NAO_TRANSICIONA', estadoAtual: estado, evento };
-  }
-  const eventos = TRANSICOES.get(estado);
-  if (!eventos) {
-    return { codigo: 'TRANSICAO_INVALIDA', estadoAtual: estado, evento };
-  }
-  const proximo = eventos.get(evento as EventoDaImportacao);
-  if (!proximo) {
-    return { codigo: 'TRANSICAO_INVALIDA', estadoAtual: estado, evento };
-  }
-  return proximo;
-};
-
+/**
+ * O evento é aceito no estado atual? Estado terminal não transiciona. O repositório usa esta regra
+ * antes de levar a tentativa a FALHA; as demais transições são UPDATEs condicionais no banco.
+ */
 export const podeTransicionar = (estado: EstadoDaImportacao, evento: EventoDaImportacao): boolean => {
   if (ehEstadoTerminal(estado)) return false;
   const eventos = TRANSICOES.get(estado);

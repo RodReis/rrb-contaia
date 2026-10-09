@@ -347,22 +347,7 @@ export {
   type CodigoDeErroDaLinha,
 } from './plano-contas/validacao.js';
 
-export {
-  decidirIdempotenciaDaImportacao,
-  type TentativaExistente,
-  type PedidoDeImportacao,
-  type DecisaoDeIdempotenciaDaImportacao,
-  type EstadoDaTentativa,
-} from './plano-contas/idempotencia.js';
-
-export {
-  proximoEstado,
-  ehEstadoTerminal,
-  podeTransicionar,
-  type EstadoDaImportacao,
-  type EventoDaImportacao,
-  type TransicaoInvalida,
-} from './plano-contas/estados.js';
+export { podeTransicionar, type EstadoDaImportacao, type EventoDaImportacao } from './plano-contas/estados.js';
 
 export {
   LIMITE_DE_LINHAS,

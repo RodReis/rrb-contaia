@@ -16,13 +16,11 @@ import {
   ErroDeDominio,
   FINALIDADES_HUMANAS,
   contextoHumano,
-  contextoTecnico,
   parametrosDeSessao,
 } from '@contaia/domain';
 import type {
   ContextoDeAcesso,
   EntradaDoContextoHumano,
-  EntradaDoContextoTecnico,
   FinalidadeHumana,
 } from '@contaia/domain';
 import type { Pool, PoolClient } from 'pg';
@@ -92,13 +90,6 @@ export const comContextoHumano = async <T>(
   entrada: EntradaDoContextoHumano,
   executar: ExecutarNaTransacao<T>,
 ): Promise<T> => executarEmTransacao(pool, contextoHumano(entrada), executar);
-
-/** Job técnico por empresa: valida identidade técnica, empresa e finalidade, abre transação. */
-export const comContextoTecnico = async <T>(
-  pool: Pool,
-  entrada: EntradaDoContextoTecnico,
-  executar: ExecutarNaTransacao<T>,
-): Promise<T> => executarEmTransacao(pool, contextoTecnico(entrada), executar);
 
 /**
  * Devolve a variável ao valor anterior mesmo quando o trecho falhou e o chamador segue na

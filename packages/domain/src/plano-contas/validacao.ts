@@ -98,8 +98,8 @@ const MENSAGEM_CAMPOS_A_MAIS = "A linha tem mais campos do que o cabeçalho; con
 const MENSAGEM_PAI_ANALITICO = 'A conta-pai é analítica; apenas conta sintética pode ter filhas.';
 
 /**
- * Limites do contrato da conta (os mesmos dos schemas do `@contaia/shared`). Excedê-los é erro de
- * conteúdo da linha, que vai ao relatório; nunca uma falha na gravação.
+ * Limites do contrato da conta (SPEC-013 §3.3; fonte única, usada pela validação do lote).
+ * Excedê-los é erro de conteúdo da linha, que vai ao relatório; nunca uma falha na gravação.
  */
 export const LIMITE_DO_CODIGO_DA_CONTA = 64;
 export const LIMITE_DO_NOME_DA_CONTA = 255;
