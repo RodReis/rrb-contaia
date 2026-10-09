@@ -608,7 +608,7 @@ test('aceitação parcial: ciclo, pai ausente, código repetido, pai rejeitado e
   await provar(contador, 'rejeicoes', {
     recarregar: true,
     pronto: (page) => page.getByRole('table', { name: /Linhas rejeitadas/u }),
-    recorte: (page) => page.locator('section').filter({ has: page.getByRole('heading', { name: 'Linhas rejeitadas' }) }),
+    recorte: (page) => page.locator('section[aria-labelledby^="rejeicoes-"]'),
   });
 });
 
