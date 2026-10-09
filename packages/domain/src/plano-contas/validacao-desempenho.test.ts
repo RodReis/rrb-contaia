@@ -97,6 +97,59 @@ describe('validarLinhasDoPlano — desempenho no limite do arquivo (SPEC-013 §3
     expect(ms).toBeLessThan(LIMITE_GENEROSO_EM_MS);
   });
 
+  /**
+   * Cascata adversária (válida): vigente `R ← C1 ← … ← Cm ← [T1 ← … ← Tt]` e o lote põe cada `Ci`
+   * sob a folha. Cada rodada recusa UMA linha, que volta ao pai antigo e fecha um ciclo um pouco
+   * maior; sem atalhos na busca de ciclos o custo era quadrático (9.999 linhas: 8,6 s; com 10.000
+   * vigentes na cauda: 33,5 s, acima do lockDuration padrão do BullMQ).
+   */
+  const cascataAdversaria = (m: number, cauda: number) => {
+    const contasVigentes: ContaVigente[] = [{ codigo: 'R', tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: null }];
+    for (let i = 1; i <= m; i += 1) {
+      contasVigentes.push({ codigo: `C${i}`, tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: i === 1 ? 'R' : `C${i - 1}` });
+    }
+    for (let j = 1; j <= cauda; j += 1) {
+      contasVigentes.push({
+        codigo: `T${j}`,
+        tipo: 'sintetica',
+        arquivada: false,
+        temFilhas: j < cauda,
+        contaPai: j === 1 ? `C${m}` : `T${j - 1}`,
+      });
+    }
+    const folha = cauda === 0 ? `C${m + 1}` : `T${cauda}`;
+    if (cauda === 0) {
+      contasVigentes.push({ codigo: folha, tipo: 'sintetica', arquivada: false, temFilhas: false, contaPai: `C${m}` });
+    }
+    const linhas: LinhaBrutaDeEntrada[] = [];
+    for (let i = 1; i <= m; i += 1) {
+      linhas.push({ numeroDaLinha: i + 1, codigo: `C${i}`, nome: `Conta ${i}`, tipo: 'sintetica', natureza: 'devedora', contaPai: folha });
+    }
+    return { linhas, contasVigentes };
+  };
+
+  it('cascata 9.999: toda linha cai em ciclo e a validação termina em menos de 1 s', () => {
+    const entrada = cascataAdversaria(9_999, 0);
+
+    const { resultado, ms } = medir(() => validarLinhasDoPlano(entrada));
+
+    expect(resultado.aceitas).toEqual([]);
+    expect(resultado.rejeitadas).toHaveLength(9_999);
+    expect(resultado.rejeitadas.every((r) => r.codigoDeErro === 'CICLO_HIERARQUICO')).toBe(true);
+    expect(ms).toBeLessThan(LIMITE_GENEROSO_EM_MS);
+  });
+
+  it('cascata com cauda vigente (10.000 vigentes pendurados): menos de 1 s', () => {
+    const entrada = cascataAdversaria(9_999, 10_000);
+
+    const { resultado, ms } = medir(() => validarLinhasDoPlano(entrada));
+
+    expect(resultado.aceitas).toEqual([]);
+    expect(resultado.rejeitadas).toHaveLength(9_999);
+    expect(resultado.rejeitadas.every((r) => r.codigoDeErro === 'CICLO_HIERARQUICO')).toBe(true);
+    expect(ms).toBeLessThan(LIMITE_GENEROSO_EM_MS);
+  });
+
   it('árvore larga (1 raiz e 9.999 filhas listadas antes dela) termina em menos de 1 s', () => {
     const linhas: LinhaBrutaDeEntrada[] = [];
     for (let i = 1; i < LINHAS_NO_LIMITE; i += 1) {

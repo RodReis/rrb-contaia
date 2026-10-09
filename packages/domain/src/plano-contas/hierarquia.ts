@@ -6,13 +6,21 @@
  * que já tinha. Uma linha só é aceita quando, NESSE plano final, a sua cadeia de pais chega a uma
  * raiz sem voltar a ela mesma — por isso a decisão considera as contas vigentes e não só o lote.
  *
- * Algoritmo (linear no caso comum): uma conta fica "ancorada" quando a cadeia dela já chega a uma
- * raiz no plano final. Raízes e contas vigentes sem pai ancoram primeiro; cada ancoragem acorda as
- * filhas que esperavam por ela (índice pai → filhas), que são avaliadas uma única vez. O que não
- * ancora depende de um ciclo: os ciclos são achados percorrendo os pais (cada conta visitada uma
- * vez por rodada) e as LINHAS que os formam são rejeitadas. Uma linha rejeitada que é conta vigente
- * volta ao pai antigo, o que pode ancorar outras contas — ou fechar um ciclo novo, procurado na
- * rodada seguinte só a partir das contas que voltaram ao pai antigo.
+ * Algoritmo (quase linear): uma conta fica "ancorada" quando a cadeia dela já chega a uma raiz no
+ * plano final. Raízes e contas vigentes sem pai ancoram primeiro; cada ancoragem acorda as filhas
+ * que esperavam por ela (índice pai → filhas), que são avaliadas uma única vez. O que não ancora
+ * depende de um ciclo: os ciclos são achados percorrendo os pais e as LINHAS que os formam são
+ * rejeitadas. Uma linha rejeitada que é conta vigente volta ao pai antigo, o que pode ancorar
+ * outras contas — ou fechar um ciclo novo, procurado na rodada seguinte só a partir das contas que
+ * voltaram ao pai antigo.
+ *
+ * A busca de ciclos usa ATALHOS com compressão de caminho (como num union-find): o trecho de contas
+ * que usam o pai vigente não muda mais (o pai vigente é fixo; elas só saem do grafo ancorando), e o
+ * trecho de linhas pendentes contíguas a partir de uma pendente só muda se ela também mudar (a
+ * rejeição ou a aceitação de uma propaga para as filhas na fila, esvaziada antes de cada busca).
+ * Cada atalho leva à próxima linha pendente depois de um trecho vigente; se o alvo deixou de estar
+ * pendente (voltou ao pai antigo), o salto continua dali e o atalho é refeito. Sem isso, uma
+ * cascata em que cada rodada recusa uma linha e fecha um ciclo um pouco maior era quadrática.
  */
 
 import type { ContaVigente, LinhaDeEntrada } from './validacao.js';
@@ -51,6 +59,8 @@ interface Estado {
   /** Linhas rejeitadas que são contas vigentes e voltaram ao pai antigo desde a última busca. */
   revertidas: string[];
   pendentes: number;
+  /** Atalho da busca de ciclos: conta → próxima linha pendente depois de um trecho vigente. */
+  readonly atalhos: Map<string, string | null>;
   readonly aceitas: LinhaDeEntrada[];
   readonly rejeicoes: RejeicaoNaHierarquia[];
 }
@@ -114,6 +124,8 @@ const rejeitar = (estado: Estado, linha: LinhaDeEntrada, motivo: MotivoDeRejeica
   estado.pendentes -= 1;
   estado.rejeicoes.push({ linha, motivo });
   estado.codigosRejeitados.add(linha.codigo);
+  // O atalho dela seguia o pai da LINHA; daqui em diante vale o pai vigente (ou ela sai do grafo).
+  estado.atalhos.delete(linha.codigo);
   // As filhas do lote que esperavam por esta conta passam a ter pai rejeitado.
   for (const filha of estado.filhasNoLote.get(linha.codigo) ?? []) {
     if (estado.situacao.get(filha) === 'pendente') estado.fila.push(['avaliar', filha]);
@@ -151,25 +163,111 @@ const esvaziarFila = (estado: Estado): void => {
   estado.fila.length = 0;
 };
 
+type Salto =
+  /** Chegou à próxima cabeça (linha pendente depois de um trecho vigente), a uma resolvida ou à raiz. */
+  | Readonly<{ tipo: 'destino'; destino: string | null }>
+  /** Voltou a si sem chegar a outra cabeça: ciclo só de pendentes ou só de vigentes, inteiro. */
+  | Readonly<{ tipo: 'puro'; ciclo: readonly string[] }>
+  /** Entrou num trecho que já terminou num ciclo puro nesta busca: nada novo por aqui. */
+  | Readonly<{ tipo: 'explorado' }>;
+
 /**
- * Ciclos do grafo das contas não resolvidas, percorrendo os pais a partir de `inicios`. Cada conta
- * é visitada no máximo uma vez por chamada.
+ * Da cabeça `inicio` (não resolvida) até a próxima linha pendente que vem depois de um trecho de
+ * contas com pai vigente — ou até uma conta resolvida, ausente ou a raiz (`null`). Uma pendente no
+ * início pula as pendentes contíguas a ela. Ao chegar a um destino, comprime o caminho (atalhos).
+ * Um ciclo puro não tem destino nem atalho: o que levou a ele fica em `explorados`, para a busca
+ * não o percorrer de novo a partir de outro início.
+ */
+const saltar = (estado: Estado, inicio: string, explorados: Set<string>): Salto => {
+  const caminho: string[] = [];
+  const posicao = new Map<string, number>();
+  let atual: string | null | undefined = inicio;
+  let passouPorVigente = false;
+
+  for (;;) {
+    if (atual === null || atual === undefined) {
+      atual = null;
+      break;
+    }
+    if (!naoResolvida(estado, atual)) break;
+    const pendente = estado.situacao.get(atual) === 'pendente';
+    if (pendente && passouPorVigente) break;
+    if (explorados.has(atual)) return { tipo: 'explorado' };
+    const repetida = posicao.get(atual);
+    if (repetida !== undefined) {
+      for (const codigo of caminho) explorados.add(codigo);
+      return { tipo: 'puro', ciclo: caminho.slice(repetida) };
+    }
+    posicao.set(atual, caminho.length);
+    caminho.push(atual);
+
+    const atalho = estado.atalhos.get(atual);
+    if (atalho !== undefined) {
+      // Todo atalho atravessa um trecho vigente antes do alvo.
+      passouPorVigente = true;
+      atual = atalho;
+    } else {
+      passouPorVigente ||= !pendente;
+      atual = paiNoPlanoFinal(estado, atual);
+    }
+  }
+
+  const destino: string | null = atual;
+  // Só ganha atalho quem atravessou um trecho vigente até o destino.
+  if (passouPorVigente) {
+    for (const codigo of caminho) estado.atalhos.set(codigo, destino);
+  }
+  return { tipo: 'destino', destino };
+};
+
+/**
+ * As linhas pendentes de um ciclo achado pelas cabeças: o trecho pendente de cada cabeça, passo a
+ * passo (cada trecho começa depois de um trecho vigente, então as cabeças cobrem todas).
+ */
+const linhasDoCiclo = (estado: Estado, cabecas: readonly string[]): string[] => {
+  const linhas = new Set<string>();
+  for (const cabeca of cabecas) {
+    let atual: string | null | undefined = cabeca;
+    while (atual !== null && atual !== undefined && estado.situacao.get(atual) === 'pendente' && !linhas.has(atual)) {
+      linhas.add(atual);
+      atual = estado.linhaPorCodigo.get(atual)!.contaPai;
+    }
+  }
+  return [...linhas];
+};
+
+/**
+ * Ciclos do grafo das contas não resolvidas a partir de `inicios`, percorrendo de cabeça em cabeça
+ * pelos atalhos. Devolve, por ciclo, as linhas pendentes que o formam — ou, num ciclo só de contas
+ * vigentes (dado anterior ao lote), as contas dele. Cada cabeça é visitada no máximo uma vez por
+ * chamada.
  */
 const ciclosAPartirDe = (estado: Estado, inicios: Iterable<string>): string[][] => {
   const visitadas = new Set<string>();
+  const explorados = new Set<string>();
   const ciclos: string[][] = [];
   for (const inicio of inicios) {
-    const caminho: string[] = [];
+    const cabecas: string[] = [];
     const posicao = new Map<string, number>();
-    let atual: string | null | undefined = inicio;
-    while (atual !== null && atual !== undefined && naoResolvida(estado, atual) && !visitadas.has(atual)) {
+    let atual: string | null = inicio;
+    while (atual !== null && naoResolvida(estado, atual)) {
+      const repetida = posicao.get(atual);
+      if (repetida !== undefined) {
+        ciclos.push(linhasDoCiclo(estado, cabecas.slice(repetida)));
+        break;
+      }
+      if (visitadas.has(atual)) break;
       visitadas.add(atual);
-      posicao.set(atual, caminho.length);
-      caminho.push(atual);
-      atual = paiNoPlanoFinal(estado, atual);
+      posicao.set(atual, cabecas.length);
+      cabecas.push(atual);
+      const salto = saltar(estado, atual, explorados);
+      if (salto.tipo === 'puro') {
+        ciclos.push([...salto.ciclo]);
+        break;
+      }
+      if (salto.tipo === 'explorado') break;
+      atual = salto.destino;
     }
-    const inicioDoCiclo = atual === null || atual === undefined ? undefined : posicao.get(atual);
-    if (inicioDoCiclo !== undefined) ciclos.push(caminho.slice(inicioDoCiclo));
   }
   return ciclos;
 };
@@ -204,6 +302,7 @@ const criarEstado = (
   fila: [],
   revertidas: [],
   pendentes: candidatas.length,
+  atalhos: new Map(),
   aceitas: [],
   rejeicoes: [],
 });
