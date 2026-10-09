@@ -43,7 +43,14 @@ export const ehProblema = (valor: unknown): valor is Problema =>
 const BASE_AUTENTICADA = '/api/proxy';
 const BASE_PUBLICA = '/api/publico';
 
+const SEM_CORRELACAO = 'sem-correlacao';
+
+/** O id que a tela gerou para a ação (se gerou): é o que o suporte procura do outro lado. */
+const correlacaoEnviada = (cabecalhos: HeadersInit | undefined): string | null =>
+  cabecalhos === undefined ? null : new Headers(cabecalhos).get('x-correlation-id');
+
 const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Promise<T> => {
+  const enviada = correlacaoEnviada(opcoes.headers);
   let resposta: Response;
 
   try {
@@ -52,7 +59,8 @@ const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Pr
       headers: { accept: 'application/json', ...(opcoes.headers ?? {}) },
     });
   } catch {
-    throw new ErroDaApi({ ...PROBLEMA_DE_REDE, correlationId: 'sem-correlacao' });
+    // Sem resposta não há id do servidor; o que a ação enviou continua valendo como referência.
+    throw new ErroDaApi({ ...PROBLEMA_DE_REDE, correlationId: enviada ?? SEM_CORRELACAO });
   }
 
   if (resposta.status === 204) {
@@ -70,7 +78,7 @@ const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Pr
             title: 'Não foi possível concluir a operação.',
             status: resposta.status,
             code: 'ERRO_DESCONHECIDO',
-            correlationId: resposta.headers.get('x-correlation-id') ?? 'sem-correlacao',
+            correlationId: resposta.headers.get('x-correlation-id') ?? enviada ?? SEM_CORRELACAO,
           },
     );
   }

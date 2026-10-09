@@ -43,6 +43,14 @@ const executarEmTransacao = async <T>(
   executar: ExecutarNaTransacao<T>,
 ): Promise<T> => {
   const cliente = await pool.connect();
+  // Sessão encerrada pelo servidor sem consulta em andamento (ociosidade na transação, reinício):
+  // o `pg` emite `error` no cliente, e sem ouvinte isso derrubaria o processo. A queda fica
+  // guardada; a próxima consulta falha e o cliente é DESCARTADO do pool, não devolvido.
+  let queda: Error | undefined;
+  const aoCair = (erro: Error): void => {
+    queda = erro;
+  };
+  cliente.on('error', aoCair);
 
   try {
     await cliente.query('begin');
@@ -56,10 +64,16 @@ const executarEmTransacao = async <T>(
 
     return resultado;
   } catch (erro) {
-    await cliente.query('rollback');
+    try {
+      await cliente.query('rollback');
+    } catch (falhaDoRollback) {
+      // Conexão já perdida: o servidor descartou a transação. A falha original é a que importa.
+      queda ??= falhaDoRollback instanceof Error ? falhaDoRollback : new Error('rollback sem conexão');
+    }
     throw erro;
   } finally {
-    cliente.release();
+    cliente.removeListener('error', aoCair);
+    cliente.release(queda);
   }
 };
 

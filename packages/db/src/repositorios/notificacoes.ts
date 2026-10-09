@@ -14,6 +14,14 @@ import type { PoolClient } from 'pg';
 /** Empresa resumida que a notificação consolidada de carteira cita. */
 export type EmpresaDaNotificacaoDeCarteira = Readonly<{ id: string; nome: string; cnpj: string }>;
 
+/** Tentativa que o aviso de importação abre, com o desfecho dela (estado terminal e totais). */
+export type ImportacaoDaNotificacao = Readonly<{
+  tentativaId: string;
+  estado: string;
+  /** Nulos quando a tentativa terminou sem chegar à validação (FALHA). */
+  totais: Readonly<{ lidas: number; novas: number; atualizadas: number; rejeitadas: number }> | null;
+}>;
+
 /**
  * Notificação do sino: de pendência (tem empresa) ou consolidada de carteira
  * (`tipo = 'CARTEIRA_ALTERADA'`, sem empresa, com o resumo adicionadas/removidas).
@@ -31,6 +39,8 @@ export type NotificacaoPersistida = Readonly<{
   removidas: readonly EmpresaDaNotificacaoDeCarteira[] | null;
   /** Só no aviso de recuperação do Signer (SPEC-012 §3.10): quanto o serviço ficou fora. */
   duracaoMs: number | null;
+  /** Só no aviso de conclusão da importação do plano de contas (SPEC-013 §3.10). */
+  importacao: ImportacaoDaNotificacao | null;
 }>;
 
 export type PaginaDeNotificacoes = Readonly<{
@@ -50,6 +60,9 @@ type LinhaDaNotificacao = {
   adicionadas: EmpresaDaNotificacaoDeCarteira[] | null;
   removidas: EmpresaDaNotificacaoDeCarteira[] | null;
   duracao_ms: string | null;
+  tentativa_id: string | null;
+  importacao_estado: string | null;
+  importacao_totais: ImportacaoDaNotificacao['totais'];
 };
 
 const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida => ({
@@ -65,6 +78,10 @@ const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida 
   removidas: linha.removidas,
   // bigint chega como texto do driver; a duração de um incidente cabe com folga em Number.
   duracaoMs: linha.duracao_ms === null ? null : Number(linha.duracao_ms),
+  importacao:
+    linha.tentativa_id === null || linha.importacao_estado === null
+      ? null
+      : { tentativaId: linha.tentativa_id, estado: linha.importacao_estado, totais: linha.importacao_totais },
 });
 
 /**
@@ -79,7 +96,8 @@ const linhaParaNotificacao = (linha: LinhaDaNotificacao): NotificacaoPersistida 
 const ITENS_DO_SINO = `
   select n.id, n.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj) as empresa_nome,
          n.tipo, n.chave, n.lida, n.lida_em, n.criado_em, n.sequencia,
-         null::jsonb as adicionadas, null::jsonb as removidas, null::bigint as duracao_ms
+         null::jsonb as adicionadas, null::jsonb as removidas, null::bigint as duracao_ms,
+         null::uuid as tentativa_id, null::text as importacao_estado, null::jsonb as importacao_totais
     from app.empresa_notificacao n
     join app.empresa e on e.id = n.empresa_id
    where n.tenant_id = $1
@@ -89,7 +107,8 @@ const ITENS_DO_SINO = `
           and cv.usuario_id = $2 and cv.encerrado_em is null)
   union all
   select c.id, null::uuid, null::text, 'CARTEIRA_ALTERADA', c.evento_id::text,
-         c.lida, c.lida_em, c.criado_em, c.sequencia, c.adicionadas, c.removidas, null::bigint
+         c.lida, c.lida_em, c.criado_em, c.sequencia, c.adicionadas, c.removidas, null::bigint,
+         null::uuid, null::text, null::jsonb
     from app.carteira_notificacao c
    where c.tenant_id = $1 and c.usuario_id = $2
   union all
@@ -98,7 +117,8 @@ const ITENS_DO_SINO = `
   -- empresas da carteira de quem lê. Abre o cofre da empresa, que mostra o estado atual.
   select k.id, k.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj),
          'CERTIFICADO_' || k.marco, 'certificado:' || k.certificado_id::text || ':' || k.marco,
-         k.lida, k.lida_em, k.criado_em, k.sequencia, null::jsonb, null::jsonb, null::bigint
+         k.lida, k.lida_em, k.criado_em, k.sequencia, null::jsonb, null::jsonb, null::bigint,
+         null::uuid, null::text, null::jsonb
     from app.empresa_certificado_notificacao k
     join app.empresa e on e.id = k.empresa_id
    where k.tenant_id = $1 and k.usuario_id = $2
@@ -108,9 +128,22 @@ const ITENS_DO_SINO = `
   select s.id, null::uuid, null::text,
          case s.tipo when 'INDISPONIBILIDADE' then 'SIGNER_INDISPONIVEL' else 'SIGNER_RECUPERADO' end,
          'signer:' || s.incidente_id::text || ':' || s.tipo,
-         s.lida, s.lida_em, s.criado_em, s.sequencia, null::jsonb, null::jsonb, s.duracao_ms
+         s.lida, s.lida_em, s.criado_em, s.sequencia, null::jsonb, null::jsonb, s.duracao_ms,
+         null::uuid, null::text, null::jsonb
     from app.signer_notificacao s
-   where s.tenant_id = $1 and s.usuario_id = $2`;
+   where s.tenant_id = $1 and s.usuario_id = $2
+  union all
+  -- Conclusão da importação do plano de contas (SPEC-013 §3.10): só de quem iniciou a tentativa. A RLS
+  -- deixa a carteira inteira ler a notificação da empresa, então o filtro por destinatário é este.
+  -- Estado e totais vêm da tentativa, que já é terminal e imutável quando a notificação nasce.
+  select i.id, i.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj),
+         'IMPORTACAO_PLANO_CONTAS_CONCLUIDA', 'importacao-plano-contas:' || i.tentativa_id::text,
+         i.lida, i.lida_em, i.criado_em, i.sequencia, null::jsonb, null::jsonb, null::bigint,
+         t.id, t.estado, t.totais
+    from app.importacao_plano_contas_notificacao i
+    join app.importacao_plano_contas t on t.id = i.tentativa_id and t.empresa_id = i.empresa_id
+    join app.empresa e on e.id = i.empresa_id
+   where i.tenant_id = $1 and i.usuario_id = $2`;
 
 const SELECAO_DO_SINO = `select * from (${ITENS_DO_SINO}) itens`;
 
@@ -299,5 +332,18 @@ export const marcarVariasComoLidas = async (
     [ids, tenantId, usuarioId],
   );
 
-  return deEmpresa.rows.length + (deCarteira.rowCount ?? 0) + (doCofre.rowCount ?? 0) + (doSigner.rowCount ?? 0);
+  const daImportacao = await cliente.query(
+    `update app.importacao_plano_contas_notificacao
+        set lida = true, lida_em = now()
+      where id = any($1) and tenant_id = $2 and usuario_id = $3 and lida = false`,
+    [ids, tenantId, usuarioId],
+  );
+
+  return (
+    deEmpresa.rows.length +
+    (deCarteira.rowCount ?? 0) +
+    (doCofre.rowCount ?? 0) +
+    (doSigner.rowCount ?? 0) +
+    (daImportacao.rowCount ?? 0)
+  );
 };

@@ -24,6 +24,9 @@ export const ROTULO_DA_ACAO = {
   marcar_lida: 'Marcar como lida',
   administrar: 'Administrar',
   testar: 'Testar',
+  importar: 'Importar',
+  confirmar_importacao: 'Confirmar importação',
+  baixar_relatorio: 'Baixar relatório',
 } as const;
 
 export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
@@ -56,6 +59,12 @@ export const CATALOGO = [
         acoes: ['consultar', 'criar', 'editar', 'arquivar', 'reativar'],
       },
       { id: 'historico', rotulo: 'Histórico cadastral', acoes: ['consultar'] },
+      // SPEC-013: importação por CSV. Confirmar não implica Importar; toda ação implica Consultar.
+      {
+        id: 'plano_contas',
+        rotulo: 'Plano de contas',
+        acoes: ['consultar', 'importar', 'confirmar_importacao', 'baixar_relatorio'],
+      },
     ],
   },
   {

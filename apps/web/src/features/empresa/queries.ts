@@ -121,14 +121,20 @@ export const useSalvarEnderecoDaEmpresa = (empresaId: string, aoConcluir?: () =>
     },
   );
 
-export const useAtivarEmpresa = (empresaId: string, aoConcluir?: () => void) =>
-  useMutacaoDaEmpresa(
+export const useAtivarEmpresa = (empresaId: string, aoConcluir?: () => void) => {
+  const clienteDeQuery = useQueryClient();
+
+  return useMutacaoDaEmpresa(
     (situacaoExternaConfirmada: boolean) =>
       ativarEmpresa(empresaId, situacaoExternaConfirmada),
     (visao) => {
       if (visao.cadastro.status === 'ATIVA') {
+        // Ativar abre a pendência do plano de contas (SPEC-013 §3.10): a Central e a etapa
+        // seguinte do cadastro não podem ler uma lista anterior à ativação.
+        void clienteDeQuery.invalidateQueries({ queryKey: ['pendencias'] });
         toast.success('Empresa ativada.');
         aoConcluir?.();
       }
     },
   );
+};

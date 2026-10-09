@@ -30,14 +30,26 @@ export const Stepper = ({
   etapas,
   onSelecionar,
   rotulo = 'Etapas do cadastro',
+  compacto = false,
 }: {
   etapas: readonly EtapaDoStepper[];
   onSelecionar?: (id: string) => void;
   /** Nome da navegação para leitor de tela: cada wizard diz de que etapas se trata. */
   rotulo?: string;
+  /**
+   * Para containers estreitos (um cartão, não a página): do tablet em diante as etapas viram colunas
+   * iguais com o número acima do rótulo, que quebra linha em vez de ser cortado na borda.
+   */
+  compacto?: boolean;
 }) => (
   <nav aria-label={rotulo}>
-    <ol className="flex flex-col gap-xs tablet:flex-row tablet:items-center tablet:gap-sm">
+    <ol
+      className={
+        compacto
+          ? 'grid gap-xs tablet:auto-cols-fr tablet:grid-flow-col tablet:gap-sm'
+          : 'flex flex-col gap-xs tablet:flex-row tablet:items-center tablet:gap-sm'
+      }
+    >
       {etapas.map((etapa, indice) => {
         const selecionavel = onSelecionar !== undefined && etapa.situacao !== 'pendente';
 
@@ -56,7 +68,7 @@ export const Stepper = ({
               {etapa.situacao === 'concluida' ? <Check className="size-icon-xs" /> : indice + 1}
             </span>
 
-            <span className="flex flex-col text-left">
+            <span className={cn('flex flex-col text-left', compacto && 'min-w-0 break-words')}>
               <span
                 className={cn(
                   'text-title-sm',
@@ -73,7 +85,7 @@ export const Stepper = ({
         );
 
         return (
-          <li key={etapa.id} className="tablet:flex-1">
+          <li key={etapa.id} className={compacto ? 'min-w-0' : 'tablet:flex-1'}>
             {selecionavel ? (
               <button
                 type="button"
@@ -81,6 +93,7 @@ export const Stepper = ({
                 aria-current={etapa.situacao === 'atual' ? 'step' : undefined}
                 className={cn(
                   'flex w-full items-center gap-sm rounded-md px-sm py-sm text-left transition-colors duration-fast ease-out',
+                  compacto && 'tablet:flex-col tablet:items-start tablet:gap-xs',
                   'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   'focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 )}
@@ -90,7 +103,10 @@ export const Stepper = ({
             ) : (
               <div
                 aria-current={etapa.situacao === 'atual' ? 'step' : undefined}
-                className="flex w-full items-center gap-sm px-sm py-sm"
+                className={cn(
+                  'flex w-full items-center gap-sm px-sm py-sm',
+                  compacto && 'tablet:flex-col tablet:items-start tablet:gap-xs',
+                )}
               >
                 {conteudo}
               </div>

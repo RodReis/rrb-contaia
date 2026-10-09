@@ -1,0 +1,9 @@
+Cod;Descrição;Tipo Conta;Natureza;Cod Superior;Grau
+1;Ativo;Sintética;Devedora;;1
+1.1;Ativo Circulante;Sintética;Devedora;1;2
+1.1.02;Bancos Conta Movimento;Analítica;Devedora;1.1;3
+1.1.03;Aplicações Financeiras;Analítica;Devedora;1.1;3
+1.2;Ativo Não Circulante;Sintética;Devedora;1;2
+1.2.01;Imobilizado;Analítica;Devedora;1.2;3
+3.9;Receitas Antigas Reclassificadas;Analítica;Credora;3;2
+4.1;Custos Diretos;Analítica;Devedora;4;2

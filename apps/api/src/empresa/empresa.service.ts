@@ -53,6 +53,7 @@ import type { DadosPublicosDoCnpj, MotivoDeFalhaDaConsulta } from '@contaia/shar
 
 import { PoolDoBanco } from '../banco/pool.provider';
 import { autoatribuirCriador } from '../carteira/registro';
+import { reconciliarPendenciaDoPlano } from '../plano-contas/pendencia-do-plano';
 import { ConsultaDeCnpjNaCnpja } from './cnpja.adapter';
 
 /** Quem cria a empresa; `autoatribuir` é verdade só para o `admin_escritorio` (SPEC-009 §3.1). */
@@ -554,6 +555,9 @@ export class EmpresaService {
           hoje: dataCivilEmSaoPaulo(new Date()),
           empresaIds: [empresaId],
         });
+        // Empresa ativa sem conta válida abre a pendência do plano de contas (SPEC-013 §3.10):
+        // sem isso, quem é ativada depois da migration 0015 nunca a receberia.
+        await reconciliarPendenciaDoPlano(cliente, { tenantId, empresaId, usuarioId, agora: new Date() });
       }
 
       return this.recarregar(cliente, tenantId, empresaId);

@@ -342,6 +342,9 @@ importers:
 
   apps/workers:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1136.0
+        version: 3.1136.0
       '@contaia/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -403,6 +406,9 @@ importers:
       '@contaia/domain':
         specifier: workspace:*
         version: link:../domain
+      '@contaia/shared':
+        specifier: workspace:*
+        version: link:../shared
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
@@ -455,6 +461,9 @@ importers:
       '@contaia/domain':
         specifier: workspace:*
         version: link:../domain
+      csv-parse:
+        specifier: ^7.0.3
+        version: 7.0.3
       zod:
         specifier: ^4.6.5
         version: 4.6.5

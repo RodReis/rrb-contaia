@@ -99,6 +99,7 @@ describe('NotificacoesService', () => {
       adicionadas: null,
       removidas: null,
       duracaoMs: null,
+      importacao: null,
     };
     vi.mocked(db.marcarComoLida).mockResolvedValue(notificacaoMarcada);
 

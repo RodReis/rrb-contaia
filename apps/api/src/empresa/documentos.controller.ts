@@ -29,6 +29,7 @@ import type { Response } from 'express';
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
+import { nomeSeguro } from '../comum/nome-seguro';
 import { restringirDocumentos, restringirHistoricoDocumental } from '../comum/restricao-por-chave';
 import { analisar } from '../escritorio/escritorio.dto';
 import {
@@ -315,11 +316,3 @@ export class DocumentosDaEmpresaController {
     );
   }
 }
-
-/**
- * O nome original vem do usuário e vai para um cabeçalho HTTP: aspas, quebra
- * de linha e caractere de controle nele permitiriam injetar cabeçalho. Só o
- * que é seguro sobrevive, e o nome nunca é usado como caminho.
- */
-const nomeSeguro = (nome: string): string =>
-  nome.replace(/[^\w.\- ]+/gu, '_').slice(0, 120) || 'documento';

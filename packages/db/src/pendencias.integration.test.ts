@@ -8,7 +8,7 @@
  * aberta da mesma causa e resolve a que sumiu; a dispensa grava justificativa
  * no evento; e a Central ordena vencidas antes das demais.
  */
-import { reconciliarPendencias } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeDominio, reconciliarPendencias } from '@contaia/domain';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -395,6 +395,52 @@ describe('dispensa (secao 4)', () => {
 
     expect(evento.rows[0]?.acao).toBe('DISPENSA');
     expect(evento.rows[0]?.justificativa).toBe('Não se aplica a esta empresa.');
+  });
+
+  it('pendência de origem PLANO_CONTAS não é dispensável (SPEC-013 §3.10)', async () => {
+    const empresaId = await criarEmpresaAtiva(tenantA, `66${SUFIXO}000196`);
+
+    await comTenant(tenantA, (cliente) =>
+      reconciliar(
+        cliente,
+        tenantA,
+        empresaId,
+        [
+          {
+            origem: 'PLANO_CONTAS',
+            tipo: 'PLANO_CONTAS_INCOMPLETO',
+            chave: 'plano-contas:incompleto',
+            dataLimite: null,
+          },
+        ],
+        [],
+        null,
+      ),
+    );
+
+    const aberta = await poolAdmin.query<{ id: string }>(
+      `select id from app.empresa_pendencia
+        where empresa_id = $1 and origem = 'PLANO_CONTAS' and estado = 'ABERTA'`,
+      [empresaId],
+    );
+    const pendenciaId = aberta.rows[0]?.id ?? '';
+    expect(pendenciaId).not.toBe('');
+
+    const erro = await comTenant(tenantA, (cliente) =>
+      dispensar(cliente, tenantA, empresaId, pendenciaId, usuarioA, 'quero esconder'),
+    ).then(
+      () => null,
+      (causa: unknown) => causa,
+    );
+
+    expect(erro).toBeInstanceOf(ErroDeDominio);
+    expect((erro as ErroDeDominio).codigo).toBe(CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL);
+
+    const depois = await poolAdmin.query<{ estado: string }>(
+      'select estado from app.empresa_pendencia where id = $1',
+      [pendenciaId],
+    );
+    expect(depois.rows[0]?.estado).toBe('ABERTA');
   });
 });
 

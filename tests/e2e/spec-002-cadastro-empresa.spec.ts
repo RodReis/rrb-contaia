@@ -253,8 +253,12 @@ test('cadastra o CNPJ consultado, retoma o cadastro e ativa a empresa', async ({
   await expect(ativar).toBeEnabled();
   await ativar.click();
 
-  // Ativada, volta para a lista e é encontrável pelo CNPJ, que é o
-  // identificador estável do cadastro.
+  // Ativada, a tela oferece a etapa final opcional do plano de contas (SPEC-013 §3.1), que não
+  // bloqueia nada: sem importar, a pessoa segue para a lista.
+  await expect(page.getByRole('heading', { level: 2, name: 'Plano de contas' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar sem importar' }).click();
+
+  // Na lista, é encontrável pelo CNPJ, que é o identificador estável do cadastro.
   await page.waitForURL(/\/empresas(\?|$)/u);
   await page.getByRole('searchbox', { name: /Buscar/u }).fill(CNPJ_NOVO);
 

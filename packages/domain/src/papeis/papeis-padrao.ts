@@ -26,6 +26,13 @@ const CADASTRO_DE_EMPRESAS_SEM_ARQUIVAR: readonly ChaveDePermissao[] = [
   'empresas.cadastro.editar',
 ];
 
+// SPEC-013: consulta e relatório, sem importar nem confirmar. O helper `consultas()` não
+// reconhece `baixar_relatorio`, então a leitura do plano de contas é declarada à mão.
+const PLANO_DE_CONTAS_LEITURA: readonly ChaveDePermissao[] = [
+  'empresas.plano_contas.consultar',
+  'empresas.plano_contas.baixar_relatorio',
+];
+
 const OPERACAO: readonly ChaveDePermissao[] = [
   ...chavesDoModulo('documentos'),
   ...chavesDoModulo('pendencias'),
@@ -43,6 +50,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
   // Consulta o cofre mas não muta (SPEC-011 §3.2); sem histórico de certificados.
   auxiliar: [
     ...CADASTRO_DE_EMPRESAS_SEM_ARQUIVAR,
+    ...PLANO_DE_CONTAS_LEITURA,
     ...OPERACAO,
     'certificados.cofre.consultar',
   ],
@@ -50,6 +58,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     'escritorio.dados.consultar',
     'empresas.cadastro.consultar',
     'empresas.historico.consultar',
+    ...PLANO_DE_CONTAS_LEITURA,
     ...consultas('documentos'),
     ...consultas('pendencias'),
     ...consultas('notificacoes'),

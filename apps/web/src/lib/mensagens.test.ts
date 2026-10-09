@@ -44,3 +44,45 @@ describe('mensagens de usuários e convite (SPEC-007 §6)', () => {
     expect(mensagemDoCodigo('NAO_EXISTE')).toBe(GENERICA);
   });
 });
+
+describe('mensagens da importação do plano de contas (SPEC-013)', () => {
+  const codigos = [
+    'TENTATIVA_NAO_ENCONTRADA',
+    'ESTADO_INVALIDO_PARA_ACAO',
+    'FILA_INDISPONIVEL',
+    'FALHA_TECNICA',
+    'ARQUIVO_VAZIO',
+    'ARQUIVO_ACIMA_DO_LIMITE',
+    'CABECALHO_INVALIDO',
+    'MAPEAMENTO_INCOMPLETO',
+  ] as const;
+
+  it.each(codigos)('%s tem mensagem própria, não a genérica', (codigo) => {
+    const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO[codigo]);
+
+    expect(mensagem).not.toBe(GENERICA);
+    // Frase completa em PT-BR: começa em maiúscula e termina com ponto.
+    expect(mensagem).toMatch(/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ].*\.$/u);
+  });
+
+  it('cada código da importação tem uma mensagem distinta (nenhuma reaproveitada por engano)', () => {
+    const mensagens = codigos.map((codigo) => mensagemDoCodigo(CODIGOS_DE_ERRO[codigo]));
+
+    expect(new Set(mensagens).size).toBe(codigos.length);
+  });
+
+  it('falha técnica diz que nada foi alterado e que é preciso um novo envio (a tentativa termina em FALHA)', () => {
+    const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO.FALHA_TECNICA);
+
+    expect(mensagem).toMatch(/Nenhuma conta foi alterada/u);
+    expect(mensagem).toMatch(/envie o arquivo de novo/iu);
+    expect(mensagem).not.toMatch(/confirme de novo|tente de novo/iu);
+  });
+
+  it('arquivo acima do limite informa 10 MB e 10.000 linhas', () => {
+    const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE);
+
+    expect(mensagem).toMatch(/10 MB/u);
+    expect(mensagem).toMatch(/10\.000 linhas/u);
+  });
+});

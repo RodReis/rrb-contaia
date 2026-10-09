@@ -4,10 +4,12 @@ export type { ProblemDetails } from './problem.js';
 export {
   LIMITE_DE_DOCUMENTO_BYTES,
   LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
+  LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
   LIMITE_DE_LOGO_BYTES,
   REGRAS_DE_ARQUIVO,
   TIPOS_DE_DOCUMENTO,
   TIPOS_DE_DOCUMENTO_DA_EMPRESA,
+  TIPOS_DE_IMPORTACAO_DO_PLANO,
   TIPOS_DE_LOGO,
   conteudoConfereComOTipo,
   formatarLimite,
@@ -111,3 +113,42 @@ export type {
   RespostaDeHistorico,
   ResultadoDoTesteManual,
 } from './signer.js';
+
+export {
+  FILA_DE_VALIDACAO_PLANO_CONTAS,
+  FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA,
+  NOME_DO_JOB_DE_VALIDACAO_PLANO_CONTAS,
+  OPCOES_DE_VALIDACAO_PLANO_CONTAS,
+  idDoJobDeValidacao,
+  ESTADOS_DA_IMPORTACAO,
+  TIPOS_DE_CONTA,
+  NATUREZAS_DE_CONTA,
+  CODIGOS_DE_ERRO_DA_LINHA,
+  DiagnosticoDaImportacaoSchema,
+  PreviaDaImportacaoSchema,
+  RejeicaoDaImportacaoSchema,
+  PaginaDeRejeicoesDaImportacaoSchema,
+  ContaDoPlanoDeContasSchema,
+  PaginaDoPlanoDeContasSchema,
+  TentativaDoHistoricoSchema,
+  HistoricoDeImportacoesSchema,
+  ComandoValidarImportacaoSchema,
+} from './plano-contas.js';
+export type {
+  EstadoDaImportacao,
+  TipoDeConta,
+  NaturezaDeConta,
+  CodigoDeErroDaLinha,
+  DiagnosticoDaImportacao,
+  PreviaDaImportacao,
+  RejeicaoDaImportacao,
+  PaginaDeRejeicoesDaImportacao,
+  ContaDoPlanoDeContas,
+  PaginaDoPlanoDeContas,
+  TentativaDoHistorico,
+  HistoricoDeImportacoes,
+  ComandoValidarImportacao,
+} from './plano-contas.js';
+
+export { lerCsv } from './plano-contas-csv.js';
+export type { CsvLido } from './plano-contas-csv.js';

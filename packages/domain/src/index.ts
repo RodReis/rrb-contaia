@@ -299,6 +299,10 @@ export {
   CHAVES_DE_PENDENCIA_DO_CERTIFICADO,
   causasDeCertificado,
 } from './certificados/pendencias.js';
+export {
+  CHAVE_DE_PENDENCIA_DO_PLANO_DE_CONTAS,
+  causasDoPlanoDeContas,
+} from './plano-contas/pendencias.js';
 
 export { FINALIDADES, ehFinalidade } from './signer/finalidades.js';
 export type { Finalidade } from './signer/finalidades.js';
@@ -325,3 +329,39 @@ export {
   avancarIncidente,
 } from './signer/incidente.js';
 export type { EfeitoDoMonitor, EstadoDoMonitor, TransicaoDoMonitor } from './signer/incidente.js';
+
+export {
+  CODIGOS_DE_ERRO_DA_LINHA,
+  LIMITE_DO_CODIGO_DA_CONTA,
+  LIMITE_DO_NOME_DA_CONTA,
+  validarLinhasDoPlano,
+  type LinhaDeEntrada,
+  type LinhaBrutaDeEntrada,
+  type DefeitoDeEstrutura,
+  type ContaVigente,
+  type LinhaAceita,
+  type LinhaRejeitada,
+  type ResultadoDaValidacao,
+  type TipoDaConta,
+  type NaturezaDaConta,
+  type CodigoDeErroDaLinha,
+} from './plano-contas/validacao.js';
+
+export { podeTransicionar, type EstadoDaImportacao, type EventoDaImportacao } from './plano-contas/estados.js';
+
+export {
+  LIMITE_DE_LINHAS,
+  LIMITE_DE_BYTES,
+  CAMPOS_DO_CONTRATO,
+  MODELO_CSV,
+  decodificarCsv,
+  validarMapeamento,
+  normalizarLinhas,
+  type CampoDoContrato,
+  type Mapeamento,
+  type Delimitador,
+  type PendenciaDoMapeamento,
+  type RegistroDoCsv,
+} from './plano-contas/csv.js';
+
+export { gerarRelatorioCsv, type LinhaDoRelatorio } from './plano-contas/relatorio.js';

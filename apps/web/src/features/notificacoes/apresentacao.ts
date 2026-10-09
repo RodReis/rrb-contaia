@@ -42,6 +42,19 @@ const RESUMO_DO_SIGNER: Readonly<Record<string, string>> = {
   SIGNER_RECUPERADO: 'Signer recuperado',
 };
 
+/** Fim da importação do plano de contas (SPEC-013 §3.10): da empresa, só do iniciador. */
+export const ehAvisoDeImportacao = (notificacao: Notificacao): boolean =>
+  notificacao.tipo === 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA';
+
+const RESUMO_DA_IMPORTACAO: Readonly<Record<string, string>> = {
+  CONCLUIDA: 'Importação do plano de contas concluída',
+  CONCLUIDA_COM_REJEICOES: 'Importação do plano de contas concluída com rejeições',
+  REJEITADA: 'Importação do plano de contas rejeitada',
+  FALHA: 'Importação do plano de contas com falha',
+};
+
+const RESUMO_GENERICO_DA_IMPORTACAO = 'Importação do plano de contas';
+
 export const tituloDaNotificacao = (notificacao: Notificacao): string => {
   if (ehAvisoDeCarteira(notificacao)) {
     return 'Sua carteira foi atualizada';
@@ -51,6 +64,10 @@ export const tituloDaNotificacao = (notificacao: Notificacao): string => {
 };
 
 export const tipoDaNotificacao = (notificacao: Notificacao): string => {
+  if (ehAvisoDeImportacao(notificacao)) {
+    return RESUMO_DA_IMPORTACAO[notificacao.importacao?.estado ?? ''] ?? RESUMO_GENERICO_DA_IMPORTACAO;
+  }
+
   if (ehAvisoDoSigner(notificacao)) {
     return RESUMO_DO_SIGNER[notificacao.tipo] ?? notificacao.tipo;
   }
@@ -89,6 +106,32 @@ export const resumoDoSigner = (notificacao: Notificacao): string => {
     : `O Signer voltou a responder. Ficou indisponível por ${duracaoEmTexto(notificacao.duracaoMs)}.`;
 };
 
+/**
+ * Linha de apoio do aviso de importação: só o que a tentativa registrou, sem promessa. Concluída
+ * diz o que entrou; rejeitada diz que nada mudou; falha não inventa causa nem totais.
+ */
+export const resumoDaImportacao = (notificacao: Notificacao): string => {
+  const { estado, totais } = notificacao.importacao ?? { estado: '', totais: null };
+
+  if (estado === 'FALHA') {
+    return 'O processamento do arquivo falhou.';
+  }
+  if (estado === 'REJEITADA') {
+    return totais === null
+      ? 'Nenhuma conta foi alterada.'
+      : `Nenhuma conta foi alterada: ${plural(totais.rejeitadas, 'linha rejeitada', 'linhas rejeitadas')}.`;
+  }
+  if (totais === null) {
+    return '';
+  }
+
+  return `${[
+    plural(totais.novas, 'incluída', 'incluídas'),
+    plural(totais.atualizadas, 'atualizada', 'atualizadas'),
+    plural(totais.rejeitadas, 'rejeitada', 'rejeitadas'),
+  ].join(', ')}.`;
+};
+
 /** Linha de apoio do aviso de carteira: o efeito, com nomes e contagem. */
 export const resumoDaCarteira = (notificacao: Notificacao): string => {
   const adicionadas = notificacao.adicionadas ?? [];
@@ -117,6 +160,16 @@ export const resumoDaCarteira = (notificacao: Notificacao): string => {
 export const rotaDaNotificacao = (notificacao: Notificacao): string => {
   if (ehAvisoDeCarteira(notificacao)) {
     return '/carteira';
+  }
+
+  if (ehAvisoDeImportacao(notificacao)) {
+    // Abre a tentativa no plano de contas da empresa: lá está o relatório completo. Sem empresa
+    // (aviso incompleto), um link quebrado não leva a lugar nenhum: fica o histórico de avisos.
+    const tentativaId = notificacao.importacao?.tentativaId;
+
+    return notificacao.empresaId === null || notificacao.empresaId === undefined || notificacao.empresaId === ''
+      ? '/notificacoes'
+      : `/empresas/${notificacao.empresaId}?aba=plano-contas${tentativaId === undefined ? '' : `&tentativa=${tentativaId}`}`;
   }
 
   if (ehAvisoDoSigner(notificacao)) {

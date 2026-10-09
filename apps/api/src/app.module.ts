@@ -50,6 +50,9 @@ import {
   PendenciasDaEmpresaController,
 } from './pendencias/pendencias.controller';
 import { PendenciasService } from './pendencias/pendencias.service';
+import { PlanoContasDaEmpresaController } from './plano-contas/plano-contas.controller';
+import { PROVEDORES_DA_FILA_DO_PLANO } from './plano-contas/plano-contas.fila';
+import { PlanoContasService } from './plano-contas/plano-contas.service';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -70,6 +73,7 @@ import { PendenciasService } from './pendencias/pendencias.service';
     CertificadosDaEmpresaController,
     SignerDaEmpresaController,
     DocumentosDaEmpresaController,
+    PlanoContasDaEmpresaController,
     EmpresaController,
     PendenciasController,
     CertificadosController,
@@ -93,6 +97,8 @@ import { PendenciasService } from './pendencias/pendencias.service';
     CertificadosService,
     CofreClient,
     ...PROVEDORES_DO_SIGNER,
+    PlanoContasService,
+    ...PROVEDORES_DA_FILA_DO_PLANO,
     GuardDeServicoInterno,
     NotificacoesService,
     UsuariosService,

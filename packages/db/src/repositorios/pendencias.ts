@@ -74,11 +74,11 @@ const linhaParaPendencia = (linha: LinhaDaPendencia): PendenciaPersistida => ({
 });
 
 /**
- * `origem` filtra a reconciliação por fonte (§2, §5.2, §9): o hook cadastral só
- * conhece causas `campo:*` e o documental só conhece causas `exigencia:*` —
- * misturar as duas faria um hook resolver, por engano, pendência aberta da
- * outra origem (evento `RESOLUCAO` falso, append-only, não corrigível depois).
- * `null` devolve as duas origens juntas, para quem realmente precisa ver tudo
+ * `origem` filtra a reconciliação por fonte (§2, §5.2, §9): cada hook só
+ * conhece as próprias causas (`campo:*`, `exigencia:*`, do cofre, `plano-contas:*`)
+ * — misturar faria um hook resolver, por engano, pendência aberta de outra
+ * origem (evento `RESOLUCAO` falso, append-only, não corrigível depois).
+ * `null` devolve todas as origens juntas, para quem realmente precisa ver tudo
  * (nenhum chamador de produção usa isso hoje; preservado para não estreitar a
  * função além do que o bug pede).
  */
@@ -252,6 +252,23 @@ export const listarCentral = async (
   };
 };
 
+/**
+ * Origens cuja pendência só se resolve quando a causa some — nunca por dispensa —, com o motivo da
+ * recusa. A do cofre some ao cadastrar ou trocar o responsável (dispensá-la esconderia um
+ * certificado ausente ou vencido, e a reconciliação a reabriria; SPEC-011 §3.6); a do plano de
+ * contas, com a primeira conta válida (SPEC-013 §3.10). O servidor recusa, não a interface.
+ * Fonte única: a checagem que explica a recusa e o filtro do UPDATE usam esta lista.
+ */
+export const ORIGENS_NAO_DISPENSAVEIS: Readonly<Partial<Record<OrigemDaPendencia, string>>> = {
+  CERTIFICADO: 'Pendência do cofre de certificados não se dispensa: ela se resolve no próprio cofre.',
+  PLANO_CONTAS: 'Pendência do plano de contas não se dispensa: ela se resolve com a primeira conta válida.',
+};
+
+const motivoDaOrigemNaoDispensavel = (origem: string | undefined): string | undefined =>
+  origem !== undefined && Object.hasOwn(ORIGENS_NAO_DISPENSAVEIS, origem)
+    ? ORIGENS_NAO_DISPENSAVEIS[origem as OrigemDaPendencia]
+    : undefined;
+
 export const dispensar = async (
   cliente: PoolClient,
   tenantId: string,
@@ -260,29 +277,24 @@ export const dispensar = async (
   usuarioId: string,
   justificativa: string,
 ): Promise<PendenciaPersistida | null> => {
-  // A pendência do cofre some quando a causa some (cadastrar, trocar responsável) — dispensá-la
-  // esconderia um certificado ausente ou vencido, e a reconciliação a reabriria. O servidor recusa,
-  // não a interface (SPEC-011 §3.6).
   const origem = await cliente.query<{ origem: string }>(
     `select origem from app.empresa_pendencia where id = $1 and empresa_id = $2 and estado = 'ABERTA'`,
     [pendenciaId, empresaId],
   );
+  const recusa = motivoDaOrigemNaoDispensavel(origem.rows[0]?.origem);
 
-  if (origem.rows[0]?.origem === 'CERTIFICADO') {
-    throw new ErroDeDominio(
-      CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL,
-      'Pendência do cofre de certificados não se dispensa: ela se resolve no próprio cofre.',
-    );
+  if (recusa !== undefined) {
+    throw new ErroDeDominio(CODIGOS_DE_ERRO.PENDENCIA_NAO_DISPENSAVEL, recusa);
   }
 
   const resultado = await cliente.query<LinhaDaPendencia>(
     `update app.empresa_pendencia
      set estado = 'RESOLVIDA', resolvido_em = now()
-     where id = $1 and empresa_id = $2 and estado = 'ABERTA' and origem <> 'CERTIFICADO'
+     where id = $1 and empresa_id = $2 and estado = 'ABERTA' and origem <> all($3::text[])
        -- Empresa arquivada é só consulta (o admin a alcança sem vínculo, SPEC-009): sem dispensa.
        and exists (select 1 from app.empresa e where e.id = $2 and e.situacao = 'ativo')
      returning *`,
-    [pendenciaId, empresaId],
+    [pendenciaId, empresaId, Object.keys(ORIGENS_NAO_DISPENSAVEIS)],
   );
 
   const linha = resultado.rows[0];

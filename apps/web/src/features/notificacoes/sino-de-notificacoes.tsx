@@ -39,8 +39,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 import {
   ehAvisoDeCarteira,
+  ehAvisoDeImportacao,
   ehAvisoDoSigner,
   resumoDaCarteira,
+  resumoDaImportacao,
   resumoDoSigner,
   rotaDaNotificacao,
   tipoDaNotificacao,
@@ -123,7 +125,7 @@ export const SinoDeNotificacoes = () => {
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0">
+      <PopoverContent aria-label="Painel de notificações" className="w-96 p-0">
         <div className="flex items-center justify-between border-b border-border px-md py-sm">
           <label className="flex cursor-pointer items-center gap-xs text-body-sm text-foreground">
             <input
@@ -209,6 +211,11 @@ export const SinoDeNotificacoes = () => {
                     {ehAvisoDoSigner(notificacao) ? (
                       <p className="break-words text-body-sm text-foreground">
                         {resumoDoSigner(notificacao)}
+                      </p>
+                    ) : null}
+                    {ehAvisoDeImportacao(notificacao) ? (
+                      <p className="break-words text-body-sm text-foreground">
+                        {resumoDaImportacao(notificacao)}
                       </p>
                     ) : null}
                   </Link>

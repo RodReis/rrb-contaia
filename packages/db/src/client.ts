@@ -11,8 +11,20 @@ export const obterUrlDoBanco = (): string => {
   return url;
 };
 
+/**
+ * Conexão OCIOSA derrubada pelo servidor (reinício, `pg_terminate_backend`): o pool já a descarta,
+ * mas emite `error` — e evento `error` sem ouvinte derruba o processo Node. Só o código vai ao aviso.
+ */
+const tratarQuedaDeConexaoOciosa = (pool: Pool): Pool => {
+  pool.on('error', (erro: Error & { code?: string }) => {
+    process.emitWarning(`conexão ociosa do PostgreSQL encerrada pelo servidor: ${erro.code ?? erro.name}`);
+  });
+
+  return pool;
+};
+
 export const criarPool = (url: string = obterUrlDoBanco()): Pool =>
-  new Pool({ connectionString: url, max: 10 });
+  tratarQuedaDeConexaoOciosa(new Pool({ connectionString: url, max: 10 }));
 
 export const criarDb = (pool: Pool): NodePgDatabase => drizzle(pool);
 
@@ -43,4 +55,4 @@ export const obterUrlDaAplicacao = (): string => {
 };
 
 export const criarPoolDaAplicacao = (url: string = obterUrlDaAplicacao()): Pool =>
-  new Pool({ connectionString: url, max: 10 });
+  tratarQuedaDeConexaoOciosa(new Pool({ connectionString: url, max: 10 }));

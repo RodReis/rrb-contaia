@@ -8,7 +8,9 @@ import { requisitar } from '@/lib/http';
 
 // `CERTIFICADO` é do cofre A1 (SPEC-011 §3.4–3.6): a pendência se resolve cadastrando
 // certificado ou escolhendo responsável, nunca por dispensa.
-export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO';
+// `PLANO_CONTAS` é do plano de contas sem conta válida (SPEC-013 §3.10): resolve-se com a
+// primeira conta válida, nunca por dispensa.
+export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO' | 'PLANO_CONTAS';
 export type TipoDaPendencia =
   | 'CAMPO_AUSENTE'
   | 'CAMPO_INVALIDO'
@@ -18,7 +20,8 @@ export type TipoDaPendencia =
   | 'EXIGENCIA_ESPECIFICA'
   | 'CERTIFICADO_AUSENTE'
   | 'CERTIFICADO_VENCIDO'
-  | 'CERTIFICADO_SEM_RESPONSAVEL';
+  | 'CERTIFICADO_SEM_RESPONSAVEL'
+  | 'PLANO_CONTAS_INCOMPLETO';
 export type EstadoDaPendencia = 'ABERTA' | 'RESOLVIDA';
 
 export type Pendencia = Readonly<{

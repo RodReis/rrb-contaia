@@ -172,6 +172,7 @@ export {
 } from './repositorios/notificacoes.js';
 export type {
   EmpresaDaNotificacaoDeCarteira,
+  ImportacaoDaNotificacao,
   NotificacaoPersistida,
   PaginaDeNotificacoes,
 } from './repositorios/notificacoes.js';
@@ -306,3 +307,58 @@ export type {
   PaginaDaTrilhaDoSigner,
   UltimoEventoDaFinalidade,
 } from './repositorios/signer-consultas.js';
+
+export {
+  aplicarLinhas as aplicarLinhasNoPlano,
+  buscarTentativa as buscarTentativaDeImportacao,
+  cancelar as cancelarImportacao,
+  confirmar as confirmarImportacao,
+  criarNotificacao as criarNotificacaoDeImportacao,
+  criarTentativa as criarTentativaDeImportacao,
+  finalizar as finalizarImportacao,
+  gravarResultadoDaValidacao,
+  iniciarValidacao as iniciarValidacaoDaImportacao,
+  registrarEvento as registrarEventoDeImportacao,
+  registrarFalha as registrarFalhaDaImportacao,
+} from './repositorios/plano-contas.js';
+export type {
+  AcaoDaLinha,
+  AcaoDoEvento as AcaoDoEventoDeImportacao,
+  CancelamentoDaPrevia,
+  ConfirmacaoDaPrevia,
+  EstadoFinalDaAplicacao,
+  LinhaDeStaging,
+  LinhaDeStagingRejeitada,
+  LinhaDeStagingValida,
+  Mapeamento as MapeamentoDaImportacao,
+  NovaNotificacao as NovaNotificacaoDeImportacao,
+  NovaTentativa,
+  NovoEvento as NovoEventoDeImportacao,
+  ResultadoDaAplicacao,
+  ResultadoDaValidacaoGravada,
+  ResultadoDoInicioDaValidacao,
+  TentativaCriada,
+  TentativaDeImportacao,
+  TotaisDaImportacao,
+  TotaisDaPrevia,
+} from './repositorios/plano-contas.js';
+export {
+  ITENS_DO_HISTORICO as ITENS_DO_HISTORICO_DE_IMPORTACOES,
+  buscarDiagnosticoDaTentativa,
+  carregarContasVigentes,
+  carregarSituacaoDaEmpresa,
+  contarContasValidas,
+  listarHistorico as listarHistoricoDeImportacoes,
+  listarLinhasParaRelatorio,
+  listarPlano as listarPlanoDeContas,
+  listarRejeicoes as listarRejeicoesDaImportacao,
+} from './repositorios/plano-contas-consultas.js';
+export type {
+  ContaDoPlano,
+  DiagnosticoDaTentativa,
+  LinhaDoRelatorio,
+  PaginaDeRejeicoes,
+  PaginaDoPlano,
+  RejeicaoDaLinha,
+  SituacaoDaEmpresaParaImportacao,
+} from './repositorios/plano-contas-consultas.js';

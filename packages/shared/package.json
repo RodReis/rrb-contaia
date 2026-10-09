@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -19,6 +20,7 @@
   },
   "dependencies": {
     "@contaia/domain": "workspace:*",
+    "csv-parse": "^7.0.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {

@@ -88,6 +88,8 @@ const limpar = async (): Promise<void> => {
   }
 
   await poolAdmin.query('delete from app.signer_notificacao where tenant_id = any($1)', [ids]);
+  await poolAdmin.query('delete from app.importacao_plano_contas_notificacao where tenant_id = any($1)', [ids]);
+  await poolAdmin.query('delete from app.importacao_plano_contas where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.carteira_vinculo where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.empresa where tenant_id = any($1)', [ids]);
   await poolAdmin.query('delete from app.usuario where tenant_id = any($1)', [ids]);
@@ -473,5 +475,158 @@ describe('alertas de incidente do Signer no sino (SPEC-012 §3.10)', () => {
     const pagina = await comTenant(tenantA, (cliente) => listarHistorico(cliente, tenantA, usuarioA, 25, 0));
 
     expect(pagina.notificacoes.filter((n) => n.tipo.startsWith('SIGNER_'))).toHaveLength(2);
+  });
+});
+
+describe('conclusão da importação do plano de contas no sino (SPEC-013 §3.10)', () => {
+  const TOTAIS = { lidas: 131, novas: 120, atualizadas: 8, rejeitadas: 3 };
+  let empresaId = '';
+  let colegaDaCarteira = '';
+  let tentativaConcluida = '';
+  let tentativaComFalha = '';
+
+  const hex64 = (digito: string): string => digito.repeat(64);
+
+  const semearTentativa = async (estado: string, totais: object | null, hash: string): Promise<string> =>
+    (
+      await poolAdmin.query<{ id: string }>(
+        `insert into app.importacao_plano_contas
+           (tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome, arquivo_tamanho, arquivo_chave,
+            usuario_iniciador_id, correlation_id, estado, totais, finalizado_em)
+         values ($1, $2, $3, '{"codigo":"codigo"}'::jsonb, 'plano.csv', 10, $4, $5, 'teste-sino', $6, $7::jsonb, now())
+         returning id`,
+        [
+          tenantA,
+          empresaId,
+          hash,
+          `plano-contas/${SUFIXO}/${hash.slice(0, 8)}.csv`,
+          usuarioA,
+          estado,
+          totais === null ? null : JSON.stringify(totais),
+        ],
+      )
+    ).rows[0]!.id;
+
+  const semearNotificacao = async (tentativaId: string, usuarioId: string): Promise<void> => {
+    await poolAdmin.query(
+      `insert into app.importacao_plano_contas_notificacao (tenant_id, empresa_id, tentativa_id, usuario_id)
+       values ($1, $2, $3, $4)`,
+      [tenantA, empresaId, tentativaId, usuarioId],
+    );
+  };
+
+  const doIniciador = <T>(executar: (cliente: PoolClient) => Promise<T>): Promise<T> =>
+    comTenant(tenantA, executar);
+  const doColega = <T>(executar: (cliente: PoolClient) => Promise<T>): Promise<T> =>
+    comoUsuario(poolApp, tenantA, colegaDaCarteira, executar, 'COMUM');
+  const importacoes = (itens: readonly { tipo: string }[]) =>
+    itens.filter((n) => n.tipo === 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA');
+
+  beforeAll(async () => {
+    empresaId = await criarEmpresaAtiva(tenantA);
+    colegaDaCarteira = (
+      await poolAdmin.query<{ id: string }>(
+        `insert into app.usuario (tenant_id, sub_oidc, email, nome, estado)
+         values ($1, $2, 'colega-importacao@local', 'Colega Importação', 'ATIVO') returning id`,
+        [tenantA, `sub-colega-importacao-${SUFIXO}`],
+      )
+    ).rows[0]!.id;
+    // O colega está na MESMA carteira: a RLS deixa ler a notificação da empresa, o sino é que filtra.
+    await poolAdmin.query(
+      `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id) values ($1, $2, $3)`,
+      [tenantA, colegaDaCarteira, empresaId],
+    );
+    tentativaConcluida = await semearTentativa('CONCLUIDA_COM_REJEICOES', TOTAIS, hex64('a'));
+    tentativaComFalha = await semearTentativa('FALHA', null, hex64('b'));
+    await semearNotificacao(tentativaConcluida, usuarioA);
+    await semearNotificacao(tentativaComFalha, usuarioA);
+  });
+
+  it('o iniciador vê o aviso com a empresa, a tentativa, o estado e os totais', async () => {
+    const painel = await doIniciador((cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const concluida = painel.find((n) => n.importacao?.tentativaId === tentativaConcluida);
+    const comFalha = painel.find((n) => n.importacao?.tentativaId === tentativaComFalha);
+
+    expect(importacoes(painel)).toHaveLength(2);
+    expect(concluida).toMatchObject({
+      tipo: 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA',
+      empresaId,
+      empresaNome: 'Empresa Notificação',
+      chave: `importacao-plano-contas:${tentativaConcluida}`,
+      lida: false,
+      adicionadas: null,
+      removidas: null,
+      duracaoMs: null,
+      importacao: { tentativaId: tentativaConcluida, estado: 'CONCLUIDA_COM_REJEICOES', totais: TOTAIS },
+    });
+    expect(comFalha).toMatchObject({ importacao: { estado: 'FALHA', totais: null } });
+  });
+
+  it('outro usuário da mesma carteira não vê o aviso, no painel nem no histórico', async () => {
+    const painel = await doColega((cliente) => listarPainel(cliente, tenantA, colegaDaCarteira));
+    const pagina = await doColega((cliente) => listarHistorico(cliente, tenantA, colegaDaCarteira, 25, 0));
+
+    expect(importacoes(painel)).toHaveLength(0);
+    expect(importacoes(pagina.notificacoes)).toHaveLength(0);
+  });
+
+  it('outro tenant não vê o aviso', async () => {
+    const painel = await comTenant(tenantB, (cliente) => listarPainel(cliente, tenantB, usuarioB));
+
+    expect(importacoes(painel)).toHaveLength(0);
+  });
+
+  it('entra na contagem de não lidas só do iniciador', async () => {
+    const doDono = await doIniciador((cliente) => contarNaoLidas(cliente, tenantA, usuarioA));
+    const doOutro = await doColega((cliente) => contarNaoLidas(cliente, tenantA, colegaDaCarteira));
+
+    expect(doDono).toBeGreaterThanOrEqual(2);
+    expect(doOutro).toBe(0);
+  });
+
+  it('o colega da carteira não marca o aviso do iniciador', async () => {
+    const painel = await doIniciador((cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const alvo = painel.find((n) => n.importacao?.tentativaId === tentativaConcluida)!;
+
+    const emLote = await doColega((cliente) => marcarVariasComoLidas(cliente, tenantA, [alvo.id], colegaDaCarteira));
+    const individual = await doColega((cliente) => marcarComoLida(cliente, tenantA, alvo.id, colegaDaCarteira));
+    const depois = await doIniciador((cliente) => listarPainel(cliente, tenantA, usuarioA));
+
+    expect(emLote).toBe(0);
+    expect(individual).toBeNull();
+    expect(depois.find((n) => n.id === alvo.id)?.lida).toBe(false);
+  });
+
+  it('em lote conta só a recém-marcada do iniciador, e marcar de novo é idempotente', async () => {
+    const painel = await doIniciador((cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const alvo = painel.find((n) => n.importacao?.tentativaId === tentativaConcluida)!;
+    const antes = await doIniciador((cliente) => contarNaoLidas(cliente, tenantA, usuarioA));
+
+    const marcadas = await doIniciador((cliente) => marcarVariasComoLidas(cliente, tenantA, [alvo.id], usuarioA));
+    const denovo = await doIniciador((cliente) => marcarVariasComoLidas(cliente, tenantA, [alvo.id], usuarioA));
+    const depois = await doIniciador((cliente) => contarNaoLidas(cliente, tenantA, usuarioA));
+
+    expect(marcadas).toBe(1);
+    expect(denovo).toBe(0);
+    expect(depois).toBe(antes - 1);
+  });
+
+  it('marcar individualmente funciona e o histórico preserva o aviso lido', async () => {
+    const painel = await doIniciador((cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const alvo = painel.find((n) => n.importacao?.tentativaId === tentativaComFalha)!;
+
+    const marcada = await doIniciador((cliente) => marcarComoLida(cliente, tenantA, alvo.id, usuarioA));
+    const pagina = await doIniciador((cliente) => listarHistorico(cliente, tenantA, usuarioA, 25, 0));
+
+    expect(marcada).toMatchObject({ lida: true, importacao: { estado: 'FALHA' } });
+    expect(importacoes(pagina.notificacoes)).toHaveLength(2);
+  });
+
+  it('as notificações de outros tipos não carregam o bloco da importação', async () => {
+    const painel = await doIniciador((cliente) => listarPainel(cliente, tenantA, usuarioA));
+    const outras = painel.filter((n) => n.tipo !== 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA');
+
+    expect(outras.length).toBeGreaterThan(0);
+    expect(outras.every((n) => n.importacao === null)).toBe(true);
   });
 });

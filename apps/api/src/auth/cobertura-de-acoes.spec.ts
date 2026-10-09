@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CODIGOS_DE_ERRO,
   ErroDeDominio,
+  normalizarMatriz,
   permissoesDosPapeisPadrao,
   type ChaveDePermissao,
   type PapelPadrao,
@@ -33,6 +34,7 @@ import { HistoricoController, ManutencaoDaEmpresaController } from '../empresa/m
 import { EscritorioController } from '../escritorio/escritorio.controller';
 import { NotificacoesController } from '../notificacoes/notificacoes.controller';
 import { PapeisController } from '../papeis/papeis.controller';
+import { PlanoContasDaEmpresaController } from '../plano-contas/plano-contas.controller';
 import {
   PendenciasController,
   PendenciasDaEmpresaController,
@@ -177,6 +179,18 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais, agora por permissão do cat�
     [DocumentosDaEmpresaController, 'aprovar', OPERADORES],
     [DocumentosDaEmpresaController, 'rejeitar', OPERADORES],
     [DocumentosDaEmpresaController, 'dispensar', OPERADORES],
+    // Plano de contas (SPEC-013 §3.12): auxiliar e auditor consultam e baixam; importar, confirmar e
+    // cancelar só admin e contador (a carteira é conferida à parte, no GuardDeEscopoDeEmpresa).
+    [PlanoContasDaEmpresaController, 'modelo', TODOS],
+    [PlanoContasDaEmpresaController, 'historico', TODOS],
+    [PlanoContasDaEmpresaController, 'previa', TODOS],
+    [PlanoContasDaEmpresaController, 'rejeicoes', TODOS],
+    [PlanoContasDaEmpresaController, 'relatorio', TODOS],
+    [PlanoContasDaEmpresaController, 'arquivoOriginal', TODOS],
+    [PlanoContasDaEmpresaController, 'contas', TODOS],
+    [PlanoContasDaEmpresaController, 'enviar', so('admin_escritorio', 'contador')],
+    [PlanoContasDaEmpresaController, 'confirmar', so('admin_escritorio', 'contador')],
+    [PlanoContasDaEmpresaController, 'cancelar', so('admin_escritorio', 'contador')],
     // Central de Pendências
     [PendenciasController, 'consultarCentral', TODOS],
     [PendenciasDaEmpresaController, 'dispensar', OPERADORES],
@@ -303,6 +317,23 @@ describe('papel personalizado nas rotas reais (SPEC-008 §3.4)', () => {
       'permitido',
     ],
     [CertificadosController, 'listar', [], 'negado'],
+    // Plano de contas: a matriz salva vem normalizada (a ação implica Consultar). Importar não
+    // confirma nem cancela; confirmar não importa; baixar relatório abre download e leitura.
+    [PlanoContasDaEmpresaController, 'enviar', normalizarMatriz(['empresas.plano_contas.importar']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'confirmar', normalizarMatriz(['empresas.plano_contas.importar']), 'negado'],
+    [PlanoContasDaEmpresaController, 'cancelar', normalizarMatriz(['empresas.plano_contas.importar']), 'negado'],
+    [PlanoContasDaEmpresaController, 'confirmar', normalizarMatriz(['empresas.plano_contas.confirmar_importacao']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'cancelar', normalizarMatriz(['empresas.plano_contas.confirmar_importacao']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'enviar', normalizarMatriz(['empresas.plano_contas.confirmar_importacao']), 'negado'],
+    [PlanoContasDaEmpresaController, 'relatorio', normalizarMatriz(['empresas.plano_contas.baixar_relatorio']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'arquivoOriginal', normalizarMatriz(['empresas.plano_contas.baixar_relatorio']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'modelo', normalizarMatriz(['empresas.plano_contas.baixar_relatorio']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'previa', normalizarMatriz(['empresas.plano_contas.baixar_relatorio']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'historico', normalizarMatriz(['empresas.plano_contas.baixar_relatorio']), 'permitido'],
+    [PlanoContasDaEmpresaController, 'enviar', normalizarMatriz(['empresas.plano_contas.baixar_relatorio']), 'negado'],
+    [PlanoContasDaEmpresaController, 'relatorio', ['empresas.plano_contas.consultar'], 'negado'],
+    [PlanoContasDaEmpresaController, 'arquivoOriginal', ['empresas.plano_contas.consultar'], 'negado'],
+    [PlanoContasDaEmpresaController, 'contas', ['empresas.cadastro.consultar'], 'negado'],
     // Sem permissão alguma, nada é aberto (exceto rota livre).
     [EmpresaController, 'listar', [], 'negado'],
     [UsuariosController, 'eu', [], 'permitido'],

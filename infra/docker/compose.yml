@@ -357,7 +357,8 @@ services:
     networks: [contaia, privada]
 
   # Workers: consumidores BullMQ (diagnóstico pós-F11 e monitor de saúde de 1 minuto), com a
-  # identidade `worker` (alçada: saúde, assinar, executar-mtls e diagnosticar).
+  # identidade `worker` (alçada: saúde, assinar, executar-mtls e diagnosticar), e a validação
+  # assíncrona do plano de contas (SPEC-013), que lê o original no MinIO e não usa o Signer.
   workers:
     build:
       context: ../..
@@ -374,6 +375,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       WORKERS_PORT: '${WORKERS_PORT}'
       DATABASE_APP_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
@@ -387,6 +390,11 @@ services:
       WORKER_CERT_FILE: /run/secrets/worker.crt.pem
       WORKER_KEY_FILE: /run/secrets/worker.key.pem
       SIGNER_CA_INTERNA_FILE: /run/secrets/ca-interna.pem
+      # Original da importação do plano de contas (mesmo storage e bucket da API).
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ./.vault-local/pki-mtls/worker.crt.pem:/run/secrets/worker.crt.pem:ro
       - ./.vault-local/pki-mtls/worker.key.pem:/run/secrets/worker.key.pem:ro
