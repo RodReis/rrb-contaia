@@ -50,6 +50,7 @@ import {
   dadosDoJob,
   destinatariosDaNotificacao,
   enviarPelaApi,
+  erroAoLerNoArmazenamento,
   escolherColuna,
   esperarEstado,
   eventosDa,
@@ -68,7 +69,7 @@ import {
   totalNaTela,
   validarPelaTela,
   type ArquivosGerados,
-  type Violacao,
+  type AchadosVisuais,
 } from './fixtures/plano-contas';
 
 const ESCOPO = process.env['PROVA_ESCOPO'] ?? 'local';
@@ -125,17 +126,27 @@ let principal = { tentativaId: '', correlationId: '' };
 /** Prévia da Beta (aceitação parcial), consultada pelo auxiliar antes de ser cancelada. */
 let previaDaBeta = '';
 
-/** Tudo que o navegador do contador recebeu em texto: nenhum segredo pode estar aqui. */
+/** Tudo que os navegadores da prova receberam em texto: nenhum segredo pode estar aqui. */
 const corposRecebidos: string[] = [];
-/** Violações do axe por estado e tema; afirmadas vazias no fim de cada prova visual. */
-const acessibilidade: Record<string, Record<string, Violacao[]>> = {};
+/**
+ * Achados das provas visuais por estado (axe por tema e rolagem horizontal). Só são afirmados no
+ * teste final dedicado: no modo serial, um achado visual não pode esconder o resto da jornada.
+ */
+const achados: Record<string, AchadosVisuais> = {};
 
 const provar = async (page: Page, estado: string, opcoes: Parameters<typeof provarVisualmente>[3]): Promise<void> => {
-  acessibilidade[estado] = await provarVisualmente(page, PASTA_DAS_PROVAS, estado, opcoes);
+  achados[estado] = await provarVisualmente(page, PASTA_DAS_PROVAS, estado, opcoes);
+};
 
-  for (const [tema, violacoes] of Object.entries(acessibilidade[estado] ?? {})) {
-    expect.soft(violacoes, `axe em ${estado} (${tema})`).toEqual([]);
-  }
+const escutarRespostas = (page: Page): void => {
+  page.on('response', (resposta) => {
+    if (/json|text|html|javascript|csv/u.test(resposta.headers()['content-type'] ?? '')) {
+      void resposta.text().then(
+        (corpo) => corposRecebidos.push(corpo),
+        () => undefined,
+      );
+    }
+  });
 };
 
 // -- Preparação ----------------------------------------------------------------------------------
@@ -195,6 +206,8 @@ const novaPagina = async (browser: Browser, quem: Pessoa): Promise<Page> => {
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(300_000);
 
+  // Uma rodada morta no meio da falha do worker deixaria a fila pausada (o Redis é persistente).
+  await retomarAValidacao();
   await limparEscritorios(pool, [CNPJ_DO_ESCRITORIO, CNPJ_DO_OUTRO_ESCRITORIO]);
   await removerIdentidadesComPrefixo('e2e-f13-');
   rmSync(PASTA_DAS_PROVAS, { recursive: true, force: true });
@@ -250,18 +263,15 @@ test.beforeAll(async ({ browser }) => {
 
   admin = await novaPagina(browser, ADMIN);
   contador = await novaPagina(browser, CONTADOR);
-  contador.on('response', (resposta) => {
-    if (/json|text|html|javascript|csv/u.test(resposta.headers()['content-type'] ?? '')) {
-      void resposta.text().then(
-        (corpo) => corposRecebidos.push(corpo),
-        () => undefined,
-      );
-    }
-  });
   colega = await novaPagina(browser, COLEGA);
   auxiliar = await novaPagina(browser, AUXILIAR);
   deFora = await novaPagina(browser, DE_FORA);
   outroAdmin = await novaPagina(browser, OUTRO_ADMIN);
+  // Depois do login (o formulário do Keycloak não é resposta do produto): tudo o que cada
+  // navegador recebe do produto entra na varredura de segredo.
+  for (const page of [admin, contador, colega, auxiliar, deFora, outroAdmin]) {
+    escutarRespostas(page);
+  }
 });
 
 test.afterAll(async () => {
@@ -313,11 +323,13 @@ test('arquivo acima de 10 MB, acima de 10.000 linhas, cabeçalho inválido e só
     [bytesDa('plano-so-cabecalho.csv'), 'vazio.csv', 422, 'ARQUIVO_VAZIO'],
   ] as const;
   for (const [conteudo, nome, status, codigo] of casos) {
-    const recusada = await enviarPelaApi(contador, empresa.limites, { nome, conteudo }, MAPEAMENTO_DO_MODELO, `e2e-f13-limite-${status}-${codigo}`);
+    // Só letras, dígitos e hífen (até 64): é o formato que o proxy repassa e a API aceita.
+    const correlationId = `e2e-f13-limite-${status}-${codigo.toLowerCase().replaceAll('_', '-')}`;
+    const recusada = await enviarPelaApi(contador, empresa.limites, { nome, conteudo }, MAPEAMENTO_DO_MODELO, correlationId);
 
     expect(recusada.status, nome).toBe(status);
     expect(codigoDo(recusada), nome).toBe(codigo);
-    expect(campoDe(recusada.corpo, 'correlationId'), nome).toBe(`e2e-f13-limite-${status}-${codigo}`);
+    expect(campoDe(recusada.corpo, 'correlationId'), nome).toBe(correlationId);
   }
 
   // Nada foi criado: nem tentativa, nem job.
@@ -490,8 +502,16 @@ test('relatório CSV: BOM, `;`, contas e rejeições com a linha física; o orig
   expect(linhas[0]).toBe('linha;codigo;nome;tipo;natureza;conta_pai;status;acao;codigo_de_erro;campo;mensagem');
   expect(linhas).toContain('5;1.1.03;Aplicações Financeiras;analitica;devedora;1.1;VALIDA;INCLUIR;;;');
   expect(linhas).toContain('4;1.1.02;Bancos Conta Movimento;analitica;devedora;1.1;VALIDA;ATUALIZAR;;;');
-  expect(linhas.find((linha) => linha.startsWith('8;3.9;'))).toMatch(/;REJEITADA;;CONTA_ARQUIVADA;/u);
-  expect(linhas.find((linha) => linha.startsWith('9;4.1;'))).toMatch(/;REJEITADA;;CONTA_PAI_INEXISTENTE;conta_pai;/u);
+  // Rejeições com a linha física, o campo (SPEC-013 §3.4), o código estável e a mensagem do worker.
+  // A mensagem com `;` vai entre aspas (escape de CSV do relatório).
+  expect(linhas).toContain(
+    '8;3.9;Receitas Antigas Reclassificadas;analitica;credora;3;REJEITADA;;CONTA_ARQUIVADA;codigo;' +
+      '"A conta está arquivada e a importação não a altera; reative-a separadamente antes de importar."',
+  );
+  expect(linhas).toContain(
+    '9;4.1;Custos Diretos;analitica;devedora;4;REJEITADA;;CONTA_PAI_INEXISTENTE;conta_pai;' +
+      'A conta-pai não existe no plano de contas nem entre as linhas válidas do arquivo.',
+  );
   expect(linhas.filter((linha) => linha !== '')).toHaveLength(9);
 
   const original = await baixarPeloBotao(contador, 'Baixar arquivo enviado');
@@ -510,6 +530,11 @@ test('histórico da Alfa: a tentativa aparece com situação, totais e quem envi
   await expect(linha.getByRole('cell').nth(2)).toHaveText('3');
   await expect(linha.getByRole('cell').nth(3)).toHaveText('3');
   await expect(linha.getByRole('cell').nth(4)).toHaveText('2');
+
+  // O histórico guarda o correlationId do envio (SPEC-013 §3.9, §10).
+  const historicoDaApi = await pelaApi(contador, `/empresas/${empresa.alfa}/plano-contas/importacoes`);
+  const itens = campoDe(historicoDaApi.corpo, 'itens') as Array<{ id: string; correlationId: string }>;
+  expect(itens.find((item) => item.id === principal.tentativaId)?.correlationId).toBe(principal.correlationId);
 
   await provar(contador, 'historico', {
     recarregar: true,
@@ -533,6 +558,8 @@ test('reenvio idêntico reaproveita o resultado: sem nova tentativa, conta ou no
 
   expect(reenvio.tentativaId).toBe(principal.tentativaId);
   await expect(contador.getByText(/já tinha sido processado: o resultado foi reaproveitado/u)).toBeVisible();
+  // O histórico em cache não se atualiza sozinho: a página é recarregada antes de lê-lo.
+  await contador.reload();
   await expect(
     contador.getByRole('region', { name: 'Histórico de importações' }).getByRole('row').filter({ hasText: 'plano-legado.csv' }),
   ).toContainText('Resultado reaproveitado');
@@ -558,10 +585,18 @@ test('notificação só para quem iniciou: o colega da mesma carteira não receb
   await aviso.click();
   await expect(contador).toHaveURL(new RegExp(`/empresas/${empresa.alfa}\\?aba=plano-contas&tentativa=${principal.tentativaId}`, 'u'));
 
+  // O painel do colega pela API (decisão do servidor) e pela tela, depois de carregado.
+  const painelDaApi = await pelaApi(colega, '/notificacoes/painel');
+  expect(painelDaApi.status).toBe(200);
+  expect(painelDaApi.texto).not.toContain('IMPORTACAO_PLANO_CONTAS_CONCLUIDA');
+
   await colega.goto('/empresas');
   await colega.getByRole('button', { name: 'Notificações' }).click();
-  await expect(colega.getByRole('dialog', { name: 'Painel de notificações' })).toBeVisible();
-  await expect(colega.getByText(/Importação do plano de contas/u)).toHaveCount(0);
+  const painelDoColega = colega.getByRole('dialog', { name: 'Painel de notificações' });
+  await expect(
+    painelDoColega.getByRole('heading', { name: 'Sem notificações' }).or(painelDoColega.getByRole('listitem').first()),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(painelDoColega.getByText(/Importação do plano de contas/u)).toHaveCount(0);
   await colega.keyboard.press('Escape');
 });
 
@@ -583,16 +618,22 @@ test('aceitação parcial: ciclo, pai ausente, código repetido, pai rejeitado e
   await expect(totalNaTela(contador, 'Rejeitadas')).toHaveText('7');
 
   const pagina = await pelaApi(contador, `/empresas/${empresa.beta}/plano-contas/importacoes/${previaDaBeta}/rejeicoes`);
-  const itens = campoDe(pagina.corpo, 'itens') as Array<{ numeroDaLinha: number; codigo: string; codigoDeErro: string }>;
+  const itens = campoDe(pagina.corpo, 'itens') as Array<{
+    numeroDaLinha: number;
+    codigo: string;
+    campo: string | null;
+    codigoDeErro: string;
+  }>;
 
-  expect(itens.map((item) => [item.numeroDaLinha, item.codigo, item.codigoDeErro])).toEqual([
-    [5, '5.1', 'CICLO_HIERARQUICO'],
-    [6, '5.2', 'CICLO_HIERARQUICO'],
-    [7, '6.1', 'CONTA_PAI_INEXISTENTE'],
-    [8, '7', 'CODIGO_DUPLICADO_NO_ARQUIVO'],
-    [9, '7', 'CODIGO_DUPLICADO_NO_ARQUIVO'],
-    [10, '7.1', 'CONTA_PAI_REJEITADA'],
-    [11, '3.9', 'CONTA_ARQUIVADA'],
+  // Linha física, código, campo e código de erro estável de cada rejeição (SPEC-013 §3.4).
+  expect(itens.map((item) => [item.numeroDaLinha, item.codigo, item.campo, item.codigoDeErro])).toEqual([
+    [5, '5.1', 'conta_pai', 'CICLO_HIERARQUICO'],
+    [6, '5.2', 'conta_pai', 'CICLO_HIERARQUICO'],
+    [7, '6.1', 'conta_pai', 'CONTA_PAI_INEXISTENTE'],
+    [8, '7', 'codigo', 'CODIGO_DUPLICADO_NO_ARQUIVO'],
+    [9, '7', 'codigo', 'CODIGO_DUPLICADO_NO_ARQUIVO'],
+    [10, '7.1', 'conta_pai', 'CONTA_PAI_REJEITADA'],
+    [11, '3.9', 'codigo', 'CONTA_ARQUIVADA'],
   ]);
 
   const tabela = contador.getByRole('table', { name: /Linhas rejeitadas de plano-parcial\.csv/u });
@@ -772,22 +813,39 @@ test('falha do worker: sem consumidor a tentativa espera; o armazenamento recusa
   });
 
   const chaveOriginal = (await tentativa(pool, enviado.tentativaId))?.arquivo_chave ?? '';
+  const chaveRecusada = `${chaveOriginal}/${'x'.repeat(1_100)}`;
+
+  // PRÉ-CONDIÇÃO da indução: o original existe, e a chave longa é recusada pelo MinIO com um erro
+  // que NÃO é "objeto ausente" (`NoSuchKey`/`NotFound` seriam definitivos, sem retry, e a prova do
+  // teto de tentativas não valeria). O worker relê a chave do banco em cada tentativa.
+  expect(await erroAoLerNoArmazenamento(chaveOriginal), 'o original da tentativa está no MinIO').toBeNull();
+  const erroDaChaveRecusada = await erroAoLerNoArmazenamento(chaveRecusada);
+  expect(
+    erroDaChaveRecusada !== null && !['NoSuchKey', 'NotFound'].includes(erroDaChaveRecusada),
+    `indução inválida neste MinIO: a chave acima de 1.024 bytes deu "${erroDaChaveRecusada ?? 'leitura com sucesso'}"`,
+  ).toBe(true);
+
   await pool.query('update app.importacao_plano_contas set arquivo_chave = $2 where id = $1', [
     enviado.tentativaId,
-    `${chaveOriginal}/${'x'.repeat(1_100)}`,
+    chaveRecusada,
   ]);
   await retomarAValidacao();
   await esperarEstado(pool, enviado.tentativaId, 'FALHA', 240_000);
 
   const falha = (await eventosDa(pool, enviado.tentativaId)).find((evento) => evento.acao === 'FALHA_TECNICA');
   expect(falha).toMatchObject({ codigo: 'ARMAZENAMENTO_INDISPONIVEL', correlation_id: enviado.correlationId });
-  expect(jobsMortosDa(enviado.tentativaId)).toEqual([
-    expect.objectContaining({
-      tentativaId: enviado.tentativaId,
-      correlationId: enviado.correlationId,
-      motivo: 'ARMAZENAMENTO_INDISPONIVEL',
-    }),
-  ]);
+  // A FALHA é gravada antes da cópia para a fila morta (tratamento do `failed`): espera-se a cópia.
+  // O retry foi controlado: as 5 tentativas do BullMQ, nenhuma a mais.
+  await expect
+    .poll(() => jobsMortosDa(enviado.tentativaId), { timeout: 15_000, intervals: [500] })
+    .toEqual([
+      expect.objectContaining({
+        tentativaId: enviado.tentativaId,
+        correlationId: enviado.correlationId,
+        motivo: 'ARMAZENAMENTO_INDISPONIVEL',
+        tentativas: 5,
+      }),
+    ]);
   expect(await destinatariosDaNotificacao(pool, enviado.tentativaId)).toEqual([contadorId]);
 
   const previa = await pelaApi(contador, `/empresas/${empresa.delta}/plano-contas/importacoes/${enviado.tentativaId}`);
@@ -799,8 +857,6 @@ test('falha do worker: sem consumidor a tentativa espera; o armazenamento recusa
   });
   await expect(contador.getByText(diagnostico?.mensagem ?? '—')).toBeVisible();
   await expect(contador.locator('code').filter({ hasText: enviado.correlationId })).toBeVisible();
-  // O retry foi controlado: as 5 tentativas do BullMQ, nenhuma a mais.
-  expect(jobsMortosDa(enviado.tentativaId)).toEqual([expect.objectContaining({ tentativas: 5 })]);
 
   await provar(contador, 'falha-tecnica', {
     recarregar: true,
@@ -814,6 +870,8 @@ test('falha do worker: sem consumidor a tentativa espera; o armazenamento recusa
   expect(nova.tentativaId).not.toBe(enviado.tentativaId);
   await expect(contador.getByRole('button', { name: 'Confirmar importação' })).toBeVisible({ timeout: 90_000 });
 
+  // A validação terminou no worker, sem mutação na tela: o histórico em cache é relido recarregando.
+  await contador.reload();
   const historico = contador.getByRole('region', { name: 'Histórico de importações' });
   await expect(historico.getByRole('row').filter({ hasText: 'Falha técnica' })).toHaveCount(1);
   await expect(historico.getByRole('row').filter({ hasText: 'Aguardando confirmação' })).toHaveCount(1);
@@ -896,9 +954,11 @@ test('zero linhas válidas: REJEITADA, a pendência persiste; a primeira conta v
   await expect(admin.getByRole('heading', { name: 'Importação concluída' })).toBeVisible({ timeout: 30_000 });
   expect(await pendenciaDoPlano(pool, empresa.onboarding)).toEqual(['RESOLVIDA']);
 
+  // Marcador de lista carregada: a pendência de certificado ausente, aberta na mesma ativação
+  // (SPEC-011), continua na Central; a do plano não está mais lá.
   await admin.goto(`/pendencias?empresaId=${empresa.onboarding}&estado=ABERTA`);
-  await expect(admin.getByRole('heading', { level: 1 })).toBeVisible();
-  await expect(admin.getByText('Plano de contas incompleto')).toHaveCount(0, { timeout: 20_000 });
+  await expect(admin.getByText('Certificado ausente').first()).toBeVisible({ timeout: 20_000 });
+  await expect(admin.getByText('Plano de contas incompleto')).toHaveCount(0);
 });
 
 // -- Segredo e acessibilidade --------------------------------------------------------------------
@@ -912,13 +972,26 @@ test('nenhum segredo nem caminho de storage nas respostas ao navegador, nos logs
   ).rows.map((linha) => linha.arquivo_chave);
   expect(chaves.length).toBeGreaterThan(0);
 
+  // O valor do ambiente desta rodada E o de desenvolvimento do `.env.example`: um ambiente sem a
+  // variável não deixa a varredura procurar só um valor que não é o usado.
   const segredos = [
-    process.env['MINIO_ROOT_PASSWORD'] ?? 'contaia_local_secret',
-    process.env['POSTGRES_APP_PASSWORD'] ?? 'contaia_app_local',
-    process.env['KEYCLOAK_CLIENT_SECRET'] ?? 'contaia-web-local-secret',
-    process.env['KEYCLOAK_ADMIN_CLIENT_SECRET'] ?? 'contaia-api-admin-local-secret',
-    ...PESSOAS.map((quem) => quem.senha),
+    ...new Set(
+      [
+        process.env['MINIO_ROOT_PASSWORD'],
+        'contaia_local_secret',
+        process.env['POSTGRES_APP_PASSWORD'],
+        'contaia_app_local',
+        process.env['KEYCLOAK_CLIENT_SECRET'],
+        'contaia-web-local-secret',
+        process.env['KEYCLOAK_ADMIN_CLIENT_SECRET'],
+        'contaia-api-admin-local-secret',
+        process.env['COFRE_SERVICE_TOKEN'],
+        process.env['COFRE_ADMIN_TOKEN'],
+        ...PESSOAS.map((quem) => quem.senha),
+      ].filter((valor): valor is string => valor !== undefined && valor.length >= 8),
+    ),
   ];
+  expect(corposRecebidos.length).toBeGreaterThan(20);
 
   for (const termo of [...segredos, ...chaves]) {
     expect(corposRecebidos.filter((corpo) => corpo.includes(termo)).length, `"${termo.slice(0, 10)}…" chegou ao navegador`).toBe(0);
@@ -934,7 +1007,7 @@ test('nenhum segredo nem caminho de storage nas respostas ao navegador, nos logs
     }
   }
 
-  const achados: string[] = [];
+  const comSegredo: string[] = [];
   const varrer = (pasta: string): void => {
     for (const nome of readdirSync(pasta)) {
       const caminho = join(pasta, nome);
@@ -945,7 +1018,7 @@ test('nenhum segredo nem caminho de storage nas respostas ao navegador, nos logs
         const texto = readFileSync(caminho, 'utf8');
 
         if (segredos.some((termo) => texto.includes(termo))) {
-          achados.push(caminho);
+          comSegredo.push(caminho);
         }
       }
     }
@@ -955,13 +1028,11 @@ test('nenhum segredo nem caminho de storage nas respostas ao navegador, nos logs
   } catch {
     // Sem pasta de resultados ainda: nada a varrer.
   }
-  expect(achados).toEqual([]);
+  expect(comSegredo).toEqual([]);
 });
 
-test('acessibilidade: o axe não encontrou violação WCAG 2.1 A/AA em nenhum estado-chave', () => {
-  const estados = Object.keys(acessibilidade);
-
-  expect(estados.sort()).toEqual(
+test('provas visuais: os 10 estados-chave capturados, sem violação do axe (WCAG 2.1 A/AA) e sem rolagem horizontal', () => {
+  expect(Object.keys(achados).sort()).toEqual(
     [
       'conflito-409',
       'falha-tecnica',
@@ -975,10 +1046,18 @@ test('acessibilidade: o axe não encontrou violação WCAG 2.1 A/AA em nenhum es
       'validacao-em-andamento',
     ].sort(),
   );
-  const comViolacao = Object.fromEntries(
-    Object.entries(acessibilidade)
-      .map(([estado, porTema]) => [estado, Object.values(porTema).flat()] as const)
-      .filter(([, violacoes]) => violacoes.length > 0),
+
+  const violacoes = Object.fromEntries(
+    Object.entries(achados)
+      .map(([estado, achado]) => [estado, Object.values(achado.violacoes).flat()] as const)
+      .filter(([, lista]) => lista.length > 0),
   );
-  expect(comViolacao).toEqual({});
+  const rolagens = Object.fromEntries(
+    Object.entries(achados)
+      .map(([estado, achado]) => [estado, achado.rolagens] as const)
+      .filter(([, lista]) => lista.length > 0),
+  );
+
+  expect(violacoes, 'violações do axe por estado').toEqual({});
+  expect(rolagens, 'rolagem horizontal por estado').toEqual({});
 });

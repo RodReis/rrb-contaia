@@ -286,6 +286,45 @@ const comAFilaDeValidacao = async (acao: (fila: FilaDoBullmq) => Promise<void>):
 export const pausarAValidacao = (): Promise<void> => comAFilaDeValidacao((fila) => fila.pause());
 export const retomarAValidacao = (): Promise<void> => comAFilaDeValidacao((fila) => fila.resume());
 
+// -- Armazenamento (MinIO) -----------------------------------------------------------------------
+
+type ClienteS3 = Readonly<{ send: (comando: unknown) => Promise<unknown>; destroy: () => void }>;
+type ModuloS3 = Readonly<{
+  S3Client: new (configuracao: unknown) => ClienteS3;
+  GetObjectCommand: new (entrada: Readonly<{ Bucket: string; Key: string }>) => unknown;
+}>;
+
+/**
+ * Lê a chave no MinIO com a mesma configuração do worker (endpoint, bucket, credenciais,
+ * path-style) e devolve o `name` do erro do SDK, ou `null` se a leitura funcionou. A prova da falha
+ * do worker usa isto como PRÉ-CONDIÇÃO: o worker só trata `NoSuchKey`/`NotFound` como definitivo
+ * (sem retry); qualquer outro erro é transitório e vai até o teto de tentativas.
+ */
+export const erroAoLerNoArmazenamento = async (chave: string): Promise<string | null> => {
+  const { S3Client, GetObjectCommand } = doWorkers('@aws-sdk/client-s3') as ModuloS3;
+  const cliente = new S3Client({
+    endpoint: process.env['S3_ENDPOINT'] ?? 'http://127.0.0.1:19000',
+    region: process.env['S3_REGION'] ?? 'us-east-1',
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: process.env['MINIO_ROOT_USER'] ?? 'contaia_local',
+      secretAccessKey: process.env['MINIO_ROOT_PASSWORD'] ?? 'contaia_local_secret',
+    },
+  });
+
+  try {
+    await cliente.send(new GetObjectCommand({ Bucket: process.env['S3_BUCKET'] ?? 'contaia-documentos', Key: chave }));
+
+    return null;
+  } catch (erro) {
+    const nome = typeof erro === 'object' && erro !== null && 'name' in erro ? erro.name : undefined;
+
+    return typeof nome === 'string' ? nome : 'ErroSemNome';
+  } finally {
+    cliente.destroy();
+  }
+};
+
 // -- Docker (fila, contêineres e logs) -----------------------------------------------------------
 
 export const PROJETO = process.env['COMPOSE_PROJECT_NAME'] ?? 'contaia';
@@ -477,17 +516,25 @@ export type OpcoesDaProva = Readonly<{
 
 /**
  * Captura `<estado>-<tema>-<largura>.png` em `test-results/<escopo>/e2e/provas/` nos dois temas e
- * nas três larguras, confere que não há rolagem horizontal e roda o axe uma vez por tema. Devolve
- * as violações encontradas (a prova as afirma vazias com `expect.soft`, para não esconder capturas).
+ * nas três larguras, mede a rolagem horizontal e roda o axe uma vez por tema. NÃO afirma nada:
+ * devolve os achados para um teste final dedicado, para que um achado de contraste ou de layout não
+ * esconda (no modo serial) o resultado da jornada, do conflito ou da falha.
  */
+export type AchadosVisuais = Readonly<{
+  violacoes: Record<string, Violacao[]>;
+  /** `<tema> <largura>px` em que a página rolou na horizontal. */
+  rolagens: string[];
+}>;
+
 export const provarVisualmente = async (
   page: Page,
   pasta: string,
   estado: string,
   opcoes: OpcoesDaProva,
-): Promise<Record<string, Violacao[]>> => {
+): Promise<AchadosVisuais> => {
   mkdirSync(pasta, { recursive: true });
   const violacoes: Record<string, Violacao[]> = {};
+  const rolagens: string[] = [];
 
   for (const [tema, valor] of TEMAS) {
     await page.evaluate((escolhido) => localStorage.setItem('contaia-theme', escolhido), valor);
@@ -514,12 +561,9 @@ export const provarVisualmente = async (
         await opcoes.recorte(page).first().screenshot({ path: arquivo, animations: 'disabled' });
       }
 
-      expect
-        .soft(
-          await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth),
-          `rolagem horizontal em ${estado} ${tema} ${largura}px`,
-        )
-        .toBe(false);
+      if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) {
+        rolagens.push(`${tema} ${largura}px`);
+      }
 
       if (largura === 1024) {
         violacoes[tema] = await violacoesDeAcessibilidade(page);
@@ -531,5 +575,5 @@ export const provarVisualmente = async (
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
   await page.setViewportSize({ width: 1280, height: 900 });
 
-  return violacoes;
+  return { violacoes, rolagens };
 };
