@@ -6,13 +6,16 @@
  *
  *   - não é a última tentativa → relança (o BullMQ repete com backoff);
  *   - última (ou irrecuperável) com tentativa identificável → `registrarFalhaDaValidacao`
- *     (idempotente, só age a partir de VALIDANDO) e relança o erro original, para o BullMQ
- *     finalizar o job;
+ *     (idempotente, só age a partir de VALIDANDO) e relança, para o BullMQ finalizar o job;
  *   - a FALHA não pôde ser gravada (banco fora) → o job é ADIADO sem gastar tentativa
  *     (`moveToDelayed` + `DelayedError`) e volta até a FALHA ficar registrada.
  *
  * Queda do processo depois do commit da FALHA: o job segue ativo, trava, é reentregue, e
  * `iniciarValidacao` responde `ESTADO_INVALIDO_PARA_ACAO` → ack sem efeito.
+ *
+ * O que sai daqui é SEMPRE um erro novo com o código estável como mensagem: o BullMQ guarda
+ * `failedReason` e a pilha no hash do job (Redis, `removeOnFail: 50`), e a mensagem de um erro do
+ * banco carrega valores do CSV ("Failing row contains (...)").
  */
 import { DelayedError, UnrecoverableError } from 'bullmq';
 
@@ -21,6 +24,7 @@ import {
   motivoEncerraEmFalha,
   processarValidacao,
   registrarFalhaDaValidacao,
+  type CodigoDaFalhaDaValidacao,
   type DependenciasDaValidacao,
   type ResultadoDaValidacaoDoJob,
 } from './validacao.js';
@@ -42,6 +46,14 @@ export type DependenciasDoProcessador = DependenciasDaValidacao & Readonly<{ esp
 export const ehUltimaTentativa = (job: JobDeValidacao, erro: Error): boolean =>
   erro instanceof UnrecoverableError || job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
 
+/**
+ * Erro relançado ao BullMQ: só o código. Na última tentativa (ou irrecuperável), irrecuperável —
+ * a fila morta lê o motivo dele (`motivoDaFalhaDaValidacao`); antes disso, recuperável, para
+ * repetir com backoff.
+ */
+const erroSanitizado = (motivo: CodigoDaFalhaDaValidacao, ultima: boolean): Error =>
+  ultima ? new UnrecoverableError(motivo) : new Error(motivo);
+
 const registrar = (evento: string, erro: unknown): void => {
   // Só a classe: a mensagem pode carregar dado do arquivo ou segredo.
   console.error(JSON.stringify({ evento, classe: (erro as Error)?.name ?? 'desconhecida' }));
@@ -57,9 +69,10 @@ export const processarJobDeValidacao = async (
   } catch (bruto) {
     const erro = bruto instanceof Error ? bruto : new Error('erro-desconhecido');
     const motivo = motivoDaFalhaDaValidacao(erro);
+    const ultima = ehUltimaTentativa(job, erro);
 
-    if (!ehUltimaTentativa(job, erro) || !motivoEncerraEmFalha(motivo)) {
-      throw erro;
+    if (!ultima || !motivoEncerraEmFalha(motivo)) {
+      throw erroSanitizado(motivo, ultima);
     }
 
     try {
@@ -71,6 +84,6 @@ export const processarJobDeValidacao = async (
       throw new DelayedError();
     }
 
-    throw erro;
+    throw erroSanitizado(motivo, true);
   }
 };

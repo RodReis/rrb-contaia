@@ -12,7 +12,7 @@ import { identificadoresDoJob } from './consumidor.js';
 import { ErroDoArmazenamento } from './leitura-s3.js';
 import { processarJobDeValidacao, type JobDeValidacao } from './processador.js';
 import type * as ModuloDaValidacao from './validacao.js';
-import { processarValidacao, registrarFalhaDaValidacao } from './validacao.js';
+import { motivoDaFalhaDaValidacao, processarValidacao, registrarFalhaDaValidacao } from './validacao.js';
 
 vi.mock('./validacao.js', async (original) => ({
   ...(await original<typeof ModuloDaValidacao>()),
@@ -51,36 +51,60 @@ describe('processarJobDeValidacao', () => {
     expect(registrarFalha).not.toHaveBeenCalled();
   });
 
-  it('falha transitória numa tentativa que não é a última: relança e NÃO registra FALHA', async () => {
-    const erro = new ErroDoArmazenamento('ARMAZENAMENTO_INDISPONIVEL');
-    processar.mockRejectedValue(erro);
+  it('falha transitória numa tentativa que não é a última: relança (recuperável, com o código) e NÃO registra FALHA', async () => {
+    processar.mockRejectedValue(new ErroDoArmazenamento('ARMAZENAMENTO_INDISPONIVEL'));
 
-    await expect(processarJobDeValidacao(deps, job(1), 'token')).rejects.toBe(erro);
+    const lancado = await processarJobDeValidacao(deps, job(1), 'token').catch((e: unknown) => e);
+
+    expect(lancado).toBeInstanceOf(Error);
+    // Recuperável: o BullMQ repete com backoff.
+    expect(lancado).not.toBeInstanceOf(UnrecoverableError);
+    expect((lancado as Error).message).toBe('ARMAZENAMENTO_INDISPONIVEL');
     expect(registrarFalha).not.toHaveBeenCalled();
   });
 
-  it('falha transitória na última tentativa: registra FALHA com o código estável e só então relança o erro original', async () => {
-    const erro = new ErroDoArmazenamento('ARMAZENAMENTO_INDISPONIVEL');
+  it('falha transitória na última tentativa: registra FALHA com o código estável e só então relança o código', async () => {
     const ordem: string[] = [];
-    processar.mockRejectedValue(erro);
+    processar.mockRejectedValue(new ErroDoArmazenamento('ARMAZENAMENTO_INDISPONIVEL'));
     registrarFalha.mockImplementation(async () => {
       ordem.push('falha');
 
       return true;
     });
 
-    await expect(processarJobDeValidacao(deps, job(2), 'token')).rejects.toBe(erro);
+    const lancado = await processarJobDeValidacao(deps, job(2), 'token').catch((e: unknown) => e);
+
     expect(registrarFalha).toHaveBeenCalledWith(deps, dados, 'ARMAZENAMENTO_INDISPONIVEL');
     expect(ordem).toEqual(['falha']);
+    // A fila morta lê o motivo do erro que sai daqui: o mesmo código estável.
+    expect(lancado).toBeInstanceOf(UnrecoverableError);
+    expect(motivoDaFalhaDaValidacao(lancado as Error)).toBe('ARMAZENAMENTO_INDISPONIVEL');
   });
 
   it('irrecuperável já na primeira tentativa: registra FALHA antes de o job falhar', async () => {
-    const erro = new UnrecoverableError('ORIGINAL_NAO_ENCONTRADO');
-    processar.mockRejectedValue(erro);
+    processar.mockRejectedValue(new UnrecoverableError('ORIGINAL_NAO_ENCONTRADO'));
     registrarFalha.mockResolvedValue(true);
 
-    await expect(processarJobDeValidacao(deps, job(0), 'token')).rejects.toBe(erro);
+    const lancado = await processarJobDeValidacao(deps, job(0), 'token').catch((e: unknown) => e);
+
     expect(registrarFalha).toHaveBeenCalledWith(deps, dados, 'ORIGINAL_NAO_ENCONTRADO');
+    expect(lancado).toBeInstanceOf(UnrecoverableError);
+    expect((lancado as Error).message).toBe('ORIGINAL_NAO_ENCONTRADO');
+  });
+
+  it('o erro relançado é só o código: valores do CSV na mensagem do banco não chegam ao hash do job no Redis', async () => {
+    // Erro de CHECK do PostgreSQL carrega a linha inteira: "Failing row contains (...)".
+    const sentinela = 'Failing row contains (CONTA-SENTINELA-123, Nome Secreto)';
+    for (const tentativasFeitas of [0, 2]) {
+      processar.mockRejectedValue(Object.assign(new Error(`new row violates check constraint; ${sentinela}`), { code: '23514' }));
+      registrarFalha.mockResolvedValue(true);
+
+      const lancado = await processarJobDeValidacao(deps, job(tentativasFeitas), 'token').catch((e: unknown) => e);
+
+      expect((lancado as Error).message).toBe('FALHA_NA_VALIDACAO');
+      expect(String((lancado as Error).stack)).not.toContain('SENTINELA');
+      expect(JSON.stringify(lancado)).not.toContain('SENTINELA');
+    }
   });
 
   it.each(['PAYLOAD_INVALIDO', 'TENTATIVA_NAO_ENCONTRADA'])('irrecuperável %s: não há tentativa a marcar', async (codigo) => {
@@ -95,7 +119,7 @@ describe('processarJobDeValidacao', () => {
     registrarFalha.mockResolvedValue(true);
     const semOpcoes = { ...job(0), opts: {} };
 
-    await expect(processarJobDeValidacao(deps, semOpcoes, 'token')).rejects.toThrow('x');
+    await expect(processarJobDeValidacao(deps, semOpcoes, 'token')).rejects.toThrow('FALHA_NA_VALIDACAO');
     expect(registrarFalha).toHaveBeenCalledWith(deps, dados, 'FALHA_NA_VALIDACAO');
   });
 
