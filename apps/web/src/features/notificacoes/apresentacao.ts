@@ -119,17 +119,17 @@ export const resumoDaImportacao = (notificacao: Notificacao): string => {
   if (estado === 'REJEITADA') {
     return totais === null
       ? 'Nenhuma conta foi alterada.'
-      : `Nenhuma conta foi alterada: ${plural(totais.rejeitadas, 'linha rejeitada', 'linhas rejeitadas')}`;
+      : `Nenhuma conta foi alterada: ${plural(totais.rejeitadas, 'linha rejeitada', 'linhas rejeitadas')}.`;
   }
   if (totais === null) {
     return '';
   }
 
-  return [
+  return `${[
     plural(totais.novas, 'incluída', 'incluídas'),
     plural(totais.atualizadas, 'atualizada', 'atualizadas'),
     plural(totais.rejeitadas, 'rejeitada', 'rejeitadas'),
-  ].join(', ');
+  ].join(', ')}.`;
 };
 
 /** Linha de apoio do aviso de carteira: o efeito, com nomes e contagem. */
@@ -163,8 +163,13 @@ export const rotaDaNotificacao = (notificacao: Notificacao): string => {
   }
 
   if (ehAvisoDeImportacao(notificacao)) {
-    // Abre a tentativa no plano de contas da empresa: lá está o relatório completo.
-    return `/empresas/${notificacao.empresaId ?? ''}?aba=plano-contas&tentativa=${notificacao.importacao?.tentativaId ?? ''}`;
+    // Abre a tentativa no plano de contas da empresa: lá está o relatório completo. Sem empresa
+    // (aviso incompleto), um link quebrado não leva a lugar nenhum: fica o histórico de avisos.
+    const tentativaId = notificacao.importacao?.tentativaId;
+
+    return notificacao.empresaId === null || notificacao.empresaId === undefined || notificacao.empresaId === ''
+      ? '/notificacoes'
+      : `/empresas/${notificacao.empresaId}?aba=plano-contas${tentativaId === undefined ? '' : `&tentativa=${tentativaId}`}`;
   }
 
   if (ehAvisoDoSigner(notificacao)) {
