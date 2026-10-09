@@ -11,3 +11,5 @@ codigo;nome;tipo;natureza;conta_pai
 3.9;Receitas Antigas;analitica;credora;3
 2;Passivo;sintetica;credora;
 2.1;Fornecedores;analitica;credora;2
+3.9.1;Filha da Arquivada;analitica;credora;3.9
+1.1.01.01;Subconta do Caixa;analitica;devedora;1.1.01

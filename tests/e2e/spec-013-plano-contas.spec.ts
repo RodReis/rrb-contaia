@@ -558,8 +558,7 @@ test('reenvio idêntico reaproveita o resultado: sem nova tentativa, conta ou no
 
   expect(reenvio.tentativaId).toBe(principal.tentativaId);
   await expect(contador.getByText(/já tinha sido processado: o resultado foi reaproveitado/u)).toBeVisible();
-  // O histórico em cache não se atualiza sozinho: a página é recarregada antes de lê-lo.
-  await contador.reload();
+  // O envio relê o histórico (sem recarregar a página).
   await expect(
     contador.getByRole('region', { name: 'Histórico de importações' }).getByRole('row').filter({ hasText: 'plano-legado.csv' }),
   ).toContainText('Resultado reaproveitado');
@@ -613,9 +612,9 @@ test('aceitação parcial: ciclo, pai ausente, código repetido, pai rejeitado e
 
   previaDaBeta = enviado.tentativaId;
   await expect(contador.getByRole('heading', { name: 'Linhas rejeitadas' })).toBeVisible({ timeout: 60_000 });
-  await expect(totalNaTela(contador, 'Linhas lidas')).toHaveText('12');
+  await expect(totalNaTela(contador, 'Linhas lidas')).toHaveText('14');
   await expect(totalNaTela(contador, 'Novas')).toHaveText('5');
-  await expect(totalNaTela(contador, 'Rejeitadas')).toHaveText('7');
+  await expect(totalNaTela(contador, 'Rejeitadas')).toHaveText('9');
 
   const pagina = await pelaApi(contador, `/empresas/${empresa.beta}/plano-contas/importacoes/${previaDaBeta}/rejeicoes`);
   const itens = campoDe(pagina.corpo, 'itens') as Array<{
@@ -634,10 +633,21 @@ test('aceitação parcial: ciclo, pai ausente, código repetido, pai rejeitado e
     [9, '7', 'codigo', 'CODIGO_DUPLICADO_NO_ARQUIVO'],
     [10, '7.1', 'conta_pai', 'CONTA_PAI_REJEITADA'],
     [11, '3.9', 'codigo', 'CONTA_ARQUIVADA'],
+    // Filha da conta arquivada que o lote traz: o pai foi rejeitado no lote (vínculo causal).
+    [14, '3.9.1', 'conta_pai', 'CONTA_PAI_REJEITADA'],
+    // Pai novo analítico no mesmo lote: analítica não tem filhas (SPEC-013 §3.4).
+    [15, '1.1.01.01', 'conta_pai', 'VALOR_FORA_DO_DOMINIO'],
   ]);
 
   const tabela = contador.getByRole('table', { name: /Linhas rejeitadas de plano-parcial\.csv/u });
-  for (const codigo of ['CICLO_HIERARQUICO', 'CONTA_PAI_INEXISTENTE', 'CODIGO_DUPLICADO_NO_ARQUIVO', 'CONTA_PAI_REJEITADA', 'CONTA_ARQUIVADA']) {
+  for (const codigo of [
+    'CICLO_HIERARQUICO',
+    'CONTA_PAI_INEXISTENTE',
+    'CODIGO_DUPLICADO_NO_ARQUIVO',
+    'CONTA_PAI_REJEITADA',
+    'CONTA_ARQUIVADA',
+    'VALOR_FORA_DO_DOMINIO',
+  ]) {
     await expect(tabela.getByText(codigo, { exact: true }).first()).toBeVisible();
   }
   expect(await contasDa(pool, empresa.beta)).toEqual(antes);
@@ -655,7 +665,9 @@ test('aceitação parcial: ciclo, pai ausente, código repetido, pai rejeitado e
 
 test('auxiliar consulta e baixa, mas não importa nem confirma: a tela esconde e a API nega', async () => {
   await abrirAba(auxiliar, empresa.beta);
-  await expect(auxiliar.getByText('Seu papel consulta o plano de contas, mas não importa.')).toBeVisible();
+  await expect(
+    auxiliar.getByText('Seu papel pode consultar o plano de contas, mas não tem permissão para importar.'),
+  ).toBeVisible();
   await expect(auxiliar.getByLabel('Arquivo CSV do plano de contas')).toHaveCount(0);
 
   await auxiliar.getByRole('button', { name: 'Abrir importação' }).click();
@@ -870,8 +882,8 @@ test('falha do worker: sem consumidor a tentativa espera; o armazenamento recusa
   expect(nova.tentativaId).not.toBe(enviado.tentativaId);
   await expect(contador.getByRole('button', { name: 'Confirmar importação' })).toBeVisible({ timeout: 90_000 });
 
-  // A validação terminou no worker, sem mutação na tela: o histórico em cache é relido recarregando.
-  await contador.reload();
+  // A validação terminou no worker, sem comando na tela: o fim do acompanhamento relê o histórico
+  // (sem recarregar a página).
   const historico = contador.getByRole('region', { name: 'Histórico de importações' });
   await expect(historico.getByRole('row').filter({ hasText: 'Falha técnica' })).toHaveCount(1);
   await expect(historico.getByRole('row').filter({ hasText: 'Aguardando confirmação' })).toHaveCount(1);
