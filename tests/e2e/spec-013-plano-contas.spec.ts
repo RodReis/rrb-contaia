@@ -92,7 +92,11 @@ const DE_FORA = pessoa('contador-fora', 'Contadora de Fora');
 const OUTRO_ADMIN = pessoa('outro-admin', 'Administrador de Outro Escritório');
 const PESSOAS = [ADMIN, CONTADOR, COLEGA, AUXILIAR, DE_FORA, OUTRO_ADMIN];
 
-const NOME_ONB = 'Onboarding Plano E2E';
+/**
+ * CNPJ que o dublê da CNPJá conhece (`tests/e2e/duble-da-cnpja.mjs`, o mesmo da spec-002, que usa
+ * outro escritório): o cadastro nasce pelo caminho do produto, pré-preenchido pela fonte externa.
+ */
+const CNPJ_DO_ONBOARDING = '19131243000197';
 
 const pool = new Pool({
   connectionString: process.env['DATABASE_URL'] ?? 'postgresql://contaia:contaia_local@127.0.0.1:15432/contaia',
@@ -166,32 +170,6 @@ const semearContas = async (
   }
 };
 
-/** Empresa com as quatro etapas preenchidas, ainda em `CADASTRO_INCOMPLETO`: falta ativar pela tela. */
-const criarEmpresaParaAtivar = async (cnpj: string): Promise<string> => {
-  const id =
-    (
-      await pool.query<{ id: string }>(
-        `insert into app.empresa
-           (tenant_id, status, cnpj, razao_social, nome_fantasia, regime_tributario,
-            enquadramento_simples, cnae_principal, inscricao_estadual_situacao,
-            inscricao_municipal_situacao, situacao_cadastral_externa, validado_por_fonte_externa)
-         values ($1, 'CADASTRO_INCOMPLETO', $2, $3, $3, 'SIMPLES_NACIONAL', 'NAO_MEI', '4712100',
-                 'ISENTO', 'NAO_SE_APLICA', 'Ativa', true)
-         returning id`,
-        [tenantId, cnpj, NOME_ONB],
-      )
-    ).rows[0]?.id ?? '';
-
-  await pool.query(
-    `insert into app.empresa_endereco
-       (tenant_id, empresa_id, finalidade, principal, cep, logradouro, numero, bairro, municipio, uf)
-     values ($1, $2, 'FISCAL', true, '74000000', 'Rua Um', '10', 'Centro', 'Goiania', 'GO')`,
-    [tenantId, id],
-  );
-
-  return id;
-};
-
 const novaPagina = async (browser: Browser, quem: Pessoa): Promise<Page> => {
   // `bypassCSP`: o axe é injetado na página para a checagem de acessibilidade.
   const contexto = await browser.newContext({ bypassCSP: true, viewport: { width: 1280, height: 900 } });
@@ -235,7 +213,6 @@ test.beforeAll(async ({ browser }) => {
   empresa.gama = await criarEmpresa(pool, tenantId, cnpjDaEmpresa(3), 'Gama Plano E2E');
   empresa.delta = await criarEmpresa(pool, tenantId, cnpjDaEmpresa(4), 'Delta Plano E2E');
   empresa.limites = await criarEmpresa(pool, tenantId, cnpjDaEmpresa(5), 'Limites Plano E2E');
-  empresa.onboarding = await criarEmpresaParaAtivar(cnpjDaEmpresa(6));
 
   // Carteira: o contador nas cinco ativas; o colega e o auxiliar na Alfa (e o auxiliar na Beta);
   // a contadora de fora em nenhuma delas. A administradora alcança o escritório inteiro.
@@ -902,26 +879,34 @@ const abrirEtapa = async (page: Page, etapa: string): Promise<void> => {
 };
 
 test('onboarding: depois de ativar, a etapa opcional "Plano de contas"; sem importar, a pendência fica na Central', async () => {
+  // Pelo caminho do produto (o mesmo POST de "Iniciar cadastro"): a administradora que cria entra na
+  // própria carteira já na criação, e só assim alcança o wizard da empresa incompleta (SPEC-009 §3.1).
+  // Empresa em CADASTRO_INCOMPLETO gravada por SQL não está em carteira nenhuma e a RLS a esconde.
+  const criacao = await pelaApi(admin, '/empresas', { metodo: 'POST', corpo: { cnpj: CNPJ_DO_ONBOARDING } });
+  expect(criacao.status, criacao.texto.slice(0, 300)).toBe(201);
+  empresa.onboarding = String(campoDe(criacao.corpo, 'id'));
+
   await admin.goto(`/empresas/${empresa.onboarding}`);
   await expect(admin.getByRole('navigation', { name: 'Etapas do cadastro' })).toBeVisible({ timeout: 30_000 });
 
-  // As quatro etapas do cadastro, pela tela.
-  for (const [etapa, aviso] of [
-    ['Identificação', 'Identificação salva.'],
-    ['Dados fiscais', 'Dados fiscais salvos.'],
-    ['Endereço principal', 'Endereço salvo.'],
-  ] as const) {
-    await abrirEtapa(admin, etapa);
-    await admin.getByRole('button', { name: 'Salvar e continuar' }).click();
-    await expect(admin.getByText(aviso).first()).toBeVisible();
-  }
+  // As etapas pela tela, como na spec-002: identificação e endereço vêm da fonte externa; o regime
+  // é escolha humana.
+  await abrirEtapa(admin, 'Identificação');
+  await admin.getByRole('button', { name: 'Salvar e continuar' }).click();
+  await expect(admin.getByText('Identificação salva.').first()).toBeVisible();
+  await abrirEtapa(admin, 'Dados fiscais');
+  await admin.getByRole('combobox', { name: /Regime tributário/u }).click();
+  await admin.getByRole('option', { name: 'Lucro Presumido' }).click();
+  await admin.getByRole('button', { name: 'Salvar e continuar' }).click();
+  await expect(admin.getByText('Dados fiscais salvos.').first()).toBeVisible();
   await abrirEtapa(admin, 'Revisão e ativação');
+  await expect(admin.getByRole('button', { name: 'Ativar empresa' })).toBeEnabled();
   await admin.getByRole('button', { name: 'Ativar empresa' }).click();
 
   // A etapa final opcional aparece no lugar da revisão, na mesma página.
   await expect(admin.getByRole('heading', { level: 2, name: 'Plano de contas' })).toBeVisible({ timeout: 30_000 });
-  await expect(admin.getByText('Etapa opcional')).toBeVisible();
-  await expect(admin.getByText('Plano de contas (opcional)')).toBeVisible();
+  await expect(admin.getByText('Etapa opcional').first()).toBeVisible();
+  await expect(admin.getByText('Plano de contas (opcional)').first()).toBeVisible();
   await expect(admin.getByText(/a pendência Plano de contas incompleto continua visível/u)).toBeVisible();
   expect(await pendenciaDoPlano(pool, empresa.onboarding)).toEqual(['ABERTA']);
 
@@ -937,7 +922,7 @@ test('onboarding: depois de ativar, a etapa opcional "Plano de contas"; sem impo
   ).toBe('ATIVA');
 
   await admin.goto(`/pendencias?empresaId=${empresa.onboarding}`);
-  await expect(admin.getByText('Plano de contas incompleto').first()).toBeVisible({ timeout: 20_000 });
+  await expect(admin.getByRole('row').filter({ hasText: 'Plano de contas incompleto' }).first()).toBeVisible({ timeout: 20_000 });
 });
 
 test('zero linhas válidas: REJEITADA, a pendência persiste; a primeira conta válida a resolve', async () => {
@@ -969,8 +954,8 @@ test('zero linhas válidas: REJEITADA, a pendência persiste; a primeira conta v
   // Marcador de lista carregada: a pendência de certificado ausente, aberta na mesma ativação
   // (SPEC-011), continua na Central; a do plano não está mais lá.
   await admin.goto(`/pendencias?empresaId=${empresa.onboarding}&estado=ABERTA`);
-  await expect(admin.getByText('Certificado ausente').first()).toBeVisible({ timeout: 20_000 });
-  await expect(admin.getByText('Plano de contas incompleto')).toHaveCount(0);
+  await expect(admin.getByRole('row').filter({ hasText: 'Certificado ausente' }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(admin.getByRole('row').filter({ hasText: 'Plano de contas incompleto' })).toHaveCount(0);
 });
 
 // -- Segredo e acessibilidade --------------------------------------------------------------------
