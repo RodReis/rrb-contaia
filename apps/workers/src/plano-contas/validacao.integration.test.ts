@@ -298,7 +298,7 @@ describe('caminho completo com o original real no MinIO', () => {
         campo: null,
         mensagem: "A linha tem mais campos do que o cabeçalho; confira ';' ou aspas no texto.",
       }),
-      expect.objectContaining({ numero_linha: 5, codigo: '9', codigo_de_erro: 'CONTA_PAI_INEXISTENTE', mensagem: expect.stringContaining('conta-pai') }),
+      expect.objectContaining({ numero_linha: 5, codigo: '9', codigo_de_erro: 'CONTA_PAI_INEXISTENTE', campo: 'conta_pai', mensagem: expect.stringContaining('conta-pai') }),
       expect.objectContaining({ numero_linha: 6, codigo: 'C'.repeat(65), codigo_de_erro: 'VALOR_FORA_DO_DOMINIO', campo: 'codigo' }),
     ]);
     expect((await eventosDe(tentativa.id)).map((e) => [e.acao, e.estado_novo, e.correlation_id])).toEqual([

@@ -190,8 +190,8 @@ describe('processarValidacao: desfechos da validação', () => {
 
     expect(resultado).toEqual({ desfecho: 'AGUARDANDO_CONFIRMACAO', totais: { lidas: 3, novas: 1, atualizadas: 0, rejeitadas: 2 } });
     expect(rejeicoes()).toEqual([
-      { linha: 3, erro: 'CICLO_HIERARQUICO', campo: null },
-      { linha: 4, erro: 'CICLO_HIERARQUICO', campo: null },
+      { linha: 3, erro: 'CICLO_HIERARQUICO', campo: 'conta_pai' },
+      { linha: 4, erro: 'CICLO_HIERARQUICO', campo: 'conta_pai' },
     ]);
     expect(staging()[1]).toMatchObject({ mensagem: mensagemPadraoDaRejeicao('CICLO_HIERARQUICO', null), codigo: '5', contaPai: '6' });
   });

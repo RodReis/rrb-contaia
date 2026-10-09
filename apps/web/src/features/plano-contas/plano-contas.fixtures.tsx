@@ -107,7 +107,7 @@ export const previaParcial = (sobrescritas: Partial<PreviaDaImportacao> = {}): P
       rejeicao({
         numeroDaLinha: 6,
         codigo: '1.1',
-        campo: null,
+        campo: 'codigo',
         codigoDeErro: 'CODIGO_DUPLICADO_NO_ARQUIVO',
         mensagem: null,
       }),

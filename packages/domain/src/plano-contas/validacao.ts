@@ -97,10 +97,29 @@ const ehTipoDaConta = (valor: string): valor is TipoDaConta =>
 const ehNaturezaDaConta = (valor: string): valor is NaturezaDaConta =>
   (NATUREZAS_VALIDAS as readonly string[]).includes(valor);
 
+/**
+ * Campo de cada rejeição (SPEC-013 §3.4: linha, código, **campo**, código de erro e mensagem).
+ * Determinístico pelo código de erro quando a regra é sobre um campo só: repetição e conflito com
+ * conta arquivada são do `codigo`; pai ausente, pai rejeitado e ciclo, da `conta_pai`; sintética
+ * com filhas que viraria analítica, do `tipo`. Ausente e fora do domínio dizem o campo na chamada.
+ * Sem campo (`null`) só quando a linha inteira é inconfiável: campos a mais que o cabeçalho
+ * deslocam todas as colunas, e nenhuma delas pode ser apontada.
+ */
+const CAMPO_DO_ERRO: Readonly<Record<CodigoDeErroDaLinha, string | null>> = {
+  CAMPO_OBRIGATORIO_AUSENTE: null,
+  VALOR_FORA_DO_DOMINIO: null,
+  CODIGO_DUPLICADO_NO_ARQUIVO: 'codigo',
+  CONTA_PAI_INEXISTENTE: 'conta_pai',
+  CONTA_PAI_REJEITADA: 'conta_pai',
+  CICLO_HIERARQUICO: 'conta_pai',
+  SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA: 'tipo',
+  CONTA_ARQUIVADA: 'codigo',
+};
+
 const rejeicao = (
   linha: LinhaBrutaDeEntrada,
   codigoDeErro: CodigoDeErroDaLinha,
-  campo: string | null = null,
+  campo: string | null = CAMPO_DO_ERRO[codigoDeErro],
 ): LinhaRejeitada => ({
   numeroDaLinha: linha.numeroDaLinha,
   codigo: linha.codigo || null,
@@ -126,7 +145,8 @@ const acimaDoLimite = (
  */
 const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | LinhaDeEntrada => {
   if (linha.defeitoDeEstrutura === 'CAMPOS_A_MAIS') {
-    return { ...rejeicao(linha, 'VALOR_FORA_DO_DOMINIO'), mensagem: MENSAGEM_CAMPOS_A_MAIS };
+    // Linha inteira: com colunas deslocadas, nenhum campo é confiável o bastante para ser apontado.
+    return { ...rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', null), mensagem: MENSAGEM_CAMPOS_A_MAIS };
   }
   if (!linha.codigo) {
     return rejeicao(linha, 'CAMPO_OBRIGATORIO_AUSENTE', 'codigo');

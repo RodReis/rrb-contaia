@@ -175,7 +175,9 @@ describe('prévia', () => {
     expect(within(tabela).getByRole('rowheader', { name: '4' })).toBeInTheDocument();
     expect(within(tabela).getByText('Conta-pai inexistente')).toBeInTheDocument();
     expect(within(tabela).getByText('CODIGO_DUPLICADO_NO_ARQUIVO')).toBeInTheDocument();
-    expect(within(tabela).getByText('Linha inteira')).toBeInTheDocument();
+    // A repetição aponta o campo Código (SPEC-013 §3.4): o rótulo aparece no cabeçalho e na linha.
+    expect(within(tabela).getAllByText('Código')).toHaveLength(2);
+    expect(within(tabela).queryByText('Linha inteira')).not.toBeInTheDocument();
     expect(screen.getByText(/2 linhas foram rejeitadas e fica de fora/u)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Baixar relatório CSV' })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();

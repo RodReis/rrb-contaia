@@ -226,7 +226,7 @@ describe('validarLinhasDoPlano — valores crus vindos do CSV (SPEC-013 §3.3)',
 
     expect(resultado.aceitas).toHaveLength(0);
     expect(resultado.rejeitadas).toEqual([
-      { numeroDaLinha: 2, codigo: '5', campo: null, codigoDeErro: 'CICLO_HIERARQUICO' },
+      { numeroDaLinha: 2, codigo: '5', campo: 'conta_pai', codigoDeErro: 'CICLO_HIERARQUICO' },
     ]);
   });
 });
@@ -353,7 +353,55 @@ describe('validarLinhasDoPlano — limites de coluna (SPEC-013 §3.3–§3.4)', 
 
     expect(resultado.rejeitadas.map((r) => [r.numeroDaLinha, r.codigoDeErro, r.campo])).toEqual([
       [2, 'VALOR_FORA_DO_DOMINIO', 'codigo'],
-      [3, 'CONTA_PAI_REJEITADA', null],
+      [3, 'CONTA_PAI_REJEITADA', 'conta_pai'],
+    ]);
+  });
+});
+
+describe('validarLinhasDoPlano — campo de cada rejeição (SPEC-013 §3.4)', () => {
+  it('toda rejeição informa o campo de forma determinística pelo código de erro', () => {
+    const vigentes: ContaVigente[] = [
+      { codigo: '8', tipo: 'sintetica', arquivada: false, temFilhas: true },
+      { codigo: '9', tipo: 'analitica', arquivada: true, temFilhas: false },
+    ];
+    const linhas: LinhaBrutaDeEntrada[] = [
+      { numeroDaLinha: 2, codigo: '1', nome: 'Ativo', tipo: 'sintetica', natureza: 'devedora', contaPai: null },
+      { numeroDaLinha: 3, codigo: '2', nome: '', tipo: 'sintetica', natureza: 'devedora', contaPai: null },
+      { numeroDaLinha: 4, codigo: '3', nome: 'Tipo ruim', tipo: 'grupo', natureza: 'devedora', contaPai: null },
+      { numeroDaLinha: 5, codigo: '4', nome: 'Repetida', tipo: 'sintetica', natureza: 'credora', contaPai: null },
+      { numeroDaLinha: 6, codigo: '4', nome: 'Repetida de novo', tipo: 'sintetica', natureza: 'credora', contaPai: null },
+      { numeroDaLinha: 7, codigo: '4.1', nome: 'Filha da repetida', tipo: 'analitica', natureza: 'credora', contaPai: '4' },
+      { numeroDaLinha: 8, codigo: '5.1', nome: 'Sem pai', tipo: 'analitica', natureza: 'devedora', contaPai: '5' },
+      { numeroDaLinha: 9, codigo: '6', nome: 'Ciclo A', tipo: 'sintetica', natureza: 'devedora', contaPai: '7' },
+      { numeroDaLinha: 10, codigo: '7', nome: 'Ciclo B', tipo: 'sintetica', natureza: 'devedora', contaPai: '6' },
+      { numeroDaLinha: 11, codigo: '8', nome: 'Viraria analítica', tipo: 'analitica', natureza: 'devedora', contaPai: null },
+      { numeroDaLinha: 12, codigo: '9', nome: 'Arquivada', tipo: 'analitica', natureza: 'devedora', contaPai: null },
+      {
+        numeroDaLinha: 13,
+        codigo: '10',
+        nome: 'Campos a mais',
+        tipo: 'analitica',
+        natureza: 'devedora',
+        contaPai: null,
+        defeitoDeEstrutura: 'CAMPOS_A_MAIS',
+      },
+    ];
+
+    const { rejeitadas } = validarLinhasDoPlano({ linhas, contasVigentes: vigentes });
+
+    expect(rejeitadas.map((r) => [r.numeroDaLinha, r.codigoDeErro, r.campo])).toEqual([
+      [3, 'CAMPO_OBRIGATORIO_AUSENTE', 'nome'],
+      [4, 'VALOR_FORA_DO_DOMINIO', 'tipo'],
+      [5, 'CODIGO_DUPLICADO_NO_ARQUIVO', 'codigo'],
+      [6, 'CODIGO_DUPLICADO_NO_ARQUIVO', 'codigo'],
+      [7, 'CONTA_PAI_REJEITADA', 'conta_pai'],
+      [8, 'CONTA_PAI_INEXISTENTE', 'conta_pai'],
+      [9, 'CICLO_HIERARQUICO', 'conta_pai'],
+      [10, 'CICLO_HIERARQUICO', 'conta_pai'],
+      [11, 'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA', 'tipo'],
+      [12, 'CONTA_ARQUIVADA', 'codigo'],
+      // Campos a mais deslocam todas as colunas: a linha inteira, sem campo.
+      [13, 'VALOR_FORA_DO_DOMINIO', null],
     ]);
   });
 });

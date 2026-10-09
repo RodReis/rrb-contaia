@@ -299,7 +299,7 @@ describe('normalizarLinhas', () => {
       [3, 'VALOR_FORA_DO_DOMINIO', 'tipo'],
       [4, 'CAMPO_OBRIGATORIO_AUSENTE', 'natureza'],
       [5, 'CAMPO_OBRIGATORIO_AUSENTE', 'codigo'],
-      [6, 'CICLO_HIERARQUICO', null],
+      [6, 'CICLO_HIERARQUICO', 'conta_pai'],
     ]);
   });
 });
