@@ -96,6 +96,12 @@ jobs:
     env:
       DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:5432/contaia
       REDIS_URL: redis://127.0.0.1:6379
+      # Storage local da importação do plano de contas (SPEC-013): a API grava o original e o worker
+      # o lê. O bucket nasce nos próprios testes (StorageService e o teste do worker o criam).
+      S3_ENDPOINT: http://127.0.0.1:19000
+      S3_BUCKET: contaia-documentos
+      MINIO_ROOT_USER: contaia_local
+      MINIO_ROOT_PASSWORD: contaia_local_secret
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -103,6 +109,23 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      # Contêiner de serviço do GitHub não recebe o `server /data` que o MinIO exige: sobe por
+      # `docker run`, com a mesma imagem e o mesmo usuário do infra/docker/compose.yml.
+      - name: Subir o MinIO
+        run: |
+          docker run -d --name minio-banco --user 0:0 -p 19000:9000 \
+            -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
+            --entrypoint minio \
+            bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c \
+            server /data
+          for tentativa in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:19000/minio/health/ready > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs minio-banco
+          exit 1
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
       - run: pnpm test:banco
