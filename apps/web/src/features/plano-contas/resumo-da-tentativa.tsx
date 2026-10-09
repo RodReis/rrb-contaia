@@ -37,7 +37,7 @@ const aproveitamento = (totais: Totais, previstas: boolean): string => {
     return 'Nenhuma linha lida.';
   }
 
-  const frase = `${plural(validas, 'linha válida', 'linhas válidas')} de ${formatarNumero(totais.lidas)} lidas.`;
+  const frase = `${plural(validas, 'linha válida', 'linhas válidas')} de ${plural(totais.lidas, 'lida', 'lidas')}.`;
 
   return previstas ? `${frase} Nenhuma foi aplicada: a aplicação falhou e o plano não mudou.` : frase;
 };

@@ -211,6 +211,13 @@ describe('resumo sem barra de proporção (FRONTEND.md §16/§21)', () => {
     expect(await screen.findByText('4 linhas válidas de 6 lidas.')).toBeVisible();
     expect(screen.queryByRole('img', { name: /linhas válidas/u })).not.toBeInTheDocument();
   });
+
+  it('singular nas duas contagens: "1 linha válida de 1 lida."', async () => {
+    abrirTentativa(previa({ totais: { lidas: 1, novas: 1, atualizadas: 0, rejeitadas: 0 } }));
+    renderizar();
+
+    expect(await screen.findByText('1 linha válida de 1 lida.')).toBeVisible();
+  });
 });
 
 describe('título da seção segue o estado da tentativa', () => {

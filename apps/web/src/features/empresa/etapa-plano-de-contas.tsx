@@ -79,7 +79,8 @@ export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
   // A pendência existe enquanto o plano não tem conta: vale o plano (e a tentativa que acabou de
   // aplicar contas, antes de o plano ser relido), não só a tentativa aberta na URL.
   const aplicouAgora = tentativa !== undefined && ESTADOS_COM_CONTAS_APLICADAS.includes(tentativa.estado);
-  const pendenciaAberta = !aplicouAgora && (plano?.total ?? 0) === 0;
+  // Enquanto o plano não chegou, o aviso não aparece: não se promete nem se nega a pendência.
+  const pendenciaAberta = !aplicouAgora && plano !== undefined && plano.total === 0;
   const sair = (): void => navegador.push('/empresas');
 
   return (

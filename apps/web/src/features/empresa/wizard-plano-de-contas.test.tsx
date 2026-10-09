@@ -385,3 +385,29 @@ describe('sessão indisponível não vira "sem permissão"', () => {
     expect(await screen.findByRole('button', { name: 'Escolher arquivo CSV' })).toBeInTheDocument();
   });
 });
+
+describe('aviso da pendência espera o plano', () => {
+  it('enquanto o plano ainda carrega, não promete nem nega a pendência', async () => {
+    const usuario = userEvent.setup();
+    let liberarPlano: () => void = () => undefined;
+    const planoPronto = new Promise<void>((resolver) => {
+      liberarPlano = resolver;
+    });
+    instalarFetch(async (url, init) => {
+      const metodo = init?.method ?? 'GET';
+      if (url === `/api/proxy/empresas/${EMPRESA}` && metodo === 'GET') return json(empresaNoServidor);
+      if (url === `/api/proxy/empresas/${EMPRESA}/ativar` && metodo === 'POST') return ativar();
+      if (url.includes('/api/proxy/pendencias')) return json({ pendencias: [], total: 0 });
+      if (url.includes('/plano-contas/contas?')) await planoPronto;
+      return (await backend.roteador(url, init)) ?? new Response('{}', { status: 200 });
+    });
+    abrirPagina();
+
+    await ativarEmpresa(usuario);
+    await tituloDaEtapa();
+    expect(screen.queryByText(/pendência Plano de contas incompleto continua visível/u)).not.toBeInTheDocument();
+
+    liberarPlano();
+    expect(await screen.findByText(/pendência Plano de contas incompleto continua visível/u)).toBeInTheDocument();
+  });
+});
