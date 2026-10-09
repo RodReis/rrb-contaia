@@ -110,6 +110,10 @@ export const BotaoDeDownload = ({
 /**
  * Contêiner de tabela larga que rola na horizontal. Precisa ser alcançável por teclado (WCAG 2.1.1,
  * axe `scrollable-region-focusable`): vira região nomeada, entra no Tab e mostra o anel de foco.
+ *
+ * `relative` é o que contém a rolagem: o texto `sr-only` das tabelas (legenda, cabeçalho "Ação") é
+ * `position: absolute`; sem um ancestral posicionado ele escapa do `overflow` e alarga a página
+ * (rolagem horizontal em 768 px, achada na prova visual do E2E).
  */
 export const RegiaoRolavel = ({
   rotulo,
@@ -126,7 +130,7 @@ export const RegiaoRolavel = ({
     tabIndex={0}
     aria-label={rotulo}
     className={cn(
-      'overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+      'relative overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
       className,
     )}
   >

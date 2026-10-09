@@ -390,6 +390,11 @@ describe('histórico', () => {
     const tabela = await screen.findByRole('table', { name: /Importações do plano de contas/u });
     expect(within(tabela).getByText('Concluída com rejeições')).toBeInTheDocument();
     expect(within(tabela).getByText('confirmada por Bruno Reis')).toBeInTheDocument();
+    // Marcador de regressão (layout não se mede no jsdom): a região que rola é focável e posicionada,
+    // senão o `sr-only` absoluto da tabela escapa do overflow e alarga a página em 768 px.
+    const regiao = screen.getByRole('region', { name: 'Tabela das tentativas, rolável na horizontal' });
+    expect(regiao).toHaveAttribute('tabindex', '0');
+    expect(regiao).toHaveClass('relative', 'overflow-x-auto');
     expect(await axe(container)).toHaveNoViolations();
 
     await usuario.click(screen.getByRole('button', { name: /Próxima/u }));
