@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-07
+updated: 2026-10-09
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -96,13 +96,15 @@ _(vazio)_
 
 ## Feito
 
-_(vazio)_
+### Sem épico
+
+- [FIX][SPEC-013][F13] Reuso de resultado terminal obsoleto na importação do plano de contas (#107)
 
 ## Finalizado
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
-- [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15, finalizado em: 2026-10-07)
+- [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15, finalizado em: 2026-10-09)
 - [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14, finalizado em: 2026-10-07)
 - [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13, finalizado em: 2026-10-03)
 - [MVP1][SPEC-010][F10] RLS de dois níveis e provas negativas (#12, finalizado em: 2026-10-03)
