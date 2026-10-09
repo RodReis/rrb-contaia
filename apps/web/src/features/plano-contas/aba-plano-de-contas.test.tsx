@@ -3,7 +3,7 @@
  * nos principais. A API é dublada no `fetch` (com problem+json nas recusas); a URL é dublada com
  * estado, para a tentativa aberta por `?tentativa=` ser a mesma que a tela navega.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { toast } from 'sonner';
@@ -63,6 +63,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   desinstalarDownloads();
 });
 
@@ -252,7 +253,8 @@ describe('confirmação', () => {
     await usuario.click(within(dialogo).getByRole('button', { name: 'Confirmar importação' }));
 
     expect(await screen.findByText(/Confirmação em andamento/u)).toBeInTheDocument();
-    expect(within(dialogo).getByRole('button', { name: 'Aguarde…' })).toBeDisabled();
+    expect(within(dialogo).getByRole('button', { name: 'Confirmar importação' })).toBeDisabled();
+    expect(within(dialogo).getByRole('button', { name: 'Confirmar importação' })).toHaveAttribute('aria-busy', 'true');
   });
 
   it('concluída: mostra o desfecho e confirma por toast de sucesso', async () => {
@@ -305,6 +307,7 @@ describe('cancelada', () => {
     await usuario.click(await screen.findByRole('button', { name: 'Cancelar importação' }));
     const dialogo = await screen.findByRole('alertdialog');
     expect(dialogo).toHaveTextContent('Nenhuma conta é criada ou alterada');
+    expect(within(dialogo).getByRole('button', { name: 'Manter prévia' })).toBeInTheDocument();
     await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar importação' }));
 
     expect(await screen.findByRole('heading', { name: 'Importação cancelada' })).toBeInTheDocument();
@@ -445,7 +448,7 @@ describe('relatório indisponível', () => {
     expect(downloads.criar).not.toHaveBeenCalled();
 
     falhar = false;
-    await usuario.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    await usuario.click(screen.getByRole('button', { name: 'Tentar baixar de novo o relatório' }));
     await waitFor(() => expect(downloads.criar).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(/O relatório não está disponível agora/u)).not.toBeInTheDocument();
   });
@@ -468,7 +471,9 @@ describe('permissão insuficiente', () => {
     backend.estado.permissoes = [...SO_CONSULTA];
     renderizar();
 
-    expect(await screen.findByText('Seu papel consulta o plano de contas, mas não importa.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Seu papel pode consultar o plano de contas, mas não tem permissão para importar.'),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Escolher arquivo CSV' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Arquivo CSV do plano de contas')).not.toBeInTheDocument();
   });
@@ -538,17 +543,49 @@ describe('histórico do navegador', () => {
   });
 
   it('busca digitada não sobrescreve a que mudou por fora (voltar do navegador)', async () => {
-    const usuario = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     backend.estado.contas = [conta()];
     renderizar();
 
     const campo = await screen.findByRole('searchbox', { name: 'Buscar por código ou nome' });
     await usuario.type(campo, 'Cai');
-    navegacao.definir('aba=plano-contas&busca=Ativo');
+    act(() => navegacao.definir('aba=plano-contas&busca=Ativo'));
 
     await waitFor(() => expect(campo).toHaveValue('Ativo'));
-    await new Promise((resolver) => setTimeout(resolver, 400));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
     expect(navegacao.ler().get('busca')).toBe('Ativo');
     expect(navegacao.replace).not.toHaveBeenCalled();
+  });
+
+  it('router.replace lento: a tecla digitada enquanto a URL não chegou não se perde', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    // A navegação do App Router é assíncrona: a URL só reflete o `replace` depois.
+    navegacao.replace.mockImplementation((destino: string) => {
+      setTimeout(() => navegacao.definir(destino.slice(destino.indexOf('?') + 1)), 500);
+    });
+    backend.estado.contas = [conta()];
+    renderizar();
+
+    const campo = await screen.findByRole('searchbox', { name: 'Buscar por código ou nome' });
+    await usuario.type(campo, 'Cai');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(320);
+    });
+    expect(navegacao.replace).toHaveBeenCalledTimes(1);
+
+    // Digita antes de a URL refletir "Cai"; o eco da própria publicação não apaga o rascunho.
+    await usuario.type(campo, 'x');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+
+    expect(campo).toHaveValue('Caix');
+    await waitFor(() => expect(navegacao.ler().get('busca')).toBe('Caix'));
+    // Volta ao dublê original (o `mockReset` do Vitest 3 restaura a implementação de `vi.fn(impl)`).
+    navegacao.replace.mockReset();
   });
 });

@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/cn';
 import { AbaDeColaboradores } from '../carteira/aba-de-colaboradores';
@@ -81,8 +82,11 @@ const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
     });
   };
 
-  return { ativa, abrir };
+  return { ativa, abrir, pedida };
 };
+
+/** Abas que só existem depois que a sessão diz o que o papel pode. */
+const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'colaboradores'];
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
@@ -183,7 +187,7 @@ export const ManutencaoDaEmpresa = ({
 }) => {
   const salvarIdentificacao = useSalvarIdentificacaoMantida(visao.id);
   const salvarFiscais = useSalvarFiscaisMantidos(visao.id);
-  const { data: sessao } = useSessao();
+  const { data: sessao, isPending: carregandoSessao } = useSessao();
   // Só o administrador gere carteira (SPEC-009 §3.1): a aba não existe para os demais papéis.
   const administraCarteira = sessao !== undefined && pode(sessao, ADMINISTRACAO_DE_USUARIOS);
   // Plano de contas aparece para quem consulta (SPEC-013 §3.12); a API revalida em cada rota.
@@ -196,6 +200,10 @@ export const ManutencaoDaEmpresa = ({
     visao.id,
     abas.map((item) => item.id),
   );
+  // Deep link (`?aba=plano-contas`, link da notificação) com a sessão ainda a caminho: a aba
+  // pedida ainda não existe, e cair em Identificação para trocar logo depois piscaria a tela.
+  const esperandoAbaPedida =
+    sessao === undefined && carregandoSessao && aba.pedida !== null && ABAS_QUE_DEPENDEM_DA_SESSAO.includes(aba.pedida);
   const nomeDaEmpresa =
     visao.cadastro.identificacao?.nomeFantasia ?? visao.cadastro.identificacao?.razaoSocial ?? 'a empresa';
 
@@ -213,90 +221,98 @@ export const ManutencaoDaEmpresa = ({
         </p>
       ) : null}
 
-      <Tabs.Root value={aba.ativa} onValueChange={aba.abrir} className="flex flex-col gap-lg">
-        <Tabs.List
-          aria-label="Seções da empresa"
-          className="flex flex-wrap gap-xs rounded-md bg-secondary p-xs"
-        >
-          {abas.map((aba) => (
-            <Tabs.Trigger key={aba.id} value={aba.id} className={cn(CLASSES_DA_ABA)}>
-              {aba.rotulo}
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
+      {esperandoAbaPedida ? (
+        <div className="flex flex-col gap-lg" aria-busy="true">
+          <span className="sr-only">Carregando a aba da empresa</span>
+          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      ) : (
+        <Tabs.Root value={aba.ativa} onValueChange={aba.abrir} className="flex flex-col gap-lg">
+          <Tabs.List
+            aria-label="Seções da empresa"
+            className="flex flex-wrap gap-xs rounded-md bg-secondary p-xs"
+          >
+            {abas.map((aba) => (
+              <Tabs.Trigger key={aba.id} value={aba.id} className={cn(CLASSES_DA_ABA)}>
+                {aba.rotulo}
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
 
-        <Tabs.Content
-          value="identificacao"
-          className="flex flex-col gap-lg focus-visible:outline-none"
-        >
-          <FormularioIdentificacao
-            visao={visao}
-            rotuloDeEnvio="Salvar alterações"
-            somenteLeitura={arquivada}
-            ocupado={salvarIdentificacao.isPending}
-            aoSalvar={(dados) =>
-              salvarIdentificacao.mutate({
-                razaoSocial: dados.razaoSocial,
-                nomeFantasia: dados.nomeFantasia,
-                telefone: (dados.telefone ?? '').length > 0 ? (dados.telefone ?? null) : null,
-                email: (dados.email ?? '').length > 0 ? (dados.email ?? null) : null,
-              })
-            }
-          />
+          <Tabs.Content
+            value="identificacao"
+            className="flex flex-col gap-lg focus-visible:outline-none"
+          >
+            <FormularioIdentificacao
+              visao={visao}
+              rotuloDeEnvio="Salvar alterações"
+              somenteLeitura={arquivada}
+              ocupado={salvarIdentificacao.isPending}
+              aoSalvar={(dados) =>
+                salvarIdentificacao.mutate({
+                  razaoSocial: dados.razaoSocial,
+                  nomeFantasia: dados.nomeFantasia,
+                  telefone: (dados.telefone ?? '').length > 0 ? (dados.telefone ?? null) : null,
+                  email: (dados.email ?? '').length > 0 ? (dados.email ?? null) : null,
+                })
+              }
+            />
 
-          <AtualizacaoPelaCnpja empresaId={visao.id} somenteLeitura={arquivada} />
-        </Tabs.Content>
-
-        <Tabs.Content value="fiscal" className="focus-visible:outline-none">
-          <FormularioFiscal
-            visao={visao}
-            rotuloDeEnvio="Salvar alterações"
-            exigeVigencia
-            somenteLeitura={arquivada}
-            ocupado={salvarFiscais.isPending}
-            aoSalvar={(dados, vigencia) =>
-              salvarFiscais.mutate({
-                dados: {
-                  ...dados,
-                  // O formulário usa `undefined` para "não escolhido"; o
-                  // contrato da API usa `null`. A conversão é aqui, na
-                  // fronteira, e não espalhada pelo schema.
-                  enquadramentoSimples: dados.enquadramentoSimples ?? null,
-                  inscricaoEstadual: {
-                    situacao: dados.inscricaoEstadual.situacao,
-                    numero: dados.inscricaoEstadual.numero ?? null,
-                  },
-                  inscricaoMunicipal: {
-                    situacao: dados.inscricaoMunicipal.situacao,
-                    numero: dados.inscricaoMunicipal.numero ?? null,
-                  },
-                },
-                vigencia,
-              })
-            }
-          />
-        </Tabs.Content>
-
-        <Tabs.Content value="enderecos" className="focus-visible:outline-none">
-          <AbaDeEnderecos empresaId={visao.id} somenteLeitura={arquivada} />
-        </Tabs.Content>
-
-        <Tabs.Content value="documentos" className="focus-visible:outline-none">
-          <AbaDeDocumentos empresaId={visao.id} somenteLeitura={arquivada} />
-        </Tabs.Content>
-
-        {consultaPlano ? (
-          <Tabs.Content value="plano-contas" className="focus-visible:outline-none">
-            <AbaPlanoDeContas empresaId={visao.id} somenteLeitura={arquivada} />
+            <AtualizacaoPelaCnpja empresaId={visao.id} somenteLeitura={arquivada} />
           </Tabs.Content>
-        ) : null}
 
-        {administraCarteira ? (
-          <Tabs.Content value="colaboradores" className="focus-visible:outline-none">
-            <AbaDeColaboradores empresaId={visao.id} empresaNome={nomeDaEmpresa} />
+          <Tabs.Content value="fiscal" className="focus-visible:outline-none">
+            <FormularioFiscal
+              visao={visao}
+              rotuloDeEnvio="Salvar alterações"
+              exigeVigencia
+              somenteLeitura={arquivada}
+              ocupado={salvarFiscais.isPending}
+              aoSalvar={(dados, vigencia) =>
+                salvarFiscais.mutate({
+                  dados: {
+                    ...dados,
+                    // O formulário usa `undefined` para "não escolhido"; o
+                    // contrato da API usa `null`. A conversão é aqui, na
+                    // fronteira, e não espalhada pelo schema.
+                    enquadramentoSimples: dados.enquadramentoSimples ?? null,
+                    inscricaoEstadual: {
+                      situacao: dados.inscricaoEstadual.situacao,
+                      numero: dados.inscricaoEstadual.numero ?? null,
+                    },
+                    inscricaoMunicipal: {
+                      situacao: dados.inscricaoMunicipal.situacao,
+                      numero: dados.inscricaoMunicipal.numero ?? null,
+                    },
+                  },
+                  vigencia,
+                })
+              }
+            />
           </Tabs.Content>
-        ) : null}
-      </Tabs.Root>
+
+          <Tabs.Content value="enderecos" className="focus-visible:outline-none">
+            <AbaDeEnderecos empresaId={visao.id} somenteLeitura={arquivada} />
+          </Tabs.Content>
+
+          <Tabs.Content value="documentos" className="focus-visible:outline-none">
+            <AbaDeDocumentos empresaId={visao.id} somenteLeitura={arquivada} />
+          </Tabs.Content>
+
+          {consultaPlano ? (
+            <Tabs.Content value="plano-contas" className="focus-visible:outline-none">
+              <AbaPlanoDeContas empresaId={visao.id} somenteLeitura={arquivada} />
+            </Tabs.Content>
+          ) : null}
+
+          {administraCarteira ? (
+            <Tabs.Content value="colaboradores" className="focus-visible:outline-none">
+              <AbaDeColaboradores empresaId={visao.id} empresaNome={nomeDaEmpresa} />
+            </Tabs.Content>
+          ) : null}
+        </Tabs.Root>
+      )}
     </div>
   );
 };

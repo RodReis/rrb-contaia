@@ -21,7 +21,7 @@ import { cn } from '@/lib/cn';
 import { AJUDA_DO_CAMPO, ROTULO_DO_CAMPO } from './apresentacao';
 import { mapeamentoSugerido, pendenciasDoRascunho, type RascunhoDoMapeamento } from './cabecalho-csv';
 import type { ArquivoLido } from './envio-do-csv';
-import { CodigoDeSuporte } from './pecas';
+import { CodigoDeSuporte, RegiaoRolavel } from './pecas';
 
 const NENHUMA_COLUNA = '__nenhuma-coluna__';
 
@@ -41,7 +41,7 @@ const erroDoCampo = (
   }
 
   if (pendencia !== undefined && tentou) {
-    return `Escolha a coluna do arquivo com o ${ROTULO_DO_CAMPO[pendencia.campo].toLowerCase()}.`;
+    return `Escolha a coluna para o campo ${ROTULO_DO_CAMPO[pendencia.campo]}.`;
   }
 
   return undefined;
@@ -68,7 +68,7 @@ const AmostraDoArquivo = ({
   return (
     <div className="flex flex-col gap-xs">
       <p className="text-title-sm text-foreground">Primeiras linhas do arquivo</p>
-      <div className="overflow-x-auto rounded-md border border-border">
+      <RegiaoRolavel rotulo="Tabela da amostra do arquivo, rolável na horizontal" className="rounded-md border border-border">
         <table className="w-full min-w-max text-left">
           <caption className="sr-only">Amostra das primeiras linhas de {lido.arquivo.name}</caption>
           <thead className="bg-muted">
@@ -104,7 +104,7 @@ const AmostraDoArquivo = ({
             ))}
           </tbody>
         </table>
-      </div>
+      </RegiaoRolavel>
     </div>
   );
 };

@@ -61,7 +61,14 @@ describe('mensagens da importação do plano de contas (SPEC-013)', () => {
     const mensagem = mensagemDoCodigo(CODIGOS_DE_ERRO[codigo]);
 
     expect(mensagem).not.toBe(GENERICA);
-    expect(mensagem.length).toBeGreaterThan(10);
+    // Frase completa em PT-BR: começa em maiúscula e termina com ponto.
+    expect(mensagem).toMatch(/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ].*\.$/u);
+  });
+
+  it('cada código da importação tem uma mensagem distinta (nenhuma reaproveitada por engano)', () => {
+    const mensagens = codigos.map((codigo) => mensagemDoCodigo(CODIGOS_DE_ERRO[codigo]));
+
+    expect(new Set(mensagens).size).toBe(codigos.length);
   });
 
   it('falha técnica diz que nada foi alterado e que é preciso um novo envio (a tentativa termina em FALHA)', () => {

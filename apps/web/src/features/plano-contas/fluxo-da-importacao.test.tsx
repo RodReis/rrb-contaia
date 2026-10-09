@@ -4,7 +4,7 @@
  * incompleto ou com coluna repetida não envia nada, o diálogo de confirmação funciona por teclado,
  * e toda chamada leva o `x-correlation-id` da ação.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -198,6 +198,7 @@ describe('teclado', () => {
 
 describe('arrastar e soltar', () => {
   it('ignora um segundo arquivo solto enquanto o primeiro ainda está sendo lido', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     renderizar();
 
     const zona = (await screen.findByText('Arraste o CSV do plano de contas aqui')).parentElement;
@@ -210,8 +211,12 @@ describe('arrastar e soltar', () => {
     fireEvent.drop(zona, { dataTransfer: { files: [csvLegado()] } });
 
     expect(await screen.findByText('Associe as colunas do arquivo')).toBeInTheDocument();
-    await new Promise((resolver) => setTimeout(resolver, 50));
+    // Dá tempo de uma segunda leitura terminar, se ela tivesse começado.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
     expect(screen.getByText('plano-legado.csv')).toBeInTheDocument();
     expect(screen.queryByText('legado.csv')).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 });

@@ -8,7 +8,7 @@
  * manutenção quando a empresa vira ATIVA — e é nessa troca que a etapa precisa sobreviver.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import type { ReactNode } from 'react';
@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   SO_CONSULTA,
   TENTATIVA,
+  conta,
   criarBackend,
   desinstalarDownloads,
   instalarFetch,
@@ -79,6 +80,7 @@ const visao = (status: 'CADASTRO_INCOMPLETO' | 'ATIVA'): VisaoDaEmpresa => ({
 
 let backend = criarBackend();
 let cliente = new QueryClient();
+let sessaoFalha = false;
 let empresaNoServidor: VisaoDaEmpresa = visao('CADASTRO_INCOMPLETO');
 let ativar: () => Response | Promise<Response> = () => {
   empresaNoServidor = visao('ATIVA');
@@ -104,6 +106,9 @@ const instalarApi = (): void => {
     if (url.includes('/api/proxy/pendencias')) {
       return json({ pendencias: [], total: 0 });
     }
+    if (sessaoFalha && url.endsWith('/api/proxy/usuarios/eu')) {
+      return problema(503, 'FALHA_TECNICA', {}, 'corr-sessao-503');
+    }
 
     return backend.roteador(url, init);
   });
@@ -126,6 +131,7 @@ beforeEach(() => {
   backend = criarBackend();
   cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   empresaNoServidor = visao('CADASTRO_INCOMPLETO');
+  sessaoFalha = false;
   ativar = () => {
     empresaNoServidor = visao('ATIVA');
 
@@ -250,6 +256,8 @@ describe('importação terminada', () => {
     await ativarEmpresa(usuario);
     await tituloDaEtapa();
     backend.estado.tentativa = previa({ estado: 'CONCLUIDA', finalizadoEm: '2026-10-08T12:35:00.000Z' });
+    // O servidor já tem as contas da importação concluída.
+    backend.estado.contas = [conta()];
     navegacao.definir(`aba=plano-contas&tentativa=${TENTATIVA}`);
 
     const concluir = await screen.findByRole('button', { name: 'Concluir' });
@@ -289,7 +297,9 @@ describe('sem permissão para importar', () => {
     await ativarEmpresa(usuario);
 
     expect(await tituloDaEtapa()).toBeInTheDocument();
-    expect(await screen.findByText(/Seu papel não importa plano de contas/u)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Seu papel pode consultar o plano de contas, mas não tem permissão para importar.'),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Escolher arquivo CSV' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Arquivo CSV do plano de contas')).not.toBeInTheDocument();
     expect(screen.getByText(/pendência Plano de contas incompleto continua visível/u)).toBeInTheDocument();
@@ -328,5 +338,50 @@ describe('empresa que já estava ativa', () => {
     expect(screen.queryByText('Etapa opcional')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Continuar sem importar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ativar empresa' })).not.toBeInTheDocument();
+  });
+});
+
+describe('aviso da pendência segue o plano, não só a tentativa aberta', () => {
+  it('depois de concluir e abrir "Nova importação", a pendência não volta a ser prometida', async () => {
+    const usuario = userEvent.setup();
+    abrirPagina();
+
+    await ativarEmpresa(usuario);
+    await tituloDaEtapa();
+    backend.estado.tentativa = previa();
+    navegacao.definir(`aba=plano-contas&tentativa=${TENTATIVA}`);
+    // A confirmação aplica as contas no servidor.
+    backend.estado.contas = [conta()];
+    await usuario.click(await screen.findByRole('button', { name: 'Confirmar importação' }));
+    await usuario.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirmar importação' }));
+    await usuario.click(await screen.findByRole('button', { name: 'Nova importação' }));
+
+    expect(await screen.findByRole('button', { name: 'Escolher arquivo CSV' })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText(/pendência Plano de contas incompleto continua visível/u)).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe('sessão indisponível não vira "sem permissão"', () => {
+  it('erro ao carregar as permissões aparece como erro, com código de suporte e nova tentativa', async () => {
+    const usuario = userEvent.setup();
+    abrirPagina();
+    await ativarEmpresa(usuario);
+    await tituloDaEtapa();
+
+    sessaoFalha = true;
+    // Sessão relida do zero (sem dado anterior) e o servidor recusa.
+    await act(async () => {
+      await cliente.resetQueries({ queryKey: ['sessao'] });
+    });
+
+    expect(await screen.findByText('Não foi possível conferir as suas permissões')).toBeInTheDocument();
+    expect(screen.getByText('corr-sessao-503')).toBeInTheDocument();
+    expect(screen.queryByText(/não tem permissão para importar/u)).not.toBeInTheDocument();
+
+    sessaoFalha = false;
+    await usuario.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByRole('button', { name: 'Escolher arquivo CSV' })).toBeInTheDocument();
   });
 });

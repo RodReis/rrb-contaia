@@ -18,13 +18,15 @@ import { ETAPAS_DA_EMPRESA } from '@contaia/domain';
 import type { EtapaDaEmpresa } from '@contaia/domain';
 
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/estados';
+import { ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Stepper, type EtapaDoStepper } from '@/components/ui/stepper';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
 import { naoTerminada } from '../plano-contas/apresentacao';
 import { permissoesDoPlano } from '../plano-contas/permissoes';
-import { useTentativa } from '../plano-contas/queries';
+import { ErroDaApi } from '@/lib/http';
+import { mensagemDoCodigo } from '@/lib/mensagens';
+import { useContasDoPlano, useTentativa } from '../plano-contas/queries';
 import { useEstadoNaUrl } from '../plano-contas/use-estado-na-url';
 import { useSessao } from '../usuarios/queries';
 import { useEmpresa } from './queries';
@@ -49,10 +51,17 @@ const ID_DO_TITULO = 'etapa-plano-de-contas-titulo';
 export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
   const navegador = useRouter();
   const { data: visao } = useEmpresa(empresaId);
-  const { data: sessao, isPending: carregandoSessao } = useSessao();
+  const consultaDaSessao = useSessao();
+  const { data: sessao } = consultaDaSessao;
+  const carregandoSessao = consultaDaSessao.isPending;
+  // Erro ao ler a sessão não é falta de permissão: sem a resposta, a tela não sabe o que o papel pode.
+  const sessaoIndisponivel = consultaDaSessao.isError && sessao === undefined;
+  const problemaDaSessao = consultaDaSessao.error instanceof ErroDaApi ? consultaDaSessao.error.problema : null;
   const permissoes = permissoesDoPlano(sessao, false);
   const { tentativaId } = useEstadoNaUrl(empresaId);
   const { data: tentativa } = useTentativa(empresaId, tentativaId);
+  // A primeira página do plano diz se já existe conta (é a mesma consulta da aba, em cache).
+  const { data: plano } = useContasDoPlano(empresaId, 1, '');
   const titulo = useRef<HTMLHeadingElement>(null);
 
   // A ativação troca a revisão por esta etapa: o foco vai para o título, em vez de ficar no botão
@@ -65,9 +74,12 @@ export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
     visao?.cadastro.identificacao?.nomeFantasia ?? visao?.cadastro.identificacao?.razaoSocial ?? 'Empresa';
   // Sem nada a fazer aqui (importação terminada ou papel que não importa), o caminho é "Concluir";
   // enquanto há o que importar, é "Continuar sem importar".
-  const semNadaAFazer =
-    (tentativa !== undefined && !naoTerminada(tentativa.estado)) || (!carregandoSessao && !permissoes.importar);
-  const pendenciaAberta = tentativa === undefined || !ESTADOS_COM_CONTAS_APLICADAS.includes(tentativa.estado);
+  const semPermissaoDeImportar = sessao !== undefined && !permissoes.importar;
+  const semNadaAFazer = (tentativa !== undefined && !naoTerminada(tentativa.estado)) || semPermissaoDeImportar;
+  // A pendência existe enquanto o plano não tem conta: vale o plano (e a tentativa que acabou de
+  // aplicar contas, antes de o plano ser relido), não só a tentativa aberta na URL.
+  const aplicouAgora = tentativa !== undefined && ESTADOS_COM_CONTAS_APLICADAS.includes(tentativa.estado);
+  const pendenciaAberta = !aplicouAgora && (plano?.total ?? 0) === 0;
   const sair = (): void => navegador.push('/empresas');
 
   return (
@@ -103,12 +115,14 @@ export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
               A empresa já está ativa. O plano de contas pode ser importado agora por CSV ou depois, na aba Plano de
               contas desta empresa. Nenhuma conta muda antes da sua confirmação.
             </p>
-            {permissoes.importar || carregandoSessao ? null : (
+            {semPermissaoDeImportar ? (
               <p>
-                <span className="text-title-sm text-foreground">Seu papel não importa plano de contas.</span> O envio
-                de CSV é feito por quem tem a permissão Importar em Empresas → Plano de contas.
+                <span className="text-title-sm text-foreground">
+                  Seu papel pode consultar o plano de contas, mas não tem permissão para importar.
+                </span>{' '}
+                O envio de CSV é feito por quem tem a permissão Importar em Empresas → Plano de contas.
               </p>
-            )}
+            ) : null}
             {pendenciaAberta ? (
               <p>
                 Sem importar agora, a pendência Plano de contas incompleto continua visível na Central de Pendências
@@ -136,6 +150,18 @@ export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
             <span className="sr-only">Carregando permissões</span>
             <Skeleton className="h-40 w-full" />
           </div>
+        ) : null}
+        {sessaoIndisponivel ? (
+          <ErroDeTela
+            titulo="Não foi possível conferir as suas permissões"
+            descricao={problemaDaSessao === null ? mensagemDoCodigo('FALHA_DE_REDE') : mensagemDoCodigo(problemaDaSessao.code)}
+            correlationId={problemaDaSessao?.correlationId}
+            acao={
+              <Button variante="contorno" tamanho="compacto" onClick={() => void consultaDaSessao.refetch()}>
+                Tentar de novo
+              </Button>
+            }
+          />
         ) : null}
         {permissoes.importar ? (
           <AbaPlanoDeContas empresaId={empresaId} somenteLeitura={false} comCabecalho={false} />

@@ -10,7 +10,7 @@
 
 import type { PreviaDaImportacao } from '@contaia/shared';
 import { FileSearch, LoaderCircle, RefreshCw } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
@@ -55,30 +55,53 @@ const AvisoDeLeituraFalha = ({
   problema,
   previa,
   aoTentar,
+  aoSumirComFoco,
 }: {
   problema: Problema | null;
   previa: PreviaDaImportacao;
   aoTentar: () => void;
-}) => (
-  <div
-    role="alert"
-    className="flex flex-col gap-sm rounded-md border border-warning-indicator/40 bg-warning px-md py-sm tablet:flex-row tablet:items-center tablet:justify-between"
-  >
-    <div className="flex flex-col gap-xs text-body-sm text-warning-foreground">
-      <p>
-        <span className="font-semibold">Não foi possível atualizar o andamento desta importação.</span>{' '}
-        {emAndamento(previa.estado)
-          ? 'O que aparece abaixo é a última leitura; a tela continua tentando sozinha.'
-          : 'O que aparece abaixo é a última leitura.'}
-      </p>
-      {problema === null ? null : <CodigoDeSuporte valor={problema.correlationId} />}
+  /** O aviso some quando a leitura volta: se o foco estava no botão dele, alguém o recebe. */
+  aoSumirComFoco: () => void;
+}) => {
+  const aviso = useRef<HTMLDivElement>(null);
+  const aoSumir = useRef(aoSumirComFoco);
+
+  useLayoutEffect(() => {
+    aoSumir.current = aoSumirComFoco;
+  });
+
+  useLayoutEffect(() => {
+    const no = aviso.current;
+
+    return () => {
+      if (no !== null && no.contains(document.activeElement)) {
+        aoSumir.current();
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      ref={aviso}
+      role="alert"
+      className="flex flex-col gap-sm rounded-md border border-warning-indicator/40 bg-warning px-md py-sm tablet:flex-row tablet:items-center tablet:justify-between"
+    >
+      <div className="flex flex-col gap-xs text-body-sm text-warning-foreground">
+        <p>
+          <span className="font-semibold">Não foi possível atualizar o andamento desta importação.</span>{' '}
+          {emAndamento(previa.estado)
+            ? 'O que aparece abaixo é a última leitura; a tela continua tentando sozinha.'
+            : 'O que aparece abaixo é a última leitura.'}
+        </p>
+        {problema === null ? null : <CodigoDeSuporte valor={problema.correlationId} />}
+      </div>
+      <Button variante="contorno" tamanho="compacto" onClick={aoTentar}>
+        <RefreshCw aria-hidden="true" />
+        Tentar de novo
+      </Button>
     </div>
-    <Button variante="contorno" tamanho="compacto" onClick={aoTentar}>
-      <RefreshCw aria-hidden="true" />
-      Tentar de novo
-    </Button>
-  </div>
-);
+  );
+};
 
 const Progresso = ({ previa }: { previa: PreviaDaImportacao }) => (
   <div className="flex flex-col items-center gap-md rounded-md border border-info-indicator/40 bg-info px-lg py-xl text-center">
@@ -102,11 +125,14 @@ export const Acompanhamento = ({
   tentativaId,
   permissoes,
   url,
+  aoPerderOFoco,
 }: {
   empresaId: string;
   tentativaId: string;
   permissoes: PermissoesDoPlano;
   url: EstadoNaUrl;
+  /** Leva o foco a um ponto estável quando o controle acionado desaparece. */
+  aoPerderOFoco: () => void;
 }) => {
   const consulta = useTentativa(empresaId, tentativaId);
   const previa = consulta.data;
@@ -161,6 +187,7 @@ export const Acompanhamento = ({
       caminho={caminhoDoRelatorio(empresaId, previa.tentativaId)}
       nomePadrao={nomeDoRelatorio(previa)}
       indisponivel="O relatório não está disponível agora; o histórico continua abaixo."
+      rotuloDeNovaTentativa="Tentar baixar de novo o relatório"
     />
   ) : null;
   const original = permissoes.baixar ? (
@@ -170,6 +197,7 @@ export const Acompanhamento = ({
       caminho={caminhoDoOriginal(empresaId, previa.tentativaId)}
       nomePadrao={previa.arquivo.nome}
       indisponivel="O arquivo enviado não está disponível agora."
+      rotuloDeNovaTentativa="Tentar baixar de novo o arquivo enviado"
     />
   ) : null;
   // Na confirmação parcial, o toast `warning` leva ao relatório (FRONTEND.md §13). A falha desse
@@ -238,6 +266,7 @@ export const Acompanhamento = ({
           previa={previa}
           problema={consulta.error instanceof ErroDaApi ? consulta.error.problema : null}
           aoTentar={() => void consulta.refetch()}
+          aoSumirComFoco={aoPerderOFoco}
         />
       ) : null}
 

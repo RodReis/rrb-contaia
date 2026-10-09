@@ -11,18 +11,55 @@
  */
 'use client';
 
+import type { EstadoDaImportacao } from '@contaia/shared';
 import { FileUp, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ErroDeTela, Skeleton } from '@/components/ui/estados';
+import { ErroDaApi } from '@/lib/http';
+import { mensagemDoCodigo } from '@/lib/mensagens';
 import { useSessao } from '../usuarios/queries';
 import { Acompanhamento } from './acompanhamento';
+import { emAndamento } from './apresentacao';
 import { HistoricoDeImportacoes } from './historico';
 import { NovaImportacao } from './nova-importacao';
 import { Secao } from './pecas';
 import { permissoesDoPlano } from './permissoes';
 import { PlanoVigente } from './plano-vigente';
+import { useTentativa } from './queries';
 import { RegrasDoArquivo } from './regras-do-arquivo';
 import { useEstadoNaUrl } from './use-estado-na-url';
+
+type CabecalhoDaSecao = Readonly<{ titulo: string; descricao: string }>;
+
+/** O cartão diz em que ponto a tentativa aberta está: em curso, em revisão ou encerrada. */
+const cabecalhoDaSecao = (tentativaAberta: boolean, estado: EstadoDaImportacao | undefined): CabecalhoDaSecao => {
+  if (!tentativaAberta) {
+    return {
+      titulo: 'Importação por CSV',
+      descricao:
+        'Escolha o arquivo, associe as colunas e valide. A prévia mostra o que entra, o que muda e o que foi rejeitado.',
+    };
+  }
+
+  if (estado === undefined) {
+    return { titulo: 'Importação', descricao: 'Carregando a situação desta tentativa.' };
+  }
+
+  if (emAndamento(estado)) {
+    return {
+      titulo: 'Importação em andamento',
+      descricao: 'Acompanhe o processamento; nada muda no plano antes da sua confirmação.',
+    };
+  }
+
+  if (estado === 'AGUARDANDO_CONFIRMACAO') {
+    return { titulo: 'Importação em revisão', descricao: 'Resumo, rejeições e decisão desta tentativa.' };
+  }
+
+  return { titulo: 'Importação encerrada', descricao: 'Desfecho, totais e relatório desta tentativa.' };
+};
 
 export const AbaPlanoDeContas = ({
   empresaId,
@@ -34,9 +71,35 @@ export const AbaPlanoDeContas = ({
   /** Falso quando quem hospeda a aba (a etapa do cadastro) já tem o próprio título e introdução. */
   comCabecalho?: boolean;
 }) => {
-  const { data: sessao } = useSessao();
+  const consultaDaSessao = useSessao();
+  const sessao = consultaDaSessao.data;
   const permissoes = permissoesDoPlano(sessao, somenteLeitura);
-  const url = useEstadoNaUrl(empresaId);
+  const problemaDaSessao = consultaDaSessao.error instanceof ErroDaApi ? consultaDaSessao.error.problema : null;
+  const estadoNaUrl = useEstadoNaUrl(empresaId);
+  const { data: tentativa } = useTentativa(empresaId, estadoNaUrl.tentativaId);
+  const tituloDaSecao = useRef<HTMLHeadingElement>(null);
+  const cabecalho = cabecalhoDaSecao(estadoNaUrl.tentativaId !== null, tentativa?.estado);
+
+  // O título do cartão continua montado quando o conteúdo troca: é para lá que o foco vai quando o
+  // controle acionado some (fechar a tentativa, nova importação, aviso que se resolve). O pedido é
+  // estado; o foco acontece no efeito, depois de a troca ser pintada.
+  const [pedidosDeFoco, definirPedidosDeFoco] = useState(0);
+  const focarTitulo = (): void => {
+    definirPedidosDeFoco((pedidos) => pedidos + 1);
+  };
+
+  useEffect(() => {
+    if (pedidosDeFoco > 0) {
+      tituloDaSecao.current?.focus();
+    }
+  }, [pedidosDeFoco]);
+  const url = {
+    ...estadoNaUrl,
+    fecharTentativa: (): void => {
+      estadoNaUrl.fecharTentativa();
+      focarTitulo();
+    },
+  };
 
   return (
     <div className="flex flex-col gap-xl">
@@ -61,12 +124,9 @@ export const AbaPlanoDeContas = ({
           id="importacao-por-csv"
           className="desktop:col-span-8"
           icone={<FileUp />}
-          titulo={url.tentativaId === null ? 'Importação por CSV' : 'Importação em revisão'}
-          descricao={
-            url.tentativaId === null
-              ? 'Escolha o arquivo, associe as colunas e valide. A prévia mostra o que entra, o que muda e o que foi rejeitado.'
-              : 'Resumo, rejeições e decisão desta tentativa.'
-          }
+          titulo={cabecalho.titulo}
+          descricao={cabecalho.descricao}
+          tituloRef={tituloDaSecao}
           acoes={
             url.tentativaId === null ? undefined : (
               <Button variante="fantasma" tamanho="compacto" onClick={url.fecharTentativa}>
@@ -76,7 +136,27 @@ export const AbaPlanoDeContas = ({
             )
           }
         >
-          {url.tentativaId === null ? (
+          {url.tentativaId === null && sessao === undefined && consultaDaSessao.isPending ? (
+            <div className="flex flex-col gap-md px-lg py-lg" aria-busy="true">
+              <span className="sr-only">Carregando as suas permissões</span>
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          ) : url.tentativaId === null && sessao === undefined ? (
+            // Sem a sessão a tela não sabe o que o papel pode: erro, nunca "sem permissão".
+            <div className="px-lg py-lg">
+              <ErroDeTela
+                titulo="Não foi possível conferir as suas permissões"
+                descricao={problemaDaSessao === null ? mensagemDoCodigo('FALHA_DE_REDE') : mensagemDoCodigo(problemaDaSessao.code)}
+                correlationId={problemaDaSessao?.correlationId}
+                acao={
+                  <Button variante="contorno" tamanho="compacto" onClick={() => void consultaDaSessao.refetch()}>
+                    Tentar de novo
+                  </Button>
+                }
+              />
+            </div>
+          ) : url.tentativaId === null ? (
             <NovaImportacao
               empresaId={empresaId}
               podeImportar={permissoes.importar}
@@ -89,6 +169,7 @@ export const AbaPlanoDeContas = ({
               tentativaId={url.tentativaId}
               permissoes={permissoes}
               url={url}
+              aoPerderOFoco={focarTitulo}
             />
           )}
         </Secao>

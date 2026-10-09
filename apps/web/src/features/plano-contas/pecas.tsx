@@ -5,7 +5,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, Copy, Download, LoaderCircle } from 'lucide-react';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode, type Ref } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,7 @@ export const BotaoDeDownload = ({
   caminho,
   nomePadrao,
   indisponivel,
+  rotuloDeNovaTentativa,
   variante = 'contorno',
 }: {
   rotulo: string;
@@ -61,6 +62,8 @@ export const BotaoDeDownload = ({
   nomePadrao: string;
   /** Frase que abre a mensagem de falha (ex.: "O relatório não está disponível agora."). */
   indisponivel: string;
+  /** Rótulo do mesmo botão depois da falha: diz o QUE será baixado de novo. */
+  rotuloDeNovaTentativa: string;
   variante?: ComponentProps<typeof Button>['variante'];
 }) => {
   const [baixando, definirBaixando] = useState(false);
@@ -91,7 +94,7 @@ export const BotaoDeDownload = ({
         ) : (
           <Download aria-hidden="true" />
         )}
-        {falha === null ? rotulo : 'Tentar de novo'}
+        {falha === null ? rotulo : rotuloDeNovaTentativa}
       </Button>
 
       {falha === null ? null : (
@@ -103,6 +106,33 @@ export const BotaoDeDownload = ({
     </div>
   );
 };
+
+/**
+ * Contêiner de tabela larga que rola na horizontal. Precisa ser alcançável por teclado (WCAG 2.1.1,
+ * axe `scrollable-region-focusable`): vira região nomeada, entra no Tab e mostra o anel de foco.
+ */
+export const RegiaoRolavel = ({
+  rotulo,
+  className,
+  children,
+}: {
+  /** Nome da região: diz que tabela é e que ela rola (não repete o título da seção). */
+  rotulo: string;
+  className?: string;
+  children: ReactNode;
+}) => (
+  <div
+    role="region"
+    tabIndex={0}
+    aria-label={rotulo}
+    className={cn(
+      'overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+      className,
+    )}
+  >
+    {children}
+  </div>
+);
 
 export const Paginacao = ({
   rotulo,
@@ -167,6 +197,7 @@ export const Secao = ({
   acoes,
   children,
   className,
+  tituloRef,
 }: {
   id: string;
   icone: ReactNode;
@@ -175,6 +206,8 @@ export const Secao = ({
   acoes?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Título que recebe o foco quando o controle acionado some (FRONTEND.md §17). */
+  tituloRef?: Ref<HTMLHeadingElement>;
 }) => (
   <section
     aria-labelledby={id}
@@ -189,7 +222,12 @@ export const Secao = ({
           {icone}
         </span>
         <div className="flex min-w-0 flex-col gap-xs">
-          <h3 id={id} className="font-display text-headline-sm text-foreground">
+          <h3
+            id={id}
+            ref={tituloRef}
+            tabIndex={tituloRef === undefined ? undefined : -1}
+            className="font-display text-headline-sm text-foreground focus-visible:outline-none"
+          >
             {titulo}
           </h3>
           {descricao === undefined ? null : (

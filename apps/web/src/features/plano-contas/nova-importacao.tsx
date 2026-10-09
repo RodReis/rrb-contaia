@@ -69,7 +69,9 @@ export const NovaImportacao = ({
         <div className="flex items-start gap-sm rounded-md bg-secondary px-md py-md">
           <Lock className="mt-xs size-icon-sm shrink-0 text-muted-foreground" aria-hidden="true" />
           <p className="max-w-prose text-body-sm text-muted-foreground">
-            <span className="text-title-sm text-foreground">Seu papel consulta o plano de contas, mas não importa.</span>{' '}
+            <span className="text-title-sm text-foreground">
+              Seu papel pode consultar o plano de contas, mas não tem permissão para importar.
+            </span>{' '}
             O envio de CSV é feito por quem tem a permissão Importar em Empresas → Plano de contas. O
             histórico, o plano vigente e os relatórios continuam disponíveis abaixo.
           </p>

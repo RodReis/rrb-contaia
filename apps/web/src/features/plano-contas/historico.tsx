@@ -16,7 +16,7 @@ import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { cn } from '@/lib/cn';
 import { APARENCIA_DO_ESTADO, formatarInstante, formatarNumero } from './apresentacao';
-import { Paginacao, Secao } from './pecas';
+import { Paginacao, RegiaoRolavel, Secao } from './pecas';
 import { useHistoricoDoPlano } from './queries';
 import type { EstadoNaUrl } from './use-estado-na-url';
 
@@ -29,7 +29,12 @@ const quemDecidiu = (tentativa: TentativaDoHistorico): string | null => {
     return null;
   }
 
-  return tentativa.estado === 'CANCELADA' ? `cancelada por ${outro.nome}` : `confirmada por ${outro.nome}`;
+  if (tentativa.estado === 'CANCELADA') {
+    return `cancelada por ${outro.nome}`;
+  }
+
+  // FALHA depois da confirmação: houve a decisão, mas nada foi aplicado.
+  return tentativa.estado === 'FALHA' ? `confirmação tentada por ${outro.nome}` : `confirmada por ${outro.nome}`;
 };
 
 const Numero = ({ valor, critico = false }: { valor: number; critico?: boolean }) => (
@@ -152,7 +157,10 @@ export const HistoricoDeImportacoes = ({ empresaId, url }: { empresaId: string; 
     }
 
     return (
-      <div className={cn('overflow-x-auto', consulta.isPlaceholderData && 'opacity-60 transition-opacity duration-fast')}>
+      <RegiaoRolavel
+        rotulo="Tabela das tentativas, rolável na horizontal"
+        className={cn(consulta.isPlaceholderData && 'opacity-60 transition-opacity duration-fast')}
+      >
         <table className="w-full text-left">
           <caption className="sr-only">Importações do plano de contas, página {dados.pagina}</caption>
           <thead className="bg-muted">
@@ -175,7 +183,7 @@ export const HistoricoDeImportacoes = ({ empresaId, url }: { empresaId: string; 
             ))}
           </tbody>
         </table>
-      </div>
+      </RegiaoRolavel>
     );
   };
 

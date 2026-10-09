@@ -16,7 +16,7 @@ import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { cn } from '@/lib/cn';
 import { MENSAGEM_PADRAO_DO_ERRO, ROTULO_DO_ERRO_DA_LINHA, formatarNumero, rotuloDoCampo } from './apresentacao';
-import { Paginacao } from './pecas';
+import { Paginacao, RegiaoRolavel } from './pecas';
 import { useRejeicoes } from './queries';
 
 export const REJEICOES_POR_PAGINA = 20;
@@ -33,7 +33,7 @@ const Linha = ({ rejeicao }: { rejeicao: RejeicaoDaImportacao }) => (
     <td className="px-md py-sm">
       <span className="flex flex-col gap-xs">
         <span className="text-body-sm text-danger-foreground">{ROTULO_DO_ERRO_DA_LINHA[rejeicao.codigoDeErro]}</span>
-        <code className="font-mono text-code-xs text-muted-foreground">{rejeicao.codigoDeErro}</code>
+        <code className="font-mono text-code-xs text-muted-foreground [overflow-wrap:anywhere]">{rejeicao.codigoDeErro}</code>
       </span>
     </td>
     <td className="min-w-[16rem] px-md py-sm text-body-sm text-foreground">
@@ -94,7 +94,10 @@ export const TabelaDeRejeicoes = ({
     }
 
     return (
-      <div className={cn('overflow-x-auto', consulta.isPlaceholderData && 'opacity-60 transition-opacity duration-fast')}>
+      <RegiaoRolavel
+        rotulo="Tabela das rejeições, rolável na horizontal"
+        className={cn(consulta.isPlaceholderData && 'opacity-60 transition-opacity duration-fast')}
+      >
         <table className="w-full text-left">
           <caption className="sr-only">
             Linhas rejeitadas de {previa.arquivo.nome}, página {pagina}
@@ -114,7 +117,7 @@ export const TabelaDeRejeicoes = ({
             ))}
           </tbody>
         </table>
-      </div>
+      </RegiaoRolavel>
     );
   };
 

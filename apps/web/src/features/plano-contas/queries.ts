@@ -4,6 +4,7 @@ import type { Mapeamento } from '@contaia/domain';
 import type { EstadoDaImportacao, PreviaDaImportacao } from '@contaia/shared';
 import { keepPreviousData, skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { ErroDaApi } from '@/lib/http';
@@ -71,24 +72,63 @@ const falhasDesdeOUltimoSucesso = (consulta: object, estado: ContagemDaConsulta)
   return estado.errorUpdateCount - marco.errorUpdateCount;
 };
 
+/**
+ * Quando o worker termina (a tentativa sai de RECEBIDA/VALIDANDO/APLICANDO), o histórico, o plano
+ * vigente, a pendência da Central e o sino mudaram no servidor sem nenhum comando desta tela: são
+ * relidos aqui, uma vez por transição. A própria tentativa fica de fora (acabou de ser lida).
+ */
+const useSuperficiesAoTerminar = (
+  empresaId: string,
+  tentativaId: string | null,
+  estado: EstadoDaImportacao | undefined,
+): void => {
+  const cliente = useQueryClient();
+  const anterior = useRef<Readonly<{ tentativaId: string | null; estado: EstadoDaImportacao | undefined }>>({
+    tentativaId,
+    estado,
+  });
+
+  useEffect(() => {
+    const visto = anterior.current;
+    anterior.current = { tentativaId, estado };
+
+    if (visto.tentativaId !== tentativaId || !emAndamento(visto.estado) || estado === undefined || emAndamento(estado)) {
+      return;
+    }
+
+    const chaveDaTentativa = chavesDoPlano.tentativa(empresaId, tentativaId ?? '');
+    void cliente.invalidateQueries({
+      queryKey: chavesDoPlano.empresa(empresaId),
+      predicate: (consulta) => JSON.stringify(consulta.queryKey) !== JSON.stringify(chaveDaTentativa),
+    });
+    void cliente.invalidateQueries({ queryKey: ['pendencias'] });
+    void cliente.invalidateQueries({ queryKey: ['notificacoes'] });
+  }, [cliente, empresaId, tentativaId, estado]);
+};
+
 /** `tentativaId` nulo = nenhuma tentativa aberta: a consulta existe, mas não dispara. */
-export const useTentativa = (empresaId: string, tentativaId: string | null) =>
-  useQuery({
+export const useTentativa = (empresaId: string, tentativaId: string | null) => {
+  const consulta = useQuery({
     queryKey: chavesDoPlano.tentativa(empresaId, tentativaId ?? ''),
     queryFn: tentativaId === null ? skipToken : () => obterTentativa(empresaId, tentativaId),
     // Estado de processamento não convive com cache velho (FRONTEND.md §6.2).
     staleTime: 0,
     // Leitura que falha não para o acompanhamento: ele segue com espera crescente, e a tela avisa
     // a falha (com código de suporte e "Tentar de novo") por cima do último estado lido.
-    refetchInterval: (consulta) =>
+    refetchInterval: (atual) =>
       intervaloDoAcompanhamento(
-        consulta.state.data?.estado,
-        falhasDesdeOUltimoSucesso(consulta, {
-          dataUpdateCount: consulta.state.dataUpdateCount,
-          errorUpdateCount: consulta.state.errorUpdateCount,
+        atual.state.data?.estado,
+        falhasDesdeOUltimoSucesso(atual, {
+          dataUpdateCount: atual.state.dataUpdateCount,
+          errorUpdateCount: atual.state.errorUpdateCount,
         }),
       ),
   });
+
+  useSuperficiesAoTerminar(empresaId, tentativaId, consulta.data?.estado);
+
+  return consulta;
+};
 
 export const useRejeicoes = (empresaId: string, tentativaId: string, pagina: number, habilitado: boolean) =>
   useQuery({

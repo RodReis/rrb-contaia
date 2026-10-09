@@ -3,7 +3,7 @@
  * próprio e não se dispensa — resolve-se importando ou cadastrando a primeira conta válida.
  * A ação leva à aba "Plano de contas" da empresa, só para quem consulta o plano.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'jest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -55,8 +55,20 @@ describe('Central de Pendências — origem Plano de contas', () => {
   it('mostra origem e tipo em português, sem oferecer dispensa', async () => {
     render(<CentralDePendencias />, { wrapper: Envolvido });
 
-    expect((await screen.findAllByText('Plano de contas incompleto')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Plano de contas').length).toBeGreaterThan(0);
+    // A mesma pendência aparece no cartão (telas estreitas) e na linha da tabela (tablet+).
+    const tabela = await screen.findByRole('table', { name: /Pendências cadastrais e documentais/u });
+    const linha = within(tabela).getAllByRole('row').find((r) => within(r).queryByText('Padaria Aurora') !== null);
+    expect(linha).toBeDefined();
+    if (linha === undefined) {
+      return;
+    }
+    expect(within(linha).getByText('Plano de contas incompleto')).toBeInTheDocument();
+    expect(within(linha).getByText('Plano de contas')).toBeInTheDocument();
+    const cartao = screen.getAllByRole('listitem').find((item) => within(item).queryByText('Padaria Aurora') !== null);
+    expect(cartao).toBeDefined();
+    if (cartao !== undefined) {
+      expect(within(cartao).getByText('Plano de contas incompleto')).toBeInTheDocument();
+    }
     expect(screen.queryByRole('button', { name: 'Dispensar' })).not.toBeInTheDocument();
   });
 

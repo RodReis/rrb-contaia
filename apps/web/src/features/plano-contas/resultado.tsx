@@ -128,7 +128,8 @@ export const Resultado = ({
         </div>
       </div>
 
-      <ResumoDaTentativa previa={previa} />
+      {/* Na falha o código de suporte já está na mensagem persistente acima: uma vez só. */}
+      <ResumoDaTentativa previa={previa} mostrarCodigoDeSuporte={previa.estado !== 'FALHA'} />
 
       <TabelaDeRejeicoes empresaId={empresaId} previa={previa} pagina={paginaDasRejeicoes} aoIr={aoIrParaRejeicoes} />
 

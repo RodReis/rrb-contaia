@@ -68,7 +68,9 @@ describe('ConfirmacaoDeAcao', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Suspender' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Suspender usuário' }));
 
-    expect(await screen.findByRole('button', { name: 'Aguarde…' })).toBeDisabled();
+    // O rótulo da ação continua; o estado ocupado vem do indicador e de `aria-busy`.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Suspender usuário' })).toHaveAttribute('aria-busy', 'true'));
+    expect(screen.getByRole('button', { name: 'Suspender usuário' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 
@@ -146,5 +148,24 @@ describe('ConfirmacaoDeAcao', () => {
     const dialogo = await screen.findByRole('alertdialog');
 
     expect(await axe(dialogo)).toHaveNoViolations();
+  });
+
+  it('o botão de recusa aceita rótulo próprio e o padrão continua "Cancelar"', async () => {
+    render(
+      <ConfirmacaoDeAcao
+        gatilho={<Button>Cancelar importação</Button>}
+        titulo="Cancelar a importação?"
+        descricao="Nada muda no plano."
+        rotuloDeConfirmacao="Cancelar importação"
+        rotuloDeRecusa="Manter prévia"
+        destrutivo
+        aoConfirmar={async () => undefined}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar importação' }));
+
+    const dialogo = await screen.findByRole('alertdialog');
+    expect(screen.getAllByRole('button', { name: 'Manter prévia' })).toHaveLength(1);
+    expect(dialogo).not.toHaveTextContent(/^Cancelar$/u);
   });
 });

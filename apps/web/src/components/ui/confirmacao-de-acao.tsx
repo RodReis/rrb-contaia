@@ -12,6 +12,7 @@
 'use client';
 
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import { LoaderCircle } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { Button } from './button';
@@ -21,6 +22,7 @@ export const ConfirmacaoDeAcao = ({
   titulo,
   descricao,
   rotuloDeConfirmacao,
+  rotuloDeRecusa = 'Cancelar',
   destrutivo = false,
   aoConfirmar,
   explicarBloqueio,
@@ -29,6 +31,11 @@ export const ConfirmacaoDeAcao = ({
   titulo: string;
   descricao: string;
   rotuloDeConfirmacao: string;
+  /**
+   * Botão que desiste sem efeito. Quando a ação destrutiva também é um "cancelar" (cancelar uma
+   * importação), dizer o que fica ("Manter prévia") evita dois botões "Cancelar" lado a lado.
+   */
+  rotuloDeRecusa?: string;
   destrutivo?: boolean;
   aoConfirmar: () => Promise<unknown>;
   /** Devolve o texto do bloqueio se o erro for um que o produto explica; `null` caso contrário. */
@@ -73,7 +80,7 @@ export const ConfirmacaoDeAcao = ({
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-primary/40" />
         <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 flex w-[calc(100vw-2rem)] max-w-[28rem] -translate-x-1/2 -translate-y-1/2 flex-col gap-md rounded-lg border border-border bg-popover p-lg text-popover-foreground shadow-lg">
-          <AlertDialog.Title className="text-headline-sm text-foreground">
+          <AlertDialog.Title className="text-headline-sm text-foreground [overflow-wrap:anywhere]">
             {bloqueio === null ? titulo : 'Não é possível continuar'}
           </AlertDialog.Title>
           <AlertDialog.Description className="text-body-md text-muted-foreground">
@@ -85,7 +92,7 @@ export const ConfirmacaoDeAcao = ({
               <>
                 <AlertDialog.Cancel asChild>
                   <Button variante="contorno" tamanho="compacto" disabled={ocupado}>
-                    Cancelar
+                    {rotuloDeRecusa}
                   </Button>
                 </AlertDialog.Cancel>
                 <Button
@@ -93,8 +100,11 @@ export const ConfirmacaoDeAcao = ({
                   variante={destrutivo ? 'destrutiva' : 'primaria'}
                   onClick={() => void confirmar()}
                   disabled={ocupado}
+                  aria-busy={ocupado}
                 >
-                  {ocupado ? 'Aguarde…' : rotuloDeConfirmacao}
+                  {/* O rótulo fica; o indicador entra ao lado (COMPONENTS.md §1.1). */}
+                  {ocupado ? <LoaderCircle className="motion-safe:animate-spin" aria-hidden="true" /> : null}
+                  {rotuloDeConfirmacao}
                 </Button>
               </>
             ) : (

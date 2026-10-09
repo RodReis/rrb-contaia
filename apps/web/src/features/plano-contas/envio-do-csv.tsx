@@ -121,6 +121,8 @@ export const EnvioDoCsv = ({ aoLer }: { aoLer: (lido: ArquivoLido) => void }) =>
           ref={entrada}
           id={id}
           type="file"
+          // Fora da ordem de Tab: escondido, teria foco invisível (WCAG 2.4.7). O botão abaixo aciona.
+          tabIndex={-1}
           className="sr-only"
           accept=".csv,text/csv"
           aria-label="Arquivo CSV do plano de contas"

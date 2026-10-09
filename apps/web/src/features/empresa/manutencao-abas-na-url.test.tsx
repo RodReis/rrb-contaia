@@ -66,7 +66,8 @@ let backend = criarBackend();
 
 const renderizar = () => render(<ManutencaoDaEmpresa visao={visao} arquivada={false} />, { wrapper: Envolvido });
 
-const abas = () => screen.getByRole('tablist', { name: /seções da empresa/iu });
+/** As abas aparecem quando a sessão diz o que o papel pode (antes disso, skeleton). */
+const abas = () => screen.findByRole('tablist', { name: /seções da empresa/iu });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -86,9 +87,41 @@ describe('aba na URL', () => {
     navegacao.definir('aba=plano-contas');
     renderizar();
 
-    const aba = await within(abas()).findByRole('tab', { name: 'Plano de contas' });
+    const aba = await within(await abas()).findByRole('tab', { name: 'Plano de contas' });
     await waitFor(() => expect(aba).toHaveAttribute('aria-selected', 'true'));
     expect(await screen.findByRole('heading', { level: 2, name: 'Plano de contas' })).toBeInTheDocument();
+  });
+
+  it('deep link com a sessão ainda carregando: skeleton, sem passar por Identificação', async () => {
+    let liberarSessao: () => void = () => undefined;
+    const sessaoPronta = new Promise<void>((resolver) => {
+      liberarSessao = resolver;
+    });
+    instalarFetch(async (url, init) => {
+      if (url.endsWith('/api/proxy/usuarios/eu')) {
+        await sessaoPronta;
+      }
+
+      return (
+        backend.roteador(url, init) ??
+        (url.endsWith('/empresas/empresa-1/documentos')
+          ? json({ empresaId: 'empresa-1', exigencias: [] })
+          : new Response('{}', { status: 200 }))
+      );
+    });
+    navegacao.definir('aba=plano-contas');
+    renderizar();
+
+    // Enquanto a sessão não chega, a aba pedida não existe ainda: nada de abrir Identificação.
+    expect(screen.getByText('Carregando a aba da empresa')).toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: /seções da empresa/iu })).not.toBeInTheDocument();
+
+    liberarSessao();
+    const aba = await within(await screen.findByRole('tablist', { name: /seções da empresa/iu })).findByRole('tab', {
+      name: 'Plano de contas',
+    });
+    expect(aba).toHaveAttribute('aria-selected', 'true');
+    expect(navegacao.replace).not.toHaveBeenCalled();
   });
 
   it('o link da notificação abre a tentativa na aba', async () => {
@@ -103,8 +136,8 @@ describe('aba na URL', () => {
     navegacao.definir('aba=inexistente');
     renderizar();
 
-    await within(abas()).findByRole('tab', { name: 'Plano de contas' });
-    expect(within(abas()).getByRole('tab', { name: 'Identificação' })).toHaveAttribute('aria-selected', 'true');
+    await within(await abas()).findByRole('tab', { name: 'Plano de contas' });
+    expect(within(await abas()).getByRole('tab', { name: 'Identificação' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('aba sem permissão volta para a primeira e nem aparece', async () => {
@@ -115,8 +148,8 @@ describe('aba na URL', () => {
     await waitFor(() =>
       expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/usuarios/eu'))).toBe(true),
     );
-    expect(within(abas()).queryByRole('tab', { name: 'Plano de contas' })).not.toBeInTheDocument();
-    expect(within(abas()).getByRole('tab', { name: 'Identificação' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(await abas()).queryByRole('tab', { name: 'Plano de contas' })).not.toBeInTheDocument();
+    expect(within(await abas()).getByRole('tab', { name: 'Identificação' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('colaboradores sem administrar usuários também volta para a primeira', async () => {
@@ -124,8 +157,8 @@ describe('aba na URL', () => {
     navegacao.definir('aba=colaboradores');
     renderizar();
 
-    await within(abas()).findByRole('tab', { name: 'Plano de contas' });
-    expect(within(abas()).getByRole('tab', { name: 'Identificação' })).toHaveAttribute('aria-selected', 'true');
+    await within(await abas()).findByRole('tab', { name: 'Plano de contas' });
+    expect(within(await abas()).getByRole('tab', { name: 'Identificação' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('trocar de aba atualiza a URL e a primeira aba fica sem parâmetro', async () => {
@@ -133,11 +166,11 @@ describe('aba na URL', () => {
     navegacao.definir('');
     renderizar();
 
-    await usuario.click(within(abas()).getByRole('tab', { name: 'Documentos' }));
+    await usuario.click(within(await abas()).getByRole('tab', { name: 'Documentos' }));
     expect(navegacao.replace).toHaveBeenLastCalledWith('/empresas/empresa-1?aba=documentos', { scroll: false });
-    expect(within(abas()).getByRole('tab', { name: 'Documentos' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(await abas()).getByRole('tab', { name: 'Documentos' })).toHaveAttribute('aria-selected', 'true');
 
-    await usuario.click(within(abas()).getByRole('tab', { name: 'Identificação' }));
+    await usuario.click(within(await abas()).getByRole('tab', { name: 'Identificação' }));
     expect(navegacao.replace).toHaveBeenLastCalledWith('/empresas/empresa-1', { scroll: false });
   });
 });

@@ -85,6 +85,7 @@ const PainelDeConflito = ({
           titulo="Cancelar esta prévia?"
           descricao={`A tentativa de ${nomeDoArquivo} fica no histórico como cancelada e o plano não muda. Em seguida, envie o arquivo de novo.`}
           rotuloDeConfirmacao="Cancelar prévia"
+          rotuloDeRecusa="Manter prévia"
           destrutivo
           aoConfirmar={aoCancelar}
         />
@@ -97,8 +98,8 @@ const AvisoDaPrevia = ({ totais }: { totais: NonNullable<PreviaDaImportacao['tot
   totais.rejeitadas === 0 ? (
     <p className="flex items-start gap-xs rounded-md bg-success px-md py-sm text-body-sm text-success-foreground">
       <CheckCircle2 className="mt-xs size-icon-xs shrink-0" aria-hidden="true" />
-      Todas as {plural(totais.lidas, 'linha lida é válida', 'linhas lidas são válidas')}. Nada foi aplicado ainda:
-      revise e confirme.
+      {totais.lidas === 1 ? 'A única linha lida é válida.' : `Todas as ${plural(totais.lidas, 'linha lida é válida', 'linhas lidas são válidas')}.`}{' '}
+      Nada foi aplicado ainda: revise e confirme.
     </p>
   ) : (
     <p className="flex items-start gap-xs rounded-md bg-warning px-md py-sm text-body-sm text-warning-foreground">
@@ -177,6 +178,7 @@ export const Previa = ({
             titulo={`Cancelar a importação de ${previa.arquivo.nome}?`}
             descricao="Nenhuma conta é criada ou alterada. A tentativa, o arquivo e o relatório ficam no histórico como cancelados."
             rotuloDeConfirmacao="Cancelar importação"
+            rotuloDeRecusa="Manter prévia"
             destrutivo
             explicarBloqueio={explicarRecusa}
             aoConfirmar={() => cancelar.mutateAsync()}

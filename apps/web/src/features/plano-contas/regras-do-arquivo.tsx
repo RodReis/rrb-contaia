@@ -67,6 +67,7 @@ export const RegrasDoArquivo = ({ empresaId, podeBaixar }: { empresaId: string; 
         caminho={caminhoDoModelo(empresaId)}
         nomePadrao="modelo-plano-de-contas.csv"
         indisponivel="O modelo não está disponível agora."
+        rotuloDeNovaTentativa="Tentar baixar de novo o modelo"
       />
     ) : null}
   </aside>
