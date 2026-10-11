@@ -81,14 +81,14 @@ describe('configuração dos workers (falha fechada)', () => {
     );
   });
 
-  it('sem os arquivos de mTLS, sobe só o plano de contas (o Signer fica desligado)', () => {
+  it('sem os arquivos de mTLS, sobem só as importações — plano de contas e empregados (o Signer fica desligado)', () => {
     const config = lerConfig({ ...BASE, ...ARMAZENAMENTO });
 
     expect(config.signer).toBeNull();
     expect(config.armazenamento).not.toBeNull();
   });
 
-  it('sem o storage, sobe só o Signer (o plano de contas fica desligado)', () => {
+  it('sem o storage, sobe só o Signer (plano de contas e empregados ficam desligados)', () => {
     const config = lerConfig({ ...BASE, ...SIGNER });
 
     expect(config.armazenamento).toBeNull();

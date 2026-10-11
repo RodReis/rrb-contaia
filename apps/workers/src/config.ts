@@ -5,7 +5,8 @@
  *
  *   - base (sempre): `REDIS_URL` e a URL do banco (`DATABASE_APP_URL` ou `DATABASE_URL`);
  *   - Signer (SPEC-012 §3.1): os arquivos de identidade mTLS do worker e a CA interna;
- *   - plano de contas (SPEC-013 §6.1): o object storage local onde a API guardou o original.
+ *   - importações — plano de contas (SPEC-013 §6.1) e empregados (SPEC-014 §6.1): o object storage
+ *     local onde a API guardou o original. Um grupo só liga os dois consumidores.
  *
  * Só caminhos de arquivos de segredo — nunca o conteúdo da chave.
  */
@@ -34,7 +35,7 @@ export type ConfigDosWorkers = Readonly<{
   redisUrl: string;
   /** Nulo: sem os arquivos de mTLS, os consumidores do Signer não sobem. */
   signer: ConfigDoSigner | null;
-  /** Nulo: sem o storage, o consumidor da validação do plano de contas não sobe. */
+  /** Nulo: sem o storage, os consumidores da validação (plano de contas e empregados) não sobem. */
   armazenamento: ConfigDoArmazenamento | null;
 }>;
 
