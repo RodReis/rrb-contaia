@@ -4,7 +4,7 @@
  * ação saem do estado — a permissão continua conferida em cada rota.
  */
 import type { DiagnosticoDaTentativa, TentativaDoCiclo, TotaisDaImportacao } from '@contaia/db';
-import type { DiagnosticoDaImportacao, EstadoDaImportacao } from '@contaia/shared';
+import { MENSAGEM_DO_ERRO_DE_PLANILHA, type DiagnosticoDaImportacao, type EstadoDaImportacao } from '@contaia/shared';
 
 type SituacaoDaTentativa = Readonly<{ estado: EstadoDaImportacao; totais: TotaisDaImportacao | null }>;
 
@@ -47,10 +47,13 @@ export const temDiagnostico = (tentativa: Readonly<{ estado: EstadoDaImportacao 
 
 /**
  * Mensagem PT-BR FECHADA por código estável do diagnóstico (SPEC-013 §7, SPEC-014 §7: desfecho
- * acionável). O texto nunca vem do evento nem de exceção: código fora do mapa recebe a genérica.
+ * acionável; SPEC-015 §7). O texto nunca vem do evento nem de exceção: código fora do mapa recebe a genérica.
  * `FALHA_NA_APLICACAO` diz o que não mudou, e isso é do domínio: cada um passa a sua.
  */
 export const mensagensDoDiagnostico = (falhaNaAplicacao: string): Readonly<Record<string, string>> => ({
+  // SPEC-015: a planilha que o worker recusa (formato, cifra, corrompida, aba, cabeçalho, limite).
+  // Primeiro, para os textos das F13/F14 abaixo continuarem valendo nos códigos comuns.
+  ...MENSAGEM_DO_ERRO_DE_PLANILHA,
   ARQUIVO_VAZIO: 'O arquivo não tem linhas de dados. Confira o arquivo e envie de novo.',
   ARQUIVO_ACIMA_DO_LIMITE: 'O arquivo passa do limite de 10 MB ou de 10.000 linhas. Divida o arquivo e envie de novo.',
   ARQUIVO_INVALIDO: 'Não foi possível ler o arquivo como CSV (aspas ou formato). Confira o arquivo e envie de novo.',
