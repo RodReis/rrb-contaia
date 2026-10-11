@@ -14,6 +14,7 @@ const REQUIRED_PACKAGES = [
   'packages/domain',
   'packages/db',
   'packages/signer-client',
+  'packages/planilhas',
 ];
 
 const REQUIRED_FILES = [

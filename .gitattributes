@@ -8,3 +8,8 @@ scripts/preparar-segredos-do-signer.mjs text eol=lf
 # que a prova exercita.
 # Sem conversão de fim de linha nem de texto, os bytes do repositório são os do arquivo.
 tests/e2e/fixtures/*.csv -text
+# Planilhas reais geradas pelo LibreOffice (SPEC-015): bytes exatos, sem conversão.
+packages/planilhas/fixtures/*.xlsx binary
+packages/planilhas/fixtures/*.ods binary
+packages/planilhas/fixtures/*.xls binary
+packages/planilhas/fixtures/*.csv -text

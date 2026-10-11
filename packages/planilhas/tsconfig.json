@@ -1,0 +1,13 @@
+{
+  "extends": "@contaia/config/tsconfig/node.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // O processo filho roda o próprio fonte nos testes (Node 24 remove os tipos): os imports
+    // relativos usam `.ts` e o tsc os reescreve para `.js` no dist.
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/testes/**", "dist"]
+}
