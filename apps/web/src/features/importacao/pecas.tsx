@@ -5,7 +5,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, Copy, Download, LoaderCircle } from 'lucide-react';
-import { Fragment, useState, type ComponentProps, type ReactNode, type Ref } from 'react';
+import { Fragment, useEffect, useRef, useState, type ComponentProps, type ReactNode, type Ref } from 'react';
 import { clsx } from 'clsx';
 import { toast } from 'sonner';
 
@@ -108,6 +108,60 @@ export const BotaoDeDownload = ({
   );
 };
 
+type BordasCortadas = { inicio: boolean; fim: boolean };
+
+/** Tolerância de arredondamento do navegador (px fracionário) antes de dizer que há mais conteúdo. */
+const FOLGA_DA_ROLAGEM = 1;
+
+/** Que lados da região têm conteúdo escondido, relido a cada rolagem e mudança de tamanho. */
+const useBordasCortadas = () => {
+  const regiao = useRef<HTMLDivElement>(null);
+  const [bordas, definirBordas] = useState<BordasCortadas>({ inicio: false, fim: false });
+
+  useEffect(() => {
+    const elemento = regiao.current;
+
+    if (elemento === null) {
+      return undefined;
+    }
+
+    const medir = (): void => {
+      const { scrollLeft, scrollWidth, clientWidth } = elemento;
+      const inicio = scrollLeft > FOLGA_DA_ROLAGEM;
+      const fim = scrollLeft + clientWidth < scrollWidth - FOLGA_DA_ROLAGEM;
+      definirBordas((atual) => (atual.inicio === inicio && atual.fim === fim ? atual : { inicio, fim }));
+    };
+
+    medir();
+    elemento.addEventListener('scroll', medir, { passive: true });
+    // jsdom não tem ResizeObserver; no navegador ele cobre a janela mudando e a tabela trocando de página.
+    const observador = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(medir);
+    observador?.observe(elemento);
+    if (elemento.firstElementChild !== null) {
+      observador?.observe(elemento.firstElementChild);
+    }
+
+    return () => {
+      elemento.removeEventListener('scroll', medir);
+      observador?.disconnect();
+    };
+  }, []);
+
+  return { regiao, bordas };
+};
+
+const Esmaecido = ({ lado, visivel }: { lado: keyof BordasCortadas; visivel: boolean }) => (
+  <span
+    aria-hidden="true"
+    data-borda={lado}
+    className={clsx(
+      'pointer-events-none absolute inset-y-0 w-xl from-card to-transparent transition-opacity duration-fast ease-out peer-focus-visible:opacity-0',
+      lado === 'inicio' ? 'left-0 bg-linear-to-r' : 'right-0 bg-linear-to-l',
+      visivel ? 'opacity-100' : 'opacity-0',
+    )}
+  />
+);
+
 /**
  * Contêiner de tabela larga que rola na horizontal. Precisa ser alcançável por teclado (WCAG 2.1.1,
  * axe `scrollable-region-focusable`): vira região nomeada, entra no Tab e mostra o anel de foco.
@@ -115,6 +169,10 @@ export const BotaoDeDownload = ({
  * `relative` é o que contém a rolagem: o texto `sr-only` das tabelas (legenda, cabeçalho "Ação") é
  * `position: absolute`; sem um ancestral posicionado ele escapa do `overflow` e alarga a página
  * (rolagem horizontal em 768 px, achada na prova visual do E2E).
+ *
+ * Quando a tabela não cabe, o lado cortado esmaece no fundo do cartão: a frase partida na borda
+ * passa a dizer "continua ao lado" em vez de parecer texto truncado. Some no fim da rolagem e com o
+ * foco de teclado (o anel de foco fica inteiro). Sem transbordo, nada muda.
  */
 export const RegiaoRolavel = ({
   rotulo,
@@ -125,19 +183,28 @@ export const RegiaoRolavel = ({
   rotulo: string;
   className?: string;
   children: ReactNode;
-}) => (
-  <div
-    role="region"
-    tabIndex={0}
-    aria-label={rotulo}
-    className={cn(
-      'relative overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-      className,
-    )}
-  >
-    {children}
-  </div>
-);
+}) => {
+  const { regiao, bordas } = useBordasCortadas();
+
+  return (
+    <div className="relative">
+      <div
+        ref={regiao}
+        role="region"
+        tabIndex={0}
+        aria-label={rotulo}
+        className={cn(
+          'peer relative overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+          className,
+        )}
+      >
+        {children}
+      </div>
+      <Esmaecido lado="inicio" visivel={bordas.inicio} />
+      <Esmaecido lado="fim" visivel={bordas.fim} />
+    </div>
+  );
+};
 
 export const Paginacao = ({
   rotulo,
