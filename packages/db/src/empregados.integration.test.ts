@@ -429,11 +429,15 @@ describe('tentativa de importação: idempotência, obsolescência e estado (SPE
   });
 
   it('a aplicação atualiza só o ciclo de vida da tentativa; arquivo, hash e iniciador são imutáveis', async () => {
+    // SPEC-015 (0018): mais o resultado da leitura da planilha, gravado pelo worker.
     expect(await colunasAtualizaveis('importacao_empregados')).toEqual([
+      'diagnosticos',
       'empregados_versao_na_validacao',
       'estado',
       'finalizado_em',
       'iniciado_em',
+      'linhas_ignoradas_antes_do_cabecalho',
+      'linhas_ocultas',
       'mapeamento',
       'obsoleta',
       'reutilizada_por_idempotencia',

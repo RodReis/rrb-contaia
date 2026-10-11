@@ -12,6 +12,7 @@ import type { Readable } from 'node:stream';
 
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, MODELO_CSV } from '@contaia/domain';
 import type { TentativaDeImportacao } from '@contaia/db';
+import { DETALHES_DE_PLANILHA_DO_CSV } from '@contaia/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PlanoContasService } from './plano-contas.service';
@@ -155,6 +156,8 @@ vi.mock('@contaia/db', () => ({
       criadoEm: nova['agora'] as Date,
       iniciadoEm: null,
       finalizadoEm: null,
+      // SPEC-015: a tentativa traz formato, aba, cabeçalho e leitura; o dublê cria CSV.
+      ...DETALHES_DE_PLANILHA_DO_CSV,
     };
     db.atual.tentativas.push(criada);
 

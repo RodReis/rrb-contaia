@@ -320,6 +320,7 @@ export {
   iniciarValidacao as iniciarValidacaoDaImportacao,
   registrarEvento as registrarEventoDeImportacao,
   registrarFalha as registrarFalhaDaImportacao,
+  registrarLeituraDaPlanilha as registrarLeituraDaPlanilhaDaImportacao,
 } from './repositorios/plano-contas.js';
 export type {
   AcaoDaLinha,
@@ -327,6 +328,7 @@ export type {
   CancelamentoDaPrevia,
   ConfirmacaoDaPrevia,
   EstadoFinalDaAplicacao,
+  LeituraDaPlanilhaParaRegistrar,
   LinhaDeStaging,
   LinhaDeStagingRejeitada,
   LinhaDeStagingValida,

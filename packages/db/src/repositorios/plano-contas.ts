@@ -22,6 +22,7 @@ import {
   iniciarValidacao as iniciarNoCiclo,
   registrarEvento as registrarEventoNoCiclo,
   registrarFalha as registrarFalhaNoCiclo,
+  registrarLeituraDaPlanilha as registrarLeituraNoCiclo,
   subirVersao,
   travarVersaoParaAplicar,
 } from './importacao-ciclo.js';
@@ -30,6 +31,7 @@ import type {
   CancelamentoDaPrevia,
   ConfirmacaoDaPrevia,
   EstadoFinalDaAplicacao,
+  LeituraDaPlanilhaParaRegistrar,
   NovaTentativa,
   NovoEvento,
   ResultadoDaValidacaoGravada,
@@ -43,6 +45,7 @@ export type {
   CancelamentoDaPrevia,
   ConfirmacaoDaPrevia,
   EstadoFinalDaAplicacao,
+  LeituraDaPlanilhaParaRegistrar,
   Mapeamento,
   NovaTentativa,
   NovoEvento,
@@ -209,6 +212,10 @@ export const gravarResultadoDaValidacao = (
   gravarNoCiclo(cliente, D, empresaId, tentativaId, planoVersaoNaValidacao, agora, (tentativa) =>
     inserirStaging(cliente, tentativa, linhas),
   );
+
+/** Leitura da planilha (só em RECEBIDA | VALIDANDO; repetição sobrescreve). Ver `importacao-ciclo.registrarLeituraDaPlanilha`. */
+export const registrarLeituraDaPlanilha = (cliente: PoolClient, leitura: LeituraDaPlanilhaParaRegistrar): Promise<void> =>
+  registrarLeituraNoCiclo(cliente, D, leitura);
 
 /** Falha técnica: VALIDANDO | APLICANDO → FALHA, com término. Devolve o estado anterior. */
 export const registrarFalha = (

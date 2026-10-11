@@ -19,6 +19,8 @@
  */
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, podeTransicionar } from '@contaia/domain';
 import type { EstadoDaImportacao, EventoDaImportacao } from '@contaia/domain';
+import { DiagnosticoDeLeituraSchema } from '@contaia/shared';
+import type { DetalhesDePlanilha, DiagnosticoDeLeituraDaPlanilha, FormatoDeArquivo } from '@contaia/shared';
 import type { PoolClient } from 'pg';
 
 // --- descritores (allowlist) ---------------------------------------------------------------------
@@ -111,9 +113,11 @@ export type TentativaDoCiclo = Readonly<{
   criadoEm: Date;
   iniciadoEm: Date | null;
   finalizadoEm: Date | null;
-}>;
+}> &
+  /** Formato, aba, cabeçalho e leitura da planilha (SPEC-015), nos nomes do contrato compartilhado; CSV: os padrões. */
+  DetalhesDePlanilha;
 
-/** `reutilizada`: ESTE pedido caiu numa tentativa existente (mesmo tenant, empresa, hash e mapeamento). */
+/** `reutilizada`: ESTE pedido caiu numa tentativa existente (mesma identidade: hash, configuração e mapeamento). */
 export type TentativaCriadaNoCiclo = TentativaDoCiclo & Readonly<{ reutilizada: boolean }>;
 
 export type NovaTentativa = Readonly<{
@@ -129,6 +133,24 @@ export type NovaTentativa = Readonly<{
   usuarioIniciadorId: string;
   correlationId: string;
   agora: Date;
+  /**
+   * Configuração da planilha (SPEC-015 §3.8), parte da identidade idempotente. Omitida = CSV:
+   * `formato` 'CSV', sem aba (`abaNome` null, `abaPosicao` 0) e cabeçalho na linha 1. Planilha
+   * exige aba (posição ≥ 1 e nome); o banco recusa a combinação incoerente (CHECK).
+   */
+  formato?: FormatoDeArquivo | undefined;
+  abaNome?: string | null | undefined;
+  abaPosicao?: number | undefined;
+  linhaCabecalho?: number | undefined;
+}>;
+
+/** O que o worker apurou ao ler a planilha (SPEC-015 §3.9); a repetição do job sobrescreve. */
+export type LeituraDaPlanilhaParaRegistrar = Readonly<{
+  empresaId: string;
+  tentativaId: string;
+  linhasIgnoradasAntesDoCabecalho: number;
+  linhasOcultas: number;
+  diagnosticos: readonly DiagnosticoDeLeituraDaPlanilha[];
 }>;
 
 export type InicioDaValidacao = Readonly<{
@@ -162,8 +184,16 @@ export type CancelamentoDaPrevia = Readonly<{
 
 export type EstadoFinalDaAplicacao = 'CONCLUIDA' | 'CONCLUIDA_COM_REJEICOES';
 
-/** Ações da trilha: criação, reuso idempotente e os eventos da máquina de estados do domínio. */
-export type AcaoDoEvento = 'CRIACAO' | 'REUTILIZACAO' | EventoDaImportacao;
+/**
+ * Ações da trilha: criação, reuso idempotente, seleção (API, no envio) e leitura (worker) da
+ * planilha, e os eventos da máquina de estados do domínio.
+ */
+export type AcaoDoEvento =
+  | 'CRIACAO'
+  | 'REUTILIZACAO'
+  | 'SELECAO_DE_PLANILHA'
+  | 'LEITURA_PLANILHA'
+  | EventoDaImportacao;
 
 export type NovoEvento = Readonly<{
   empresaId: string;
@@ -188,7 +218,32 @@ export type NovasNotificacoes = Readonly<{
   agora: Date;
 }>;
 
-type LinhaDaTentativa = {
+/** Colunas de planilha da tentativa (0018), como o `pg` as devolve. */
+export type ColunasDePlanilha = {
+  formato: FormatoDeArquivo;
+  aba_nome: string | null;
+  aba_posicao: number;
+  linha_cabecalho: number;
+  linhas_ignoradas_antes_do_cabecalho: number;
+  linhas_ocultas: number;
+  diagnosticos: DiagnosticoDeLeituraDaPlanilha[];
+};
+
+/** Lista de seleção das `ColunasDePlanilha` (nomes sem prefixo: só a tentativa os tem). */
+export const COLUNAS_DE_PLANILHA_SQL = `formato, aba_nome, aba_posicao, linha_cabecalho,
+  linhas_ignoradas_antes_do_cabecalho, linhas_ocultas, diagnosticos`;
+
+/** Colunas de planilha → contrato compartilhado (`aba` nula no CSV). */
+export const paraDetalhesDePlanilha = (linha: ColunasDePlanilha): DetalhesDePlanilha => ({
+  formato: linha.formato,
+  aba: linha.aba_nome === null ? null : { nome: linha.aba_nome, posicao: linha.aba_posicao },
+  linhaCabecalho: linha.linha_cabecalho,
+  linhasIgnoradasAntesDoCabecalho: linha.linhas_ignoradas_antes_do_cabecalho,
+  linhasOcultas: linha.linhas_ocultas,
+  diagnosticosDaPlanilha: linha.diagnosticos,
+});
+
+type LinhaDaTentativa = ColunasDePlanilha & {
   id: string;
   tenant_id: string;
   empresa_id: string;
@@ -214,12 +269,17 @@ const colunasDaTentativa = (d: DescritorDaImportacao): string => `id, tenant_id,
   mapeamento, arquivo_nome, arquivo_tamanho::text as arquivo_tamanho, arquivo_chave, estado,
   ${d.colunaVersaoNoAgregado}::text as versao_na_validacao, totais, usuario_iniciador_id,
   usuario_confirmador_id, usuario_cancelador_id, correlation_id, reutilizada_por_idempotencia,
-  criado_em, iniciado_em, finalizado_em`;
+  criado_em, iniciado_em, finalizado_em, ${COLUNAS_DE_PLANILHA_SQL}`;
 
 /** Resultado terminal que o reenvio idêntico reaproveita (SPEC-013/014 §3.7). */
 const RESULTADOS_REUTILIZAVEIS_SQL = `('CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA')`;
-/** Predicado da UNIQUE parcial `*_idempotente` (migrations 0016 e 0017), literal. */
-const PREDICADO_DA_IDENTIDADE_SQL = `estado not in ('FALHA', 'CANCELADA') and not obsoleta`;
+/**
+ * Alvo do `ON CONFLICT`: as colunas e o predicado da UNIQUE parcial `*_idempotente` (0018), literais
+ * — a inferência do Postgres casa o índice pelo conjunto de colunas (a ordem não importa) e exige
+ * que este predicado implique o do índice.
+ */
+const IDENTIDADE_SQL = `(empresa_id, tenant_id, hash_arquivo, formato, aba_posicao, linha_cabecalho, mapeamento)
+  where estado not in ('FALHA', 'CANCELADA') and not obsoleta`;
 /**
  * O agregado mudou depois que o resultado terminal `t` terminou (FIX #107). REJEITADA terminou na
  * versão da validação; CONCLUIDA* nela + 1 (a confirmação exige a versão validada e a aplicação a
@@ -250,6 +310,7 @@ const paraTentativa = (linha: LinhaDaTentativa): TentativaDoCiclo => ({
   criadoEm: linha.criado_em,
   iniciadoEm: linha.iniciado_em,
   finalizadoEm: linha.finalizado_em,
+  ...paraDetalhesDePlanilha(linha),
 });
 
 const tentativaNaoEncontrada = (): ErroDeDominio =>
@@ -327,9 +388,9 @@ const inserirOuReutilizar = async (
   const { rows } = await cliente.query<LinhaDaTentativa & { nova: boolean; obsoleta: boolean }>(
     `insert into app.${d.tabela} as t
        (tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome, arquivo_tamanho, arquivo_chave,
-        usuario_iniciador_id, correlation_id, criado_em)
-     values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10)
-     on conflict (empresa_id, tenant_id, hash_arquivo, mapeamento) where ${PREDICADO_DA_IDENTIDADE_SQL}
+        usuario_iniciador_id, correlation_id, criado_em, formato, aba_nome, aba_posicao, linha_cabecalho)
+     values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     on conflict ${IDENTIDADE_SQL}
      do update
        set obsoleta = t.estado in ${RESULTADOS_REUTILIZAVEIS_SQL} and ${mudou},
            reutilizada_por_idempotencia = t.reutilizada_por_idempotencia
@@ -346,6 +407,10 @@ const inserirOuReutilizar = async (
       nova.usuarioIniciadorId,
       nova.correlationId,
       nova.agora,
+      nova.formato ?? 'CSV',
+      nova.abaNome ?? null,
+      nova.abaPosicao ?? 0,
+      nova.linhaCabecalho ?? 1,
     ],
   );
   const linha = rows[0]!;
@@ -354,8 +419,9 @@ const inserirOuReutilizar = async (
 };
 
 /**
- * Cria a tentativa RECEBIDA, já com o mapeamento. A identidade idempotente (tenant + empresa +
- * hash + mapeamento) é a UNIQUE parcial da tabela, que ignora FALHA e CANCELADA: o pedido repetido
+ * Cria a tentativa RECEBIDA, já com o mapeamento e a configuração da planilha. A identidade
+ * idempotente (tenant + empresa + hash + formato + aba + cabeçalho + mapeamento; o domínio é a
+ * tabela) é a UNIQUE parcial da tabela, que ignora FALHA e CANCELADA: o pedido repetido
  * devolve a tentativa viva ou com resultado reutilizável, com `reutilizada = true`, numa única
  * instrução (sem corrida entre ler e inserir). Se a existente tem resultado reutilizável, a marca
  * de reuso do histórico também sobe.
@@ -510,6 +576,40 @@ export const gravarResultadoDaValidacao = async (
   );
 
   return { estado, totais, transicionou: true };
+};
+
+/** Teto do contrato compartilhado (`camposDePlanilhaDaTentativa`): o histórico e a prévia o validam. */
+const DiagnosticosDaLeituraSchema = DiagnosticoDeLeituraSchema.array().max(20);
+
+/**
+ * Grava o que a leitura da planilha apurou (linhas ignoradas antes do cabeçalho, ocultas,
+ * diagnósticos), só com a tentativa em RECEBIDA ou VALIDANDO; a repetição do job sobrescreve
+ * (nunca acumula). Diagnóstico fora do contrato compartilhado é recusado antes do banco. Não
+ * registra evento: o chamador grava `LEITURA_PLANILHA` na mesma transação.
+ */
+export const registrarLeituraDaPlanilha = async (
+  cliente: PoolClient,
+  descritor: DescritorDaImportacao,
+  leitura: LeituraDaPlanilhaParaRegistrar,
+): Promise<void> => {
+  const d = exigirDescritor(descritor);
+  const diagnosticos = DiagnosticosDaLeituraSchema.parse(leitura.diagnosticos);
+  const { rowCount } = await cliente.query(
+    `update app.${d.tabela}
+        set linhas_ignoradas_antes_do_cabecalho = $3, linhas_ocultas = $4, diagnosticos = $5::jsonb
+      where id = $1 and empresa_id = $2 and estado in ('RECEBIDA', 'VALIDANDO')`,
+    [
+      leitura.tentativaId,
+      leitura.empresaId,
+      leitura.linhasIgnoradasAntesDoCabecalho,
+      leitura.linhasOcultas,
+      JSON.stringify(diagnosticos),
+    ],
+  );
+
+  if (rowCount !== 1) {
+    throw await erroDaTransicao(cliente, d, leitura.empresaId, leitura.tentativaId);
+  }
 };
 
 /**
