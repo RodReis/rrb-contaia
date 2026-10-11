@@ -36,6 +36,8 @@ export const ROTULO_DO_ERRO_DA_LINHA: Readonly<Record<CodigoDeErroDaLinha, strin
   CICLO_HIERARQUICO: 'Ciclo na hierarquia',
   SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA: 'Sintética com filhas',
   CONTA_ARQUIVADA: 'Conta arquivada',
+  CELULA_COM_FORMULA: 'Fórmula na célula',
+  CELULA_MESCLADA: 'Célula mesclada',
 };
 
 /** Quando a linha não traz mensagem própria, o rótulo do código já orienta. */
@@ -48,6 +50,8 @@ export const MENSAGEM_PADRAO_DO_ERRO: Readonly<Record<CodigoDeErroDaLinha, strin
   CICLO_HIERARQUICO: 'A conta faz parte de um ciclo de conta-pai; revise a hierarquia.',
   SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA: 'A conta tem filhas no plano e não pode virar analítica.',
   CONTA_ARQUIVADA: 'A conta está arquivada; reative-a separadamente antes de importar.',
+  CELULA_COM_FORMULA: 'Substitua a fórmula da célula pelo valor e reenvie a planilha.',
+  CELULA_MESCLADA: 'Desfaça a mescla da célula, preencha o valor e reenvie a planilha.',
 };
 
 export const ROTULO_DO_TIPO: Readonly<Record<TipoDeConta, string>> = {

@@ -142,13 +142,14 @@ describe('importação do plano de contas por CSV (SPEC-013)', () => {
     }
   });
 
-  it('recusa PDF e planilha .xlsx como importação', () => {
+  // A F15 (SPEC-015) passou a aceitar .xlsx e .ods; o que segue recusado é PDF e planilha com macros.
+  it('recusa PDF e planilha com macros (.xlsm) como importação', () => {
     expect(
       validarArquivo('IMPORTACAO_PLANO_CONTAS', { tipoConteudo: 'application/pdf', tamanhoBytes: 1024 }),
     ).toBe('TIPO_NAO_ACEITO');
     expect(
       validarArquivo('IMPORTACAO_PLANO_CONTAS', {
-        tipoConteudo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        tipoConteudo: 'application/vnd.ms-excel.sheet.macroEnabled.12',
         tamanhoBytes: 1024,
       }),
     ).toBe('TIPO_NAO_ACEITO');

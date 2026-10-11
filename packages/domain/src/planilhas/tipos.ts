@@ -18,7 +18,7 @@ export interface CelulaDaTabela {
   /** A célula faz parte de um intervalo mesclado (inclusive a primeira). */
   readonly mesclada: boolean;
   /** Data civil `aaaa-mm-dd`, sem fuso, quando a célula é uma data nativa. */
-  readonly dataCivil?: string;
+  readonly dataCivil?: string | undefined;
 }
 
 export interface LinhaDaTabela {
