@@ -307,29 +307,40 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
   - etapa opcional `Empregados` no onboarding, depois do plano de contas;
   - pendência na Central e aviso no sino.
 
-  `frontend-design` na construção (T5). O passe `impeccable` fica para depois da prova E2E (controlador), com a lista de achados em `test-results/SPEC-014/e2e/provas/COMPARACAO.md`
-- [x] **E2E** (`tests/e2e/spec-014-importacao-empregados.spec.ts`, 18 testes, `fixtures/empregados.ts`, `fixtures/empregados*.csv`):
+  `frontend-design` na construção (T5). O passe `impeccable` fica para depois da prova E2E (controlador). A comparação com a referência `code.html` e os achados visuais estão no corpo da PR; um `COMPARACAO.md` local em `test-results/` (fora do Git) é só apoio
+- [x] **E2E da spec-014: 20/20; spec-013: 18/18, as duas em paralelo como na CI** (`tests/e2e/spec-014-importacao-empregados.spec.ts`, `fixtures/empregados.ts`, `fixtures/empregados*.csv`):
   - jornada com CSV legado em Latin-1 até base, relatório e histórico, com `correlationId` no banco e no Redis;
+  - o modelo do ContaIA baixado pelo botão e importado de volta com o mapeamento padrão;
   - os contrafactuais da SPEC §9;
-  - papéis, carteira e tenant; notificações; pendência e onboarding;
-  - provas visuais CLARO/ESCURO em 768/1024/1440, com axe em 16 estados-chave;
+  - confirmação repetida, em sequência e em paralelo: uma aplica, a outra 409 `ESTADO_INVALIDO_PARA_ACAO`, sem empregado nem aviso duplicado;
+  - papéis, carteira e tenant; notificações conferidas no banco e no sino; pendência e onboarding;
   - captura do protótipo e varredura de segredo e de PII nos logs.
 
-  Os auxiliares da F13 (`fixtures/plano-contas.ts`) foram parametrizados pelo domínio, com o padrão no plano. As provas da spec-013 vão para `provas/spec-013/` quando o escopo é outro
+  A falha **durante a aplicação** (transação revertida inteira) é provada na integração da API (`apps/api/src/empregados/empregados.service.integration.test.ts`, trigger de falha com CPF e nome no `detail`) e não é duplicada no E2E. Os auxiliares da F13 (`fixtures/plano-contas.ts`) foram parametrizados pelo domínio, com o padrão no plano. As provas da spec-013 vão para `provas/spec-013/` quando o escopo é outro
+- [x] **Provas visuais**: 20 estados, CLARO/ESCURO em 768/1024/1440:
+  - base vazia, histórico vazio, arquivo rejeitado antes do envio, arquivo selecionado, mapeamento incompleto;
+  - validando, prévia parcial, rejeições, prévia sem rejeições, confirmação (diálogo);
+  - concluída, concluída com rejeições, zero válidas, cancelada, falha técnica com `correlationId`, conflito 409;
+  - histórico, permissão insuficiente, fora da carteira e etapa do onboarding.
+
+  O axe (WCAG 2.1 A/AA) roda em 1024 px por tema; 768 e 1440 só têm a medição de rolagem horizontal, como na F13. Os estados da SPEC §5.3 cobertos **só por `test:tela`** (`aba-empregados.test.tsx`, com jest-axe, que não mede contraste) são: carregando com skeleton, confirmação em andamento, histórico indisponível, relatório indisponível, conteúdo longo, busca sem resultado, erro da base, empresa arquivada (somente leitura) e o 403 de papel sem `consultar`
 - [x] **CI**: `PROVA_ESCOPO=SPEC-014`. A suíte E2E inteira continua rodando, com a spec-013 incluída
 - [x] **Defeitos que só a pilha real mostrou** (corrigidos nesta PR; a prova E2E reprovava antes):
   - placeholder do `Select` em `muted-foreground/70` reprovava o axe `color-contrast` no mapeamento incompleto. É pré-existente (F2), mas só a F14 captura esse estado;
   - stepper de seis etapas do onboarding rolava na horizontal em 768 px; passou a `compacto`;
   - spec-002 e spec-013 esperavam a lista de empresas logo depois do plano de contas e agora passam pela etapa de empregados
-- [x] **Provas locais** (instância `contaia-f14`, banco recriado antes da rodada final):
+- [x] **Provas locais** (instância `contaia-f14`):
   - `lint` e `typecheck`: 14/14;
-  - `test:regras`: domínio 679, shared 135, workers 132, API 1.110, cofre 176, signer 109, signer-client 24;
+  - `test:regras`: domínio 679, shared 135, workers 132, API 1.110, cofre 176;
   - `test:tela`: 927;
-  - `test:banco`: db 461, API 51, workers 49, signer 41;
-  - `build`: 9/9;
-  - E2E: spec-014 18/18 e spec-013 18/18 (inclusive em paralelo). Suíte inteira (127): 112 passaram; uma queda do processo do Playwright no Windows (0xC0000409) interrompeu a spec-012, que passou 15/15 isolada. Na rodada anterior, toda a spec-012 passou.
+  - `test:banco`: db 461, API 51, workers 49;
+  - `build`: 9/9.
 
-  No checkout Windows do worktree, `scripts/gerar-pki-mtls-de-teste.mjs` e `scripts/preparar-segredos-do-signer.mjs` vêm com CRLF, e os testes do Signer que os importam quebram no shebang. Com LF, passam (números acima)
+  Signer: a suíte quebrava localmente por CRLF nos shebangs. Com LF temporário passou 109/24/41; com o `eol=lf` desta PR (`.gitattributes`), signer `test:regras` 109/109, signer-client 24/24 e signer `test:banco` 41/41
+- [ ] **Suíte E2E inteira local**: 127 testes — 112 passaram, 1 falhou, 14 not_run (o processo do Playwright caiu com 0xC0000409 no Windows durante a spec-012; a spec-012 passou 15/15 isolada); a CI é quem decide
+- [ ] **not_run**:
+  - `check:signer-infra`: não pedido nesta fatia; roda na CI;
+  - CI remota: a branch ainda não foi publicada
 - [ ] **Decisões para o PI confirmar**:
   1. Comparação da matrícula: `trim` + NFC, sensível a caixa e com zeros preservados (`00123` ≠ `123`).
   2. Datas aceitas: `dd/mm/aaaa` e `aaaa-mm-dd`, reais no calendário. `1/2/20`, `31/02/1990` e número serial do Excel são rejeitados, nunca interpretados.
@@ -344,8 +355,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
   - **`packages/db/src/notificacoes.integration.test.ts`** usa e-mails fixos e quebra depois de uma rodada interrompida. Sugestão: `[FIX]` separado.
   - **Texto herdado da F13** "fica de fora" na prévia, comum aos dois domínios.
   - **Rollback da migration 0017**: dropar as 6 tabelas e as 4 funções, remover as pendências `EMPREGADOS` e seus eventos e restaurar os CHECKs da 0015.
-  - **CRLF nos dois scripts com shebang** acima: falta `eol=lf` no `.gitattributes`. A CI em Linux não é afetada.
-  - **Lista para o passe `impeccable`** (em `COMPARACAO.md`): a coluna CPF da tabela de rejeições quebra caractere a caractere, "O que fazer" é cortado na borda, o nome do arquivo quebra no histórico e o selo "Arquivado" é mais alto que "Ativo".
+  - **Lista para o passe `impeccable`** (ver corpo da PR): a coluna CPF da tabela de rejeições quebra caractere a caractere, "O que fazer" é cortado na borda, o nome do arquivo quebra no histórico e o selo "Arquivado" é mais alto que "Ativo".
 - [ ] Fora da fatia: XLSX/ODS (F15), cargo, salário, vínculo, dependentes, folha, eSocial, IA, edição, arquivamento e reativação de empregado (MVP-3) e retenção produtiva
 
 ### Card #7 — `[MVP1][SPEC-006][F6]` Notificações de pendências (PR #51)
