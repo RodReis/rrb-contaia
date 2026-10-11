@@ -12,7 +12,10 @@ import { LIMITES } from './limites.ts';
 import { PRONTO, ehOperacao, type OperacaoDePlanilha } from './protocolo.ts';
 
 export interface OpcoesDoIsolamento {
-  /** Tempo máximo do processo filho (padrão 30 s); estouro → `LIMITE_DE_PROCESSAMENTO_EXCEDIDO`. */
+  /**
+   * Tempo máximo do trabalho (padrão 30 s), contado do momento em que o filho fica pronto; estouro →
+   * `LIMITE_DE_PROCESSAMENTO_EXCEDIDO`. A partida tem prazo próprio (10 s), que não é limite do arquivo.
+   */
   readonly timeoutMs?: number;
   /** Heap máximo do filho em MB (padrão 512); estouro → `LIMITE_DE_PROCESSAMENTO_EXCEDIDO`. */
   readonly memoriaMb?: number;
@@ -23,7 +26,23 @@ interface OpcoesInternas extends OpcoesDoIsolamento {
   readonly caminhoDoFilho?: string;
   readonly execPath?: string;
   readonly bytesDaSaida?: number;
+  readonly prazoDePartidaMs?: number;
 }
+
+/** Folga para subir o Node do filho mesmo com a máquina carregada; estourar é falha técnica. */
+const PRAZO_DE_PARTIDA_MS = 10_000;
+/** Só o começo do stderr é guardado, e só para reconhecer o abort do V8 (nunca vai para log). */
+const TETO_DO_STDERR = 8 * 1024;
+const MENSAGEM_DE_HEAP = /heap out of memory|Reached heap limit|Allocation failed/u;
+const CODIGO_DO_ABORT = 134;
+
+/**
+ * Morte sem resposta depois do `pronto`: só o abort do V8 por heap esgotado (SIGABRT no Linux,
+ * código 134 no Windows, mensagem de OOM no stderr) é limite do arquivo. Qualquer outro término
+ * (exceção não tratada, SIGKILL/SIGTERM de fora, canal fechado) é falha técnica, retentável.
+ */
+const morreuPorHeap = (codigo: number | null, sinal: NodeJS.Signals | null, stderr: string): boolean =>
+  sinal === 'SIGABRT' || codigo === CODIGO_DO_ABORT || MENSAGEM_DE_HEAP.test(stderr);
 
 // Nos testes o fonte `.ts` roda direto (o Node 24 remove os tipos); no dist, o `.js` compilado.
 const aqui = fileURLToPath(import.meta.url);
@@ -53,7 +72,7 @@ export const executarNoFilho = (
       filho = fork(opcoes.caminhoDoFilho ?? CAMINHO_DO_FILHO, [], {
         execArgv: [`--max-old-space-size=${opcoes.memoriaMb ?? LIMITES.memoriaMb}`, '--disallow-code-generation-from-strings', '--disable-proto=delete'],
         env: {},
-        stdio: ['pipe', 'pipe', 'ignore', 'ipc'],
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
         serialization: 'json',
         windowsHide: true,
         ...(opcoes.execPath === undefined ? {} : { execPath: opcoes.execPath }),
@@ -65,18 +84,21 @@ export const executarNoFilho = (
 
     let encerrado = false;
     let pronto = false;
-    let motivo: 'TEMPO' | 'SAIDA' | null = null;
+    let motivo: 'PARTIDA' | 'TEMPO' | 'SAIDA' | null = null;
     const pedacos: Buffer[] = [];
     let recebidos = 0;
+    let stderr = '';
 
-    const matar = (porque: 'TEMPO' | 'SAIDA'): void => {
+    const matar = (porque: 'PARTIDA' | 'TEMPO' | 'SAIDA'): void => {
       motivo ??= porque;
       filho.kill('SIGKILL');
     };
-    const relogio = setTimeout(() => matar('TEMPO'), opcoes.timeoutMs ?? LIMITES.tempoMs);
+    const partida = setTimeout(() => matar('PARTIDA'), opcoes.prazoDePartidaMs ?? PRAZO_DE_PARTIDA_MS);
+    let relogio: NodeJS.Timeout | undefined;
     const terminar = (acao: () => void): void => {
       if (encerrado) return;
       encerrado = true;
+      clearTimeout(partida);
       clearTimeout(relogio);
       if (filho.exitCode === null && filho.signalCode === null) filho.kill('SIGKILL');
       acao();
@@ -88,6 +110,8 @@ export const executarNoFilho = (
     filho.on('message', (mensagem) => {
       if (mensagem !== PRONTO || pronto) return;
       pronto = true;
+      clearTimeout(partida);
+      relogio = setTimeout(() => matar('TEMPO'), opcoes.timeoutMs ?? LIMITES.tempoMs);
       filho.send(operacao, (erro) => {
         if (erro !== null) terminar(() => rejeitar(new ErroDeInfraestrutura('Canal com o processo de leitura quebrado.', { cause: erro })));
       });
@@ -97,27 +121,34 @@ export const executarNoFilho = (
       if (recebidos > tetoDaSaida) matar('SAIDA');
       else pedacos.push(pedaco);
     });
+    filho.stderr?.on('data', (pedaco: Buffer) => {
+      if (stderr.length < TETO_DO_STDERR) stderr += pedaco.toString('utf8', 0, TETO_DO_STDERR - stderr.length);
+    });
     filho.stdin?.on('error', () => {
       // O filho pode morrer antes de ler tudo (memória, tempo); o desfecho vem do `close`.
     });
     filho.stdin?.end(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 
-    filho.on('close', () => {
+    filho.on('close', (codigo: number | null, sinal: NodeJS.Signals | null) => {
       terminar(() => {
-        if (motivo !== null) {
+        if (motivo === 'TEMPO' || motivo === 'SAIDA') {
           rejeitar(excedido(motivo));
           return;
         }
         if (!pronto) {
-          rejeitar(new ErroDeInfraestrutura('O processo de leitura da planilha não iniciou.'));
+          rejeitar(new ErroDeInfraestrutura('O processo de leitura da planilha não iniciou a tempo.'));
           return;
         }
         let bruto: unknown;
         try {
           bruto = JSON.parse(Buffer.concat(pedacos).toString('utf8'));
         } catch {
-          // Morreu no meio do trabalho sem responder: heap esgotado (o V8 aborta o processo).
-          rejeitar(excedido('MEMORIA'));
+          // Morreu no meio do trabalho sem responder.
+          rejeitar(
+            morreuPorHeap(codigo, sinal, stderr)
+              ? excedido('MEMORIA')
+              : new ErroDeInfraestrutura('O processo de leitura da planilha terminou sem responder.'),
+          );
           return;
         }
         try {

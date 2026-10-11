@@ -1,4 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import * as processosFilhos from 'node:child_process';
 
 import { describe, expect, it, vi, beforeAll } from 'vitest';
@@ -9,6 +12,22 @@ import { lerAba } from './ler-aba.ts';
 import { LIMITES } from './limites.ts';
 import { abaXml, celulaOds as sc, conteudoOds, entradaBomba, ods, sstXml, tabelaOds, xlsx, xlsxCru } from './testes/construtores.ts';
 import { esperarErroAssincrono } from './testes/esperar.ts';
+
+/** Filhos falsos para cada forma de término (scripts gerados em diretório temporário próprio). */
+const RESPOSTA_OK = JSON.stringify({ ok: true, resultado: { formato: 'XLSX', abas: [] }, maxRssKb: 1 });
+const FILHOS_FALSOS = {
+  semPronto: 'setInterval(() => {}, 1000);',
+  prontoAtrasado: `setTimeout(() => process.send('pronto'), 400); process.on('message', () => process.stdout.write(${JSON.stringify(RESPOSTA_OK)}, () => process.exit(0)));`,
+  excecao: `process.send('pronto'); process.on('message', () => setTimeout(() => { throw new Error('bug'); }, 10));`,
+  saiCom1: `process.send('pronto'); process.on('message', () => process.exit(1));`,
+  oom: `process.send('pronto'); process.on('message', () => process.stderr.write('FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory', () => process.exit(134)));`,
+} as const;
+let diretorioDosFalsos = '';
+const falso = (nome: keyof typeof FILHOS_FALSOS): string => join(diretorioDosFalsos, `${nome}.mjs`);
+beforeAll(() => {
+  diretorioDosFalsos = mkdtempSync(join(tmpdir(), 'planilhas-filhos-'));
+  for (const [nome, codigo] of Object.entries(FILHOS_FALSOS)) writeFileSync(join(diretorioDosFalsos, `${nome}.mjs`), codigo);
+});
 
 vi.mock('node:child_process', async (original) => {
   const real = await original<typeof processosFilhos>();
@@ -116,6 +135,31 @@ describe('lerPlanilhaIsolada — processo filho', () => {
     await esperarErroAssincrono(executarNoFilho(PEQUENA, { tipo: 'ler-aba', abaPosicao: 1 }, { bytesDaSaida: 64 }), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'SAIDA');
   });
 
+  describe('término do filho: limite (não retentável) × infraestrutura (retentável)', () => {
+    it('não ficou pronto dentro do prazo de partida → ErroDeInfraestrutura (não é limite do arquivo)', async () => {
+      const inicio = performance.now();
+      await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('semPronto'), prazoDePartidaMs: 300 })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
+      expect(performance.now() - inicio).toBeLessThan(5_000);
+    });
+
+    it('o prazo do trabalho só conta depois do pronto (partida lenta não estoura o tempo do arquivo)', async () => {
+      const { resultado } = await executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('prontoAtrasado'), timeoutMs: 300 });
+      expect(resultado).toEqual({ formato: 'XLSX', abas: [] });
+    });
+
+    it('exceção não tratada no filho → ErroDeInfraestrutura', async () => {
+      await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('excecao') })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
+    });
+
+    it('saída inesperada com código 1 → ErroDeInfraestrutura', async () => {
+      await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('saiCom1') })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
+    });
+
+    it('abort do V8 por heap (código 134 / mensagem de OOM) → LIMITE (MEMORIA)', async () => {
+      await esperarErroAssincrono(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('oom') }), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'MEMORIA');
+    });
+  });
+
   describe('carga de ~10 MB e 10.000 linhas', () => {
     let grandeXlsx: Uint8Array;
     let grandeOds: Uint8Array;
@@ -142,8 +186,15 @@ describe('lerPlanilhaIsolada — processo filho', () => {
       expect(process.memoryUsage().rss).toBeGreaterThan(0);
     });
 
+    it('término externo (SIGTERM de desligamento) no meio do trabalho → ErroDeInfraestrutura', async () => {
+      const leitura = lerPlanilhaIsolada(grandeXlsx, { tipo: 'ler-aba', abaPosicao: 1 });
+      const filho = vi.mocked(processosFilhos.fork).mock.results.at(-1)?.value as processosFilhos.ChildProcess;
+      filho.once('message', () => setTimeout(() => filho.kill('SIGTERM'), 50));
+      await expect(leitura).rejects.toBeInstanceOf(ErroDeInfraestrutura);
+    });
+
     it('estouro de memória: o filho morre por falta de heap, o teste segue vivo → LIMITE', async () => {
-      await esperarErroAssincrono(lerPlanilhaIsolada(grandeXlsx, { tipo: 'ler-aba', abaPosicao: 1 }, { memoriaMb: 16 }), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'MEMORIA');
+      await esperarErroAssincrono(lerPlanilhaIsolada(grandeXlsx, { tipo: 'ler-aba', abaPosicao: 1 }, { memoriaMb: 32 }), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'MEMORIA');
       expect(await lerPlanilhaIsolada(PEQUENA, { tipo: 'inspecionar' })).toMatchObject({ formato: 'XLSX' });
     }, 20_000);
   });
