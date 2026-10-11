@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { inspecionarPlanilha } from './inspecionar.ts';
+import { lerPlanilhaIsolada } from './isolado.ts';
 import { lerAba } from './ler-aba.ts';
 import { LIMITES } from './limites.ts';
 import {
@@ -19,7 +20,7 @@ import {
   xlsx,
   xlsxCru,
 } from './testes/construtores.ts';
-import { esperarErro } from './testes/esperar.ts';
+import { esperarErro, esperarErroAssincrono } from './testes/esperar.ts';
 import { escreverZip } from './zip-escrita.ts';
 
 const BASE = xlsx();
@@ -230,4 +231,51 @@ describe('ODS hostil — repetição', () => {
     const linhas = `<table:table-row><table:table-cell office:value-type="string"><text:p>a<text:s text:c="5000000"/>b</text:p></table:table-cell></table:table-row>`;
     esperarErro(() => lerAba(ods(conteudoOds(tabelaOds('Dados', linhas))), 1), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'TEXTO_DA_CELULA');
   });
+});
+
+/**
+ * Células sem conteúdo (tipadas sem texto, ou só espaços) repetidas: nada para contar nos tetos, então
+ * a única defesa é não iterar a repetição. Lidas no processo filho real com prazo de 10 s (o normal é
+ * questão de milissegundos): um laço quente acaba em LIMITE/TEMPO e o teste falha pelo código.
+ */
+describe('ODS hostil — repetição de células sem conteúdo (processo filho, prazo de 10 s)', () => {
+  const PRAZO = { timeoutMs: 10_000 };
+  const VAZIA_TIPADA = '<table:table-cell office:value-type="string"/>';
+  const lerNoFilho = (linhas: string) => lerPlanilhaIsolada(ods(conteudoOds(tabelaOds('Dados', linhas))), { tipo: 'ler-aba', abaPosicao: 1 }, PRAZO);
+
+  it('1.048.576 linhas repetidas × 16.384 células tipadas vazias repetidas (831 B) → aba sem linhas', async () => {
+    const leitura = await lerNoFilho(
+      `<table:table-row table:number-rows-repeated="1048576"><table:table-cell office:value-type="string" table:number-columns-repeated="16384"/></table:table-row>`,
+    );
+    expect('linhas' in leitura && leitura.linhas).toEqual([]);
+  }, 30_000);
+
+  it('linha repetida com 16.384 elementos de célula tipada vazia (sem repetição de coluna) → aba sem linhas', async () => {
+    const leitura = await lerNoFilho(`<table:table-row table:number-rows-repeated="1048576">${VAZIA_TIPADA.repeat(16_384)}</table:table-row>`);
+    expect('linhas' in leitura && leitura.linhas).toEqual([]);
+  }, 30_000);
+
+  it('100.000 linhas, cada uma com 16.384 colunas repetidas de célula só com espaço → aba sem linhas', async () => {
+    const linha = '<table:table-row><table:table-cell office:value-type="string" table:number-columns-repeated="16384"><text:p> </text:p></table:table-cell></table:table-row>';
+    const leitura = await lerNoFilho(linha.repeat(100_000));
+    expect('linhas' in leitura && leitura.linhas).toEqual([]);
+  }, 30_000);
+
+  it('linha com conteúdo e cauda de colunas repetidas tipadas vazias, repetida 1.000 vezes → lida (vazias não materializam)', async () => {
+    const leitura = await lerNoFilho(
+      `<table:table-row table:number-rows-repeated="1000">${celulaOds('x')}<table:table-cell office:value-type="string" table:number-columns-repeated="16383"/></table:table-row>`,
+    );
+    expect('linhas' in leitura && leitura.linhas.length).toBe(1_000);
+    expect('linhas' in leitura && Object.keys(leitura.linhas[0]?.celulas ?? {})).toEqual(['A']);
+  }, 30_000);
+
+  it('linha repetida com mescla e sem conteúdo → teto de mesclas, sem varrer as células a cada repetição', async () => {
+    await esperarErroAssincrono(
+      lerNoFilho(
+        `<table:table-row table:number-rows-repeated="1048576"><table:table-cell table:number-columns-spanned="2" office:value-type="string"/>${VAZIA_TIPADA.repeat(16_382)}</table:table-row>`,
+      ),
+      'LIMITE_DE_PROCESSAMENTO_EXCEDIDO',
+      'MESCLAS',
+    );
+  }, 30_000);
 });

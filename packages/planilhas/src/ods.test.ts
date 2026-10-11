@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { inspecionarPlanilha } from './inspecionar.ts';
 import { lerAba } from './ler-aba.ts';
+import { LIMITES } from './limites.ts';
 import { celulaOds as sc, conteudoOds, ods, tabelaOds } from './testes/construtores.ts';
 import { esperarErro } from './testes/esperar.ts';
 
@@ -110,5 +111,34 @@ describe('ODS — células', () => {
   it('aba vazia é lida sem linhas; aba inexistente → ABA_INEXISTENTE', () => {
     expect(lerAba(PASTA, 2).linhas).toEqual([]);
     esperarErro(() => lerAba(PASTA, 4), 'ABA_INEXISTENTE');
+  });
+});
+
+describe('ODS — repetição de linhas sem conteúdo e com conteúdo', () => {
+  const pasta = (linhas: string) => ods(conteudoOds(tabelaOds('Dados', linhas)));
+  const CORPO =
+    `<table:table-row>${sc('cabecalho')}${sc('b')}<table:table-cell office:value-type="string"/></table:table-row>` +
+    `<table:table-row table:visibility="collapse">${sc('1')}<table:table-cell table:number-columns-repeated="1022"/></table:table-row>`;
+
+  it('cauda vazia do LibreOffice (linhas e colunas repetidas, inclusive tipadas sem texto) não muda a leitura', () => {
+    const sem = lerAba(pasta(CORPO), 1);
+    expect(sem.linhas.map((l) => [l.numero, l.oculta, Object.keys(l.celulas)])).toEqual([
+      [1, false, ['A', 'B', 'C']], // célula tipada vazia avulsa continua materializada
+      [2, true, ['A']],
+    ]);
+    for (const cauda of [
+      '<table:table-row table:number-rows-repeated="1048574"><table:table-cell table:number-columns-repeated="1024"/></table:table-row>',
+      '<table:table-row table:number-rows-repeated="1048574"><table:table-cell office:value-type="string" table:number-columns-repeated="1024"/></table:table-row>',
+      '<table:table-row table:number-rows-repeated="1048574" table:visibility="collapse"><table:table-cell office:value-type="string"/></table:table-row>',
+    ]) {
+      expect(lerAba(pasta(CORPO + cauda), 1)).toEqual(sem);
+    }
+  });
+
+  it('linha com conteúdo repetida conta cada repetição no teto de linhas', () => {
+    const repetida = (n: number) => pasta(`<table:table-row table:number-rows-repeated="${n}">${sc('x')}</table:table-row>`);
+    const limites = { ...LIMITES, linhasComConteudo: 5 };
+    expect(lerAba(repetida(5), 1, limites).linhas.map((l) => l.numero)).toEqual([1, 2, 3, 4, 5]);
+    esperarErro(() => lerAba(repetida(6), 1, limites), 'ARQUIVO_ACIMA_DO_LIMITE', 'LINHAS');
   });
 });

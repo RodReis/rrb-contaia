@@ -11,7 +11,9 @@ import type { ZipAberto } from './zip.ts';
 /**
  * ODS: `content.xml` num único passe SAX. Os nomes com prefixo são os do ODF (`table:`, `office:`,
  * `text:`, `calcext:`) — o LibreOffice e os demais geradores usam sempre esses prefixos. Linhas e
- * colunas repetidas são contadores: só as preenchidas são materializadas (e contam nos tetos).
+ * colunas repetidas são contadores: só as preenchidas são materializadas (e contam nos tetos). Uma
+ * repetição sem conteúdo não conta em teto nenhum, então nunca é iterada: célula repetida sem conteúdo
+ * só avança a coluna, e linha repetida sem conteúdo nem mescla só avança a linha.
  */
 const TIPOS: ReadonlyMap<string, TipoNativoDeCelula> = new Map([
   ['float', 'numero'],
@@ -87,6 +89,7 @@ const lerConteudo = (zip: ZipAberto, selecao: Selecao, limites: Limites): Result
   let repeticoesDaLinha = 1;
   let ocultaAtual = false;
   let celulasDaLinha = new Map<number, CelulaLida>();
+  let linhaComConteudo = false;
   let mesclasDaLinha: [number, number, number][] = []; // coluna, colunas, linhas
   let celula: CelulaEmLeitura | null = null;
 
@@ -115,6 +118,7 @@ const lerConteudo = (zip: ZipAberto, selecao: Selecao, limites: Limites): Result
       ocultaAtual = visibilidade !== undefined && visibilidade !== 'visible';
       coluna = 1;
       celulasDaLinha = new Map();
+      linhaComConteudo = false;
       mesclasDaLinha = [];
     } else if (nome === 'table:table-cell' || nome === 'table:covered-table-cell') {
       celula = {
@@ -159,8 +163,14 @@ const lerConteudo = (zip: ZipAberto, selecao: Selecao, limites: Limites): Result
 
   const fecharCelula = (c: CelulaEmLeitura): void => {
     const pronta = montarCelula(c);
-    if (pronta !== null && temConteudo(pronta)) utilizavel = true;
-    if (pronta !== null && coletor !== null) {
+    const comConteudo = pronta !== null && temConteudo(pronta);
+    if (comConteudo) {
+      utilizavel = true;
+      linhaComConteudo = true;
+    }
+    // Célula sem conteúdo repetida (tipada sem texto, só espaços) não é materializada: até 16.384
+    // entradas por elemento, sem nada que conte nos tetos, viram laço quente em linhas repetidas.
+    if (pronta !== null && coletor !== null && (comConteudo || c.repeticoes === 1)) {
       for (let k = 0; k < c.repeticoes; k++) {
         if (coluna + k > limites.colunas) throw excedido('COLUNAS');
         celulasDaLinha.set(coluna + k, pronta);
@@ -170,18 +180,20 @@ const lerConteudo = (zip: ZipAberto, selecao: Selecao, limites: Limites): Result
   };
 
   const fecharLinha = (): void => {
-    if (coletor === null || (celulasDaLinha.size === 0 && mesclasDaLinha.length === 0)) {
+    // Sem conteúdo nem mescla, a repetição não produz nada (o Coletor descartaria cada linha depois de
+    // varrer as células): só avança o contador. Com conteúdo, cada repetição conta nos tetos.
+    if (coletor === null || (!linhaComConteudo && mesclasDaLinha.length === 0)) {
       linha += repeticoesDaLinha;
       return;
     }
     for (let r = 0; r < repeticoesDaLinha; r++) {
       const numero = linha + r;
       if (numero > ULTIMA_LINHA) {
-        if (celulasDaLinha.size > 0) throw corrompido('REFERENCIA_INVALIDA');
+        if (linhaComConteudo) throw corrompido('REFERENCIA_INVALIDA');
         break;
       }
       for (const [col, colunas, linhas] of mesclasDaLinha) coletor.mesclar(col, numero, col + colunas - 1, numero + linhas - 1);
-      coletor.fecharLinha(numero, ocultaAtual, celulasDaLinha);
+      if (linhaComConteudo) coletor.fecharLinha(numero, ocultaAtual, celulasDaLinha);
     }
     linha += repeticoesDaLinha;
   };
