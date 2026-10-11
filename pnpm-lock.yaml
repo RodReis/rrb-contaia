@@ -59,9 +59,6 @@ importers:
       bullmq:
         specifier: 6.3.11
         version: 6.3.11(ioredis@5.11.1)(pg@8.23.0)
-      csv-parse:
-        specifier: ^7.0.3
-        version: 7.0.3
       ioredis:
         specifier: 5.11.1
         version: 5.11.1
