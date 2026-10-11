@@ -85,7 +85,11 @@ import {
 } from './fixtures/plano-contas';
 
 const ESCOPO = process.env['PROVA_ESCOPO'] ?? 'local';
-const PASTA_DAS_PROVAS = resolve(`test-results/${ESCOPO}/e2e/provas`);
+// Subpasta própria fora do escopo SPEC-014 (como a spec-013): com o escopo de outra SPEC, a spec-015
+// grava em `provas/` e roda em paralelo; a limpeza dos `.png` desta spec não pode apagar as dela.
+const PASTA_DAS_PROVAS = resolve(
+  ESCOPO === 'SPEC-014' ? `test-results/${ESCOPO}/e2e/provas` : `test-results/${ESCOPO}/e2e/provas/spec-014`,
+);
 const FILA = 'empregados-validacao';
 
 const CNPJ_DO_ESCRITORIO = cnpjValido('141414140001');
