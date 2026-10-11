@@ -373,7 +373,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] **API**: `POST …/{plano-contas|empregados}/planilhas/inspecao`, sem estado (abas, aba efetiva, cabeçalho sugerido ou escolhido, colunas por letra, amostra, ignoradas, ocultas e mescla no cabeçalho); envio com `aba` + `linhaCabecalho` e mapeamento por letra, revalidado antes do storage; `GET …/modelo?formato=csv|xlsx|ods`; limitador de 2 leituras por processo (503 `SERVICO_OCUPADO` com `Retry-After: 5`)
 - [x] **Workers**: o mesmo leitor no filho, com limitador de 2 leituras por processo e fila; fórmula ou mescla em coluna mapeada rejeitam só a linha, e a linha oculta é processada e contada. Defeito do arquivo → REJEITADA sem retry; falha técnica do filho → retry até FALHA
 - [ ] **UI** (implementada; falta o acabamento): formatos aceitos e modelos oficiais CSV/XLSX/ODS junto do envio; aba (automática quando única), linha do cabeçalho sobre a amostra, resumo de ignoradas e ocultas, mapeamento por letra ("Coluna C — Nome"), estados de leitura, de planilha que não pode ser usada e de serviço ocupado; grupo "Planilha lida" na prévia e configuração no histórico. `frontend-design` na construção. **Ainda não feitos:** o passe `impeccable` sobre a UI viva e a onda final de menores, que o controlador fará depois da prova E2E; este item fica aberto até lá
-- [x] **E2E da spec-015: 16/16; com as specs 013 (18/18) e 014 (20/20) em paralelo (`--workers=2`, como na CI): 54/54** (`tests/e2e/spec-015-importacao-planilhas.spec.ts`, `fixtures/planilhas.ts`, `packages/planilhas/fixtures/*-libreoffice.{xlsx,ods}`):
+- [x] **E2E da spec-015: 16/16; na cadeia de projetos com as specs 013 (18/18) e 014 (20/20), uma spec por vez: 54/54 em 4,9 min** (`tests/e2e/spec-015-importacao-planilhas.spec.ts`, `fixtures/planilhas.ts`, `packages/planilhas/fixtures/*-libreoffice.{xlsx,ods}`):
   - uma jornada XLSX e uma ODS por domínio, com planilhas regravadas pelo LibreOffice, até base, relatório e histórico;
   - modelos XLSX/ODS baixados pela tela e importados de volta;
   - equivalência CSV × XLSX × ODS nos dois domínios;
@@ -390,7 +390,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
   - `test:banco` (API e workers do Compose parados): db 486, API 65, workers 83, signer 41;
   - `build`: 10/10;
   - E2E com `tsc` estrito (tsconfig temporário) em spec-013, spec-014, spec-015 e fixtures: limpo
-- [x] **Suíte E2E inteira local** (`CI=1`, 2 workers, banco recriado e semeado): 145/145 em 6,1 min
+- [x] **Suíte E2E inteira local** (`CI=1`, 2 workers, banco recriado e semeado): 145/145 em 8,2 min com as specs de importação encadeadas (antes do encadeamento: 145/145 em 6,1 min)
 - [ ] **not_run**:
   - abertura dos modelos no **Excel** real: sem Excel na máquina. No **LibreOffice** (`soffice --headless --convert-to csv`), os quatro modelos baixados pela tela (`modelo-plano-de-contas.{xlsx,ods}`, `modelo-empregados.{xlsx,ods}`) abrem com o cabeçalho e a linha de exemplo do CSV, com zeros e máscara preservados (`00123`, `529.982.247-25`);
   - `check:signer-infra`: não pedido nesta fatia; roda na CI;
