@@ -5,6 +5,7 @@
  * mas acionável, sempre acompanhada do `correlationId`.
  */
 import { CODIGOS_DE_ERRO } from '@contaia/domain';
+import { MENSAGEM_DO_ERRO_DE_PLANILHA } from '@contaia/shared';
 
 const MENSAGENS: Readonly<Record<string, string>> = {
   [CODIGOS_DE_ERRO.CNPJ_INVALIDO]: 'CNPJ inválido',
@@ -111,6 +112,11 @@ const MENSAGENS: Readonly<Record<string, string>> = {
     'O cabeçalho do arquivo está ausente, repetido ou em branco. Confira a primeira linha.',
   [CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO]:
     'Associe todas as colunas obrigatórias do arquivo antes de continuar.',
+  // Importação de planilhas XLSX/ODS (SPEC-015 §3.10): as frases fixas do contrato, que já dizem o
+  // que corrigir no arquivo ou na seleção. Só a da planilha sem aba utilizável ganha o "o que fazer".
+  ...MENSAGEM_DO_ERRO_DE_PLANILHA,
+  PLANILHA_SEM_ABA_UTILIZAVEL:
+    'A planilha não tem nenhuma aba com dados utilizáveis. Confira se os dados estão numa aba com cabeçalho e linhas preenchidas e envie de novo.',
   FALHA_DE_REDE: 'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',
   HTTP_401: 'Sua sessão expirou. Entre novamente para continuar.',
   HTTP_403: 'Você não tem alçada para esta ação.',
