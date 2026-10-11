@@ -30,7 +30,8 @@ export interface ZipAberto {
   /**
    * Descompacta a entrada (`undefined` se não existe). Nunca produz mais que o tamanho declarado:
    * declarado acima de `teto` → limite; expansão além do declarado → limite (bomba com tamanho
-   * mentiroso); tamanho ou CRC divergentes → corrompido.
+   * mentiroso); tamanho ou CRC divergentes → corrompido. Toda leitura (inclusive a repetida da mesma
+   * parte) soma no orçamento do arquivo: passou do teto total → limite, antes de descompactar.
    */
   ler(nome: string, teto?: number): Buffer | undefined;
 }
@@ -104,6 +105,7 @@ export const abrirZip = (bytes: Uint8Array, limites: Limites = LIMITES): ZipAber
     p = proximo;
   }
 
+  let inflados = 0;
   return {
     nomes: [...entradas.keys()],
     tem: (nome) => entradas.has(nome),
@@ -111,7 +113,8 @@ export const abrirZip = (bytes: Uint8Array, limites: Limites = LIMITES): ZipAber
     ler: (nome, teto = limites.bytesPorParte) => {
       const e = entradas.get(nome);
       if (e === undefined) return undefined;
-      if (e.tamanho > teto) throw excedido('ZIP_BOMBA');
+      if (e.tamanho > teto || inflados + e.tamanho > limites.bytesNoTotal) throw excedido('ZIP_BOMBA');
+      inflados += e.tamanho;
       const cru = b.subarray(e.inicioDosDados, e.inicioDosDados + e.comprimido);
       let dados: Buffer;
       try {

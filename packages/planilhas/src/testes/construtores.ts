@@ -124,6 +124,27 @@ export const entradaBomba = (nome: string, mib: number, tamanhoDeclarado?: numbe
   return { nome, comprimido: Buffer.concat(pedacos), crc, tamanho: tamanhoDeclarado ?? mib * MIB, metodo: 8 };
 };
 
+/**
+ * Parte XML grande e válida de verdade (`cabeca` + `mib` × 1 MiB de `unidade` + `cauda`), comprimida
+ * sem materializar: cada trecho é um deflate com flush total, então os pedaços podem ser concatenados.
+ */
+export const entradaXmlGrande = (nome: string, cabeca: string, unidade: string, mib: number, cauda: string): EntradaCrua => {
+  const flush = { finishFlush: constants.Z_FULL_FLUSH };
+  const inicio = Buffer.from(cabeca, 'utf8');
+  const bloco = Buffer.from(unidade.repeat(Math.ceil(MIB / unidade.length)).slice(0, MIB), 'utf8');
+  const fim = Buffer.from(cauda, 'utf8');
+  const pedacoDoBloco = deflateRawSync(bloco, flush);
+  const pedacos: Buffer[] = [deflateRawSync(inicio, flush)];
+  let crc = crc32(inicio);
+  for (let i = 0; i < mib; i++) {
+    pedacos.push(pedacoDoBloco);
+    crc = crc32(bloco, crc);
+  }
+  pedacos.push(deflateRawSync(fim));
+  crc = crc32(fim, crc);
+  return { nome, comprimido: Buffer.concat(pedacos), crc, tamanho: inicio.length + mib * bloco.length + fim.length, metodo: 8 };
+};
+
 export const entradaCrua = (nome: string, dados: string | Uint8Array, mudar: Partial<EntradaCrua> = {}): EntradaCrua => {
   const bytes = typeof dados === 'string' ? Buffer.from(dados, 'utf8') : Buffer.from(dados);
   return { nome, comprimido: deflateRawSync(bytes), crc: crc32(bytes), tamanho: bytes.length, metodo: 8, ...mudar };

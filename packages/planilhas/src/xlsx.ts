@@ -84,7 +84,14 @@ const abrirPasta = (zip: ZipAberto, limites: Limites): PastaXlsx => {
     if (alvo === undefined) throw corrompido('PARTE_AUSENTE');
     return { nome: a.nome, caminho: alvo };
   });
-  return { abas, date1904, caminhoDosTextos: porTipo(rels, '/sharedStrings'), caminhoDosEstilos: porTipo(rels, '/styles') };
+  const caminhoDosTextos = porTipo(rels, '/sharedStrings');
+  const caminhoDosEstilos = porTipo(rels, '/styles');
+  // Cada aba, os textos e os estilos são partes distintas em qualquer pasta gerada pelo Excel ou pelo
+  // LibreOffice. Duas referências à mesma parte só servem para multiplicar o trabalho (a mesma parte
+  // de 120 MiB lida uma vez por aba): o arquivo é recusado antes de descompactar qualquer parte.
+  const papeis = [...abas.map((a) => a.caminho), caminhoDosTextos, caminhoDosEstilos].filter((c) => c !== undefined);
+  if (new Set(papeis).size !== papeis.length) throw corrompido('REFERENCIA_INVALIDA');
+  return { abas, date1904, caminhoDosTextos, caminhoDosEstilos };
 };
 
 /** Acumula texto com o teto por célula, sem concatenar além dele. */
