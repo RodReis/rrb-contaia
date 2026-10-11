@@ -24,6 +24,7 @@ export const DETALHES_DO_ERRO = [
   'TAMANHO',
   'XLS',
   'XLSM',
+  'XLSB',
   'CFB_CIFRADO',
   'ODS_CIFRADO',
   'ENTRADA_CIFRADA',

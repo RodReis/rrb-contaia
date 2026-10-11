@@ -17,7 +17,8 @@ const TIPO_PRINCIPAL_XLSX = 'application/vnd.openxmlformats-officedocument.sprea
 /** O que o arquivo é de verdade, decidido pelos bytes (nunca pela extensão). */
 export type ConteudoReal =
   | { readonly tipo: 'XLSX' | 'ODS'; readonly zip: ZipAberto }
-  | { readonly tipo: 'XLSM' | 'XLS' | 'VAZIO' | 'NAO_PLANILHA' }
+  | { readonly tipo: 'XLS' | 'VAZIO' | 'NAO_PLANILHA' }
+  | { readonly tipo: 'XLSM'; readonly detalhe: 'XLSM' | 'XLSB' }
   | { readonly tipo: 'CIFRADO'; readonly detalhe: 'CFB_CIFRADO' | 'ODS_CIFRADO' };
 
 const temElemento = (dados: Buffer | undefined, nomeLocal: string): boolean => {
@@ -56,7 +57,9 @@ const classificarZip = (bytes: Uint8Array, limites: Limites): ConteudoReal => {
 
   const tipos = zip.tem('[Content_Types].xml') ? tiposDeConteudo(zip.ler('[Content_Types].xml', teto) as Buffer) : null;
   if (tipos === null) return { tipo: 'NAO_PLANILHA' };
-  if (tipos.some((t) => /macroEnabled/iu.test(t)) || zip.nomes.some((n) => /(^|\/)vbaProject\.bin$/iu.test(n))) return { tipo: 'XLSM' };
+  // O .xlsb também declara `binary.macroEnabled`: o código público é o do XLSM; o detalhe separa no log.
+  if (tipos.some((t) => /sheet\.binary\.macroEnabled\.main/iu.test(t))) return { tipo: 'XLSM', detalhe: 'XLSB' };
+  if (tipos.some((t) => /macroEnabled/iu.test(t)) || zip.nomes.some((n) => /(^|\/)vbaProject\.bin$/iu.test(n))) return { tipo: 'XLSM', detalhe: 'XLSM' };
   return tipos.includes(TIPO_PRINCIPAL_XLSX) ? { tipo: 'XLSX', zip } : { tipo: 'NAO_PLANILHA' };
 };
 
@@ -77,7 +80,7 @@ export const identificarConteudo = (bytes: Uint8Array, limites: Limites = LIMITE
 const recusarPeloConteudo = (real: ConteudoReal): void => {
   if (real.tipo === 'VAZIO') throw new ErroDePlanilha('ARQUIVO_VAZIO', 'VAZIO');
   if (real.tipo === 'XLS') throw new ErroDePlanilha('FORMATO_XLS_NAO_SUPORTADO', 'XLS');
-  if (real.tipo === 'XLSM') throw new ErroDePlanilha('FORMATO_XLSM_NAO_SUPORTADO', 'XLSM');
+  if (real.tipo === 'XLSM') throw new ErroDePlanilha('FORMATO_XLSM_NAO_SUPORTADO', real.detalhe);
   if (real.tipo === 'CIFRADO') throw new ErroDePlanilha('ARQUIVO_PROTEGIDO_OU_CRIPTOGRAFADO', real.detalhe);
 };
 

@@ -64,6 +64,20 @@ describe('detectarFormato — formato pelo conteúdo, nunca pela extensão', () 
     esperarErro(() => detectarFormato(XLSX, '.xlsm'), 'FORMATO_XLSM_NAO_SUPORTADO');
   });
 
+  it('.xlsb (binário, content type binary.macroEnabled) → FORMATO_XLSM_NAO_SUPORTADO, com detalhe XLSB para o log', () => {
+    const xlsb = escreverZip([
+      {
+        nome: '[Content_Types].xml',
+        dados:
+          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/xl/workbook.bin" ContentType="application/vnd.ms-excel.sheet.binary.macroEnabled.main"/></Types>',
+      },
+      { nome: 'xl/workbook.bin', dados: new Uint8Array(32) },
+    ]);
+    esperarErro(() => detectarFormato(xlsb, '.xlsx'), 'FORMATO_XLSM_NAO_SUPORTADO', 'XLSB');
+    esperarErro(() => detectarFormato(xlsb, '.xlsb'), 'FORMATO_XLSM_NAO_SUPORTADO', 'XLSB');
+    esperarErro(() => detectarFormato(xlsx({ macro: true }), '.xlsx'), 'FORMATO_XLSM_NAO_SUPORTADO', 'XLSM');
+  });
+
   it('OOXML cifrado (CFB com EncryptedPackage/EncryptionInfo) → ARQUIVO_PROTEGIDO_OU_CRIPTOGRAFADO', () => {
     esperarErro(() => detectarFormato(cfb('EncryptionInfo', 'EncryptedPackage'), '.xlsx'), 'ARQUIVO_PROTEGIDO_OU_CRIPTOGRAFADO', 'CFB_CIFRADO');
     esperarErro(() => detectarFormato(cfb('EncryptedPackage'), '.ods'), 'ARQUIVO_PROTEGIDO_OU_CRIPTOGRAFADO');
