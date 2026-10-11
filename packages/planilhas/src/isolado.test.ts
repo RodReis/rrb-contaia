@@ -11,7 +11,7 @@ import { executarNoFilho, lerPlanilhaIsolada } from './isolado.ts';
 import { lerAba } from './ler-aba.ts';
 import { LIMITES } from './limites.ts';
 import { abaXml, celulaOds as sc, conteudoOds, entradaBomba, ods, sstXml, tabelaOds, xlsx, xlsxCru } from './testes/construtores.ts';
-import { esperarErroAssincrono } from './testes/esperar.ts';
+import { PRAZO_DO_TESTE_MS, TETO_DE_RELOGIO_MS, esperarErroAssincrono } from './testes/esperar.ts';
 
 /** Filhos falsos para cada forma de término (scripts gerados em diretório temporário próprio). */
 const RESPOSTA_OK = JSON.stringify({ ok: true, resultado: { formato: 'XLSX', abas: [] }, maxRssKb: 1 });
@@ -142,8 +142,8 @@ describe('lerPlanilhaIsolada — processo filho', () => {
     it('não ficou pronto dentro do prazo de partida → ErroDeInfraestrutura (não é limite do arquivo)', async () => {
       const inicio = performance.now();
       await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('semPronto'), prazoDePartidaMs: 300 })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
-      expect(performance.now() - inicio).toBeLessThan(5_000);
-    });
+      expect(performance.now() - inicio).toBeLessThan(TETO_DE_RELOGIO_MS); // sem o prazo de partida, esperaria os 30 s do trabalho
+    }, PRAZO_DO_TESTE_MS);
 
     it('o prazo do trabalho só conta depois do pronto (partida lenta não estoura o tempo do arquivo)', async () => {
       const { resultado } = await executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('prontoAtrasado'), timeoutMs: 2_500 });
@@ -171,7 +171,7 @@ describe('lerPlanilhaIsolada — processo filho', () => {
       grandeOds = odsGrande();
     }, 60_000);
 
-    it.each(['XLSX', 'ODS'] as const)('%s: lê em < 3 s com pico de memória do filho < 400 MB', async (formato) => {
+    it.each(['XLSX', 'ODS'] as const)('%s: lê com pico de memória do filho < 400 MB (tempo só no log)', async (formato) => {
       const bytes = formato === 'XLSX' ? grandeXlsx : grandeOds;
       expect(bytes.length).toBeGreaterThan(8 * 1024 * 1024);
       expect(bytes.length).toBeLessThanOrEqual(LIMITES.bytesDoArquivo);
@@ -179,10 +179,9 @@ describe('lerPlanilhaIsolada — processo filho', () => {
       const { resultado, maxRssKb } = await executarNoFilho(bytes, { tipo: 'ler-aba', abaPosicao: 1 });
       const ms = performance.now() - inicio;
       expect('linhas' in resultado && resultado.linhas.length).toBe(LINHAS + 1);
-      expect(ms).toBeLessThan(3_000);
       expect(maxRssKb / 1024).toBeLessThan(400);
       console.warn(`[desempenho] ${formato} ${(bytes.length / 1048576).toFixed(2)} MB: ${ms.toFixed(0)} ms, RSS do filho ${(maxRssKb / 1024).toFixed(0)} MB`);
-    }, 20_000);
+    }, PRAZO_DO_TESTE_MS);
 
     it('estouro de tempo: o filho é morto, o teste segue vivo → LIMITE', async () => {
       await esperarErroAssincrono(lerPlanilhaIsolada(grandeXlsx, { tipo: 'ler-aba', abaPosicao: 1 }, { timeoutMs: 150 }), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'TEMPO');

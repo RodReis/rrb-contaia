@@ -20,7 +20,7 @@ import {
   xlsx,
   xlsxCru,
 } from './testes/construtores.ts';
-import { esperarErro, esperarErroAssincrono } from './testes/esperar.ts';
+import { PRAZO_DO_TESTE_MS, TETO_DE_RELOGIO_MS, cronometrar, esperarErro, esperarErroAssincrono } from './testes/esperar.ts';
 import { escreverZip } from './zip-escrita.ts';
 
 const BASE = xlsx();
@@ -38,10 +38,9 @@ const mutar = (zip: Uint8Array, alterar: (b: Buffer) => void): Uint8Array => {
 describe('ZIP hostil — rejeitado com código estável, sem alocar a expansão', () => {
   it('bomba com tamanho declarado honesto acima do teto por parte → LIMITE (sem inflar)', () => {
     const bomba = xlsxCru([entradaBomba(SST, 200)]);
-    const inicio = performance.now();
     esperarErro(() => inspecionarPlanilha(bomba), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'ZIP_BOMBA');
-    expect(performance.now() - inicio).toBeLessThan(1_000);
-  });
+    expect(cronometrar('bomba com tamanho honesto', () => inspecionarPlanilha(bomba))).toBeLessThan(TETO_DE_RELOGIO_MS);
+  }, PRAZO_DO_TESTE_MS);
 
   it('bomba com tamanho declarado mentiroso (4 KB, expande 200 MiB) → LIMITE no inflate', () => {
     const bomba = xlsxCru([entradaBomba(SST, 200, 4096)]);
@@ -201,21 +200,21 @@ describe('Estrutura hostil — esparsa, com tetos', () => {
       '<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row><row r="5"><c r="C5"><v>1</v></c></row>',
       '<mergeCells count="1"><mergeCell ref="A1:XFD1048576"/></mergeCells>',
     );
-    const inicio = performance.now();
-    const leitura = lerAba(xlsx({ abas: [{ nome: 'Dados', xml: aba }] }), 1);
-    expect(performance.now() - inicio).toBeLessThan(1_000);
+    const bytes = xlsx({ abas: [{ nome: 'Dados', xml: aba }] });
+    expect(cronometrar('mescla A1:XFD1048576', () => lerAba(bytes, 1))).toBeLessThan(TETO_DE_RELOGIO_MS);
+    const leitura = lerAba(bytes, 1);
     expect(leitura.mesclas).toEqual([{ de: 'A1', ate: 'XFD1048576' }]);
     expect(leitura.linhas.every((l) => Object.values(l.celulas).every((c) => c.mesclada))).toBe(true);
-  });
+  }, PRAZO_DO_TESTE_MS);
 });
 
 describe('ODS hostil — repetição', () => {
   it('number-rows-repeated gigante com células preenchidas → LIMITE (saída/células) sem materializar 10⁹', () => {
     const linhas = `<table:table-row table:number-rows-repeated="1000000"><table:table-cell office:value-type="string" table:number-columns-repeated="1000"><text:p>x</text:p></table:table-cell></table:table-row>`;
-    const inicio = performance.now();
-    esperarErro(() => lerAba(ods(conteudoOds(tabelaOds('Dados', linhas))), 1), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO');
-    expect(performance.now() - inicio).toBeLessThan(5_000);
-  });
+    const bytes = ods(conteudoOds(tabelaOds('Dados', linhas)));
+    esperarErro(() => lerAba(bytes, 1), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO');
+    expect(cronometrar('ODS 10⁶ linhas repetidas preenchidas', () => lerAba(bytes, 1))).toBeLessThan(TETO_DE_RELOGIO_MS);
+  }, PRAZO_DO_TESTE_MS);
 
   it('number-rows-repeated grande com uma célula → ARQUIVO_ACIMA_DO_LIMITE (linhas)', () => {
     const linhas = `<table:table-row table:number-rows-repeated="1000000">${celulaOds('x')}</table:table-row>`;

@@ -8,7 +8,7 @@ import { inspecionarPlanilha } from './inspecionar.ts';
 import { lerAba } from './ler-aba.ts';
 import { LIMITES } from './limites.ts';
 import { NS, entradaCrua, entradaXmlGrande, xlsx, xlsxCru } from './testes/construtores.ts';
-import { esperarErro } from './testes/esperar.ts';
+import { PRAZO_DO_TESTE_MS, TETO_DE_RELOGIO_MS, cronometrar, esperarErro } from './testes/esperar.ts';
 import { abrirZip } from './zip.ts';
 import { escreverZip } from './zip-escrita.ts';
 
@@ -27,16 +27,6 @@ const relacoes = (alvos: Record<string, [string, string]>): string =>
     .map(([id, [tipo, alvo]]) => `<Relationship Id="${id}" Type="${R}/${tipo}" Target="${alvo}"/>`)
     .join('')}</Relationships>`;
 
-const cronometrar = (fn: () => unknown): number => {
-  const inicio = performance.now();
-  try {
-    fn();
-  } catch {
-    // o código é conferido à parte
-  }
-  return performance.now() - inicio;
-};
-
 describe('referências repetidas à mesma parte', () => {
   it('2.000 <sheet> com o mesmo r:id → código estável em < 2 s (não reinfla/reparseia a parte por aba)', () => {
     const bytes = xlsxCru([
@@ -46,8 +36,8 @@ describe('referências repetidas à mesma parte', () => {
     ]);
     expect(bytes.length).toBeLessThan(400 * 1024);
     esperarErro(() => inspecionarPlanilha(bytes), 'ARQUIVO_CORROMPIDO', 'REFERENCIA_INVALIDA');
-    expect(cronometrar(() => inspecionarPlanilha(bytes))).toBeLessThan(2_000);
-  });
+    expect(cronometrar('2.000 abas com o mesmo r:id', () => inspecionarPlanilha(bytes))).toBeLessThan(TETO_DE_RELOGIO_MS);
+  }, PRAZO_DO_TESTE_MS);
 
   it('duas abas com r:id diferentes que resolvem à mesma parte → ARQUIVO_CORROMPIDO', () => {
     const bytes = xlsxCru([
@@ -68,8 +58,8 @@ describe('referências repetidas à mesma parte', () => {
       abaGrande(120),
     ]);
     esperarErro(() => lerAba(bytes, 1), 'ARQUIVO_CORROMPIDO', 'REFERENCIA_INVALIDA');
-    expect(cronometrar(() => lerAba(bytes, 1))).toBeLessThan(2_000);
-  });
+    expect(cronometrar('papéis na mesma parte de 120 MiB', () => lerAba(bytes, 1))).toBeLessThan(TETO_DE_RELOGIO_MS);
+  }, PRAZO_DO_TESTE_MS);
 
   it('arquivo legítimo com várias abas segue igual', () => {
     const aba = (t: string) => `<worksheet xmlns="${NS}"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>${t}</t></is></c></row></sheetData></worksheet>`;

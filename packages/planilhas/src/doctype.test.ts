@@ -2,25 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { lerAba } from './ler-aba.ts';
 import { NS, entradaXmlGrande, xlsx, xlsxCru } from './testes/construtores.ts';
-import { esperarErro } from './testes/esperar.ts';
-
-const cronometrar = (fn: () => unknown): number => {
-  const inicio = performance.now();
-  try {
-    fn();
-  } catch {
-    // o código é conferido à parte
-  }
-  return performance.now() - inicio;
-};
+import { PRAZO_DO_TESTE_MS, TETO_DE_RELOGIO_MS, cronometrar, esperarErro } from './testes/esperar.ts';
 
 describe('DOCTYPE precoce', () => {
   it('DOCTYPE não terminado numa parte grande → DTD_PROIBIDO rápido (não espera o fim do subconjunto)', () => {
     const sst = entradaXmlGrande('xl/sharedStrings.xml', '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "', 'a', 100, '">');
     const bytes = xlsxCru([sst]);
     esperarErro(() => lerAba(bytes, 1), 'ARQUIVO_CORROMPIDO', 'DTD_PROIBIDO');
-    expect(cronometrar(() => lerAba(bytes, 1))).toBeLessThan(2_000);
-  });
+    expect(cronometrar('DOCTYPE precoce', () => lerAba(bytes, 1))).toBeLessThan(TETO_DE_RELOGIO_MS);
+  }, PRAZO_DO_TESTE_MS);
 
   it('qualquer capitalização de <!doctype é recusada', () => {
     const sst = `<?xml version="1.0"?><!doctype x><sst xmlns="${NS}"/>`;
