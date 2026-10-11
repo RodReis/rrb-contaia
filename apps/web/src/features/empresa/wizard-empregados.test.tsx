@@ -23,6 +23,7 @@ import {
 } from '../empregados/empregados.fixtures';
 import { criarBackend as criarBackendDoPlano } from '../plano-contas/plano-contas.fixtures';
 import type { VisaoDaEmpresa } from './api';
+import { EtapaDePlanoDeContas } from './etapa-plano-de-contas';
 import { PaginaDaEmpresa } from './pagina-da-empresa';
 
 vi.mock('next/navigation', async () => {
@@ -213,5 +214,38 @@ describe('etapa de empregados', () => {
     expect(screen.queryByLabelText('Arquivo CSV dos empregados')).not.toBeInTheDocument();
     await usuario.click(screen.getByRole('button', { name: 'Concluir' }));
     expect(foiPara('/empresas')).toBe(true);
+  });
+});
+
+describe('plano de contas com a sessão a caminho', () => {
+  it('não deixa sair antes de saber se a etapa de empregados vem a seguir', async () => {
+    const usuario = userEvent.setup();
+    empresaNoServidor = visao('ATIVA');
+    let liberarSessao: () => void = () => undefined;
+    const sessaoPronta = new Promise<void>((resolver) => {
+      liberarSessao = resolver;
+    });
+    const rotear = vi.mocked(fetch).getMockImplementation();
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).endsWith('/api/proxy/usuarios/eu')) {
+        await sessaoPronta;
+      }
+
+      return rotear === undefined ? Promise.reject(new Error('fetch sem dublê')) : rotear(url, init);
+    });
+    const aoSeguir = vi.fn();
+    render(<EtapaDePlanoDeContas empresaId={EMPRESA} aoSeguirParaEmpregados={aoSeguir} />, { wrapper: Provedor });
+
+    const continuar = await screen.findByRole('button', { name: 'Continuar sem importar' });
+    expect(continuar).toBeDisabled();
+    await usuario.click(continuar);
+    expect(foiPara('/empresas')).toBe(false);
+
+    liberarSessao();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar sem importar' })).toBeEnabled());
+    await usuario.click(screen.getByRole('button', { name: 'Continuar sem importar' }));
+
+    expect(aoSeguir).toHaveBeenCalledTimes(1);
+    expect(foiPara('/empresas')).toBe(false);
   });
 });

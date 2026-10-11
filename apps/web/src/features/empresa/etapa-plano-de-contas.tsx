@@ -91,6 +91,9 @@ export const EtapaDePlanoDeContas = ({
   // Enquanto o plano não chegou, o aviso não aparece: não se promete nem se nega a pendência.
   const pendenciaAberta = !aplicouAgora && plano !== undefined && plano.total === 0;
   const seguirParaEmpregados = consultaEmpregados(sessao);
+  // Sem a sessão, ainda não se sabe se a etapa de empregados vem a seguir: sair agora levaria à
+  // lista e pularia a etapa. O caminho fica travado até a resposta (ou o erro) da sessão.
+  const saidaIndefinida = carregandoSessao && sessao === undefined;
   const sair = (): void => (seguirParaEmpregados ? aoSeguirParaEmpregados() : navegador.push('/empresas'));
   const etapas = seguirParaEmpregados
     ? [...ETAPAS_CONCLUIDAS_DO_CADASTRO, ETAPA_DO_PLANO, ETAPA_DE_EMPREGADOS]
@@ -150,17 +153,17 @@ export const EtapaDePlanoDeContas = ({
 
           <div className="flex flex-wrap justify-end gap-sm">
             {semNadaAFazer && seguirParaEmpregados ? (
-              <Button onClick={sair}>
+              <Button disabled={saidaIndefinida} onClick={sair}>
                 Seguir para empregados
                 <ArrowRight aria-hidden="true" />
               </Button>
             ) : semNadaAFazer ? (
-              <Button onClick={sair}>
+              <Button disabled={saidaIndefinida} onClick={sair}>
                 <Check aria-hidden="true" />
                 Concluir
               </Button>
             ) : (
-              <Button variante="contorno" onClick={sair}>
+              <Button variante="contorno" disabled={saidaIndefinida} onClick={sair}>
                 Continuar sem importar
               </Button>
             )}
