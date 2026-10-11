@@ -37,11 +37,22 @@ export const atributoLocal = (elemento: Elemento, nomeLocal: string): string | u
 };
 
 const PEDACO = 1024 * 1024;
+const DOCTYPE = /<!doctype/iu;
+// Tamanho de `<!doctype` menos um: o que precisa sobrar do pedaço anterior para pegar o marcador partido.
+const SOBRA_DO_MARCADOR = 8;
 
 /**
  * XML em fluxo com `saxes` (SAX estrito, sem DTD): qualquer DOCTYPE é recusado, entidade não
- * declarada é erro (nada é expandido nem buscado fora). O buffer descompactado é decodificado em
- * pedaços de 1 MiB, para não criar uma string do tamanho da parte inteira.
+ * declarada é erro (nada é expandido nem buscado fora).
+ *
+ * O buffer descompactado é decodificado e entregue ao `saxes` em pedaços de 1 MiB, mas isso não
+ * limita a memória por nó: o `saxes` acumula cada nó de texto ou valor de atributo inteiro antes de
+ * chamar o manipulador, e o teto de 32.767 caracteres por célula (`anexar`) só age depois. O limite
+ * real de um nó enorme é o heap do processo filho (e o teto de 128 MiB por parte).
+ *
+ * O DOCTYPE é recusado no prólogo assim que o texto `<!doctype` (qualquer capitalização) aparece,
+ * sem esperar o `saxes` montar o subconjunto interno. Depois que o elemento raiz abre, a busca para
+ * (um `<!DOCTYPE` literal num CDATA do primeiro pedaço ainda seria recusado — aceitável).
  */
 export const percorrerXml = (dados: Buffer, manipuladores: Manipuladores): void => {
   if ((dados[0] === 0xff && dados[1] === 0xfe) || (dados[0] === 0xfe && dados[1] === 0xff)) throw corrompido('CODIFICACAO');
@@ -61,6 +72,19 @@ export const percorrerXml = (dados: Buffer, manipuladores: Manipuladores): void 
     parser.on('cdata', texto);
   }
 
+  let raizAberta = false;
+  parser.on('opentagstart', () => {
+    raizAberta = true;
+  });
+  let sobra = '';
+  const conferirPrologo = (texto: string): string => {
+    if (!raizAberta) {
+      if (DOCTYPE.test(sobra + texto)) throw corrompido('DTD_PROIBIDO');
+      sobra = texto.slice(-SOBRA_DO_MARCADOR);
+    }
+    return texto;
+  };
+
   const decodificador = new TextDecoder('utf-8', { fatal: true });
   const decodificar = (pedaco?: Buffer): string => {
     try {
@@ -71,8 +95,8 @@ export const percorrerXml = (dados: Buffer, manipuladores: Manipuladores): void 
   };
 
   try {
-    for (let i = 0; i < dados.length; i += PEDACO) parser.write(decodificar(dados.subarray(i, i + PEDACO)));
-    parser.write(decodificar());
+    for (let i = 0; i < dados.length; i += PEDACO) parser.write(conferirPrologo(decodificar(dados.subarray(i, i + PEDACO))));
+    parser.write(conferirPrologo(decodificar()));
     parser.close();
   } catch (erro) {
     // Erros do saxes já chegam convertidos pelo manipulador de `error`; o resto é falha nossa e sobe.
