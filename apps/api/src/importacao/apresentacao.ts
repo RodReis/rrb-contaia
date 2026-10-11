@@ -22,6 +22,13 @@ export type TentativaApresentavel = Pick<
   | 'finalizadoEm'
   | 'correlationId'
   | 'reutilizadaPorIdempotencia'
+  // SPEC-015: configuração e leitura da planilha (no CSV, os padrões: formato CSV, sem aba, linha 1).
+  | 'formato'
+  | 'aba'
+  | 'linhaCabecalho'
+  | 'linhasIgnoradasAntesDoCabecalho'
+  | 'linhasOcultas'
+  | 'diagnosticosDaPlanilha'
 >;
 
 /**
@@ -93,5 +100,11 @@ export const montarPrevia = <Rejeicao>(
     podeCancelar: aguardando,
     relatorioDisponivel: relatorioDisponivel(tentativa),
     diagnostico: temDiagnostico(tentativa) ? diagnostico : null,
+    formato: tentativa.formato,
+    aba: tentativa.aba === null ? null : { ...tentativa.aba },
+    linhaCabecalho: tentativa.linhaCabecalho,
+    linhasIgnoradasAntesDoCabecalho: tentativa.linhasIgnoradasAntesDoCabecalho,
+    linhasOcultas: tentativa.linhasOcultas,
+    diagnosticosDaPlanilha: tentativa.diagnosticosDaPlanilha.map((diagnostico) => ({ ...diagnostico })),
   };
 };

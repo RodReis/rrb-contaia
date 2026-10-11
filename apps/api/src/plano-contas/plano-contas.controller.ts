@@ -13,7 +13,7 @@
 import { pipeline } from 'node:stream/promises';
 
 import { MODELO_CSV } from '@contaia/domain';
-import { LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES } from '@contaia/shared';
+import { LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES, tipoDeConteudoDoFormato } from '@contaia/shared';
 import {
   Body,
   Controller,
@@ -35,19 +35,20 @@ import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
+import { analisarCamposDePlanilha, analisarPedidoDeInspecao } from '../importacao/dto';
 import {
   CSV_UTF8,
   InterceptorDoArquivoDeImportacao,
-  MARCA_DE_ORDEM,
   comoAnexo as comoAnexoDeImportacao,
   contextoDa,
   exigirArquivo,
   type ArquivoMultipart,
 } from '../importacao/http';
+import { consultaDoModeloSchema, montarModelo } from '../importacao/modelos';
 import { analisarEnvio, confirmacaoSchema, consultaDoPlanoSchema, idDaTentativa, paginaSchema } from './plano-contas.dto';
 import { PlanoContasService } from './plano-contas.service';
 
-const NOME_DO_MODELO = 'modelo-plano-de-contas.csv';
+const NOME_DO_MODELO = 'modelo-plano-de-contas';
 
 /** Cabeçalho de download (ver `importacao/http.ts`), com o nome padrão do plano. */
 export const comoAnexo = (resposta: Response, tipo: string, nome: string): Response =>
@@ -60,14 +61,37 @@ export const InterceptorDoArquivoDoPlano = InterceptorDoArquivoDeImportacao(LIMI
 export class PlanoContasDaEmpresaController {
   constructor(private readonly planoContas: PlanoContasService) {}
 
-  /** Modelo oficial (§2): com BOM, para o Excel abrir em UTF-8. */
+  /** Modelo oficial (§2; SPEC-015 §3.1): `?formato=csv|xlsx|ods`, padrão CSV com BOM. */
   @Get('modelo')
   @ExigePermissao('empresas.plano_contas.baixar_relatorio')
-  modelo(@Res() resposta: Response): void {
-    comoAnexo(resposta, CSV_UTF8, NOME_DO_MODELO).send(`${MARCA_DE_ORDEM}${MODELO_CSV}`);
+  modelo(@Query() consulta: unknown, @Res() resposta: Response): void {
+    const modelo = montarModelo(MODELO_CSV, analisar(consultaDoModeloSchema, consulta).formato);
+
+    comoAnexo(resposta, modelo.tipoConteudo, `${NOME_DO_MODELO}.${modelo.extensao}`).send(modelo.conteudo);
   }
 
-  /** Envio: multipart com `arquivo` e `mapeamento` (JSON). A validação é assíncrona: 202. */
+  /**
+   * Inspeção sem estado da planilha (SPEC-015 §3.3–§3.4): multipart com `arquivo` e, opcionais,
+   * `aba` (posição) e `linhaCabecalho`. Nada é gravado; a permissão é a de importar.
+   */
+  @Post('planilhas/inspecao')
+  @HttpCode(200)
+  @ExigePermissao('empresas.plano_contas.importar')
+  @UseInterceptors(InterceptorDoArquivoDoPlano)
+  inspecionarPlanilha(
+    @Req() requisicao: RequisicaoAutenticada,
+    @UploadedFile() arquivo: ArquivoMultipart | undefined,
+    @Body() corpo: unknown,
+  ) {
+    const pedido = analisarPedidoDeInspecao(corpo);
+
+    return this.planoContas.inspecionarPlanilha(contextoDa(requisicao), exigirArquivo(arquivo), pedido);
+  }
+
+  /**
+   * Envio: multipart com `arquivo` e `mapeamento` (JSON); na planilha, também `aba` e
+   * `linhaCabecalho`, e o mapeamento aponta a LETRA da coluna. A validação é assíncrona: 202.
+   */
   @Post('importacoes')
   @HttpCode(202)
   @ExigePermissao('empresas.plano_contas.importar')
@@ -79,8 +103,9 @@ export class PlanoContasDaEmpresaController {
     @Body() corpo: unknown,
   ) {
     const mapeamento = analisarEnvio(corpo);
+    const planilha = analisarCamposDePlanilha(corpo);
 
-    return this.planoContas.enviar(contextoDa(requisicao), empresaId, exigirArquivo(arquivo), mapeamento);
+    return this.planoContas.enviar(contextoDa(requisicao), empresaId, exigirArquivo(arquivo, planilha), mapeamento);
   }
 
   @Get('importacoes')
@@ -140,7 +165,10 @@ export class PlanoContasDaEmpresaController {
     await pipeline(conteudo, resposta).catch(() => undefined);
   }
 
-  /** Arquivo original como foi enviado (§3.9): sem charset, porque a codificação é a do usuário. */
+  /**
+   * Arquivo original como foi enviado (§3.9), com o tipo do formato da tentativa (CSV sem charset,
+   * porque a codificação é a do usuário).
+   */
   @Get('importacoes/:tentativaId/arquivo')
   @ExigePermissao('empresas.plano_contas.baixar_relatorio')
   @Header('X-Content-Type-Options', 'nosniff')
@@ -152,7 +180,7 @@ export class PlanoContasDaEmpresaController {
   ): Promise<void> {
     const original = await this.planoContas.arquivoOriginal(contextoDa(requisicao), empresaId, idDaTentativa(tentativaId));
 
-    comoAnexo(resposta, 'text/csv', original.nome).send(original.conteudo);
+    comoAnexo(resposta, tipoDeConteudoDoFormato(original.formato), original.nome).send(original.conteudo);
   }
 
   @Post('importacoes/:tentativaId/confirmar')

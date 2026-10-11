@@ -16,6 +16,9 @@
  *    nunca é lido.
  * 4. **Empresa arquivada ou em cadastro é somente consulta** (SPEC-003 §3.5): enviar, confirmar e
  *    cancelar recusam; prévia, histórico, relatório e arquivo continuam disponíveis.
+ * 5. **Planilha (SPEC-015)**: XLSX/ODS são lidos em processo filho (`importacao/planilha.ts`) e
+ *    revalidados por inteiro (formato, aba, cabeçalho, mapeamento por letra) antes do storage; a
+ *    configuração (formato, aba, linha do cabeçalho) entra na identidade da tentativa.
  */
 import { createHash } from 'node:crypto';
 import { PassThrough, Readable } from 'node:stream';
@@ -35,11 +38,11 @@ import {
   type TotaisDaImportacao,
 } from '@contaia/db';
 import {
-  conteudoConfereComOTipo,
   lerCsv,
-  mensagemDaFalha,
-  validarArquivo,
+  tipoDeConteudoDoFormato,
+  type FormatoDeArquivo,
   type HistoricoDeImportacoes,
+  type InspecaoDePlanilha,
   type TipoDeArquivo,
 } from '@contaia/shared';
 import { Logger } from '@nestjs/common';
@@ -48,20 +51,37 @@ import type { Pool, PoolClient } from 'pg';
 import type { StorageService } from '../comum/storage.service';
 import { relatorioDisponivel, temDiagnostico, temResultadoDaValidacao, type TentativaApresentavel } from './apresentacao';
 import type { FilaDeValidacao } from './fila';
+import {
+  LEITURA_DE_PLANILHAS_DO_PROCESSO,
+  erroDePlanilha,
+  exigirConfiguracao,
+  formatoDoArquivo,
+  inspecionarPlanilha,
+  revalidarAba,
+  traduzirErroDoLeitor,
+  type CamposDePlanilhaInformados,
+  type ConfiguracaoDaTentativa,
+  type LeituraDePlanilhas,
+} from './planilha';
 
 /** Tenant e autor da sessão; `correlationId` da requisição. Nunca vêm do corpo. */
 export type ContextoDaImportacao = Readonly<{ tenantId: string; usuarioId: string; correlationId: string }>;
 
-export type ArquivoEnviado = Readonly<{ buffer: Buffer; nome: string; mimetype: string }>;
+/** `planilha`: `aba` e `linhaCabecalho` que vieram no multipart (o CSV os ignora). */
+export type ArquivoEnviado = Readonly<{
+  buffer: Buffer;
+  nome: string;
+  mimetype: string;
+  planilha?: CamposDePlanilhaInformados;
+}>;
 
 export type RelatorioDaImportacao = Readonly<{ nomeDoArquivo: string; conteudo: Readable }>;
 
-export type OriginalDaImportacao = Readonly<{ nome: string; conteudo: Buffer }>;
+export type OriginalDaImportacao = Readonly<{ nome: string; conteudo: Buffer; formato: FormatoDeArquivo }>;
 
 /** Amostra da prévia e páginas de rejeição. */
 export const ITENS_POR_PAGINA_DE_REJEICOES = 20;
 const LIMITE_DO_NOME_DO_ARQUIVO = 255;
-const TIPO_DO_ORIGINAL = 'text/csv';
 
 /** Código estável do evento de falha técnica na aplicação (nunca a mensagem da exceção). */
 export const CODIGO_DA_FALHA_NA_APLICACAO = 'FALHA_NA_APLICACAO';
@@ -136,8 +156,8 @@ export type EstrategiaDeImportacao<Tentativa extends TentativaOrquestrada, Rejei
   rotulo: string;
   tipoDoArquivo: TipoDeArquivo;
   nomePadraoDoArquivo: string;
-  /** Chave endereçada por conteúdo do original no storage. */
-  chaveDoOriginal(tenantId: string, empresaId: string, hash: string): string;
+  /** Chave endereçada por conteúdo do original no storage; a extensão é a do formato (`csv`, `xlsx`, `ods`). */
+  chaveDoOriginal(tenantId: string, empresaId: string, hash: string, extensao: string): string;
   /** Mapeamento canônico (identidade idempotente) ou `MAPEAMENTO_INCOMPLETO`. */
   validarMapeamento(informado: unknown, cabecalho: readonly string[]): MapeamentoDaImportacao;
   repositorio: RepositorioDaImportacao<Tentativa, Rejeicao>;
@@ -157,6 +177,8 @@ export type DependenciasDoOrquestrador = Readonly<{
   storage: Pick<StorageService, 'enviarComChave' | 'obter'>;
   fila: FilaDeValidacao;
   prazos?: PrazosDoRelatorio | undefined;
+  /** Leitor de planilhas e o limitador do processo (padrão: o filho real e o teto único do processo). */
+  leitura?: LeituraDePlanilhas | undefined;
   /** Único ponto que lê o relógio (I-11): o serviço repassa o seu, que os testes substituem. */
   agora: () => Date;
 }>;
@@ -190,33 +212,12 @@ const totaisFinais = (validacao: TotaisDaImportacao | null, aplicacao: Resultado
   rejeitadas: validacao?.rejeitadas ?? 0,
 });
 
-const recusarArquivo = (tipo: TipoDeArquivo, arquivo: ArquivoEnviado): void => {
-  const falha = validarArquivo(tipo, { tipoConteudo: arquivo.mimetype, tamanhoBytes: arquivo.buffer.byteLength });
-
-  if (falha === 'TAMANHO_EXCEDIDO') {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE, mensagemDaFalha(tipo, falha));
-  }
-
-  if (falha === 'ARQUIVO_VAZIO') {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_VAZIO, 'O arquivo está vazio.');
-  }
-
-  const campos = [{ campo: 'arquivo', codigo: CODIGOS_DE_ERRO.ARQUIVO_INVALIDO }] as const;
-
-  if (falha !== null) {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO, mensagemDaFalha(tipo, falha), campos);
-  }
-
-  // O `Content-Type` do multipart é declarado por quem envia: os bytes precisam parecer texto.
-  if (!conteudoConfereComOTipo(arquivo.mimetype, arquivo.buffer.subarray(0, 16))) {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO, mensagemDaFalha(tipo, 'CONTEUDO_NAO_CONFERE'), campos);
-  }
-};
-
 export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Rejeicao, Previa, PaginaDeRejeicoes> {
   private readonly logger: Logger;
 
   private readonly prazos: PrazosDoRelatorio;
+
+  private readonly leitura: LeituraDePlanilhas;
 
   constructor(
     private readonly estrategia: EstrategiaDeImportacao<Tentativa, Rejeicao, Previa, PaginaDeRejeicoes>,
@@ -225,6 +226,7 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
   ) {
     this.logger = new Logger(contextoDoLog);
     this.prazos = dependencias.prazos ?? { ociosidadeMs: OCIOSIDADE_MAXIMA_DO_RELATORIO_MS, totalMs: PRAZO_TOTAL_DO_RELATORIO_MS };
+    this.leitura = dependencias.leitura ?? LEITURA_DE_PLANILHAS_DO_PROCESSO;
   }
 
   private get repositorio(): RepositorioDaImportacao<Tentativa, Rejeicao> {
@@ -258,18 +260,20 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
   // -- Envio ------------------------------------------------------------------------------------
 
   async enviar(contexto: ContextoDaImportacao, empresaId: string, arquivo: ArquivoEnviado, informado: unknown): Promise<Previa> {
-    recusarArquivo(this.estrategia.tipoDoArquivo, arquivo);
-    const lido = lerCsv(arquivo.buffer);
-    const mapeamento = this.estrategia.validarMapeamento(informado, lido.cabecalho);
+    const formato = formatoDoArquivo(this.estrategia.tipoDoArquivo, arquivo);
+    const { mapeamento, configuracao } =
+      formato === 'CSV'
+        ? { mapeamento: this.estrategia.validarMapeamento(informado, lerCsv(arquivo.buffer).cabecalho), configuracao: null }
+        : await this.revalidarPlanilha(contexto, formato, arquivo, informado);
 
     // Antes do storage: arquivo recusado não deixa rastro (rechecado dentro da transação abaixo).
     await this.transacao(contexto, (cliente) => this.exigirEmpresaQueAceitaImportacao(cliente, empresaId));
 
     const hash = sha256(arquivo.buffer);
-    const chave = this.estrategia.chaveDoOriginal(contexto.tenantId, empresaId, hash);
+    const chave = this.estrategia.chaveDoOriginal(contexto.tenantId, empresaId, hash, formato.toLowerCase());
 
     try {
-      await this.dependencias.storage.enviarComChave(chave, arquivo.buffer, TIPO_DO_ORIGINAL);
+      await this.dependencias.storage.enviarComChave(chave, arquivo.buffer, tipoDeConteudoDoFormato(formato));
     } catch (erro) {
       this.logger.error(
         `falha ao guardar o original (${this.estrategia.rotulo}) [${contexto.correlationId}]: ${descreverFalha(erro)}`,
@@ -291,6 +295,8 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
         usuarioIniciadorId: contexto.usuarioId,
         correlationId: contexto.correlationId,
         agora,
+        // CSV fica com os padrões do banco (sem aba, cabeçalho na linha 1): identidade das F13/F14.
+        ...(configuracao ?? {}),
       });
 
       await this.repositorio.registrarEvento(
@@ -302,6 +308,20 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
           totais: criada.totais,
         }),
       );
+
+      // A escolha de aba e cabeçalho fica na própria tentativa (imutável depois do INSERT); o evento
+      // só marca a seleção na trilha, sem dado da planilha. Reuso não repete a seleção.
+      if (configuracao !== null && !criada.reutilizada) {
+        await this.repositorio.registrarEvento(
+          cliente,
+          this.evento(contexto, criada, agora, {
+            acao: 'SELECAO_DE_PLANILHA',
+            estadoAnterior: criada.estado,
+            estadoNovo: criada.estado,
+            totais: null,
+          }),
+        );
+      }
 
       return { tentativa: criada, previa: await this.montarPrevia(cliente, criada) };
     });
@@ -315,6 +335,62 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
     }
 
     return previa;
+  }
+
+  /**
+   * Planilha no envio: aba e cabeçalho obrigatórios (400), a aba lida no filho (na vaga do limitador)
+   * e tudo conferido antes do storage. Devolve o mapeamento canônico e a configuração da identidade.
+   */
+  private async revalidarPlanilha(
+    contexto: ContextoDaImportacao,
+    formato: Exclude<FormatoDeArquivo, 'CSV'>,
+    arquivo: ArquivoEnviado,
+    informado: unknown,
+  ): Promise<Readonly<{ mapeamento: MapeamentoDaImportacao; configuracao: ConfiguracaoDaTentativa }>> {
+    const { aba, linhaCabecalho } = exigirConfiguracao(arquivo.planilha);
+    const leitura = await this.lerPlanilha(contexto, () => this.leitura.leitor.lerAba(arquivo.buffer, aba));
+    const mapeamento = revalidarAba(leitura, linhaCabecalho, this.estrategia.validarMapeamento, informado);
+
+    return { mapeamento, configuracao: { formato, abaNome: leitura.aba.nome, abaPosicao: leitura.aba.posicao, linhaCabecalho } };
+  }
+
+  /** Leitura no filho dentro da vaga do limitador; o erro do leitor vira código estável (detalhe só no log). */
+  private async lerPlanilha<T>(contexto: ContextoDaImportacao, ler: () => Promise<T>): Promise<T> {
+    try {
+      return await this.leitura.limitador.executar(ler);
+    } catch (erro) {
+      if (erro instanceof ErroDeDominio) {
+        throw erro;
+      }
+
+      const traduzido = traduzirErroDoLeitor(erro);
+      const detalhe = (erro as { detalhe?: unknown }).detalhe;
+      const motivo =
+        traduzido.codigo === CODIGOS_DE_ERRO.SERVICO_OCUPADO ? descreverFalha(erro) : `${traduzido.codigo}/${String(detalhe ?? '-')}`;
+      this.logger.warn(`planilha não lida (${this.estrategia.rotulo}) [${contexto.correlationId}]: ${motivo}`);
+      throw traduzido;
+    }
+  }
+
+  // -- Inspeção (sem estado) ----------------------------------------------------------------------
+
+  /**
+   * Abas, aba escolhida, cabeçalho sugerido/escolhido, colunas, amostra e diagnósticos — nada é
+   * gravado (sem storage, tentativa nem evento). Só planilha: o CSV é mapeado na tela pelo cabeçalho.
+   */
+  async inspecionar(
+    contexto: ContextoDaImportacao,
+    arquivo: ArquivoEnviado,
+    pedido: CamposDePlanilhaInformados,
+  ): Promise<InspecaoDePlanilha> {
+    if (formatoDoArquivo(this.estrategia.tipoDoArquivo, arquivo) === 'CSV') {
+      throw erroDePlanilha(
+        CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,
+        'A inspeção é só para planilhas .xlsx e .ods; o CSV segue direto para o mapeamento.',
+      );
+    }
+
+    return this.lerPlanilha(contexto, () => inspecionarPlanilha(this.leitura.leitor, arquivo.buffer, pedido));
   }
 
   private async enfileirar(tentativa: Tentativa): Promise<void> {
@@ -506,7 +582,7 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
     const tentativa = await this.transacao(contexto, (cliente) => this.exigirTentativa(cliente, empresaId, tentativaId));
     const { conteudo } = await this.dependencias.storage.obter(tentativa.arquivoChave);
 
-    return { nome: tentativa.arquivoNome, conteudo };
+    return { nome: tentativa.arquivoNome, conteudo, formato: tentativa.formato };
   }
 
   /**
@@ -566,7 +642,7 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
     });
 
     const tentativa = await abertura;
-    const base = tentativa.arquivoNome.replace(/\.csv$/iu, '');
+    const base = tentativa.arquivoNome.replace(/\.(csv|xlsx|ods)$/iu, '');
 
     return { nomeDoArquivo: `relatorio-${base}.csv`, conteudo };
   }
