@@ -307,7 +307,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
   - etapa opcional `Empregados` no onboarding, depois do plano de contas;
   - pendência na Central e aviso no sino.
 
-  `frontend-design` na construção (T5). O passe `impeccable` fica para depois da prova E2E (controlador). A comparação com a referência `code.html` e os achados visuais estão no corpo da PR; um `COMPARACAO.md` local em `test-results/` (fora do Git) é só apoio
+  `frontend-design` na construção e passe `impeccable critique bolder animate colorize layout clarify optimize polish` no fim, sobre a UI viva (detector mecânico limpo). A comparação com a referência `code.html` e os achados visuais estão no corpo da PR; um `COMPARACAO.md` local em `test-results/` (fora do Git) é só apoio
 - [x] **E2E da spec-014: 20/20; spec-013: 18/18, as duas em paralelo como na CI** (`tests/e2e/spec-014-importacao-empregados.spec.ts`, `fixtures/empregados.ts`, `fixtures/empregados*.csv`):
   - jornada com CSV legado em Latin-1 até base, relatório e histórico, com `correlationId` no banco e no Redis;
   - o modelo do ContaIA baixado pelo botão e importado de volta com o mapeamento padrão;
@@ -332,7 +332,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] **Provas locais** (instância `contaia-f14`):
   - `lint` e `typecheck`: 14/14;
   - `test:regras`: domínio 679, shared 135, workers 132, API 1.110, cofre 176;
-  - `test:tela`: 927;
+  - `test:tela`: 935;
   - `test:banco`: db 461, API 51, workers 49;
   - `build`: 9/9.
 
@@ -340,7 +340,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [ ] **Suíte E2E inteira local**: 127 testes — 112 passaram, 1 falhou, 14 not_run (o processo do Playwright caiu com 0xC0000409 no Windows durante a spec-012; a spec-012 passou 15/15 isolada); a CI é quem decide
 - [ ] **not_run**:
   - `check:signer-infra`: não pedido nesta fatia; roda na CI;
-  - CI remota: a branch ainda não foi publicada
+  - CI remota: roda ao abrir a PR; o resultado fica na PR, não aqui
 - [ ] **Decisões para o PI confirmar**:
   1. Comparação da matrícula: `trim` + NFC, sensível a caixa e com zeros preservados (`00123` ≠ `123`).
   2. Datas aceitas: `dd/mm/aaaa` e `aaaa-mm-dd`, reais no calendário. `1/2/20`, `31/02/1990` e número serial do Excel são rejeitados, nunca interpretados.
@@ -350,6 +350,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
   6. Nome e matrícula sem limite de tamanho; o limite de 10 MB do arquivo é o teto.
   7. O `screen.png` da referência (`contaia_onboarding_de_clientes_importa_o_de_legados_rf_01`) está quebrado no repositório (28 bytes); a comparação usou o `code.html`.
   8. Onboarding: a etapa de empregados vem depois do plano de contas e só aparece para quem tem `consultar` em Empresas → Empregados.
+  9. Base de empregados: "Ativo" é um selo verde por linha (precedente: "Ativa" na carteira); alternativa é ambos os estados em selo neutro.
 - [ ] **Achados registrados e não corrigidos**:
   - **Tx1 do worker com falha determinística** (diferente de banco fora) deixa a tentativa em RECEBIDA, sem FALHA nem aviso. É a mesma limitação da F13: a máquina de estados não permite RECEBIDA → FALHA.
   - **`packages/db/src/notificacoes.integration.test.ts`** usa e-mails fixos e quebra depois de uma rodada interrompida. Sugestão: `[FIX]` separado.
@@ -359,7 +360,8 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
     2. restaurar `empresa_pendencia_origem_check` e `empresa_pendencia_tipo_check` às definições da 0015 (a 0016 não os altera): origem sem `EMPREGADOS` e tipo sem `EMPREGADOS_NAO_IMPORTADOS`;
     3. dropar as 6 tabelas, filhas antes das mães: `app.importacao_empregados_notificacao`, `app.importacao_empregados_evento`, `app.importacao_empregados_linha`, `app.importacao_empregados`, `app.empresa_empregados_versao`, `app.empregado`; com elas saem as policies, os índices e os triggers `escopo_imutavel` (um por tabela), `empregado_protegido`, `empresa_empregados_versao_protegida`, `importacao_empregados_protegida` e `importacao_empregados_evento_append_only`;
     4. dropar as 5 funções, depois das tabelas porque `data_civil_valida` é usada em CHECK da linha e as `proteger_*` por triggers: `app.proteger_empregado()`, `app.proteger_versao_do_agregado()`, `app.proteger_tentativa_de_importacao()`, `app.data_civil_valida(text)` e `app.admins_autorizados_da_empresa(uuid)`.
-  - **Lista para o passe `impeccable`** (ver corpo da PR): a coluna CPF da tabela de rejeições quebra caractere a caractere, "O que fazer" é cortado na borda, o nome do arquivo quebra no histórico e o selo "Arquivado" é mais alto que "Ativo".
+  - **Causa global do tamanho de texto (`cn()` + tailwind-merge sem configuração)**: `text-code-sm`/`text-label-sm`/`text-body-*` são tratados como cor e o tamanho é descartado quando há outra `text-*` na mesma chamada (20+ arquivos desde o MVP-1). Compensado só nos arquivos tocados; correção global (`extendTailwindMerge` com os tokens `--text-*`) fica para um `[FIX]` próprio, junto com o código `1.1.01.01` que ainda quebra na tabela de rejeições do plano de contas (F13).
+  - **Seguimentos sem card ainda**: busca por CPF exige termo com forma de CPF, mas termo numérico curto (matrícula `12`) ainda casa CPFs que contêm `12` (exigir ≥ 3 dígitos); índice único parcial `(tentativa_id, cpf, matrícula) WHERE VALIDA` como rede de segurança do staging; `main.ts` dos workers não fecha o 1º consumidor se o 2º falhar ao subir; `tests/e2e/spec-014-…` passa de 800 linhas (como a spec-013).
 - [ ] Fora da fatia: XLSX/ODS (F15), cargo, salário, vínculo, dependentes, folha, eSocial, IA, edição, arquivamento e reativação de empregado (MVP-3) e retenção produtiva
 
 ### Card #7 — `[MVP1][SPEC-006][F6]` Notificações de pendências (PR #51)
