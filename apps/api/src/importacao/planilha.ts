@@ -153,6 +153,32 @@ export const traduzirErroDoLeitor = (erro: unknown): ErroDeDominio => {
   throw erro;
 };
 
+/**
+ * Linha de log da falha do leitor, só com o que é estável e sem conteúdo: código/detalhe do
+ * `ErroDePlanilha`, ou classe/motivo do `ErroDeInfraestrutura` mais classe e `code` da causa. A
+ * mensagem nunca entra (a da causa pode trazer caminho, stderr do filho ou texto do arquivo).
+ */
+export const descreverFalhaDoLeitor = (erro: unknown): string => {
+  if (erro instanceof ErroDePlanilha) {
+    return `${erro.codigo}/${erro.detalhe ?? '-'}`;
+  }
+
+  if (!(erro instanceof Error)) {
+    return 'desconhecida';
+  }
+
+  const base = `${erro.name}/${erro instanceof ErroDeInfraestrutura ? (erro.motivo ?? '-') : '-'}`;
+  const causa = erro.cause;
+
+  if (!(causa instanceof Error)) {
+    return base;
+  }
+
+  const codigo = (causa as Error & { code?: unknown }).code;
+
+  return `${base} (causa: ${causa.name}${typeof codigo === 'string' && /^[A-Z0-9_]{1,40}$/u.test(codigo) ? ` ${codigo}` : ''})`;
+};
+
 // -- Formato --------------------------------------------------------------------------------------
 
 /** CSV: a mesma conferência das F13/F14, agora com o nome (`.xls`/`.xlsm` recusados pela extensão). */

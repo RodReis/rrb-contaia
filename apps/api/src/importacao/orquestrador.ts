@@ -37,6 +37,7 @@ import {
   type NovoEventoDeImportacao,
   type TotaisDaImportacao,
 } from '@contaia/db';
+import { ErroDeInfraestrutura } from '@contaia/planilhas';
 import {
   lerCsv,
   tipoDeConteudoDoFormato,
@@ -53,6 +54,7 @@ import { relatorioDisponivel, temDiagnostico, temResultadoDaValidacao, type Tent
 import type { FilaDeValidacao } from './fila';
 import {
   LEITURA_DE_PLANILHAS_DO_PROCESSO,
+  descreverFalhaDoLeitor,
   erroDePlanilha,
   exigirConfiguracao,
   formatoDoArquivo,
@@ -364,10 +366,14 @@ export class OrquestradorDeImportacao<Tentativa extends TentativaOrquestrada, Re
       }
 
       const traduzido = traduzirErroDoLeitor(erro);
-      const detalhe = (erro as { detalhe?: unknown }).detalhe;
-      const motivo =
-        traduzido.codigo === CODIGOS_DE_ERRO.SERVICO_OCUPADO ? descreverFalha(erro) : `${traduzido.codigo}/${String(detalhe ?? '-')}`;
-      this.logger.warn(`planilha não lida (${this.estrategia.rotulo}) [${contexto.correlationId}]: ${motivo}`);
+      const linha = `planilha não lida (${this.estrategia.rotulo}) [${contexto.correlationId}]: ${descreverFalhaDoLeitor(erro)}`;
+      // Falha técnica do filho vira 503 "tente novamente"; no log é erro, para um bug determinístico
+      // (motivo estável repetido) não passar por carga. Recusa do arquivo é aviso.
+      if (erro instanceof ErroDeInfraestrutura) {
+        this.logger.error(linha);
+      } else {
+        this.logger.warn(linha);
+      }
       throw traduzido;
     }
   }

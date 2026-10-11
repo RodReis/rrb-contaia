@@ -5,7 +5,14 @@
  * Toda leitura de arquivo enviado passa por `lerPlanilhaIsolada` (processo filho com teto de memória,
  * tempo e saída). `inspecionarPlanilha` e `lerAba` são síncronos e existem para o filho e os testes.
  */
-export { CODIGOS_DO_LEITOR, ErroDeInfraestrutura, ErroDePlanilha, type CodigoDoLeitor, type DetalheDoErro } from './erros.ts';
+export {
+  CODIGOS_DO_LEITOR,
+  ErroDeInfraestrutura,
+  ErroDePlanilha,
+  type CodigoDoLeitor,
+  type DetalheDoErro,
+  type MotivoDaInfraestrutura,
+} from './erros.ts';
 export { inspecionarPlanilha, type Inspecao } from './inspecionar.ts';
 export { lerPlanilhaIsolada, type OpcoesDoIsolamento } from './isolado.ts';
 export { lerAba } from './ler-aba.ts';

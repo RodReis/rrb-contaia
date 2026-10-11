@@ -6,10 +6,10 @@
  * acesso quebraria o teste). Sessão e carteira dubladas; a chave do catálogo é o `GuardDeAcao` real.
  */
 import { CODIGOS_DE_ERRO, ErroDeDominio, permissoesDosPapeisPadrao, type PapelPadrao } from '@contaia/domain';
-import { lerAba } from '@contaia/planilhas';
+import { ErroDeInfraestrutura, lerAba } from '@contaia/planilhas';
 import { cfb, entradaBomba, xlsx, xlsxCru } from '@contaia/planilhas/testes';
 import { TIPO_DE_CONTEUDO_ODS, TIPO_DE_CONTEUDO_XLSX, type InspecaoDePlanilha } from '@contaia/shared';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -404,6 +404,48 @@ describe('limite de leituras simultâneas: um só para inspeção e envio dos do
     liberar();
     expect((await primeira).status).toBe(200);
     expect((await segunda).status).toBe(200);
+  });
+});
+
+describe('falha técnica do leitor: 503 "tente novamente" na resposta, erro com motivo estável no log', () => {
+  const quebrado: LeitorDePlanilhas = {
+    inspecionar: () =>
+      Promise.reject(
+        new ErroDeInfraestrutura(`resultado inválido ${CPF} ${NOME}`, {
+          cause: Object.assign(new Error(`stderr do filho: ${CPF} ${NOME}`), { code: 'ERR_INVALID_ARG_TYPE' }),
+          motivo: 'RESULTADO_INVALIDO',
+        }),
+      ),
+    lerAba: () => Promise.reject(new ErroDeInfraestrutura(`morreu ${CPF}`)),
+  };
+  let comFalha: INestApplication;
+
+  beforeAll(async () => {
+    comFalha = await montarApp({ leitor: quebrado, limitador: new LimitadorDeLeituras(2) });
+  });
+
+  afterAll(async () => {
+    await comFalha.close();
+  });
+
+  it('o log é de nível erro, com classe, motivo e código da causa — sem mensagem, CPF ou nome', async () => {
+    const erro = vi.spyOn(Logger.prototype, 'error');
+    const aviso = vi.spyOn(Logger.prototype, 'warn');
+
+    const resposta = await request(comFalha.getHttpServer())
+      .post(`/empresas/${EMPRESA}/plano-contas/planilhas/inspecao`)
+      .set('x-papel', 'contador')
+      .attach('arquivo', planilhaXlsx(RELATORIO), { filename: 'c.xlsx' });
+
+    expect(resposta.status).toBe(503);
+    expect(resposta.body).toMatchObject({ code: CODIGOS_DE_ERRO.SERVICO_OCUPADO, status: 503 });
+    expect(JSON.stringify(resposta.body)).not.toMatch(/RESULTADO_INVALIDO|ERR_INVALID/u);
+    const linhas = erro.mock.calls.map(([mensagem]) => String(mensagem));
+    expect(linhas.some((l) => l.includes('planilha não lida') && l.includes('ErroDeInfraestrutura/RESULTADO_INVALIDO (causa: Error ERR_INVALID_ARG_TYPE)'))).toBe(true);
+    expect(linhas.join(' ')).not.toMatch(new RegExp(`${CPF}|${NOME}|stderr|resultado inválido`, 'u'));
+    expect(aviso.mock.calls.some(([mensagem]) => String(mensagem).includes('planilha não lida'))).toBe(false);
+    erro.mockRestore();
+    aviso.mockRestore();
   });
 });
 

@@ -8,7 +8,7 @@ import { ErroDeInfraestrutura, ErroDePlanilha, gerarModelo } from '@contaia/plan
 import { cfb, conteudoOds, celulaOds, ods, tabelaOds, xlsx } from '@contaia/planilhas/testes';
 import { describe, expect, it } from 'vitest';
 
-import { LimitadorDeLeituras, formatoDoArquivo, traduzirErroDoLeitor } from './planilha';
+import { LimitadorDeLeituras, descreverFalhaDoLeitor, formatoDoArquivo, traduzirErroDoLeitor } from './planilha';
 
 const XLSX = Buffer.from(gerarModelo('XLSX', ['a', 'b'], ['1', '2']));
 const ODS = Buffer.from(ods(conteudoOds(tabelaOds('Dados', `<table:table-row>${celulaOds('a')}</table:table-row>`))));
@@ -86,6 +86,20 @@ describe('traduzirErroDoLeitor', () => {
 
     expect(erro.codigo).toBe(CODIGOS_DE_ERRO.SERVICO_OCUPADO);
     expect(erro.message).not.toMatch(/ENOMEM|filho/u);
+  });
+
+  it('o log da falha técnica leva só a classe, o motivo estável e a classe/código da causa — nunca mensagem', () => {
+    const causa = Object.assign(new Error('spawn C:/Users/Maria Souza/529.982.247-25.xlsx ENOENT'), { code: 'ENOENT' });
+    const erro = new ErroDeInfraestrutura('canal quebrado 529.982.247-25 Maria Souza', { cause: causa, motivo: 'CANAL' });
+
+    const linha = descreverFalhaDoLeitor(erro);
+
+    expect(linha).toBe('ErroDeInfraestrutura/CANAL (causa: Error ENOENT)');
+    expect(linha).not.toMatch(/529|Maria|Souza|xlsx|canal quebrado/u);
+    expect(descreverFalhaDoLeitor(new ErroDeInfraestrutura('morreu 529.982.247-25'))).toBe('ErroDeInfraestrutura/-');
+    expect(descreverFalhaDoLeitor(new ErroDePlanilha('LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'TEMPO'))).toBe(
+      'LIMITE_DE_PROCESSAMENTO_EXCEDIDO/TEMPO',
+    );
   });
 
   it('o que não é do leitor segue adiante como veio', () => {

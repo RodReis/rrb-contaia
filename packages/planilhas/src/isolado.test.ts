@@ -130,7 +130,10 @@ describe('lerPlanilhaIsolada — processo filho', () => {
   });
 
   it('falha ao subir o processo → ErroDeInfraestrutura', async () => {
-    await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { execPath: 'C:/nao/existe/node.exe' })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
+    await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { execPath: 'C:/nao/existe/node.exe' })).rejects.toMatchObject({
+      name: 'ErroDeInfraestrutura',
+      motivo: expect.stringMatching(/^(PARTIDA|PROCESSO)$/u),
+    });
     await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: 'C:/nao/existe/filho.js' })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
   });
 
@@ -155,7 +158,10 @@ describe('lerPlanilhaIsolada — processo filho', () => {
     });
 
     it('saída inesperada com código 1 → ErroDeInfraestrutura', async () => {
-      await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('saiCom1') })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
+      await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('saiCom1') })).rejects.toMatchObject({
+        name: 'ErroDeInfraestrutura',
+        motivo: 'SEM_RESPOSTA',
+      });
     });
 
     it('abort do V8 por heap (código 134 / mensagem de OOM) → LIMITE (MEMORIA)', async () => {

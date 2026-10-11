@@ -72,11 +72,28 @@ export class ErroDePlanilha extends Error {
   }
 }
 
+/**
+ * Onde o isolamento falhou, estável e sem conteúdo (só para log): `RESPOSTA_INVALIDA`,
+ * `RESULTADO_INVALIDO` e `FALHA_INTERNA` repetidos apontam bug determinístico, não carga.
+ */
+export type MotivoDaInfraestrutura =
+  | 'PARTIDA'
+  | 'PARTIDA_ATRASADA'
+  | 'PROCESSO'
+  | 'CANAL'
+  | 'SEM_RESPOSTA'
+  | 'RESPOSTA_INVALIDA'
+  | 'RESULTADO_INVALIDO'
+  | 'FALHA_INTERNA';
+
 /** Falha técnica do isolamento (subir o processo, canal quebrado): a tentativa pode ser repetida. */
 export class ErroDeInfraestrutura extends Error {
-  constructor(mensagem: string, opcoes?: { cause?: unknown }) {
-    super(mensagem, opcoes);
+  readonly motivo: MotivoDaInfraestrutura | undefined;
+
+  constructor(mensagem: string, opcoes?: { cause?: unknown; motivo?: MotivoDaInfraestrutura }) {
+    super(mensagem, opcoes?.cause === undefined ? undefined : { cause: opcoes.cause });
     this.name = 'ErroDeInfraestrutura';
+    this.motivo = opcoes?.motivo;
   }
 }
 

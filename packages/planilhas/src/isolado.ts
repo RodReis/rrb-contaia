@@ -78,7 +78,7 @@ export const executarNoFilho = (
         ...(opcoes.execPath === undefined ? {} : { execPath: opcoes.execPath }),
       });
     } catch (erro) {
-      rejeitar(new ErroDeInfraestrutura('Não foi possível iniciar o processo de leitura da planilha.', { cause: erro }));
+      rejeitar(new ErroDeInfraestrutura('Não foi possível iniciar o processo de leitura da planilha.', { cause: erro, motivo: 'PARTIDA' }));
       return;
     }
 
@@ -105,7 +105,7 @@ export const executarNoFilho = (
     };
 
     filho.on('error', (erro) => {
-      terminar(() => rejeitar(new ErroDeInfraestrutura('Falha no processo de leitura da planilha.', { cause: erro })));
+      terminar(() => rejeitar(new ErroDeInfraestrutura('Falha no processo de leitura da planilha.', { cause: erro, motivo: 'PROCESSO' })));
     });
     filho.on('message', (mensagem) => {
       if (mensagem !== PRONTO || pronto) return;
@@ -113,7 +113,7 @@ export const executarNoFilho = (
       clearTimeout(partida);
       relogio = setTimeout(() => matar('TEMPO'), opcoes.timeoutMs ?? LIMITES.tempoMs);
       filho.send(operacao, (erro) => {
-        if (erro !== null) terminar(() => rejeitar(new ErroDeInfraestrutura('Canal com o processo de leitura quebrado.', { cause: erro })));
+        if (erro !== null) terminar(() => rejeitar(new ErroDeInfraestrutura('Canal com o processo de leitura quebrado.', { cause: erro, motivo: 'CANAL' })));
       });
     });
     filho.stdout?.on('data', (pedaco: Buffer) => {
@@ -136,7 +136,7 @@ export const executarNoFilho = (
           return;
         }
         if (!pronto) {
-          rejeitar(new ErroDeInfraestrutura('O processo de leitura da planilha não iniciou a tempo.'));
+          rejeitar(new ErroDeInfraestrutura('O processo de leitura da planilha não iniciou a tempo.', { motivo: 'PARTIDA_ATRASADA' }));
           return;
         }
         let bruto: unknown;
@@ -147,7 +147,7 @@ export const executarNoFilho = (
           rejeitar(
             morreuPorHeap(codigo, sinal, stderr)
               ? excedido('MEMORIA')
-              : new ErroDeInfraestrutura('O processo de leitura da planilha terminou sem responder.'),
+              : new ErroDeInfraestrutura('O processo de leitura da planilha terminou sem responder.', { motivo: 'SEM_RESPOSTA' }),
           );
           return;
         }
@@ -162,15 +162,15 @@ export const executarNoFilho = (
 
 const interpretar = (bruto: unknown, operacao: OperacaoDePlanilha): { resultado: Inspecao | LeituraDaAba; maxRssKb: number } => {
   const resposta = RespostaSchema.safeParse(bruto);
-  if (!resposta.success) throw new ErroDeInfraestrutura('Resposta inválida do processo de leitura.');
+  if (!resposta.success) throw new ErroDeInfraestrutura('Resposta inválida do processo de leitura.', { motivo: 'RESPOSTA_INVALIDA' });
   const r = resposta.data;
   if (r.ok) {
     const schema = operacao.tipo === 'inspecionar' ? InspecaoSchema : LeituraDaAbaSchema;
     const resultado = schema.safeParse(r.resultado);
-    if (!resultado.success) throw new ErroDeInfraestrutura('Resultado inválido do processo de leitura.');
+    if (!resultado.success) throw new ErroDeInfraestrutura('Resultado inválido do processo de leitura.', { motivo: 'RESULTADO_INVALIDO' });
     return { resultado: resultado.data as Inspecao | LeituraDaAba, maxRssKb: r.maxRssKb };
   }
-  if ('infraestrutura' in r) throw new ErroDeInfraestrutura('Falha interna do processo de leitura.');
+  if ('infraestrutura' in r) throw new ErroDeInfraestrutura('Falha interna do processo de leitura.', { motivo: 'FALHA_INTERNA' });
   throw new ErroDePlanilha(r.codigo, r.detalhe);
 };
 
