@@ -410,11 +410,14 @@ export { ULTIMA_COLUNA, colunaParaLetra, ehLetraDeColuna, letraParaColuna } from
 export {
   cabecalhoEstaMesclado,
   celulaTemConteudo,
+  conferirCabecalho,
   amostraDaAba,
   linhaTemConteudo,
   resumoDaAba,
   rotulosDasColunas,
   sugerirLinhaDeCabecalho,
+  type CabecalhoConferido,
+  type CodigoDeCabecalhoInutilizavel,
   type LinhaDeAmostra,
   type ResumoDaAba,
 } from './planilhas/cabecalho.js';

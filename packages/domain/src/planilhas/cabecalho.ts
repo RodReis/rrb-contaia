@@ -67,6 +67,31 @@ export const cabecalhoEstaMesclado = (leitura: LeituraDaAba, linhaCabecalho: num
   });
 };
 
+/** Por que a aba não pode ser mapeada com o cabeçalho escolhido (rejeita o arquivo inteiro). */
+export type CodigoDeCabecalhoInutilizavel = 'ABA_SEM_DADOS' | 'CABECALHO_INVALIDO' | 'CABECALHO_MESCLADO';
+
+export type CabecalhoConferido =
+  | { readonly ok: true; readonly letras: readonly string[] }
+  | { readonly ok: false; readonly codigo: CodigoDeCabecalhoInutilizavel };
+
+/**
+ * A aba pode ser mapeada por esta linha de cabeçalho? Mesma regra e mesma ordem no envio (API) e na
+ * validação (worker): aba sem linhas, cabeçalho em branco/inexistente, cabeçalho com mescla. As
+ * letras são as colunas que o mapeamento pode usar (A até a última preenchida do cabeçalho).
+ */
+export const conferirCabecalho = (leitura: LeituraDaAba, linhaCabecalho: number): CabecalhoConferido => {
+  if (leitura.linhas.length === 0) {
+    return { ok: false, codigo: 'ABA_SEM_DADOS' };
+  }
+
+  const letras = rotulosDasColunas(leitura, linhaCabecalho).map((coluna) => coluna.letra);
+  if (letras.length === 0) {
+    return { ok: false, codigo: 'CABECALHO_INVALIDO' };
+  }
+
+  return cabecalhoEstaMesclado(leitura, linhaCabecalho) ? { ok: false, codigo: 'CABECALHO_MESCLADO' } : { ok: true, letras };
+};
+
 export interface ResumoDaAba {
   readonly ignoradasAntesDoCabecalho: number;
   /** Linhas com conteúdo depois do cabeçalho: as que contam para o limite de 10.000. */

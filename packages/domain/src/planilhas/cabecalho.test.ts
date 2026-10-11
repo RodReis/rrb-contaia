@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { amostraDaAba, cabecalhoEstaMesclado, resumoDaAba, rotulosDasColunas, sugerirLinhaDeCabecalho } from './cabecalho.js';
+import {
+  amostraDaAba,
+  cabecalhoEstaMesclado,
+  conferirCabecalho,
+  resumoDaAba,
+  rotulosDasColunas,
+  sugerirLinhaDeCabecalho,
+} from './cabecalho.js';
 import { LIMITE_DE_TEXTO_DA_INSPECAO, LIMITE_DO_ROTULO_DA_COLUNA } from './texto.js';
 import type { CelulaDaTabela, LeituraDaAba, LinhaDaTabela } from './tipos.js';
 
@@ -214,5 +221,30 @@ describe('textos longos (uma célula do Excel chega a 32.767 caracteres)', () =>
     expect(primeira!.celulas.A!.endsWith('…')).toBe(true);
     expect(primeira!.celulas.B!.length).toBeLessThanOrEqual(LIMITE_DE_TEXTO_DA_INSPECAO);
     expect(primeira!.celulas.C).toBe('curto');
+  });
+});
+
+describe('conferirCabecalho (mesma regra no envio da API e na validação do worker)', () => {
+  it('aba sem linhas → ABA_SEM_DADOS', () => {
+    expect(conferirCabecalho(leitura([]), 1)).toEqual({ ok: false, codigo: 'ABA_SEM_DADOS' });
+  });
+
+  it('linha de cabeçalho em branco ou inexistente → CABECALHO_INVALIDO', () => {
+    const aba = leitura([linha(1, { A: '  ' }), linha(2, { A: 'Código' })]);
+
+    expect(conferirCabecalho(aba, 1)).toEqual({ ok: false, codigo: 'CABECALHO_INVALIDO' });
+    expect(conferirCabecalho(aba, 7)).toEqual({ ok: false, codigo: 'CABECALHO_INVALIDO' });
+  });
+
+  it('cabeçalho com célula mesclada (mapeada ou não) → CABECALHO_MESCLADO', () => {
+    const aba = leitura([linha(1, { A: 'Código', B: 'Nome', D: 'Obs' }), linha(2, { A: '1' })], [{ de: 'C1', ate: 'D1' }]);
+
+    expect(conferirCabecalho(aba, 1)).toEqual({ ok: false, codigo: 'CABECALHO_MESCLADO' });
+  });
+
+  it('cabeçalho utilizável → as letras de A até a última preenchida (vazias no meio inclusas)', () => {
+    const aba = leitura([linha(2, { A: 'Título' }), linha(3, { A: 'Código', C: 'Nome' }), linha(4, { A: '1', C: 'Ativo' })]);
+
+    expect(conferirCabecalho(aba, 3)).toEqual({ ok: true, letras: ['A', 'B', 'C'] });
   });
 });

@@ -19,7 +19,7 @@
 import {
   CODIGOS_DE_ERRO,
   ErroDeDominio,
-  cabecalhoEstaMesclado,
+  conferirCabecalho,
   diagnosticosDaTabela,
   resumoDaAba,
   rotulosDasColunas,
@@ -59,6 +59,7 @@ export const LEITURAS_SIMULTANEAS_DE_PLANILHA = 2;
 const LINHAS_DA_AMOSTRA = 30;
 /** O schema da inspeção aceita até 1.000 abas; o leitor, até 2.000. Acima disso é limite do arquivo. */
 const ABAS_NA_INSPECAO = 1000;
+const CABECALHO_EM_BRANCO = 'A linha de cabeçalho escolhida está em branco; escolha outra linha.';
 
 export type FormatoDePlanilha = Exclude<FormatoDeArquivo, 'CSV'>;
 
@@ -254,8 +255,8 @@ export const exigirConfiguracao = (
 
 /**
  * Aba lida + cabeçalho escolhido + mapeamento por LETRA → o mapeamento canônico da identidade, ou o
- * código estável. As letras existentes são as do cabeçalho (`rotulosDasColunas`, A até a última
- * preenchida): o `validarMapeamento` do domínio confere ausência, coluna inexistente e letra repetida
+ * código estável. Aba e cabeçalho pela regra do domínio (`conferirCabecalho`, a mesma do worker); as
+ * letras existentes são as do cabeçalho: o `validarMapeamento` confere ausência, coluna inexistente e letra repetida
  * entre campos. `tabelaParaRegistros` fecha o que o CSV também fecha antes do storage (só cabeçalho,
  * mais de 10.000 linhas de dados).
  */
@@ -265,21 +266,13 @@ export const revalidarAba = <Mapeamento>(
   validarMapeamento: (informado: unknown, cabecalho: readonly string[]) => Mapeamento,
   informado: unknown,
 ): Mapeamento => {
-  if (leitura.linhas.length === 0) {
-    throw erroDePlanilha(CODIGOS_DE_ERRO.ABA_SEM_DADOS);
+  const cabecalho = conferirCabecalho(leitura, linhaCabecalho);
+
+  if (!cabecalho.ok) {
+    throw erroDePlanilha(cabecalho.codigo, cabecalho.codigo === 'CABECALHO_INVALIDO' ? CABECALHO_EM_BRANCO : undefined);
   }
 
-  const letras = rotulosDasColunas(leitura, linhaCabecalho).map((coluna) => coluna.letra);
-
-  if (letras.length === 0) {
-    throw erroDePlanilha(CODIGOS_DE_ERRO.CABECALHO_INVALIDO, 'A linha de cabeçalho escolhida está em branco; escolha outra linha.');
-  }
-
-  if (cabecalhoEstaMesclado(leitura, linhaCabecalho)) {
-    throw erroDePlanilha(CODIGOS_DE_ERRO.CABECALHO_MESCLADO);
-  }
-
-  const mapeamento = validarMapeamento(informado, letras);
+  const mapeamento = validarMapeamento(informado, cabecalho.letras);
   tabelaParaRegistros(leitura, linhaCabecalho, Object.values(mapeamento as Readonly<Record<string, string>>));
 
   return mapeamento;
@@ -346,7 +339,7 @@ export const inspecionarPlanilha = async (
   const colunas = rotulosDasColunas(leitura, linhaCabecalho);
 
   if (colunas.length === 0) {
-    throw erroDePlanilha(CODIGOS_DE_ERRO.CABECALHO_INVALIDO, 'A linha de cabeçalho escolhida está em branco; escolha outra linha.');
+    throw erroDePlanilha(CODIGOS_DE_ERRO.CABECALHO_INVALIDO, CABECALHO_EM_BRANCO);
   }
 
   const resumo = resumoDaAba(leitura, linhaCabecalho);
