@@ -70,7 +70,12 @@ const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Pr
       ...opcoes,
       headers: { accept: 'application/json', ...(opcoes.headers ?? {}) },
     });
-  } catch {
+  } catch (erro) {
+    // Cancelado por quem pediu (`signal`): não é falha de rede e não vai para a tela; o TanStack
+    // Query reconhece o cancelamento e descarta o resultado.
+    if (opcoes.signal?.aborted === true) {
+      throw erro;
+    }
     // Sem resposta não há id do servidor; o que a ação enviou continua valendo como referência.
     throw new ErroDaApi({ ...PROBLEMA_DE_REDE, correlationId: enviada ?? SEM_CORRELACAO });
   }
@@ -79,7 +84,13 @@ const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Pr
     return undefined as T;
   }
 
-  const corpo: unknown = await resposta.json().catch(() => null);
+  const corpo: unknown = await resposta.json().catch((erro: unknown) => {
+    if (opcoes.signal?.aborted === true) {
+      throw erro;
+    }
+
+    return null;
+  });
 
   if (!resposta.ok) {
     throw new ErroDaApi(

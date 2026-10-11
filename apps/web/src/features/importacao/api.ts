@@ -1,5 +1,6 @@
 /**
- * Chamadas da importação por CSV (SPEC-013/014 §6.2), por domínio: `/empresas/{id}/{recurso}`.
+ * Chamadas da importação por CSV, XLSX ou ODS (SPEC-013/014 §6.2; SPEC-015 §6.2), por domínio:
+ * `/empresas/{id}/{recurso}`.
  * Toda resposta passa pelo leitor do domínio (schema do `@contaia/shared`) antes de chegar à tela:
  * dado externo é `unknown` até ser validado.
  *
@@ -102,13 +103,20 @@ export const enviarImportacao = async (
 /**
  * Inspeção sem estado da planilha (SPEC-015 §6.2): abas, cabeçalho sugerido ou o pedido, colunas
  * com rótulo inequívoco e amostra. Nada fica guardado no servidor; o arquivo vai de novo no envio.
+ *
+ * O `signal` cancela o pedido quando a tela deixa de precisar dele (arquivo, aba ou linha trocados):
+ * a API só lê duas planilhas por vez, e uma leitura abandonada seguraria uma vaga por até ~80 s.
+ * Resposta fora do contrato vira "erro desconhecido" com o id que este pedido levou — é esse que o
+ * suporte encontra no log da API.
  */
 export const inspecionarPlanilha = async (
   dominio: DominioDaImportacao,
   empresaId: string,
   entrada: Readonly<{ arquivo: File; aba: number | null; linhaCabecalho: number | null }>,
+  signal?: AbortSignal,
 ): Promise<InspecaoDePlanilha> => {
   const corpo = new FormData();
+  const correlationId = novoCorrelationId();
   corpo.append('arquivo', comTipoDoFormato(entrada.arquivo));
 
   if (entrada.aba !== null) {
@@ -118,9 +126,25 @@ export const inspecionarPlanilha = async (
     corpo.append('linhaCabecalho', String(entrada.linhaCabecalho));
   }
 
-  return InspecaoDePlanilhaSchema.parse(
-    await ler(`${caminhoDoRecurso(dominio, empresaId)}/planilhas/inspecao`, { method: 'POST', body: corpo }),
-  );
+  const resposta = await ler(`${caminhoDoRecurso(dominio, empresaId)}/planilhas/inspecao`, {
+    method: 'POST',
+    body: corpo,
+    headers: { [CABECALHO_DE_CORRELACAO]: correlationId },
+    ...(signal === undefined ? {} : { signal }),
+  });
+  const lida = InspecaoDePlanilhaSchema.safeParse(resposta);
+
+  if (!lida.success) {
+    throw new ErroDaApi({
+      type: 'https://contaia.local/erros/desconhecido',
+      title: 'Resposta inesperada.',
+      status: 0,
+      code: 'ERRO_DESCONHECIDO',
+      correlationId,
+    });
+  }
+
+  return lida.data;
 };
 
 export const confirmarImportacao = async (
@@ -180,6 +204,14 @@ const salvarNoNavegador = (conteudo: Blob, nome: string): void => {
 };
 
 /**
+ * O que o download aceita, pelo formato do arquivo esperado: o relatório e o original de um CSV pedem
+ * `text/csv` como nas F13/F14; os modelos e o original de uma planilha, o tipo dela. Sempre com
+ * `problem+json`, que é como a recusa chega.
+ */
+const aceitoNoDownload = (nomePadrao: string): string =>
+  `${tipoDeConteudoDoFormato(formatoPelaExtensao(nomePadrao) ?? 'CSV')}, application/problem+json`;
+
+/**
  * Download por `fetch`, não por `<a href>`: um relatório indisponível (409, 500) vira erro na tela,
  * com código de suporte e nova tentativa, em vez de um "arquivo" com o JSON do erro.
  */
@@ -189,7 +221,7 @@ export const baixarArquivo = async (caminho: string, nomePadrao: string): Promis
 
   try {
     resposta = await fetch(`/api/proxy${caminho}`, {
-      headers: { accept: '*/*', [CABECALHO_DE_CORRELACAO]: correlationId },
+      headers: { accept: aceitoNoDownload(nomePadrao), [CABECALHO_DE_CORRELACAO]: correlationId },
     });
   } catch {
     throw new ErroDaApi({

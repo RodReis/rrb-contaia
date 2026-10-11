@@ -35,6 +35,8 @@ export const chavesDaImportacao = (dominio: Pick<DominioDaImportacao, 'recurso'>
   /** Uma inspeção por arquivo escolhido (`selecao`), aba e linha de cabeçalho pedidas. */
   inspecao: (empresaId: string, selecao: string, aba: number | null, linhaCabecalho: number | null) =>
     [dominio.recurso, empresaId, 'inspecao', selecao, aba, linhaCabecalho] as const,
+  /** Inspeção ainda sem pedido (aba ou linha não escolhida): chave própria, que nunca busca. */
+  inspecaoDesligada: (empresaId: string, selecao: string) => [dominio.recurso, empresaId, 'inspecao', selecao, 'desligada'] as const,
 });
 
 /** Frequência do acompanhamento enquanto o worker valida ou a aplicação roda. */
@@ -177,7 +179,9 @@ const atualizarSuperficies = (
  *   espera (`Retry-After`), oferecida pela tela;
  * - nunca fica velha nem relê por foco: o arquivo não muda depois de escolhido;
  * - some do cache assim que a tela deixa de usá-la (`gcTime: 0`): a amostra tem dado do arquivo de
- *   quem enviou e não precisa sobreviver à troca de arquivo (fica só em memória, nunca na URL).
+ *   quem enviou e não precisa sobreviver à troca de arquivo (fica só em memória, nunca na URL);
+ * - é cancelada (o `signal` chega ao `fetch`) quando ninguém mais a observa: trocar o arquivo, a aba
+ *   ou a linha libera a vaga de leitura da API na hora. O cancelamento não aparece como erro.
  */
 export const useInspecaoDaPlanilha = (
   dominio: DominioDaImportacao,
@@ -186,9 +190,19 @@ export const useInspecaoDaPlanilha = (
   habilitada = true,
 ) =>
   useQuery({
-    queryKey: chavesDaImportacao(dominio).inspecao(empresaId, entrada.selecao, entrada.aba, entrada.linhaCabecalho),
+    // Desligada, a consulta não pode dividir a chave com uma ativa (a geral tem a mesma aba e linha
+    // nulas): ela espelharia o `isFetching`/`isError` da outra.
+    queryKey: habilitada
+      ? chavesDaImportacao(dominio).inspecao(empresaId, entrada.selecao, entrada.aba, entrada.linhaCabecalho)
+      : chavesDaImportacao(dominio).inspecaoDesligada(empresaId, entrada.selecao),
     queryFn: habilitada
-      ? () => inspecionarPlanilha(dominio, empresaId, { arquivo: entrada.arquivo, aba: entrada.aba, linhaCabecalho: entrada.linhaCabecalho })
+      ? ({ signal }) =>
+          inspecionarPlanilha(
+            dominio,
+            empresaId,
+            { arquivo: entrada.arquivo, aba: entrada.aba, linhaCabecalho: entrada.linhaCabecalho },
+            signal,
+          )
       : skipToken,
     retry: false,
     staleTime: Infinity,
