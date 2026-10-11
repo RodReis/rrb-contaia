@@ -6,7 +6,8 @@
  * - **Reais (LibreOffice):** `packages/planilhas/fixtures/{plano-contas,empregados}-libreoffice.{xlsx,ods}`.
  *   Um XLSX montado pelo construtor do pacote (título na linha 1, linha 2 em branco, cabeçalho na 3,
  *   linha 6 oculta, fórmula na B7 e numa coluna não mapeada, mescla B8:C8 e numa não mapeada) foi
- *   regravado pelo LibreOffice 24 com `soffice --headless --convert-to xlsx|ods`; os ODS têm três abas
+ *   regravado pelo LibreOffice 26.2.6.3 (versão gravada no `meta.xml` dos ODS) com
+ *   `soffice --headless --convert-to xlsx|ods`; os ODS têm três abas
  *   (uma antiga, a de dados na posição 2 e uma vazia). A CI só lê os bytes.
  * - **Montadas na execução** (nunca no repositório): equivalência CSV × XLSX × ODS, arquivos hostis,
  *   acima de 10 MB e de 10.000 linhas, com os construtores de `@contaia/planilhas/testes` (lidos do
@@ -28,7 +29,7 @@ import {
   xlsxCru,
   type AbaDeTeste,
 } from '../../../packages/planilhas/dist/testes/index.js';
-import { type Recurso, type Resposta } from './plano-contas';
+import { lerResposta, type Recurso, type Resposta } from './plano-contas';
 
 export const TIPO_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 export const TIPO_ODS = 'application/vnd.oasis.opendocument.spreadsheet';
@@ -57,19 +58,6 @@ export const mapeamentoPorLetra = (campos: readonly string[]): Record<string, st
 
 export const CAMPOS_DO_PLANO = ['codigo', 'nome', 'tipo', 'natureza', 'conta_pai'] as const;
 export const CAMPOS_DOS_EMPREGADOS = ['cpf', 'nome', 'matricula', 'data_nascimento', 'data_admissao'] as const;
-
-const lerResposta = async (resposta: Awaited<ReturnType<Page['request']['post']>>): Promise<Resposta> => {
-  const texto = await resposta.text();
-  let corpo: unknown = null;
-
-  try {
-    corpo = JSON.parse(texto) as unknown;
-  } catch {
-    corpo = null;
-  }
-
-  return { status: resposta.status(), corpo, texto };
-};
 
 const campos = (configuracao: Configuracao): Record<string, string> => ({
   ...(configuracao.aba === undefined ? {} : { aba: String(configuracao.aba) }),

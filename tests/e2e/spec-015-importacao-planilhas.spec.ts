@@ -22,13 +22,16 @@
  * axe e rolagem horizontal; varredura de dado pessoal nos logs.
  *
  * Isolamento: escritório, usuários e empresas próprios (`e2e-f15-*`, CNPJs `1515…`). Nenhum contêiner
- * é derrubado; a falha do worker pausa só a fila de validação do plano de contas pelo mínimo de tempo
- * (o `afterAll` a retoma), porque na CI as specs 013 e 014 rodam em paralelo nos mesmos workers.
+ * é derrubado; a falha do worker pausa só a fila de validação do plano de contas e a retoma no
+ * `finally` do próprio teste. As specs 013, 014 e 015 usam as mesmas filas de validação e cada uma
+ * pausa a do seu domínio na prova de falha: elas rodam encadeadas, uma por vez, nos projetos
+ * `importacao-013` → `importacao-014` → `importacao-015` do `playwright.config.ts`; o resto da suíte
+ * segue em paralelo.
  *
  * Depende de: composição no ar (`pnpm docker:up`) com API e workers, `pnpm db:migrate`, `pnpm build`
  * (o `dist` de `@contaia/planilhas` traz os construtores) e dos processos que o `playwright.config.ts` sobe.
  */
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -51,6 +54,7 @@ import { MAPEAMENTO_DO_LEGADO, bytesDe, empregadosDa } from './fixtures/empregad
 import {
   CAMPOS_DOS_EMPREGADOS,
   CAMPOS_DO_PLANO,
+  TIPO_XLSX,
   abaDeTexto,
   arquivosHostis,
   caminhoDaPlanilha,
@@ -288,8 +292,6 @@ const semVersao = <T extends { versao: string; atualizado_em: string }>(mapa: Ma
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(300_000);
 
-  // Uma rodada morta no meio da falha do worker deixaria a fila pausada (o Redis é persistente).
-  await retomarAValidacao(FILA_DO_PLANO);
   await limparEscritorios(pool, [CNPJ_DO_ESCRITORIO, CNPJ_DO_OUTRO_ESCRITORIO]);
   await removerIdentidadesComPrefixo('e2e-f15-');
   // Só as capturas: a comparação com o protótipo (COMPARACAO.md) é escrita à mão e fica.
@@ -371,7 +373,6 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  await retomarAValidacao(FILA_DO_PLANO).catch(() => undefined);
   await Promise.all(contextos.map((contexto) => contexto.close()));
   await pool.end();
 });
@@ -542,15 +543,20 @@ test('plano de contas, XLSX do LibreOffice: leitura → aba única → cabeçalh
   const presa = new Promise<void>((resolver) => {
     soltar = resolver;
   });
-  await contador.route('**/planilhas/inspecao', async (rota) => {
+  const reter = async (rota: Route): Promise<void> => {
     await presa;
     await rota.continue();
-  });
-  await escolherPlanilha(contador, PLANO, caminhoDaPlanilha('plano-contas-libreoffice.xlsx'));
-  await expect(contador.getByText('Lendo a planilha', { exact: true })).toBeVisible();
-  await provar(contador, 'lendo', { recarregar: false, pronto: (page) => page.getByText('Lendo a planilha', { exact: true }) });
-  // Solta: esta e as leituras seguintes passam direto (a rota fica, sem espera).
-  soltar();
+  };
+  await contador.route('**/planilhas/inspecao', reter);
+  try {
+    await escolherPlanilha(contador, PLANO, caminhoDaPlanilha('plano-contas-libreoffice.xlsx'));
+    await expect(contador.getByText('Lendo a planilha', { exact: true })).toBeVisible();
+    await provar(contador, 'lendo', { recarregar: false, pronto: (page) => page.getByText('Lendo a planilha', { exact: true }) });
+  } finally {
+    // Solta a leitura retida; a rota sai só depois de o handler em curso seguir com o pedido.
+    soltar();
+    await contador.unrouteAll({ behavior: 'wait' });
+  }
 
   await expect(contador.getByText('Aba única: Plano de contas (posição 1)')).toBeVisible({ timeout: 60_000 });
   await expect(contador.getByText(/Cabeçalho sugerido: linha 1, a primeira preenchida/u)).toBeVisible();
@@ -728,6 +734,12 @@ test('reenvio idêntico reaproveita sem aviso novo; outra aba, outro cabeçalho 
   expect((await eventosDa(pool, jornada.planoOds)).at(-1)?.acao).toBe('REUTILIZACAO');
   expect(await notificacoesDa(TABELA_DO_PLANO, empresa.planoOds)).toBe(avisosAntes);
   expect(await contasDa(pool, empresa.planoOds)).toEqual(contasAntes);
+  // O histórico diz que o resultado foi reaproveitado (SPEC §3.9: resultado novo ou reutilizado).
+  await abrir(contador, PLANO, empresa.planoOds);
+  await expect(
+    contador.getByRole('region', { name: 'Histórico de importações' }).getByRole('row').filter({ hasText: 'plano-contas-libreoffice.ods' }),
+  ).toContainText('Resultado reaproveitado');
+  expect((await tentativa(pool, jornada.planoOds))?.reutilizada_por_idempotencia).toBe(true);
 
   const variantes = [
     ['outra aba', mapeamento, { aba: 1, linhaCabecalho: 1 }],
@@ -1033,22 +1045,7 @@ test('serviço de leitura ocupado: com as duas vagas da API tomadas por planilha
       ),
     ),
   };
-  const pequena = hostisDoPlano.cabecalhoMesclado;
-
-  // A leitura da tela fica retida no navegador até a API provar, com uma leitura real, que as duas
-  // vagas estão tomadas; então segue para a API, que responde 503 de verdade (nada é dublado).
-  await abrir(contador, PLANO, empresa.limites);
-  let soltar = (): void => undefined;
-  const retida = new Promise<void>((resolver) => {
-    soltar = resolver;
-  });
-  await contador.route('**/planilhas/inspecao', async (rota) => {
-    await retida;
-    await rota.continue();
-  });
-  await escolherPlanilha(contador, PLANO, caminhoDaPlanilha('plano-contas-libreoffice.xlsx'));
-
-  // Duas sequências de leituras pesadas mantêm as vagas ocupadas enquanto a prova acontece.
+  // Duas sequências de leituras pesadas mantêm as duas vagas da API ocupadas durante a prova.
   let parar = false;
   const manter = async (page: Page, recurso: Recurso): Promise<number[]> => {
     const status: number[] = [];
@@ -1061,35 +1058,74 @@ test('serviço de leitura ocupado: com as duas vagas da API tomadas por planilha
     }
     return status;
   };
+
+  // A leitura da tela vai à API de verdade: o navegador reenvia o pedido dela até a API responder
+  // 503 (as vagas estão tomadas naquele instante) e entrega à página essa resposta real. Nada é
+  // dublado: sem o 503 dentro do prazo, a prova falha dizendo os status vistos. O Chromium não expõe
+  // os bytes do arquivo de um multipart interceptado (só o envelope), então o reenvio leva o mesmo
+  // campo `arquivo` com o mesmo arquivo, remontado aqui; cookies e demais cabeçalhos são os da página.
+  const PRAZO_DO_503_MS = 60_000;
+  const arquivoDaTela = caminhoDaPlanilha('plano-contas-libreoffice.xlsx');
+  const fronteira = `----prova-spec-015-${randomUUID()}`;
+  const corpoDaTela = Buffer.concat([
+    Buffer.from(
+      `--${fronteira}\r\nContent-Disposition: form-data; name="arquivo"; filename="plano-contas-libreoffice.xlsx"\r\n` +
+        `Content-Type: ${TIPO_XLSX}\r\n\r\n`,
+    ),
+    readFileSync(arquivoDaTela),
+    Buffer.from(`\r\n--${fronteira}--\r\n`),
+  ]);
+  const vistos: number[] = [];
+  let estourou = false;
+  const ate503 = async (rota: Route): Promise<void> => {
+    const { 'content-length': _tamanho, ...cabecalhos } = rota.request().headers();
+    const reenviar = () =>
+      rota.fetch({
+        postData: corpoDaTela,
+        headers: { ...cabecalhos, 'content-type': `multipart/form-data; boundary=${fronteira}` },
+      });
+    const limite = Date.now() + PRAZO_DO_503_MS;
+    let resposta = await reenviar();
+    vistos.push(resposta.status());
+    while (resposta.status() !== 503 && Date.now() < limite) {
+      await new Promise((resolver) => setTimeout(resolver, 50));
+      resposta = await reenviar();
+      vistos.push(resposta.status());
+    }
+    estourou = resposta.status() !== 503;
+    await rota.fulfill({ response: resposta });
+  };
+
+  await abrir(contador, PLANO, empresa.limites);
   const ocupando = [manter(admin, PLANO), manter(admin, EMPREGADOS)];
+  await contador.route('**/planilhas/inspecao', ate503);
 
   try {
-    let ocupado = await inspecionarPelaApi(contador, empresa.limites, PLANO, pequena);
-    for (let tentativas = 0; ocupado.status !== 503 && tentativas < 50; tentativas += 1) {
-      await new Promise((resolver) => setTimeout(resolver, 100));
-      ocupado = await inspecionarPelaApi(contador, empresa.limites, PLANO, pequena);
-    }
-    expect([ocupado.status, codigoDo(ocupado)]).toEqual([503, 'SERVICO_OCUPADO']);
-    soltar();
-
+    await escolherPlanilha(contador, PLANO, arquivoDaTela);
     const aviso = contador.getByRole('alert').filter({ hasText: 'Não foi possível ler a planilha agora' });
-    await expect(aviso).toContainText('O serviço de leitura de planilhas está ocupado.', { timeout: 30_000 });
+    await expect(aviso.or(contador.getByRole('alert')).or(contador.getByText(/^Aba única: /u)).first()).toBeVisible({ timeout: PRAZO_DO_503_MS + 30_000 });
+    expect(estourou, `a API não respondeu 503 em ${PRAZO_DO_503_MS} ms (status vistos: ${vistos.join(' ')})`).toBe(false);
+    await expect(aviso).toContainText('O serviço de leitura de planilhas está ocupado.');
     await expect(aviso.getByRole('button', { name: 'Tentar de novo' })).toBeDisabled();
     await expect(aviso).toContainText(/Disponível em \d+ segundos\./u);
     await expect(aviso).toContainText('Código de suporte');
+    test.info().annotations.push({ type: 'leitura da tela (status até o 503)', description: vistos.join(' ') });
+
+    // Libera as vagas antes de capturar e de tentar de novo; a próxima leitura passa sem retenção.
     parar = true;
-    await provar(contador, 'servico-ocupado', { recarregar: false, pronto: () => aviso });
     const leituras = (await Promise.all(ocupando)).flat();
     test.info().annotations.push({ type: 'leituras pesadas (status)', description: leituras.join(' ') });
     expect(leituras).toContain(200);
+    await contador.unroute('**/planilhas/inspecao', ate503);
+    await provar(contador, 'servico-ocupado', { recarregar: false, pronto: () => aviso });
 
     await expect(aviso.getByRole('button', { name: 'Tentar de novo' })).toBeEnabled({ timeout: 15_000 });
     await aviso.getByRole('button', { name: 'Tentar de novo' }).click();
     await expect(contador.getByText('Aba única: Plano de contas (posição 1)')).toBeVisible({ timeout: 60_000 });
   } finally {
     parar = true;
-    soltar();
     await Promise.allSettled(ocupando);
+    await contador.unrouteAll({ behavior: 'wait' });
   }
 });
 
@@ -1140,6 +1176,11 @@ test('falha do worker com planilha: o armazenamento recusa o original até esgot
     .toEqual([expect.objectContaining({ tentativaId, correlationId, motivo: 'ARMAZENAMENTO_INDISPONIVEL', tentativas: 5 })]);
   expect(await destinatariosDaNotificacao(pool, tentativaId)).toContain(ids.contador);
   expect(await contasDa(pool, empresa.falha)).toEqual(new Map());
+  const staging = await pool.query<{ total: string }>(
+    'select count(*) as total from app.importacao_plano_contas_linha where tentativa_id = $1',
+    [tentativaId],
+  );
+  expect(Number(staging.rows[0]?.total), 'linhas de staging da tentativa em FALHA').toBe(0);
 
   await abrir(contador, PLANO, empresa.falha, `&tentativa=${tentativaId}`);
   await expect(contador.getByRole('heading', { name: 'A importação falhou por um problema técnico' })).toBeVisible({ timeout: 30_000 });
@@ -1150,7 +1191,24 @@ test('falha do worker com planilha: o armazenamento recusa o original até esgot
 // -- Dado pessoal, referência e acessibilidade ---------------------------------------------------
 
 test('nenhum CPF, nome ou valor de célula das planilhas nos logs da API e dos workers', () => {
-  const dadosPessoais = ['Ana Planilha', 'Bruno Texto', 'Carla Oculta', 'Diego Fórmula', '155.155.155-10', '15515515510', '16016016039', 'Aplicações Financeiras'];
+  const dadosPessoais = [
+    // planilhas do LibreOffice
+    'Ana Planilha',
+    'Bruno Texto',
+    'Carla Oculta',
+    'Diego Fórmula',
+    '155.155.155-10',
+    '15515515510',
+    '16016016039',
+    'Aplicações Financeiras',
+    // CSV legado da equivalência, também em XLSX (CPF numérico) e ODS
+    'Ana Atualizada da Silva',
+    'Débora Conceição',
+    'Fábio Repetido',
+    '14014014061',
+    '140.140.140-61',
+    '14314314354',
+  ];
 
   for (const servico of ['api', 'workers']) {
     const logs = logsDe(servico);
