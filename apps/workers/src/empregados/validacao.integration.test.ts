@@ -53,11 +53,11 @@ const poolDoWorker: Pool = new Proxy(app, {
 
 const sufixo = `${String(process.pid).slice(-4).padStart(4, '0')}${String(Date.now()).slice(-6)}${randomInt(10, 99)}`;
 const prefixo = `teste-emp-${process.pid}-${Date.now()}`;
-const conexao = conexaoDoRedis(process.env['REDIS_URL'] ?? 'redis://127.0.0.1:36379');
+const conexao = conexaoDoRedis(process.env['REDIS_URL'] ?? 'redis://127.0.0.1:16379');
 const redisDoTeste = criarConexaoRedis(conexao);
 
 const armazenamento = lerConfigDoArmazenamento({
-  S3_ENDPOINT: process.env['S3_ENDPOINT'] ?? 'http://127.0.0.1:39000',
+  S3_ENDPOINT: process.env['S3_ENDPOINT'] ?? 'http://127.0.0.1:19000',
   S3_BUCKET: process.env['S3_BUCKET'] ?? 'contaia-documentos',
   MINIO_ROOT_USER: process.env['MINIO_ROOT_USER'] ?? 'contaia_local',
   MINIO_ROOT_PASSWORD: process.env['MINIO_ROOT_PASSWORD'] ?? 'contaia_local_secret',
