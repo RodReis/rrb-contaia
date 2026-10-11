@@ -58,3 +58,43 @@ describe('planilhas reais do LibreOffice', () => {
     expect(detectarFormato(fixture('libreoffice.csv'), '.csv')).toEqual({ formato: 'CSV' });
   });
 });
+
+/**
+ * Planilhas da prova E2E da SPEC-015 (`*-libreoffice.xlsx|ods`): um XLSX montado pelo construtor de
+ * testes (título, linha em branco, cabeçalho na linha 3, linha 6 oculta, fórmula, mescla) regravado
+ * pelo LibreOffice com `soffice --headless --convert-to xlsx|ods`. O ODS grava a linha oculta com
+ * `table:visibility="collapse"` — o valor do ODF, que o leitor precisa reconhecer.
+ */
+describe('planilhas da prova E2E regravadas pelo LibreOffice', () => {
+  const resumo = (bytes: Uint8Array, aba: number) => {
+    const leitura = lerAba(bytes, aba);
+    return {
+      ocultas: leitura.linhas.filter((l) => l.oculta).map((l) => l.numero),
+      totalDeOcultas: leitura.totalDeLinhasOcultas,
+      formulas: leitura.linhas.flatMap((l) => Object.entries(l.celulas).filter(([, c]) => c.formula).map(([letra]) => `${letra}${l.numero}`)),
+      mesclas: leitura.mesclas,
+    };
+  };
+
+  it.each([
+    ['plano-contas-libreoffice.xlsx', 1, ['F10'], [{ de: 'B8', ate: 'C8' }, { de: 'F11', ate: 'G11' }]],
+    ['plano-contas-libreoffice.ods', 2, ['F10'], [{ de: 'B8', ate: 'C8' }, { de: 'F11', ate: 'G11' }]],
+    ['empregados-libreoffice.xlsx', 1, ['F11'], [{ de: 'B8', ate: 'C8' }]],
+    ['empregados-libreoffice.ods', 2, ['F11'], [{ de: 'B8', ate: 'C8' }]],
+  ] as const)('%s: linha 6 oculta contada, fórmula e mescla onde foram gravadas', (nome, aba, formulaFora, mesclas) => {
+    expect(resumo(fixture(nome), aba)).toEqual({
+      ocultas: [6],
+      totalDeOcultas: 1,
+      formulas: ['B7', ...formulaFora],
+      mesclas,
+    });
+  });
+
+  it('ODS: abas na ordem, a vazia não utilizável', () => {
+    expect(inspecionarPlanilha(fixture('empregados-libreoffice.ods')).abas).toEqual([
+      { nome: 'Admitidos 2023', posicao: 1, utilizavel: true },
+      { nome: 'Empregados', posicao: 2, utilizavel: true },
+      { nome: 'Vazia', posicao: 3, utilizavel: false },
+    ]);
+  });
+});

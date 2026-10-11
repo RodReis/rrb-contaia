@@ -80,7 +80,7 @@ const tabela = (aba: AbaDeTeste): string => {
         return celulaOds(valor, linha.formulaEm === colunaParaLetra(coluna), mescla);
       })
       .join('');
-    xml += `<table:table-row${linha.oculta === true ? ' table:visibility="collapsed"' : ''}>${celulas}</table:table-row>`;
+    xml += `<table:table-row${linha.oculta === true ? ' table:visibility="collapse"' : ''}>${celulas}</table:table-row>`;
     proxima = linha.numero + 1;
   }
   return tabelaOds(aba.nome, xml);

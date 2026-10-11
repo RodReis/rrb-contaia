@@ -109,8 +109,10 @@ const lerConteudo = (zip: ZipAberto, selecao: Selecao, limites: Limites): Result
     if (!naTabela()) return;
     if (nome === 'table:table-row') {
       repeticoesDaLinha = repeticoes(e.atributos['table:number-rows-repeated']);
+      // ODF: `visible` (padrão), `collapse` (oculta; o LibreOffice grava esta) ou `filter` (oculta
+      // por filtro). Qualquer valor diferente de `visible` é linha oculta.
       const visibilidade = e.atributos['table:visibility'];
-      ocultaAtual = visibilidade === 'collapsed' || visibilidade === 'filter';
+      ocultaAtual = visibilidade !== undefined && visibilidade !== 'visible';
       coluna = 1;
       celulasDaLinha = new Map();
       mesclasDaLinha = [];
