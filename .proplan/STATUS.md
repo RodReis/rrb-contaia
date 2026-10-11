@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-09
+updated: 2026-10-11
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -79,11 +79,12 @@ updated: 2026-10-09
 - [MVP1][SPEC-018][F18] Parse e persistência de XML, hash e IBS/CBS (#20)
 - [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19)
 - [MVP1][SPEC-016][F16] Motor tributário base versionado (#18)
-- [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17)
-- [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16)
 
 ### Sem épico
 
+- [MVP1][SPEC-014][FIX] Suítes de banco com e-mails fixos quebram depois de uma rodada interrompida (#112)
+- [MVP1][SPEC-014][FIX] Falha determinística na preparação da validação deixa a tentativa em RECEBIDA sem FALHA (#111)
+- [MVP1][SPEC-014][FIX] cn() descarta o tamanho de texto dos tokens (tailwind-merge) e código do plano quebra na tabela de rejeições (#110)
 - [MVP1][FIX] app.uuid_v7() grava a variante RFC 4122 no byte errado (#47)
 
 ## A Fazer
@@ -92,7 +93,9 @@ _(vazio)_
 
 ## Em Andamento
 
-_(vazio)_
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17)
 
 ## Feito
 
@@ -104,6 +107,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16, finalizado em: 2026-10-11)
 - [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15, finalizado em: 2026-10-09)
 - [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14, finalizado em: 2026-10-07)
 - [MVP1][SPEC-011][F11] Cofre local de certificados A1 (#13, finalizado em: 2026-10-03)
