@@ -9,7 +9,7 @@
     "erasableSyntaxOnly": true
   },
   "include": ["src/**/*.ts"],
-  // `testes/construtores.ts` vai para o dist (subpath `@contaia/planilhas/testes`): API e workers
+  // `testes/` (construtores e montador) vai para o dist (subpath `@contaia/planilhas/testes`): API e workers
   // montam fixtures com ele nos próprios testes. `testes/esperar.ts` depende do vitest e fica fora.
   "exclude": ["src/**/*.test.ts", "src/testes/esperar.ts", "dist"]
 }

@@ -12,8 +12,8 @@
       "default": "./dist/index.js"
     },
     "./testes": {
-      "types": "./dist/testes/construtores.d.ts",
-      "default": "./dist/testes/construtores.js"
+      "types": "./dist/testes/index.d.ts",
+      "default": "./dist/testes/index.js"
     }
   },
   "scripts": {
