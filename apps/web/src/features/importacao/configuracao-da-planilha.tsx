@@ -15,29 +15,17 @@ import { EyeOff, Rows3, Undo2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 import type { Problema } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import type { ConfiguracaoDoEnvio } from './api';
-import { resumoDasLinhas, rotuloDaAba, sugestaoPorLetra } from './apresentacao-da-planilha';
+import { resumoDasLinhas, sugestaoPorLetra } from './apresentacao-da-planilha';
 import type { DominioDaImportacao } from './dominio';
 import type { PlanilhaEscolhida } from './envio-do-arquivo';
 import { FalhaDaLeitura, LendoPlanilha, problemaDa } from './estados-da-planilha';
 import { FaixaDoArquivo, MapeamentoDeColunas } from './mapeamento-de-colunas';
 import { useInspecaoDaPlanilha } from './queries';
+import { Bloco, LEITURA_DEMORADA, SecaoDaAba } from './secao-da-aba';
 import { SeletorDeCabecalho } from './seletor-de-cabecalho';
-
-const LEITURA_DEMORADA =
-  'Abas, cabeçalho e as primeiras linhas aparecem aqui. Uma planilha grande pode levar até um minuto e meio; nada foi enviado para validação ainda.';
-
-const CODIGOS_DA_ABA: readonly string[] = ['ABA_SEM_DADOS', 'ABA_INEXISTENTE'];
-
-const Bloco = ({ titulo, children }: { titulo: string; children: ReactNode }) => (
-  <fieldset className="flex min-w-0 flex-col gap-sm">
-    <legend className="mb-xs text-title-md text-foreground">{titulo}</legend>
-    {children}
-  </fieldset>
-);
 
 export const ConfiguracaoDaPlanilha = ({
   dominio,
@@ -109,60 +97,6 @@ export const ConfiguracaoDaPlanilha = ({
 
     return doCabecalho.data !== undefined && linhaAtual !== null ? `Planilha lida. Cabeçalho na linha ${linhaAtual}.` : '';
   })();
-
-  const secaoDaAba = (): ReactNode => {
-    const inspecao = geral.data;
-
-    if (inspecao === undefined) {
-      return null;
-    }
-
-    if (inspecao.abaSelecionada !== null) {
-      const texto =
-        inspecao.abas.length === 1
-          ? `Aba única: ${rotuloDaAba(inspecao.abaSelecionada)}`
-          : `Única aba com dados: ${rotuloDaAba(inspecao.abaSelecionada)}`;
-
-      return (
-        <Bloco titulo="Aba">
-          <p title={texto} className="truncate text-body-md text-foreground">
-            {texto}
-          </p>
-          {inspecao.abas.length > 1 ? (
-            <p className="text-body-sm text-muted-foreground">As demais abas estão vazias e não são lidas.</p>
-          ) : null}
-        </Bloco>
-      );
-    }
-
-    const problema = daAbaEscolhida.isError ? problemaDa(daAbaEscolhida.error) : null;
-    const erroDaAba = problema !== null && CODIGOS_DA_ABA.includes(problema.code) ? mensagemDoCodigo(problema.code) : undefined;
-
-    return (
-      <Bloco titulo="Aba">
-        <div className="max-w-md">
-          <Select
-            rotulo="Aba da planilha"
-            obrigatorio
-            placeholder="Escolha a aba"
-            opcoes={inspecao.abas.map((opcao) => ({
-              valor: String(opcao.posicao),
-              rotulo: `${rotuloDaAba(opcao)}${opcao.utilizavel ? '' : ' — sem dados'}`,
-            }))}
-            valor={abaEscolhida === null ? undefined : String(abaEscolhida)}
-            onValorChange={escolherAba}
-            erro={erroDaAba}
-            ajuda={`A planilha tem ${inspecao.abas.length} abas. Escolha a que tem os dados: só ela é lida.`}
-            disabled={enviando}
-          />
-        </div>
-        {daAbaEscolhida.isFetching ? <LendoPlanilha titulo="Lendo a aba escolhida" descricao={LEITURA_DEMORADA} /> : null}
-        {problema !== null && erroDaAba === undefined ? (
-          <FalhaDaLeitura erro={daAbaEscolhida.error} aoTentar={() => void daAbaEscolhida.refetch()} aoTrocar={aoTrocar} />
-        ) : null}
-      </Bloco>
-    );
-  };
 
   const secaoDoCabecalho = (): ReactNode => {
     const inspecao = daAba.data;
@@ -256,7 +190,16 @@ export const ConfiguracaoDaPlanilha = ({
         <FalhaDaLeitura erro={geral.error} aoTentar={() => void geral.refetch()} aoTrocar={aoTrocar} />
       ) : null}
 
-      {secaoDaAba()}
+      {geral.data === undefined ? null : (
+        <SecaoDaAba
+          inspecao={geral.data}
+          abaEscolhida={abaEscolhida}
+          daAbaEscolhida={daAbaEscolhida}
+          enviando={enviando}
+          aoEscolher={escolherAba}
+          aoTrocar={aoTrocar}
+        />
+      )}
       {secaoDoCabecalho()}
 
       {podeMapear ? (
