@@ -35,7 +35,10 @@ const adiado = <T>() => {
   return { promessa, resolver, rejeitar };
 };
 
-const umInstante = () => new Promise((ok) => setTimeout(ok, 5));
+/** Esvazia a fila de microtarefas (as promessas já resolvidas encadeiam em poucas voltas), sem relógio. */
+const umInstante = async (): Promise<void> => {
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+};
 
 describe('configuracaoDaPlanilha', () => {
   it('CSV (ou tentativa sem os campos de planilha) → null: o caminho do CSV não muda', () => {

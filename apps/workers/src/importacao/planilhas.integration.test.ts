@@ -600,11 +600,16 @@ describe('limite de leituras do processo (dois importadores, 2 × concorrência 
   it('4 planilhas ao mesmo tempo: no máximo 2 leituras simultâneas; as demais esperam a vez e todas concluem', async () => {
     let emCurso = 0;
     let pico = 0;
+    // Trinco: nenhuma leitura termina até o teste ver as 2 vagas ocupadas com os 4 jobs ativos.
+    let soltar!: () => void;
+    const trinco = new Promise<void>((ok) => {
+      soltar = ok;
+    });
     leitorDaVez = async (bytes, aba) => {
       emCurso += 1;
       pico = Math.max(pico, emCurso);
       try {
-        await new Promise((ok) => setTimeout(ok, 300));
+        await trinco;
         return await LEITOR_ISOLADO(bytes, aba);
       } finally {
         emCurso -= 1;
@@ -614,7 +619,15 @@ describe('limite de leituras do processo (dois importadores, 2 × concorrência 
       [PLANO, PLANO, EMPREGADOS, EMPREGADOS].map(async (d) => ({ d, t: await novaTentativa(d, planilhaXlsx(abaSimples(d, d.boas)), { formato: 'XLSX' }) })),
     );
 
-    await Promise.all(tentativas.map(({ d, t }) => enfileirar(d, t)));
+    try {
+      await Promise.all(tentativas.map(({ d, t }) => enfileirar(d, t)));
+      const todosAtivos = async () => (await Promise.all(tentativas.map(({ d, t }) => d.fila().getJobState(`${t.id}-1`)))).every((estado) => estado === 'active');
+      await esperar(async () => emCurso === 2 && (await todosAtivos()));
+      // Os 4 jobs em curso, só 2 lendo: os outros 2 esperam a vaga (sem depender de tempo).
+      expect(emCurso).toBe(2);
+    } finally {
+      soltar();
+    }
     for (const { d, t } of tentativas) await esperar(terminou(d, t.id));
 
     expect(pico).toBe(2);
@@ -623,7 +636,15 @@ describe('limite de leituras do processo (dois importadores, 2 × concorrência 
 });
 
 describe('PII', () => {
-  it('nenhum CPF, nome ou valor de célula nos logs do worker durante a suíte inteira', () => {
+  it('nenhum CPF, nome ou valor de célula nos logs do worker, nem quando o erro técnico carrega PII', async () => {
+    const t = await novaTentativa(PLANO, planilhaXlsx(abaSimples(PLANO, PLANO.boas)), { formato: 'XLSX' });
+    leitorDaVez = () => Promise.reject(new ErroDeInfraestrutura(`canal quebrado ${CPF_A} Maria Souza`));
+
+    await enfileirar(PLANO, t);
+    await esperar(terminou(PLANO, t.id));
+    expect(await estadoDe(PLANO, t.id)).toBe('FALHA');
+
+    // `logs` tem tudo desde o início da suíte (inclui o caminho de falha acima, que rodou aqui dentro).
     const tudo = logs.join('\n');
     for (const valor of PII) expect(tudo).not.toContain(valor);
   });

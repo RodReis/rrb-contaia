@@ -27,7 +27,10 @@ export type LeitorDeAba = (bytes: Uint8Array, abaPosicao: number) => Promise<Lei
 
 export const LEITOR_ISOLADO: LeitorDeAba = (bytes, abaPosicao) => lerPlanilhaIsolada(bytes, { tipo: 'ler-aba', abaPosicao });
 
-/** Leituras de planilha simultâneas por processo de workers (os dois importadores somados). */
+/**
+ * Leituras de planilha simultâneas por processo de workers (os dois importadores somados).
+ * A espera pela vaga só fica dentro do prazo do job enquanto a concorrência total dos consumidores for ≤ 4.
+ */
 export const LEITURAS_SIMULTANEAS_DE_PLANILHA = 2;
 
 /** Semáforo com fila: acima do máximo, a tarefa espera a vez (em ordem de chegada). */
