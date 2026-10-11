@@ -1,7 +1,7 @@
 /**
- * Aba de importação por CSV, XLSX ou ODS de uma empresa (SPEC-013/014 §3.1, §5.2; SPEC-015 §3.1): importação, regras do
- * arquivo, histórico e a base vigente do domínio num lugar só. É a composição comum às abas "Plano
- * de contas" e "Empregados" e às etapas do cadastro que as reaproveitam.
+ * Aba de importação por CSV, XLSX ou ODS de uma empresa (SPEC-013/014 §3.1, §5.2; SPEC-015 §3.1):
+ * importação, regras do arquivo, histórico e a base vigente do domínio num lugar só. É a composição
+ * comum às abas "Plano de contas" e "Empregados" e às etapas do cadastro que as reaproveitam.
  *
  * Direção do protótipo `contaia_onboarding_de_clientes_importa_o_de_legados_rf_01` preservada —
  * cartão com ladrilho de ícone, faixa de metadados do arquivo, totais e tabela de inconsistências,

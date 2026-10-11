@@ -1,6 +1,6 @@
 /**
- * Estados, tons e formatação da importação por CSV (SPEC-013/014 §3.11, §5.3), comuns a todo
- * domínio. Fonte única para tela e teste: o estado é sempre dito por texto, nunca só pela cor.
+ * Estados, tons e formatação da importação por CSV, XLSX ou ODS (SPEC-013/014 §3.11, §5.3), comuns
+ * a todo domínio. Fonte única para tela e teste: o estado é sempre dito por texto, nunca só pela cor.
  */
 import type { EstadoDaImportacao } from '@contaia/shared';
 
