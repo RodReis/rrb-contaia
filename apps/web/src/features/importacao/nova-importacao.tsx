@@ -70,10 +70,13 @@ export const NovaImportacao = ({
   aoAbrirTentativa: (tentativaId: string) => void;
 }) => {
   const [lido, definirLido] = useState<ArquivoEscolhido | null>(null);
+  // Caminho do arquivo que a pessoa acabou de descartar: o foco volta ao botão dele.
+  const [trocado, definirTrocado] = useState<ArquivoEscolhido['tipo'] | undefined>(undefined);
   const enviar = useEnviarImportacao(dominio, empresaId);
   const falhaDoEnvio = enviar.error instanceof ErroDaApi ? enviar.error.problema : null;
   const trocar = (): void => {
     enviar.reset();
+    definirTrocado(lido?.tipo);
     definirLido(null);
   };
 
@@ -102,6 +105,7 @@ export const NovaImportacao = ({
           dominio={dominio}
           empresaId={empresaId}
           podeBaixar={podeBaixar}
+          focarAoAbrir={trocado}
           aoEscolher={(novo) => {
             enviar.reset();
             definirLido(novo);

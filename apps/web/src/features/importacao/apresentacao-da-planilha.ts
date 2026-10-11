@@ -57,6 +57,27 @@ const posicaoDaLetra = (letra: string): number =>
 export const letrasDasColunas = (linhas: readonly Readonly<Record<string, string>>[]): readonly string[] =>
   [...new Set(linhas.flatMap((celulas) => Object.keys(celulas)))].sort((a, b) => posicaoDaLetra(a) - posicaoDaLetra(b));
 
+const VALORES_NA_PREVIA = 3;
+const TAMANHO_DO_VALOR_NA_PREVIA = 40;
+
+/**
+ * Começo do texto de uma linha da amostra, para o nome acessível do rádio ("Linha 3 como cabeçalho:
+ * Nome, CPF, …"): quem usa leitor de tela escolhe o cabeçalho sem percorrer a tabela célula a célula.
+ */
+export const previaDaLinha = (celulas: Readonly<Record<string, string>>, letras: readonly string[]): string => {
+  const valores = letras.map((letra) => (celulas[letra] ?? '').trim()).filter((valor) => valor !== '');
+
+  if (valores.length === 0) {
+    return 'linha vazia';
+  }
+
+  const curtos = valores
+    .slice(0, VALORES_NA_PREVIA)
+    .map((valor) => (valor.length > TAMANHO_DO_VALOR_NA_PREVIA ? `${valor.slice(0, TAMANHO_DO_VALOR_NA_PREVIA - 1)}…` : valor));
+
+  return valores.length > VALORES_NA_PREVIA ? `${curtos.join(', ')}, …` : curtos.join(', ');
+};
+
 /** Coluna usada no mapeamento: na planilha é a letra ("Coluna C"); no CSV, o nome do cabeçalho. */
 export const colunaDoMapeamento = (formato: FormatoDeArquivo | undefined, valor: string | undefined): string => {
   if (valor === undefined || valor === '') {

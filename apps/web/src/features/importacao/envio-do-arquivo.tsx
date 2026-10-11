@@ -20,7 +20,7 @@ import {
   validarArquivo,
 } from '@contaia/shared';
 import { FileSpreadsheet, FileUp, LoaderCircle, Upload } from 'lucide-react';
-import { useId, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useId, useRef, useState, type DragEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
@@ -64,11 +64,13 @@ const ModelosOficiais = ({ dominio, empresaId }: { dominio: DominioDaImportacao;
   const id = useId();
 
   return (
-    <div role="group" aria-labelledby={id} className="flex flex-col gap-xs tablet:flex-row tablet:items-start tablet:gap-md">
-      <p id={id} className="pt-sm text-label-sm uppercase text-muted-foreground tablet:shrink-0">
+    // O rótulo fica acima dos botões: ao lado dele, no cartão de 8 colunas em 1024 px, o terceiro
+    // modelo descia sozinho para a linha de baixo.
+    <div role="group" aria-labelledby={id} className="flex flex-col gap-xs">
+      <p id={id} className="text-label-sm uppercase text-muted-foreground">
         {dominio.textos.modelos}
       </p>
-      <div className="flex flex-wrap gap-sm">
+      <div className="flex flex-wrap gap-x-md gap-y-xs">
         {FORMATOS_DO_MODELO.map((formato) => (
           <BotaoDeDownload
             key={formato}
@@ -93,11 +95,17 @@ export const EnvioDoArquivo = ({
   dominio,
   empresaId,
   podeBaixar,
+  focarAoAbrir,
   aoEscolher,
 }: {
   dominio: DominioDaImportacao;
   empresaId: string;
   podeBaixar: boolean;
+  /**
+   * Voltou aqui por "Trocar arquivo" ou "Escolher outro arquivo": o foco vai ao botão do mesmo
+   * caminho, em vez de cair no começo da página. Na primeira abertura não há foco a mover.
+   */
+  focarAoAbrir?: ArquivoEscolhido['tipo'] | undefined;
   aoEscolher: (escolhido: ArquivoEscolhido) => void;
 }) => {
   const [arrastando, definirArrastando] = useState(false);
@@ -108,10 +116,17 @@ export const EnvioDoArquivo = ({
   // Trava síncrona: dois arquivos soltos em sequência chegam antes de o estado `lendo` renderizar,
   // e o segundo não pode atropelar a leitura do primeiro.
   const leituraEmCurso = useRef(false);
+  const botoes = useRef<HTMLDivElement>(null);
   const id = useId();
   const idDaAjuda = `${id}-ajuda`;
   const idDaRecusa = `${id}-recusa`;
   const descricao = recusa === null ? idDaAjuda : `${idDaAjuda} ${idDaRecusa}`;
+
+  useEffect(() => {
+    if (focarAoAbrir !== undefined) {
+      botoes.current?.querySelector<HTMLButtonElement>(`[data-escolher="${focarAoAbrir}"]`)?.focus();
+    }
+  }, [focarAoAbrir]);
 
   const escolher = async (arquivo: File | undefined): Promise<void> => {
     if (arquivo === undefined || leituraEmCurso.current) {
@@ -232,12 +247,24 @@ export const EnvioDoArquivo = ({
           }}
         />
 
-        <div className="flex flex-wrap justify-center gap-sm">
-          <Button variante="contorno" tamanho="compacto" disabled={lendo} onClick={() => entradaDoCsv.current?.click()}>
+        <div ref={botoes} className="flex flex-wrap justify-center gap-sm">
+          <Button
+            variante="contorno"
+            tamanho="compacto"
+            data-escolher="CSV"
+            disabled={lendo}
+            onClick={() => entradaDoCsv.current?.click()}
+          >
             {lendo ? <LoaderCircle className="motion-safe:animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
             {lendo ? 'Lendo o cabeçalho' : 'Escolher arquivo CSV'}
           </Button>
-          <Button variante="contorno" tamanho="compacto" disabled={lendo} onClick={() => entradaDaPlanilha.current?.click()}>
+          <Button
+            variante="contorno"
+            tamanho="compacto"
+            data-escolher="PLANILHA"
+            disabled={lendo}
+            onClick={() => entradaDaPlanilha.current?.click()}
+          >
             <FileSpreadsheet aria-hidden="true" />
             Escolher planilha XLSX ou ODS
           </Button>

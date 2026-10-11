@@ -12,6 +12,7 @@ import {
   letrasDasColunas,
   nomeDoModelo,
   nomeDoRelatorio,
+  previaDaLinha,
   resumoDasLinhas,
   rotuloDaAba,
   sugestaoPorLetra,
@@ -103,5 +104,22 @@ describe('nomes dos arquivos baixados', () => {
     expect(nomeDoModelo('modelo-empregados.csv', 'csv')).toBe('modelo-empregados.csv');
     expect(nomeDoModelo('modelo-empregados.csv', 'xlsx')).toBe('modelo-empregados.xlsx');
     expect(nomeDoModelo('modelo-plano-de-contas.csv', 'ods')).toBe('modelo-plano-de-contas.ods');
+  });
+});
+
+describe('previaDaLinha', () => {
+  const letras = ['A', 'B', 'C', 'D', 'E'];
+
+  it('os três primeiros valores na ordem das colunas, com reticências quando há mais', () => {
+    expect(previaDaLinha({ C: 'tipo', A: 'codigo', B: 'nome', D: 'natureza' }, letras)).toBe('codigo, nome, tipo, …');
+  });
+
+  it('pula células vazias e não põe reticências quando cabe tudo', () => {
+    expect(previaDaLinha({ A: 'Relatório', C: '  ', E: 'Obs' }, letras)).toBe('Relatório, Obs');
+  });
+
+  it('corta valor longo e diz quando a linha está vazia', () => {
+    expect(previaDaLinha({ A: 'x'.repeat(60) }, letras)).toBe(`${'x'.repeat(39)}…`);
+    expect(previaDaLinha({}, letras)).toBe('linha vazia');
   });
 });

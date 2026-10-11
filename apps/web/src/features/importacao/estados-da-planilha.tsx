@@ -9,7 +9,7 @@
 
 import { CODIGOS_DE_ERRO_DE_PLANILHA } from '@contaia/shared';
 import { FileX2, LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ErroDaApi, type Problema } from '@/lib/http';
@@ -26,7 +26,10 @@ const DEFEITOS_DO_ARQUIVO: readonly string[] = [
 
 const ehDefeitoDoArquivo = (problema: Problema): boolean => DEFEITOS_DO_ARQUIVO.includes(problema.code);
 
-/** O que falhou, como problem+json; resposta fora do contrato vira "erro desconhecido". */
+/**
+ * O que falhou, como problem+json. A API e a resposta fora do contrato já chegam como `ErroDaApi`
+ * (com o id do pedido); o resto é defeito da própria tela, sem id para o suporte.
+ */
 export const problemaDa = (erro: unknown): Problema =>
   erro instanceof ErroDaApi
     ? erro.problema
@@ -48,29 +51,46 @@ export const LendoPlanilha = ({ titulo, descricao }: { titulo: string; descricao
   </div>
 );
 
-/** Botão que só libera depois do `Retry-After`; sem espera pedida, libera na hora. */
+/**
+ * Botão que só libera depois do `Retry-After`; sem espera pedida, libera na hora. A contagem fica
+ * escrita ao lado e é a descrição do botão (quem chega nele pelo Tab ouve quanto falta), mas não é
+ * anunciada a cada segundo: o aviso vai uma vez, quando o botão libera.
+ */
 const NovaTentativa = ({ segundos, aoTentar }: { segundos: number | undefined; aoTentar: () => void }) => {
-  const [liberada, definirLiberada] = useState(segundos === undefined || segundos <= 0);
+  const [restantes, definirRestantes] = useState(segundos === undefined ? 0 : Math.max(0, segundos));
+  const idDaEspera = useId();
+  const liberada = restantes === 0;
 
   useEffect(() => {
-    if (liberada || segundos === undefined) {
+    if (liberada) {
       return undefined;
     }
 
-    const espera = setTimeout(() => definirLiberada(true), segundos * 1_000);
+    const passo = setInterval(() => definirRestantes((atual) => Math.max(0, atual - 1)), 1_000);
 
-    return () => clearTimeout(espera);
-  }, [liberada, segundos]);
+    return () => clearInterval(passo);
+  }, [liberada]);
 
   return (
     <div className="flex flex-wrap items-center gap-sm">
-      <Button variante="contorno" tamanho="compacto" disabled={!liberada} onClick={aoTentar}>
+      <Button
+        variante="contorno"
+        tamanho="compacto"
+        disabled={!liberada}
+        aria-describedby={liberada ? undefined : idDaEspera}
+        onClick={aoTentar}
+      >
         <RefreshCw aria-hidden="true" />
         Tentar de novo
       </Button>
-      {liberada || segundos === undefined ? null : (
-        <span className="text-body-sm tabular-nums">{`Disponível em ${segundos} segundos.`}</span>
+      {liberada ? null : (
+        <span id={idDaEspera} className="text-body-sm tabular-nums">
+          {`Disponível em ${restantes} ${restantes === 1 ? 'segundo' : 'segundos'}.`}
+        </span>
       )}
+      <span role="status" className="sr-only">
+        {liberada && segundos !== undefined && segundos > 0 ? 'Já é possível tentar de novo.' : ''}
+      </span>
     </div>
   );
 };
@@ -91,6 +111,13 @@ export const FalhaDaLeitura = ({
   const problema = problemaDa(erro);
   const defeito = ehDefeitoDoArquivo(problema);
   const espera = problema.retryAfterSegundos;
+  const titulo = useRef<HTMLParagraphElement>(null);
+
+  // A falha substitui o que a pessoa estava fazendo (a leitura, o seletor): o foco vai para o motivo,
+  // e dali o Tab chega a "Tentar de novo" ou "Escolher outro arquivo".
+  useEffect(() => {
+    titulo.current?.focus();
+  }, []);
 
   return (
     <div
@@ -108,7 +135,7 @@ export const FalhaDaLeitura = ({
           <TriangleAlert className="mt-xs size-icon-lg shrink-0" aria-hidden="true" />
         )}
         <div className="flex min-w-0 flex-col gap-xs">
-          <p className="font-display text-headline-sm">
+          <p ref={titulo} tabIndex={-1} className="font-display text-headline-sm focus-visible:outline-none">
             {defeito ? 'Esta planilha não pode ser usada' : 'Não foi possível ler a planilha agora'}
           </p>
           <p className="max-w-prose text-body-md">{mensagemDoCodigo(problema.code)}</p>

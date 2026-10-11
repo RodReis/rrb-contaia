@@ -2,9 +2,12 @@
  * Escolha da linha de cabeçalho sobre a amostra da aba (SPEC-015 §3.4, §5.2 item 4).
  *
  * Um rádio de verdade por linha, todos no mesmo grupo: Tab entra no grupo, as setas trocam a linha
- * (comportamento do navegador) e o leitor de tela diz "Linha 3 como cabeçalho". Os números são os
- * da planilha original. A linha escolhida, as ignoradas e as ocultas são ditas por texto na própria
- * linha, não só pela cor. Valor longo fica numa linha, inteiro no título.
+ * (comportamento do navegador) e o leitor de tela diz "Linha 3 como cabeçalho: Nome, CPF, …". Os
+ * números são os da planilha original. A linha escolhida, as ignoradas e as ocultas são ditas por
+ * texto na própria linha, não só pela cor. Valor longo fica numa linha, inteiro no título.
+ *
+ * A amostra pode ter dezenas de linhas: a tabela tem altura máxima e rola por dentro, com o
+ * cabeçalho das colunas fixo, para o mapeamento continuar perto de quem escolheu a linha.
  */
 'use client';
 
@@ -14,7 +17,7 @@ import { clsx } from 'clsx';
 import { useId } from 'react';
 
 import { formatarNumero } from './apresentacao';
-import { letrasDasColunas } from './apresentacao-da-planilha';
+import { letrasDasColunas, previaDaLinha } from './apresentacao-da-planilha';
 import { RegiaoRolavel } from './pecas';
 
 type LinhaDaAmostra = InspecaoDePlanilha['amostra'][number];
@@ -50,10 +53,13 @@ export const SeletorDeCabecalho = ({
   const letras = letrasDasColunas(amostra.map((linha) => linha.celulas));
 
   return (
-    <RegiaoRolavel rotulo="Amostra da aba para escolher o cabeçalho, rolável na horizontal" className="rounded-md border border-border">
+    <RegiaoRolavel
+      rotulo="Amostra da aba para escolher o cabeçalho, rolável"
+      className="max-h-[28rem] overflow-y-auto overscroll-contain rounded-md border border-border"
+    >
       <table className="w-full min-w-max text-left">
         <caption className="sr-only">Primeiras linhas da aba {nomeDaAba}; escolha a linha do cabeçalho</caption>
-        <thead className="bg-muted">
+        <thead className="sticky top-0 z-10 bg-muted shadow-[0_1px_0_var(--color-border)]">
           <tr>
             <th scope="col" className="w-0 px-sm py-sm text-label-sm uppercase text-muted-foreground">
               Cabeçalho
@@ -88,7 +94,7 @@ export const SeletorDeCabecalho = ({
                     value={linha.numero}
                     checked={escolhida}
                     disabled={bloqueado}
-                    aria-label={`Linha ${linha.numero} como cabeçalho`}
+                    aria-label={`Linha ${linha.numero} como cabeçalho: ${previaDaLinha(linha.celulas, letras)}`}
                     onChange={() => aoEscolher(linha.numero)}
                     className="mt-xs size-4 cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                   />

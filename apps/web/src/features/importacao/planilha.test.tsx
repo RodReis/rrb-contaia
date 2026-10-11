@@ -128,7 +128,9 @@ describe.each(DOMINIOS)('planilha — $nome', (dominio) => {
 
   const combobox = (rotulo: string): HTMLElement => screen.getByRole('combobox', { name: new RegExp(`^${rotulo}`, 'u') });
 
-  const radioDaLinha = (numero: number): HTMLElement => screen.getByRole('radio', { name: `Linha ${numero} como cabeçalho` });
+  // O nome traz a prévia do texto da linha ("Linha 2 como cabeçalho: codigo, nome, …").
+  const radioDaLinha = (numero: number): HTMLElement =>
+    screen.getByRole('radio', { name: new RegExp(`^Linha ${numero} como cabeçalho:`, 'u') });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -275,7 +277,7 @@ describe.each(DOMINIOS)('planilha — $nome', (dominio) => {
       expect(await screen.findByRole('option', { name: 'Vazia (posição 3) — sem dados' })).toBeInTheDocument();
       await usuario.click(screen.getByRole('option', { name: 'Plano (posição 2)' }));
 
-      expect(await screen.findByRole('radio', { name: 'Linha 1 como cabeçalho' })).toBeChecked();
+      expect(await screen.findByRole('radio', { name: /^Linha 1 como cabeçalho:/u })).toBeChecked();
       expect(inspecoes().at(-1)).toMatchObject({ aba: 2, linhaCabecalho: undefined });
     });
 
@@ -302,7 +304,7 @@ describe.each(DOMINIOS)('planilha — $nome', (dominio) => {
       await usuario.keyboard('{Enter}');
       await usuario.click(await screen.findByRole('option', { name: 'Plano (posição 2)' }));
 
-      expect(await screen.findByRole('radio', { name: 'Linha 1 como cabeçalho' })).toBeInTheDocument();
+      expect(await screen.findByRole('radio', { name: /^Linha 1 como cabeçalho:/u })).toBeInTheDocument();
       expect(screen.queryByText('A aba escolhida está vazia. Escolha outra aba.')).not.toBeInTheDocument();
     });
   });
@@ -393,11 +395,25 @@ describe.each(DOMINIOS)('planilha — $nome', (dominio) => {
       await usuario.keyboard('{Enter}');
       await usuario.click(await screen.findByRole('option', { name: 'Coluna F — Obs' }));
       expect(combobox(dominio.rotulos[0] ?? '')).toHaveTextContent('Coluna F — Obs');
+      instalarFetch((url, init) => {
+        if (url.startsWith(`${dominio.base}/planilhas/inspecao`)) {
+          return inspecionar(init);
+        }
+        if (url === `${dominio.base}/importacoes` && init?.method === 'POST') {
+          return problema(422, 'CABECALHO_MESCLADO', {}, 'corr-recusa-cabecalho');
+        }
+
+        return backend.roteador(url, init);
+      });
+      await usuario.click(screen.getByRole('button', { name: /Validar arquivo/u }));
+      expect(await screen.findByText('O arquivo não foi aceito para validação')).toBeInTheDocument();
+      expect(envios()).toHaveLength(1);
 
       await usuario.click(radioDaLinha(1));
       await usuario.click(radioDaLinha(2));
 
       await waitFor(() => expect(combobox(dominio.rotulos[0] ?? '')).toHaveTextContent(`Coluna A — ${dominio.campos[0] ?? ''}`));
+      expect(screen.queryByText('O arquivo não foi aceito para validação')).not.toBeInTheDocument();
     });
   });
 
