@@ -85,12 +85,21 @@ const MENSAGEM: Readonly<Record<Exclude<CodigoDeErroDeEmpregado, 'CAMPO_OBRIGATO
 
 const MENSAGEM_CAMPOS_A_MAIS = "A linha tem mais campos do que o cabeçalho; confira ';' ou aspas no texto.";
 
+/**
+ * Forma aceita do CPF no arquivo: 11 dígitos, ou o padrão `000.000.000-00` (a pontuação, quando
+ * presente, só nas posições da máscara). `ehCpfValido` descarta todo não-dígito, então sozinho
+ * aceitaria `5299822472x5` ou `CPF 52998224725`; a forma é exigida aqui, no importador.
+ */
+const FORMA_DO_CPF = /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/u;
+
+const cpfAceito = (cpf: string): boolean => FORMA_DO_CPF.test(cpf) && ehCpfValido(cpf);
+
 const vazioParaNulo = (valor: string): string | null => (valor === '' ? null : valor);
 
 const comoLida = (texto: string): DataCivil | string | null => lerDataCivil(texto) ?? vazioParaNulo(texto);
 
 const montarChave = (linha: LinhaBrutaDeEmpregado): string | null =>
-  linha.defeitoDeEstrutura === undefined && ehCpfValido(linha.cpf) && linha.matricula !== ''
+  linha.defeitoDeEstrutura === undefined && cpfAceito(linha.cpf) && linha.matricula !== ''
     ? `${normalizarCpf(linha.cpf)}|${linha.matricula}`
     : null;
 
@@ -118,7 +127,7 @@ const primeiroErroDaLinha = (
     };
   }
 
-  if (!ehCpfValido(linha.cpf)) {
+  if (!cpfAceito(linha.cpf)) {
     return { codigo: 'CPF_INVALIDO', campo: 'cpf', mensagem: MENSAGEM.CPF_INVALIDO };
   }
 
@@ -158,10 +167,21 @@ const rejeitada = (
   mensagem,
 });
 
+/** Defesa em profundidade: `normalizarLinhasDeEmpregados` já apara, mas a validação não confia. */
+const aparar = (linha: LinhaBrutaDeEmpregado): LinhaBrutaDeEmpregado => ({
+  ...linha,
+  cpf: linha.cpf.trim(),
+  nome: linha.nome.trim(),
+  matricula: linha.matricula.trim(),
+  dataNascimento: linha.dataNascimento.trim(),
+  dataAdmissao: linha.dataAdmissao.trim(),
+});
+
 export const validarLinhasDeEmpregados = (
-  linhas: readonly LinhaBrutaDeEmpregado[],
+  entrada: readonly LinhaBrutaDeEmpregado[],
   vigentes: ReadonlyMap<string, EmpregadoVigente>,
 ): readonly LinhaDeStagingDeEmpregado[] => {
+  const linhas = entrada.map(aparar);
   const chaves = linhas.map(montarChave);
   const ocorrencias = new Map<string, number>();
   for (const chave of chaves) {
@@ -175,7 +195,7 @@ export const validarLinhasDeEmpregados = (
     const base = {
       numeroDaLinha: linha.numeroDaLinha,
       cpf: vazioParaNulo(linha.cpf),
-      cpfNormalizado: ehCpfValido(linha.cpf) ? normalizarCpf(linha.cpf) : null,
+      cpfNormalizado: cpfAceito(linha.cpf) ? normalizarCpf(linha.cpf) : null,
       nome: vazioParaNulo(linha.nome),
       matricula: vazioParaNulo(linha.matricula),
       dataNascimento: comoLida(linha.dataNascimento),

@@ -134,6 +134,66 @@ describe('validarLinhasDeEmpregados — CPF', () => {
   );
 });
 
+describe('validarLinhasDeEmpregados — forma do CPF', () => {
+  it.each(['52998224725', '529.982.247-25', '529.982.24725', '529982.247-25', '529982247-25', '529982247.25'.replace('.', '')])(
+    'aceita %j (11 dígitos, com ou sem máscara) e a chave são os 11 dígitos',
+    (cpf) => {
+      const [resultado] = validar([linha(2, { cpf })]);
+
+      expect(resultado).toMatchObject({ status: 'VALIDA', chave: '52998224725|00123', cpfNormalizado: '52998224725' });
+    },
+  );
+
+  it.each(['5299822472x5', '529.998.224-7x5', 'CPF 52998224725', '529 998 224 25', '529.982.247-2 5', '529,982,247-25', '529-982-247.25', '.52998224725', '529.982.247-25-'])(
+    'recusa %j com CPF_INVALIDO, mensagem fixa sem eco do valor e sem chave',
+    (cpf) => {
+      const [resultado] = validar([linha(2, { cpf })]);
+
+      expect(resultado).toMatchObject({
+        status: 'REJEITADA',
+        codigoDeErro: 'CPF_INVALIDO',
+        campo: 'cpf',
+        chave: null,
+        cpfNormalizado: null,
+        mensagem: 'CPF inválido: informe 11 dígitos com os dígitos verificadores corretos.',
+      });
+    },
+  );
+
+  it('CPF com lixo não forma chave nem conta para a duplicidade', () => {
+    const resultado = validar([linha(2, { cpf: 'CPF 52998224725' }), linha(3)]);
+
+    expect(resultado.map((r) => r.codigoDeErro)).toEqual(['CPF_INVALIDO', null]);
+  });
+});
+
+describe('validarLinhasDeEmpregados — trim defensivo', () => {
+  it('nome só com espaços passado direto à função → CAMPO_OBRIGATORIO_AUSENTE', () => {
+    const [resultado] = validar([linha(2, { nome: '   	 ' })]);
+
+    expect(resultado).toMatchObject({ status: 'REJEITADA', codigoDeErro: 'CAMPO_OBRIGATORIO_AUSENTE', campo: 'nome' });
+  });
+
+  it.each([
+    ['cpf', { cpf: '  ' }],
+    ['matricula', { matricula: ' ' }],
+    ['data_nascimento', { dataNascimento: ' ' }],
+    ['data_admissao', { dataAdmissao: ' ' }],
+  ] as const)('%s só com espaços → CAMPO_OBRIGATORIO_AUSENTE', (campo, dados) => {
+    const [resultado] = validar([linha(2, dados)]);
+
+    expect(resultado).toMatchObject({ codigoDeErro: 'CAMPO_OBRIGATORIO_AUSENTE', campo });
+  });
+
+  it('espaços ao redor não mudam o resultado nem a chave', () => {
+    const [resultado] = validar([
+      linha(2, { cpf: ' 529.982.247-25 ', nome: '  Maria ', matricula: ' 00123 ', dataNascimento: ' 15/03/1990 ' }),
+    ]);
+
+    expect(resultado).toMatchObject({ status: 'VALIDA', chave: '52998224725|00123', nome: 'Maria', matricula: '00123' });
+  });
+});
+
 describe('validarLinhasDeEmpregados — datas', () => {
   it.each(['31/02/2020', '1/2/20', '43831', '2020-13-01', '15-03-1990', 'ontem'])(
     'nascimento %j → DATA_NASCIMENTO_INVALIDA',
