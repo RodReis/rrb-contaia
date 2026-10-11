@@ -239,7 +239,16 @@ beforeAll(async () => {
   try {
     await s3.send(new HeadBucketCommand({ Bucket: armazenamento.bucket }));
   } catch {
-    await s3.send(new CreateBucketCommand({ Bucket: armazenamento.bucket }));
+    // As suítes de plano de contas e de empregados rodam em paralelo e criam o mesmo bucket:
+    // quem perde a corrida recebe "já é seu", que aqui é sucesso.
+    try {
+      await s3.send(new CreateBucketCommand({ Bucket: armazenamento.bucket }));
+    } catch (erro: unknown) {
+      const nome = erro instanceof Error ? erro.name : '';
+      if (nome !== 'BucketAlreadyOwnedByYou' && nome !== 'BucketAlreadyExists') {
+        throw erro;
+      }
+    }
   }
 
   leitorReal = criarLeitorDoArmazenamento(armazenamento);
