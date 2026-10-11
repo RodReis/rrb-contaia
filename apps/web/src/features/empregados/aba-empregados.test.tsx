@@ -300,7 +300,11 @@ describe('teclado', () => {
     const entrada = screen.getByLabelText<HTMLInputElement>('Arquivo CSV dos empregados');
     const clique = vi.spyOn(entrada, 'click');
 
-    while (document.activeElement !== escolher) {
+    // Teto de Tabs: se o botão sair da ordem de foco, o teste falha dizendo isso, em vez de girar para sempre.
+    for (let passos = 0; document.activeElement !== escolher; passos += 1) {
+      if (passos >= 30) {
+        throw new Error('“Escolher arquivo CSV” não foi alcançado em 30 Tabs');
+      }
       await usuario.tab();
     }
     await usuario.keyboard('{Enter}');
@@ -632,6 +636,11 @@ describe('acompanhamento', () => {
     const { container } = renderizar();
     await screen.findByText('Validando o arquivo inteiro');
 
+    const leiturasDoHistorico = (): number =>
+      vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes('/empregados/importacoes?')).length;
+    await waitFor(() => expect(leiturasDoHistorico()).toBeGreaterThan(0));
+    const antes = leiturasDoHistorico();
+
     backend.estado.tentativa = previaParcial();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_100);
@@ -639,5 +648,6 @@ describe('acompanhamento', () => {
 
     const anuncio = container.querySelector('[aria-live="polite"]');
     await waitFor(() => expect(anuncio).toHaveTextContent('Validação concluída: 2 linhas rejeitadas.'));
+    await waitFor(() => expect(leiturasDoHistorico()).toBeGreaterThan(antes));
   });
 });
