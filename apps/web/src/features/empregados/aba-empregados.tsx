@@ -24,7 +24,7 @@ import { criarDominioDeEmpregados } from './dominio';
 const CABECALHO = {
   titulo: 'Empregados',
   introducao:
-    'Importe e reimporte a base cadastral de empregados desta empresa por CSV, no modelo do ContaIA ou mapeando as colunas de um arquivo legado. Nenhum empregado muda antes da sua confirmação.',
+    'Importe e reimporte a base cadastral de empregados desta empresa por CSV, XLSX ou ODS, no modelo do ContaIA ou mapeando as colunas de um arquivo legado. Nenhum empregado muda antes da sua confirmação.',
 } as const;
 
 const AcessoNegado = ({ codigo }: { codigo: string }) =>

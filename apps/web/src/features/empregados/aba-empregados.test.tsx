@@ -142,7 +142,7 @@ describe('arquivo selecionado', () => {
 
 describe('arquivo rejeitado antes do envio', () => {
   it.each([
-    ['formato que não é CSV', new File(['x'], 'empregados.xlsx', { type: 'application/vnd.ms-excel' }), 'Formato não aceito. Envie .csv.'],
+    ['formato .xls, ainda recusado (SPEC-015 §3.1)', new File(['x'], 'empregados.xls', { type: 'application/vnd.ms-excel' }), 'O formato .xls (Excel 97-2003) não é aceito.'],
     ['CSV só com cabeçalho', new File(['cpf;nome\n'], 'vazio.csv', { type: 'text/csv' }), 'O arquivo não tem nenhuma linha de dados para importar.'],
     ['acima de 10 MB', new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'grande.csv', { type: 'text/csv' }), 'Arquivo acima do limite de 10 MB.'],
   ])('recusa %s sem enviar nada', async (_caso, arquivo, motivo) => {

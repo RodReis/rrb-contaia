@@ -77,11 +77,13 @@ export const DOMINIO_DO_PLANO: DominioDaImportacao = {
   permissoes: permissoesDoPlano,
   textos: {
     arquivoCsv: 'Arquivo CSV do plano de contas',
+    arquivoPlanilha: 'Planilha XLSX ou ODS do plano de contas',
+    modelos: 'Modelos oficiais do plano de contas',
     arrasteAqui: 'Arraste o CSV do plano de contas aqui',
     semPermissaoDeImportar: {
       titulo: 'Seu papel pode consultar o plano de contas, mas não tem permissão para importar.',
       descricao:
-        'O envio de CSV é feito por quem tem a permissão Importar em Empresas → Plano de contas. O histórico, o plano vigente e os relatórios continuam disponíveis abaixo.',
+        'O envio de arquivos é feito por quem tem a permissão Importar em Empresas → Plano de contas. O histórico, o plano vigente e os relatórios continuam disponíveis abaixo.',
     },
     emAndamento: 'Acompanhe o processamento; nada muda no plano antes da sua confirmação.',
     anuncioAplicando: 'Aplicando as linhas válidas ao plano de contas.',
@@ -105,11 +107,11 @@ export const DOMINIO_DO_PLANO: DominioDaImportacao = {
     aplicadasNoAviso,
     concluida: 'As contas que não estavam no arquivo continuam como estavam.',
     rejeitada:
-      'Nenhuma linha do arquivo pôde ser aplicada. Veja os motivos abaixo, corrija o CSV de origem e envie de novo. Enquanto a empresa não tiver nenhuma conta válida, a pendência de plano de contas segue aberta na Central de Pendências.',
+      'Nenhuma linha do arquivo pôde ser aplicada. Veja os motivos abaixo, corrija o arquivo de origem e envie de novo. Enquanto a empresa não tiver nenhuma conta válida, a pendência de plano de contas segue aberta na Central de Pendências.',
     cancelada: 'O plano de contas não foi alterado. A tentativa, o arquivo e o relatório ficam no histórico.',
     falhaTecnica: mensagemDoCodigo('FALHA_TECNICA'),
     previstasNaoAplicadas: 'Nenhuma foi aplicada: a aplicação falhou e o plano não mudou.',
-    rejeicoesNaoEntram: 'Corrija no CSV de origem e envie uma nova tentativa; estas linhas não entram no plano.',
+    rejeicoesNaoEntram: 'Corrija no arquivo de origem e envie uma nova tentativa; estas linhas não entram no plano.',
     legendaDoHistorico: 'Importações do plano de contas',
     avisoDeCancelamento: 'Importação cancelada. O plano de contas não foi alterado.',
   },

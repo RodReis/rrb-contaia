@@ -19,6 +19,7 @@ import { mensagemDoCodigo } from '@/lib/mensagens';
 import { avisarFalha } from '../escritorio/queries';
 import { baixarArquivo, caminhoDoOriginal, caminhoDoRelatorio } from './api';
 import { APARENCIA_DO_ESTADO, emAndamento, plural } from './apresentacao';
+import { nomeDoRelatorio } from './apresentacao-da-planilha';
 import type { DominioDaImportacao, PermissoesDaImportacao, PreviaBase } from './dominio';
 import { EtapasDaImportacao, etapaDoEstado } from './etapas';
 import { BotaoDeDownload, CodigoDeSuporte } from './pecas';
@@ -42,8 +43,6 @@ const anuncioDo = (dominio: DominioDaImportacao, previa: PreviaBase): string => 
   }
 };
 
-const nomeDoRelatorio = (previa: PreviaBase): string =>
-  `relatorio-${previa.arquivo.nome.replace(/\.csv$/iu, '')}.csv`;
 
 /**
  * Leitura que falhou com a tentativa já na tela: o último estado lido continua visível e marcado
@@ -186,7 +185,7 @@ export const Acompanhamento = ({
     <BotaoDeDownload
       rotulo="Baixar relatório CSV"
       caminho={caminhoDoRelatorio(dominio, empresaId, previa.tentativaId)}
-      nomePadrao={nomeDoRelatorio(previa)}
+      nomePadrao={nomeDoRelatorio(previa.arquivo.nome)}
       indisponivel="O relatório não está disponível agora; o histórico continua abaixo."
       rotuloDeNovaTentativa="Tentar baixar de novo o relatório"
     />
@@ -205,7 +204,7 @@ export const Acompanhamento = ({
   // atalho vira toast persistente com o código de suporte; o botão do relatório segue na tela.
   const baixarRelatorio = permissoes.baixar
     ? (): void => {
-        void baixarArquivo(caminhoDoRelatorio(dominio, empresaId, previa.tentativaId), nomeDoRelatorio(previa)).catch(
+        void baixarArquivo(caminhoDoRelatorio(dominio, empresaId, previa.tentativaId), nomeDoRelatorio(previa.arquivo.nome)).catch(
           avisarFalha,
         );
       }

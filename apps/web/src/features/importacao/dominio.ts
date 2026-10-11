@@ -54,8 +54,12 @@ export type ColunaDaRejeicao = Readonly<{
 }>;
 
 export type TextosDaImportacao = Readonly<{
-  /** Rótulo acessível do `<input type="file">`. */
+  /** Rótulo acessível do `<input type="file">` do CSV. */
   arquivoCsv: string;
+  /** Rótulo acessível do `<input type="file">` das planilhas XLSX/ODS (SPEC-015). */
+  arquivoPlanilha: string;
+  /** Nome do grupo dos modelos oficiais do domínio (CSV, XLSX e ODS). */
+  modelos: string;
   arrasteAqui: string;
   semPermissaoDeImportar: Readonly<{ titulo: string; descricao: string }>;
   /** Descrição do cartão enquanto o worker trabalha. */

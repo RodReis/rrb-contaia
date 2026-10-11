@@ -113,11 +113,13 @@ export const criarDominioDeEmpregados = (nomeDaEmpresa: string | null): DominioD
   permissoes: permissoesDeEmpregados,
   textos: {
     arquivoCsv: 'Arquivo CSV dos empregados',
+    arquivoPlanilha: 'Planilha XLSX ou ODS dos empregados',
+    modelos: 'Modelos oficiais de empregados',
     arrasteAqui: 'Arraste o CSV dos empregados aqui',
     semPermissaoDeImportar: {
       titulo: 'Seu papel pode consultar os empregados, mas não tem permissão para importar.',
       descricao:
-        'O envio de CSV é feito por quem tem a permissão Importar em Empresas → Empregados. O histórico e a base importada continuam disponíveis abaixo.',
+        'O envio de arquivos é feito por quem tem a permissão Importar em Empresas → Empregados. O histórico e a base importada continuam disponíveis abaixo.',
     },
     emAndamento: 'Acompanhe o processamento; nenhum empregado muda antes da sua confirmação.',
     anuncioAplicando: 'Aplicando as linhas válidas à base de empregados.',
@@ -145,12 +147,12 @@ export const criarDominioDeEmpregados = (nomeDaEmpresa: string | null): DominioD
     aplicadasNoAviso,
     concluida: 'Os empregados que não estavam no arquivo continuam como estavam.',
     rejeitada:
-      'Nenhuma linha do arquivo pôde ser aplicada. Veja os motivos abaixo, corrija o CSV de origem e envie de novo. Enquanto a empresa não tiver nenhum empregado confirmado, a pendência de empregados não importados segue aberta na Central de Pendências.',
+      'Nenhuma linha do arquivo pôde ser aplicada. Veja os motivos abaixo, corrija o arquivo de origem e envie de novo. Enquanto a empresa não tiver nenhum empregado confirmado, a pendência de empregados não importados segue aberta na Central de Pendências.',
     cancelada: 'Nenhum empregado foi incluído ou alterado. A tentativa, o arquivo e o relatório ficam no histórico.',
     falhaTecnica:
       'A importação falhou por um problema técnico. Nenhum empregado foi alterado; envie o arquivo de novo para uma nova tentativa.',
     previstasNaoAplicadas: 'Nenhuma foi aplicada: a aplicação falhou e a base de empregados não mudou.',
-    rejeicoesNaoEntram: 'Corrija no CSV de origem e envie uma nova tentativa; estas linhas não entram na base de empregados.',
+    rejeicoesNaoEntram: 'Corrija no arquivo de origem e envie uma nova tentativa; estas linhas não entram na base de empregados.',
     legendaDoHistorico: 'Importações de empregados',
     avisoDeCancelamento: 'Importação cancelada. Nenhum empregado foi alterado.',
   },

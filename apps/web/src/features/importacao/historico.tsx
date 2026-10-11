@@ -16,7 +16,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { cn } from '@/lib/cn';
-import { APARENCIA_DO_ESTADO, formatarInstante, formatarNumero } from './apresentacao';
+import { APARENCIA_DO_ESTADO, formatarInstante, formatarNumero, plural } from './apresentacao';
+import { ehPlanilha, quantidadeDoDiagnostico, rotuloDaAba } from './apresentacao-da-planilha';
 import type { DominioDaImportacao } from './dominio';
 import { Paginacao, RegiaoRolavel, Secao } from './pecas';
 import { useHistorico } from './queries';
@@ -37,6 +38,41 @@ const quemDecidiu = (tentativa: TentativaDoHistorico): string | null => {
 
   // FALHA depois da confirmação: houve a decisão, mas nada foi aplicado.
   return tentativa.estado === 'FALHA' ? `confirmação tentada por ${outro.nome}` : `confirmada por ${outro.nome}`;
+};
+
+/**
+ * Formato e configuração da planilha (SPEC-015 §3.9): "XLSX · aba Plano (posição 2) · cabeçalho na
+ * linha 3". CSV diz só o formato; tentativa anterior à F15, sem o campo, não diz nada.
+ */
+const configuracaoDaTentativa = (tentativa: TentativaDoHistorico): string | null => {
+  if (tentativa.formato === undefined) {
+    return null;
+  }
+
+  if (!ehPlanilha(tentativa.formato) || tentativa.aba === undefined || tentativa.aba === null) {
+    return tentativa.formato;
+  }
+
+  return `${tentativa.formato} · aba ${rotuloDaAba(tentativa.aba)} · cabeçalho na linha ${formatarNumero(tentativa.linhaCabecalho ?? 1)}`;
+};
+
+/** "2 ignoradas · 1 oculta · 1 com fórmula": o que a leitura da planilha separou dos dados. */
+const leituraDaTentativa = (tentativa: TentativaDoHistorico): string | null => {
+  if (!ehPlanilha(tentativa.formato)) {
+    return null;
+  }
+
+  const formulas = quantidadeDoDiagnostico(tentativa.diagnosticosDaPlanilha, 'LINHAS_COM_FORMULA_REJEITADAS');
+  const mesclas = quantidadeDoDiagnostico(tentativa.diagnosticosDaPlanilha, 'LINHAS_COM_CELULA_MESCLADA_REJEITADAS');
+
+  return [
+    plural(tentativa.linhasIgnoradasAntesDoCabecalho ?? 0, 'ignorada', 'ignoradas'),
+    plural(tentativa.linhasOcultas ?? 0, 'oculta', 'ocultas'),
+    formulas > 0 ? `${formatarNumero(formulas)} com fórmula` : '',
+    mesclas > 0 ? `${formatarNumero(mesclas)} com mescla` : '',
+  ]
+    .filter((parte) => parte !== '')
+    .join(' · ');
 };
 
 // `clsx`, não `cn`: o tailwind-merge trata `text-code-sm` e a cor como o mesmo grupo e descartaria o tamanho.
@@ -62,6 +98,8 @@ const Linha = ({
 }) => {
   const aparencia = APARENCIA_DO_ESTADO[tentativa.estado];
   const decisao = quemDecidiu(tentativa);
+  const configuracao = configuracaoDaTentativa(tentativa);
+  const leitura = leituraDaTentativa(tentativa);
 
   return (
     <tr aria-current={aberta ? 'true' : undefined} className={cn('border-t border-border align-top', aberta ? 'bg-accent' : 'hover:bg-accent/40')}>
@@ -73,6 +111,12 @@ const Linha = ({
         <span title={tentativa.arquivo.nome} className="block max-w-[14rem] truncate font-mono text-code-sm text-foreground">
           {tentativa.arquivo.nome}
         </span>
+        {configuracao === null ? null : (
+          <span title={configuracao} className="line-clamp-2 max-w-[16rem] text-body-sm text-muted-foreground [overflow-wrap:anywhere]">
+            {configuracao}
+          </span>
+        )}
+        {leitura === null ? null : <span className="block text-body-sm text-muted-foreground">{leitura}</span>}
         {tentativa.reutilizadaPorIdempotencia ? (
           <span className="text-body-sm text-muted-foreground">Resultado reaproveitado</span>
         ) : null}
@@ -166,7 +210,7 @@ export const HistoricoDeImportacoes = ({
             <EmptyState
               icone={<History />}
               titulo="Nenhuma importação ainda"
-              descricao="Cada envio de CSV aparece aqui, da mais recente para a mais antiga, com a situação, os totais e o relatório."
+              descricao="Cada envio de arquivo aparece aqui, da mais recente para a mais antiga, com a situação, os totais e o relatório."
             />
           )}
         </div>

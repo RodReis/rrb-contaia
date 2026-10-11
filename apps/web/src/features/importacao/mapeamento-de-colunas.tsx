@@ -1,15 +1,20 @@
 /**
- * Mapeamento das colunas do arquivo para os campos do contrato do domínio (SPEC-013/014 §3.3, §7).
+ * Mapeamento das colunas do arquivo para os campos do contrato do domínio (SPEC-013/014 §3.3, §7;
+ * SPEC-015 §3.4).
  *
  * As colunas com o mesmo nome do modelo já vêm escolhidas; o resto é decisão de quem importa. A
  * regra é a do domínio (a mesma da API): todos os campos associados e nenhuma
  * coluna alimentando dois campos. O botão continua clicável (PATTERNS.md §6): com pendência, ele
  * destaca os campos, diz o que falta e leva o foco ao primeiro — e nada é enviado.
+ *
+ * A coluna é uma opção `{ valor, rotulo }`: no CSV os dois são o nome do cabeçalho; na planilha o
+ * valor é a letra (o que vai para a API) e o rótulo é inequívoco ("Coluna C — Nome",
+ * "Coluna D (sem nome)"), porque nomes repetidos ou vazios são comuns em planilha.
  */
 'use client';
 
 import { ArrowRight, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -18,10 +23,12 @@ import { mensagemDoCodigo } from '@/lib/mensagens';
 import { tamanhoEmTexto } from '@/lib/arquivo';
 import { cn } from '@/lib/cn';
 import { mapeamentoCompleto, type DominioDaImportacao, type PendenciaDoRascunho, type RascunhoDoMapeamento } from './dominio';
-import type { ArquivoLido } from './envio-do-csv';
+import type { ArquivoLido } from './envio-do-arquivo';
 import { CodigoDeSuporte, RegiaoRolavel } from './pecas';
 
 const NENHUMA_COLUNA = '__nenhuma-coluna__';
+
+export type OpcaoDeColuna = Readonly<{ valor: string; rotulo: string }>;
 
 const NOME_DO_DELIMITADOR: Readonly<Record<string, string>> = {
   ';': 'ponto e vírgula',
@@ -32,11 +39,11 @@ const NOME_DO_DELIMITADOR: Readonly<Record<string, string>> = {
 const erroDoCampo = (
   dominio: DominioDaImportacao,
   pendencia: PendenciaDoRascunho | undefined,
-  coluna: string | undefined,
+  coluna: OpcaoDeColuna | undefined,
   tentou: boolean,
 ): string | undefined => {
   if (pendencia?.motivo === 'COLUNA_REPETIDA') {
-    return `A coluna “${coluna ?? ''}” já alimenta outro campo; cada coluna serve a um campo só.`;
+    return `A coluna “${coluna?.rotulo ?? ''}” já alimenta outro campo; cada coluna serve a um campo só.`;
   }
 
   if (pendencia !== undefined && tentou) {
@@ -102,34 +109,70 @@ const AmostraDoArquivo = ({
   );
 };
 
+/**
+ * Faixa do arquivo escolhido: nome (numa linha, inteiro no título), tamanho e o que se sabe dele, e
+ * a troca de arquivo. Comum ao CSV e à planilha.
+ */
+export const FaixaDoArquivo = ({
+  arquivo,
+  detalhes,
+  bloqueada,
+  aoTrocar,
+}: {
+  arquivo: File;
+  detalhes: ReactNode;
+  bloqueada: boolean;
+  aoTrocar: () => void;
+}) => (
+  <div className="flex flex-col gap-sm rounded-md bg-secondary px-md py-sm tablet:flex-row tablet:items-center tablet:justify-between">
+    <p className="flex min-w-0 flex-wrap items-center gap-xs text-body-sm text-muted-foreground">
+      <FileText className="size-icon-sm shrink-0 text-foreground" aria-hidden="true" />
+      <span title={arquivo.name} className="min-w-0 max-w-full truncate font-mono text-code-sm text-foreground tablet:max-w-[22rem]">
+        {arquivo.name}
+      </span>
+      <span aria-hidden="true">·</span>
+      <span className="tabular-nums">{tamanhoEmTexto(arquivo.size)}</span>
+      {detalhes}
+    </p>
+    <Button variante="fantasma" tamanho="compacto" disabled={bloqueada} onClick={aoTrocar}>
+      <RefreshCw aria-hidden="true" />
+      Trocar arquivo
+    </Button>
+  </div>
+);
+
 export const MapeamentoDeColunas = ({
   dominio,
-  lido,
+  colunas,
+  sugestao,
   enviando,
   falhaDoEnvio,
   aoEnviar,
-  aoTrocar,
+  amostra,
 }: {
   dominio: DominioDaImportacao;
-  lido: ArquivoLido;
+  colunas: readonly OpcaoDeColuna[];
+  /** Ponto de partida visível e editável: campo → valor da coluna. */
+  sugestao: RascunhoDoMapeamento;
   enviando: boolean;
   falhaDoEnvio: Problema | null;
   aoEnviar: (mapeamento: Readonly<Record<string, string>>) => void;
-  aoTrocar: () => void;
+  /** Amostra do arquivo, que pode marcar a coluna de cada campo no rascunho atual. */
+  amostra?: (rascunho: RascunhoDoMapeamento) => ReactNode;
 }) => {
-  const { cabecalho } = lido.leitura;
-  const [rascunho, definirRascunho] = useState<RascunhoDoMapeamento>(() => dominio.mapeamentoSugerido(cabecalho));
+  const [rascunho, definirRascunho] = useState<RascunhoDoMapeamento>(sugestao);
   const [tentou, definirTentou] = useState(false);
   const campos = useRef<HTMLDivElement>(null);
 
-  const pendencias = dominio.pendenciasDoRascunho(cabecalho, rascunho);
+  const pendencias = dominio.pendenciasDoRascunho(
+    colunas.map((coluna) => coluna.valor),
+    rascunho,
+  );
   const pendenciaDe = (campo: string): PendenciaDoRascunho | undefined =>
     pendencias.find((pendencia) => pendencia.campo === campo);
+  const colunaDe = (valor: string | undefined): OpcaoDeColuna | undefined => colunas.find((coluna) => coluna.valor === valor);
 
-  const opcoes = [
-    { valor: NENHUMA_COLUNA, rotulo: 'Nenhuma coluna' },
-    ...cabecalho.map((coluna) => ({ valor: coluna, rotulo: coluna })),
-  ];
+  const opcoes = [{ valor: NENHUMA_COLUNA, rotulo: 'Nenhuma coluna' }, ...colunas];
 
   const associar = (campo: string, valor: string): void => {
     definirRascunho((atual) => {
@@ -159,23 +202,6 @@ export const MapeamentoDeColunas = ({
 
   return (
     <div className="flex flex-col gap-lg">
-      <div className="flex flex-col gap-sm rounded-md bg-secondary px-md py-sm tablet:flex-row tablet:items-center tablet:justify-between">
-        <p className="flex min-w-0 flex-wrap items-center gap-xs text-body-sm text-muted-foreground">
-          <FileText className="size-icon-sm shrink-0 text-foreground" aria-hidden="true" />
-          <span className="font-mono text-code-sm text-foreground [overflow-wrap:anywhere]">{lido.arquivo.name}</span>
-          <span aria-hidden="true">·</span>
-          <span className="tabular-nums">{tamanhoEmTexto(lido.arquivo.size)}</span>
-          <span aria-hidden="true">·</span>
-          <span>
-            {cabecalho.length} colunas separadas por {NOME_DO_DELIMITADOR[lido.leitura.delimitador] ?? 'delimitador'}
-          </span>
-        </p>
-        <Button variante="fantasma" tamanho="compacto" disabled={enviando} onClick={aoTrocar}>
-          <RefreshCw aria-hidden="true" />
-          Trocar arquivo
-        </Button>
-      </div>
-
       <fieldset className="flex flex-col gap-md">
         <legend className="mb-sm flex flex-col gap-xs">
           <span className="text-title-md text-foreground">Associe as colunas do arquivo</span>
@@ -187,7 +213,7 @@ export const MapeamentoDeColunas = ({
 
         <div ref={campos} className="grid gap-md tablet:grid-cols-2">
           {dominio.campos.map((campo) => (
-            <div key={campo} data-campo={campo}>
+            <div key={campo} data-campo={campo} className="min-w-0">
               <Select
                 rotulo={dominio.rotuloDoCampo(campo)}
                 obrigatorio
@@ -195,7 +221,7 @@ export const MapeamentoDeColunas = ({
                 valor={rascunho[campo]}
                 placeholder="Escolha a coluna"
                 onValorChange={(valor) => associar(campo, valor)}
-                erro={erroDoCampo(dominio, pendenciaDe(campo), rascunho[campo], tentou)}
+                erro={erroDoCampo(dominio, pendenciaDe(campo), colunaDe(rascunho[campo]), tentou)}
                 ajuda={dominio.ajudaDoCampo(campo)}
                 disabled={enviando}
               />
@@ -204,7 +230,7 @@ export const MapeamentoDeColunas = ({
         </div>
       </fieldset>
 
-      <AmostraDoArquivo dominio={dominio} lido={lido} rascunho={rascunho} />
+      {amostra?.(rascunho)}
 
       {tentou && pendencias.length > 0 ? (
         <p role="alert" className="rounded-md bg-danger px-md py-sm text-body-sm text-danger-foreground">
@@ -228,6 +254,52 @@ export const MapeamentoDeColunas = ({
           {enviando ? null : <ArrowRight aria-hidden="true" />}
         </Button>
       </div>
+    </div>
+  );
+};
+
+/** O caminho do CSV, como nas F13/F14: colunas pelo nome do cabeçalho lido no navegador. */
+export const MapeamentoDoCsv = ({
+  dominio,
+  lido,
+  enviando,
+  falhaDoEnvio,
+  aoEnviar,
+  aoTrocar,
+}: {
+  dominio: DominioDaImportacao;
+  lido: ArquivoLido;
+  enviando: boolean;
+  falhaDoEnvio: Problema | null;
+  aoEnviar: (mapeamento: Readonly<Record<string, string>>) => void;
+  aoTrocar: () => void;
+}) => {
+  const { cabecalho } = lido.leitura;
+
+  return (
+    <div className="flex flex-col gap-lg">
+      <FaixaDoArquivo
+        arquivo={lido.arquivo}
+        bloqueada={enviando}
+        aoTrocar={aoTrocar}
+        detalhes={
+          <>
+            <span aria-hidden="true">·</span>
+            <span>
+              {cabecalho.length} colunas separadas por {NOME_DO_DELIMITADOR[lido.leitura.delimitador] ?? 'delimitador'}
+            </span>
+          </>
+        }
+      />
+      <MapeamentoDeColunas
+        dominio={dominio}
+        colunas={cabecalho.map((coluna) => ({ valor: coluna, rotulo: coluna }))}
+        sugestao={dominio.mapeamentoSugerido(cabecalho)}
+        enviando={enviando}
+        falhaDoEnvio={falhaDoEnvio}
+        aoEnviar={aoEnviar}
+        amostra={(rascunho) => <AmostraDoArquivo dominio={dominio} lido={lido} rascunho={rascunho} />}
+      />
     </div>
   );
 };

@@ -12,6 +12,7 @@ import {
   cancelarImportacao,
   confirmarImportacao,
   enviarImportacao,
+  inspecionarPlanilha,
   listarHistorico,
   listarRejeicoes,
   obterTentativa,
@@ -31,6 +32,9 @@ export const chavesDaImportacao = (dominio: Pick<DominioDaImportacao, 'recurso'>
   rejeicoes: (empresaId: string, tentativaId: string, pagina: number) =>
     [dominio.recurso, empresaId, 'tentativa', tentativaId, 'rejeicoes', pagina] as const,
   historico: (empresaId: string, pagina: number) => [dominio.recurso, empresaId, 'historico', pagina] as const,
+  /** Uma inspeção por arquivo escolhido (`selecao`), aba e linha de cabeçalho pedidas. */
+  inspecao: (empresaId: string, selecao: string, aba: number | null, linhaCabecalho: number | null) =>
+    [dominio.recurso, empresaId, 'inspecao', selecao, aba, linhaCabecalho] as const,
 });
 
 /** Frequência do acompanhamento enquanto o worker valida ou a aplicação roda. */
@@ -166,17 +170,42 @@ const atualizarSuperficies = (
   void cliente.invalidateQueries({ queryKey: ['notificacoes'] });
 };
 
+/**
+ * Inspeção da planilha escolhida (SPEC-015 §6.2). É leitura sem efeito no servidor, então mora no
+ * cache do Query, mas com regras próprias:
+ * - nunca repete sozinha: a recusa do arquivo é determinística e o "serviço ocupado" tem a própria
+ *   espera (`Retry-After`), oferecida pela tela;
+ * - nunca fica velha nem relê por foco: o arquivo não muda depois de escolhido;
+ * - some do cache assim que a tela deixa de usá-la (`gcTime: 0`): a amostra tem dado do arquivo de
+ *   quem enviou e não precisa sobreviver à troca de arquivo (fica só em memória, nunca na URL).
+ */
+export const useInspecaoDaPlanilha = (
+  dominio: DominioDaImportacao,
+  empresaId: string,
+  entrada: Readonly<{ arquivo: File; selecao: string; aba: number | null; linhaCabecalho: number | null }>,
+  habilitada = true,
+) =>
+  useQuery({
+    queryKey: chavesDaImportacao(dominio).inspecao(empresaId, entrada.selecao, entrada.aba, entrada.linhaCabecalho),
+    queryFn: habilitada
+      ? () => inspecionarPlanilha(dominio, empresaId, { arquivo: entrada.arquivo, aba: entrada.aba, linhaCabecalho: entrada.linhaCabecalho })
+      : skipToken,
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });
+
 export const useEnviarImportacao = (dominio: DominioDaImportacao, empresaId: string) => {
   const cliente = useQueryClient();
 
   return useMutation({
-    mutationFn: (entrada: Readonly<{ arquivo: File; mapeamento: Readonly<Record<string, string>> }>) =>
-      enviarImportacao(dominio, empresaId, entrada),
+    mutationFn: (entrada: Parameters<typeof enviarImportacao>[2]) => enviarImportacao(dominio, empresaId, entrada),
     onSuccess: (previa) => {
       atualizarSuperficies(cliente, dominio, empresaId, previa);
       toast.info(
         previa.reutilizadaPorIdempotencia
-          ? 'Este arquivo, com o mesmo mapeamento, já tinha sido processado: o resultado anterior foi reaproveitado.'
+          ? 'Este arquivo, com a mesma configuração, já tinha sido processado: o resultado anterior foi reaproveitado.'
           : 'Arquivo recebido. A validação continua em segundo plano e o resultado aparece aqui.',
       );
     },

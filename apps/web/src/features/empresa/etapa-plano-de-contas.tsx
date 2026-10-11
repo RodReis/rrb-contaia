@@ -132,7 +132,7 @@ export const EtapaDePlanoDeContas = ({
 
           <div className="flex max-w-prose flex-col gap-xs text-body-md text-muted-foreground">
             <p>
-              A empresa já está ativa. O plano de contas pode ser importado agora por CSV ou depois, na aba Plano de
+              A empresa já está ativa. O plano de contas pode ser importado agora por CSV, XLSX ou ODS, ou depois, na aba Plano de
               contas desta empresa. Nenhuma conta muda antes da sua confirmação.
             </p>
             {semPermissaoDeImportar ? (
@@ -140,7 +140,7 @@ export const EtapaDePlanoDeContas = ({
                 <span className="text-title-sm text-foreground">
                   Seu papel pode consultar o plano de contas, mas não tem permissão para importar.
                 </span>{' '}
-                O envio de CSV é feito por quem tem a permissão Importar em Empresas → Plano de contas.
+                O envio de arquivos é feito por quem tem a permissão Importar em Empresas → Plano de contas.
               </p>
             ) : null}
             {pendenciaAberta ? (
