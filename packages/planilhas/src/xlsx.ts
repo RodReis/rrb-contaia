@@ -151,7 +151,10 @@ const lerFormatos = (zip: ZipAberto, caminho: string | undefined, limites: Limit
       else if (nome === 'numFmt' && emNumFmts) {
         const id = numero(e.atributos['numFmtId']);
         const codigo = e.atributos['formatCode'];
-        if (id !== undefined && codigo !== undefined) personalizados.set(id, codigo);
+        if (id === undefined || codigo === undefined) return;
+        // Mesmo teto dos `xf`: styles.xml forjado com milhões de numFmt acabaria em OOM, não em código.
+        if (!personalizados.has(id) && personalizados.size >= limites.estilos) throw excedido('ESTILOS');
+        personalizados.set(id, codigo);
       } else if (nome === 'xf' && emCellXfs) {
         if (idsDosEstilos.length >= limites.estilos) throw excedido('ESTILOS');
         idsDosEstilos.push(numero(e.atributos['numFmtId']) ?? 0);
@@ -167,6 +170,8 @@ const lerFormatos = (zip: ZipAberto, caminho: string | undefined, limites: Limit
 };
 
 const REFERENCIA = /^([A-Z]{1,4})(\d{1,8})$/u;
+/** Número de linha só em decimal (o mesmo trecho de `REFERENCIA`): `Number` aceitaria `0x10`, ` 5`, `1e3`. */
+const NUMERO_DA_LINHA = /^\d{1,8}$/u;
 
 const indiceDaColuna = (letras: string, limites: Limites): number => {
   let indice = 0;
@@ -249,7 +254,7 @@ const lerPlanilha = (zip: ZipAberto, caminho: string, contexto: Contexto, coleto
     if (nome === 'sheetData') naSheetData = true;
     else if (nome === 'row' && naSheetData) {
       const r = e.atributos['r'];
-      linhaAtual = r === undefined ? linhaAtual + 1 : Number(r);
+      linhaAtual = r === undefined ? linhaAtual + 1 : NUMERO_DA_LINHA.test(r) ? Number(r) : Number.NaN;
       if (!Number.isInteger(linhaAtual) || linhaAtual < 1 || linhaAtual > ULTIMA_LINHA) throw corrompido('REFERENCIA_INVALIDA');
       ocultaAtual = ehVerdadeiro(e.atributos['hidden']);
       ultimaColuna = 0;

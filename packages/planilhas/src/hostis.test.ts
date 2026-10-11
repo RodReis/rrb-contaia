@@ -195,6 +195,19 @@ describe('Estrutura hostil — esparsa, com tetos', () => {
     expect(leitura.linhas[0]?.celulas['A']?.valorExibido).toBe('42');
   });
 
+  it('mais formatos de número personalizados do que o teto de estilos → LIMITE (ESTILOS), sem acumular', () => {
+    const numFmts = Array.from({ length: 3 }, (_, i) => `<numFmt numFmtId="${164 + i}" formatCode="0.${'0'.repeat(i + 1)}"/>`).join('');
+    const estilos = `<styleSheet xmlns="${NS}"><numFmts>${numFmts}</numFmts><cellXfs><xf numFmtId="0"/></cellXfs></styleSheet>`;
+    const bytes = xlsx({ estilosXml: estilos });
+    esperarErro(() => lerAba(bytes, 1, { ...LIMITES, estilos: 2 }), 'LIMITE_DE_PROCESSAMENTO_EXCEDIDO', 'ESTILOS');
+    expect(lerAba(bytes, 1, { ...LIMITES, estilos: 3 }).linhas).toHaveLength(1);
+  });
+
+  it.each(['0x10', ' 5', '1e3', '+2', '5.0'])('<row r="%s"> não é número de linha decimal → ARQUIVO_CORROMPIDO', (r) => {
+    const aba = abaXml(`<row r="${r}"><c t="inlineStr"><is><t>a</t></is></c></row>`);
+    esperarErro(() => lerAba(xlsx({ abas: [{ nome: 'Dados', xml: aba }] }), 1), 'ARQUIVO_CORROMPIDO', 'REFERENCIA_INVALIDA');
+  });
+
   it('mescla gigante A1:XFD1048576 não é expandida célula a célula', () => {
     const aba = abaXml(
       '<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row><row r="5"><c r="C5"><v>1</v></c></row>',
