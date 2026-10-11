@@ -7,10 +7,13 @@
  * ativação. É um passo a mais, mostrado como tal: os quatro anteriores aparecem concluídos e este,
  * "opcional", como o atual. O fluxo de importação é o da aba "Plano de contas" da manutenção
  * (`AbaPlanoDeContas`), sem cópia: a tentativa abre na URL da empresa e uma recarga cai na aba.
+ *
+ * Para quem consulta empregados (SPEC-014 §3.1), a etapa de empregados vem depois desta: sair do
+ * plano leva a ela, na mesma página. Para os demais, o caminho segue sendo a lista de empresas.
  */
 'use client';
 
-import { Check } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
@@ -22,12 +25,13 @@ import { ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Stepper, type EtapaDoStepper } from '@/components/ui/stepper';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
-import { naoTerminada } from '../importacao/apresentacao';
+import { ESTADOS_COM_LINHAS_APLICADAS, naoTerminada } from '../importacao/apresentacao';
 import { permissoesDoPlano } from '../plano-contas/permissoes';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { useContasDoPlano, useTentativa } from '../plano-contas/queries';
 import { useEstadoNaUrl } from '../plano-contas/use-estado-na-url';
+import { consultaEmpregados } from '../empregados/permissoes';
 import { useSessao } from '../usuarios/queries';
 import { useEmpresa } from './queries';
 import { ROTULO_DA_ETAPA } from './wizard';
@@ -38,17 +42,22 @@ const etapaConcluida = (etapa: EtapaDaEmpresa): EtapaDoStepper => ({
   situacao: 'concluida',
 });
 
-const ETAPAS_DO_PASSO: readonly EtapaDoStepper[] = [
-  ...ETAPAS_DA_EMPRESA.map(etapaConcluida),
-  { id: 'plano-de-contas', rotulo: 'Plano de contas (opcional)', situacao: 'atual' },
-];
+export const ETAPAS_CONCLUIDAS_DO_CADASTRO: readonly EtapaDoStepper[] = ETAPAS_DA_EMPRESA.map(etapaConcluida);
 
-/** Estados em que o plano ganhou contas: a pendência deixa de ser promessa. */
-const ESTADOS_COM_CONTAS_APLICADAS: readonly string[] = ['CONCLUIDA', 'CONCLUIDA_COM_REJEICOES'];
+const ETAPA_DO_PLANO: EtapaDoStepper = { id: 'plano-de-contas', rotulo: 'Plano de contas (opcional)', situacao: 'atual' };
+
+export const ETAPA_DE_EMPREGADOS: EtapaDoStepper = { id: 'empregados', rotulo: 'Empregados (opcional)', situacao: 'pendente' };
 
 const ID_DO_TITULO = 'etapa-plano-de-contas-titulo';
 
-export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
+export const EtapaDePlanoDeContas = ({
+  empresaId,
+  aoSeguirParaEmpregados,
+}: {
+  empresaId: string;
+  /** Próxima etapa, na mesma página, para quem consulta empregados. */
+  aoSeguirParaEmpregados: () => void;
+}) => {
   const navegador = useRouter();
   const { data: visao } = useEmpresa(empresaId);
   const consultaDaSessao = useSessao();
@@ -78,10 +87,14 @@ export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
   const semNadaAFazer = (tentativa !== undefined && !naoTerminada(tentativa.estado)) || semPermissaoDeImportar;
   // A pendência existe enquanto o plano não tem conta: vale o plano (e a tentativa que acabou de
   // aplicar contas, antes de o plano ser relido), não só a tentativa aberta na URL.
-  const aplicouAgora = tentativa !== undefined && ESTADOS_COM_CONTAS_APLICADAS.includes(tentativa.estado);
+  const aplicouAgora = tentativa !== undefined && ESTADOS_COM_LINHAS_APLICADAS.includes(tentativa.estado);
   // Enquanto o plano não chegou, o aviso não aparece: não se promete nem se nega a pendência.
   const pendenciaAberta = !aplicouAgora && plano !== undefined && plano.total === 0;
-  const sair = (): void => navegador.push('/empresas');
+  const seguirParaEmpregados = consultaEmpregados(sessao);
+  const sair = (): void => (seguirParaEmpregados ? aoSeguirParaEmpregados() : navegador.push('/empresas'));
+  const etapas = seguirParaEmpregados
+    ? [...ETAPAS_CONCLUIDAS_DO_CADASTRO, ETAPA_DO_PLANO, ETAPA_DE_EMPREGADOS]
+    : [...ETAPAS_CONCLUIDAS_DO_CADASTRO, ETAPA_DO_PLANO];
 
   return (
     <div className="flex flex-col gap-xl">
@@ -91,11 +104,13 @@ export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
           <StatusBadge tom="conforme" rotulo="Ativa" />
         </div>
         <p className="max-w-prose text-body-md text-muted-foreground">
-          Empresa ativada. Falta só o plano de contas, e ele é opcional: nada do cadastro depende dele.
+          {seguirParaEmpregados
+            ? 'Empresa ativada. Faltam o plano de contas e os empregados, ambos opcionais: nada do cadastro depende deles.'
+            : 'Empresa ativada. Falta só o plano de contas, e ele é opcional: nada do cadastro depende dele.'}
         </p>
       </header>
 
-      <Stepper etapas={ETAPAS_DO_PASSO} />
+      <Stepper etapas={etapas} />
 
       <section aria-labelledby={ID_DO_TITULO} className="flex flex-col gap-lg">
         <div className="flex flex-col gap-md rounded-lg border border-border bg-card p-lg">
@@ -133,7 +148,12 @@ export const EtapaDePlanoDeContas = ({ empresaId }: { empresaId: string }) => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-sm">
-            {semNadaAFazer ? (
+            {semNadaAFazer && seguirParaEmpregados ? (
+              <Button onClick={sair}>
+                Seguir para empregados
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            ) : semNadaAFazer ? (
               <Button onClick={sair}>
                 <Check aria-hidden="true" />
                 Concluir
