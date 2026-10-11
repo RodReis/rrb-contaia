@@ -119,6 +119,13 @@ const parametrosDaTentativa = (e: Escopo): unknown[] => [
   `plano-contas/${e.sufixo}/${proximo()}.csv`,
 ];
 
+/** Tentativa de importação de empregados (mesmos parâmetros da do plano). */
+const SQL_TENTATIVA_DE_EMPREGADOS = `insert into app.importacao_empregados
+   (tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome, arquivo_tamanho, arquivo_chave,
+    usuario_iniciador_id, correlation_id)
+ values ($1, $2, $4, '{"cpf":"cpf"}'::jsonb, 'empregados.csv', 10, $5, $3, 'matriz-rls')
+ returning id, empresa_id, tenant_id`;
+
 export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.tenant': {
     inserir: (banco, escopo) =>
@@ -411,6 +418,70 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
         banco,
         `with tentativa as (${SQL_TENTATIVA_DO_PLANO})
          insert into app.importacao_plano_contas_notificacao (tenant_id, empresa_id, tentativa_id, usuario_id)
+         select $1, $2, tentativa.id, $3 from tentativa
+         returning id`,
+        parametrosDaTentativa(e),
+      ),
+    colunaDeAtualizacao: 'lida',
+  },
+  'app.empregado': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.empregado (tenant_id, empresa_id, cpf, nome, matricula, data_nascimento, data_admissao)
+         values ($1, $2, '52998224725', 'Empregado da prova', $3, '1990-01-01', '2015-01-01') returning id`,
+        [e.tenantId, e.empresaId, `matriz-${e.sufixo}-${proximo()}`],
+      ),
+    colunaDeAtualizacao: 'nome',
+  },
+  'app.empresa_empregados_versao': {
+    // Uma por empresa, como empresa_plano_versao: upsert sem efeito (ver acima).
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `insert into app.empresa_empregados_versao (tenant_id, empresa_id) values ($1, $2)
+         on conflict (empresa_id, tenant_id) do update set versao = app.empresa_empregados_versao.versao
+         returning id`,
+        [e.tenantId, e.empresaId],
+      ),
+    colunaDeAtualizacao: 'versao',
+  },
+  'app.importacao_empregados': {
+    inserir: (banco, e) => unico(banco, SQL_TENTATIVA_DE_EMPREGADOS, parametrosDaTentativa(e)),
+    colunaDeAtualizacao: 'estado',
+  },
+  // As filhas criam a tentativa-pai na mesma instrução (FK composta; ver as do plano de contas).
+  'app.importacao_empregados_linha': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `with tentativa as (${SQL_TENTATIVA_DE_EMPREGADOS})
+         insert into app.importacao_empregados_linha
+           (tenant_id, empresa_id, tentativa_id, numero_linha, cpf, status, codigo_de_erro, campo)
+         select $1, $2, tentativa.id, 1, null, 'REJEITADA', 'CAMPO_OBRIGATORIO_AUSENTE', 'cpf'
+           from tentativa
+         returning id`,
+        parametrosDaTentativa(e),
+      ),
+  },
+  'app.importacao_empregados_evento': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `with tentativa as (${SQL_TENTATIVA_DE_EMPREGADOS})
+         insert into app.importacao_empregados_evento
+           (tenant_id, empresa_id, tentativa_id, acao, estado_novo, usuario_id, correlation_id)
+         select $1, $2, tentativa.id, 'CRIACAO', 'RECEBIDA', $3, 'matriz-rls' from tentativa
+         returning id`,
+        parametrosDaTentativa(e),
+      ),
+  },
+  'app.importacao_empregados_notificacao': {
+    inserir: (banco, e) =>
+      unico(
+        banco,
+        `with tentativa as (${SQL_TENTATIVA_DE_EMPREGADOS})
+         insert into app.importacao_empregados_notificacao (tenant_id, empresa_id, tentativa_id, usuario_id)
          select $1, $2, tentativa.id, $3 from tentativa
          returning id`,
         parametrosDaTentativa(e),
