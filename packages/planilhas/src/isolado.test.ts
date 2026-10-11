@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as processosFilhos from 'node:child_process';
 
-import { describe, expect, it, vi, beforeAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { ErroDeInfraestrutura } from './erros.ts';
 import { executarNoFilho, lerPlanilhaIsolada } from './isolado.ts';
@@ -17,7 +17,7 @@ import { esperarErroAssincrono } from './testes/esperar.ts';
 const RESPOSTA_OK = JSON.stringify({ ok: true, resultado: { formato: 'XLSX', abas: [] }, maxRssKb: 1 });
 const FILHOS_FALSOS = {
   semPronto: 'setInterval(() => {}, 1000);',
-  prontoAtrasado: `setTimeout(() => process.send('pronto'), 400); process.on('message', () => process.stdout.write(${JSON.stringify(RESPOSTA_OK)}, () => process.exit(0)));`,
+  prontoAtrasado: `setTimeout(() => process.send('pronto'), 2800); process.on('message', () => process.stdout.write(${JSON.stringify(RESPOSTA_OK)}, () => process.exit(0)));`,
   excecao: `process.send('pronto'); process.on('message', () => setTimeout(() => { throw new Error('bug'); }, 10));`,
   saiCom1: `process.send('pronto'); process.on('message', () => process.exit(1));`,
   oom: `process.send('pronto'); process.on('message', () => process.stderr.write('FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory', () => process.exit(134)));`,
@@ -27,6 +27,9 @@ const falso = (nome: keyof typeof FILHOS_FALSOS): string => join(diretorioDosFal
 beforeAll(() => {
   diretorioDosFalsos = mkdtempSync(join(tmpdir(), 'planilhas-filhos-'));
   for (const [nome, codigo] of Object.entries(FILHOS_FALSOS)) writeFileSync(join(diretorioDosFalsos, `${nome}.mjs`), codigo);
+});
+afterAll(() => {
+  rmSync(diretorioDosFalsos, { recursive: true, force: true });
 });
 
 vi.mock('node:child_process', async (original) => {
@@ -143,9 +146,9 @@ describe('lerPlanilhaIsolada — processo filho', () => {
     });
 
     it('o prazo do trabalho só conta depois do pronto (partida lenta não estoura o tempo do arquivo)', async () => {
-      const { resultado } = await executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('prontoAtrasado'), timeoutMs: 300 });
+      const { resultado } = await executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('prontoAtrasado'), timeoutMs: 2_500 });
       expect(resultado).toEqual({ formato: 'XLSX', abas: [] });
-    });
+    }, 15_000); // partida (2,8 s) > prazo do trabalho (2,5 s): só passa se o prazo conta a partir do pronto
 
     it('exceção não tratada no filho → ErroDeInfraestrutura', async () => {
       await expect(executarNoFilho(PEQUENA, { tipo: 'inspecionar' }, { caminhoDoFilho: falso('excecao') })).rejects.toBeInstanceOf(ErroDeInfraestrutura);
