@@ -110,7 +110,8 @@ export const EtapaDePlanoDeContas = ({
         </p>
       </header>
 
-      <Stepper etapas={etapas} />
+      {/* Com a etapa de empregados são seis: em colunas iguais para caber em 768 px sem rolar. */}
+      <Stepper etapas={etapas} compacto={seguirParaEmpregados} />
 
       <section aria-labelledby={ID_DO_TITULO} className="flex flex-col gap-lg">
         <div className="flex flex-col gap-md rounded-lg border border-border bg-card p-lg">

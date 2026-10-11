@@ -78,7 +78,8 @@ export const EtapaDeEmpregados = ({ empresaId }: { empresaId: string }) => {
         </p>
       </header>
 
-      <Stepper etapas={ETAPAS_DO_PASSO} />
+      {/* Seis etapas: em colunas iguais para caber em 768 px sem rolar. */}
+      <Stepper etapas={ETAPAS_DO_PASSO} compacto />
 
       <section aria-labelledby={ID_DO_TITULO} className="flex flex-col gap-lg">
         <div className="flex flex-col gap-md rounded-lg border border-border bg-card p-lg">
