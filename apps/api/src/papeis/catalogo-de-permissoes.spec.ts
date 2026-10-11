@@ -77,4 +77,25 @@ describe('catalogoDePermissoes (visão para a interface)', () => {
       expect(porPapel.get(papel)).not.toContain('empresas.plano_contas.confirmar_importacao');
     }
   });
+  it('os empregados (SPEC-014 §3.12) estão em Empresas: admin tudo; contador e auditor só consultam e baixam; auxiliar nada', () => {
+    const empresas = catalogo.modulos.find((modulo) => modulo.id === 'empresas');
+    const empregados = empresas?.funcionalidades.find((funcionalidade) => funcionalidade.id === 'empregados');
+    const porPapel = new Map(catalogo.papeisPadrao.map((p) => [p.papel, p.permissoes]));
+    const todas = [
+      'empresas.empregados.consultar',
+      'empresas.empregados.importar',
+      'empresas.empregados.confirmar_importacao',
+      'empresas.empregados.baixar_relatorio',
+    ];
+    const leitura = ['empresas.empregados.consultar', 'empresas.empregados.baixar_relatorio'];
+    const deEmpregados = (papel: string): string[] =>
+      (porPapel.get(papel as never) ?? []).filter((chave) => chave.startsWith('empresas.empregados.'));
+
+    expect(empregados?.rotulo).toBe('Empregados');
+    expect(empregados?.acoes.map((acao) => acao.chave)).toEqual(todas);
+    expect(deEmpregados('admin_escritorio')).toEqual(expect.arrayContaining(todas));
+    expect(deEmpregados('contador').sort()).toEqual([...leitura].sort());
+    expect(deEmpregados('auditor_readonly').sort()).toEqual([...leitura].sort());
+    expect(deEmpregados('auxiliar')).toEqual([]);
+  });
 });

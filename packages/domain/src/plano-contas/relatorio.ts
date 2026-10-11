@@ -59,29 +59,42 @@ const celula = (valor: string | number | null): string => {
   return PRECISA_DE_ASPAS.test(seguro) ? `"${seguro.replaceAll('"', '""')}"` : seguro;
 };
 
-const registro = (valores: readonly (string | number | null)[]): string =>
+const registro = (valores: readonly ValorDeCelula[]): string =>
   `${valores.map(celula).join(SEPARADOR)}${FIM_DE_LINHA}`;
 
-const paraRegistro = (linha: LinhaDoRelatorio): string =>
-  registro([
-    linha.numeroDaLinha,
-    linha.codigo,
-    linha.nome,
-    linha.tipo,
-    linha.natureza,
-    linha.contaPai,
-    linha.status,
-    linha.acao,
-    linha.codigoDeErro,
-    linha.campo,
-    linha.mensagem,
-  ]);
+export type ValorDeCelula = string | number | null;
 
-/** Primeiro pedaço: BOM + cabeçalho; depois, um pedaço por linha do relatório. */
-export async function* gerarRelatorioCsv(linhas: AsyncIterable<LinhaDoRelatorio>): AsyncGenerator<string, void, undefined> {
-  yield `${MARCA_DE_ORDEM}${registro(COLUNAS)}`;
+/**
+ * Relatório em fluxo para qualquer contrato de CSV: o chamador fixa as colunas e como cada linha
+ * vira valores; BOM, separador, CRLF, aspas e neutralização de fórmula são os mesmos.
+ */
+export async function* gerarRelatorioCsvDe<Linha>(
+  colunas: readonly string[],
+  paraValores: (linha: Linha) => readonly ValorDeCelula[],
+  linhas: AsyncIterable<Linha>,
+): AsyncGenerator<string, void, undefined> {
+  yield `${MARCA_DE_ORDEM}${registro(colunas)}`;
 
   for await (const linha of linhas) {
-    yield paraRegistro(linha);
+    yield registro(paraValores(linha));
   }
 }
+
+const valoresDoPlano = (linha: LinhaDoRelatorio): readonly ValorDeCelula[] => [
+  linha.numeroDaLinha,
+  linha.codigo,
+  linha.nome,
+  linha.tipo,
+  linha.natureza,
+  linha.contaPai,
+  linha.status,
+  linha.acao,
+  linha.codigoDeErro,
+  linha.campo,
+  linha.mensagem,
+];
+
+/** Primeiro pedaço: BOM + cabeçalho; depois, um pedaço por linha do relatório. */
+export const gerarRelatorioCsv = (
+  linhas: AsyncIterable<LinhaDoRelatorio>,
+): AsyncGenerator<string, void, undefined> => gerarRelatorioCsvDe(COLUNAS, valoresDoPlano, linhas);

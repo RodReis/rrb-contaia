@@ -26,6 +26,11 @@ const ESPERADO = [
   'empresas.plano_contas.importar',
   'empresas.plano_contas.confirmar_importacao',
   'empresas.plano_contas.baixar_relatorio',
+  // SPEC-014: importação de empregados por CSV.
+  'empresas.empregados.consultar',
+  'empresas.empregados.importar',
+  'empresas.empregados.confirmar_importacao',
+  'empresas.empregados.baixar_relatorio',
   'documentos.exigencias.consultar',
   'documentos.exigencias.criar',
   'documentos.exigencias.dispensar',

@@ -6,14 +6,19 @@
  *
  * A Central reconcilia quatro fontes — cadastro (F3) e documentos (F4), cujas
  * regras estão aqui, cofre de certificados (F11, `certificados/pendencias.ts`)
- * e plano de contas (F13, `plano-contas/pendencias.ts`) — para decidir quais
+ * plano de contas (F13, `plano-contas/pendencias.ts`) e empregados (F14, `empregados/pendencias.ts`) — para decidir quais
  * pendências deveriam estar abertas agora, e compara com o que já está aberto
  * no banco para não duplicar (idempotência, §2).
  */
 import type { EstadoDoDocumento } from '../empresa/documentos.js';
 import { dataCivilEmSaoPaulo } from '../empresa/manutencao.js';
 
-export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO' | 'PLANO_CONTAS';
+export type OrigemDaPendencia =
+  | 'CADASTRAL'
+  | 'DOCUMENTAL'
+  | 'CERTIFICADO'
+  | 'PLANO_CONTAS'
+  | 'EMPREGADOS';
 
 export type TipoDaPendencia =
   | 'CAMPO_AUSENTE'
@@ -27,7 +32,9 @@ export type TipoDaPendencia =
   | 'CERTIFICADO_VENCIDO'
   | 'CERTIFICADO_SEM_RESPONSAVEL'
   // Plano de contas sem nenhuma conta válida (SPEC-013 §3.10).
-  | 'PLANO_CONTAS_INCOMPLETO';
+  | 'PLANO_CONTAS_INCOMPLETO'
+  // Empresa sem empregado confirmado (SPEC-014 §3.10).
+  | 'EMPREGADOS_NAO_IMPORTADOS';
 
 export type EstadoDaPendencia = 'ABERTA' | 'RESOLVIDA';
 
