@@ -6,6 +6,8 @@
  * `@contaia/shared`. Aqui ficam o mapeamento de colunas e a normalização de linhas já tokenizadas.
  */
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '../erros.js';
+import { rejeicaoEstruturalDaLinha } from '../planilhas/rejeicao-estrutural.js';
+import type { RejeicaoEstruturalDeCelula } from '../planilhas/tipos.js';
 import type { LinhaBrutaDeEntrada } from './validacao.js';
 
 export const LIMITE_DE_LINHAS = 10_000;
@@ -267,17 +269,29 @@ export type RegistroDoCsv = Readonly<{
  * Todo texto é aparado; o código é preservado como texto (`01` ≠ `1`); conta-pai em branco → `null`;
  * tipo e natureza reconhecidos viram o valor do domínio e os demais seguem crus. Registro com
  * campos a mais leva `defeitoDeEstrutura`, que a validação transforma em rejeição da linha.
+ *
+ * Planilha (SPEC-015): `cabecalho` é a lista de letras, `mapeamento` aponta campo → letra e
+ * `rejeicoesEstruturais` (de `tabelaParaRegistros`) marca as linhas com fórmula ou mescla em coluna
+ * mapeada; a letra da célula afetada vira o campo do contrato em `rejeicaoEstrutural`.
  */
 export const normalizarLinhas = (
   cabecalho: readonly string[],
   registros: readonly RegistroDoCsv[],
   mapeamento: Mapeamento,
+  rejeicoesEstruturais?: ReadonlyMap<number, RejeicaoEstruturalDeCelula>,
 ): readonly LinhaBrutaDeEntrada[] => {
   const indices = indicesDasColunasDe(CAMPOS_DO_CONTRATO, cabecalho, mapeamento);
+  // Só planilha precisa do mapa letra -> campo; o caminho do CSV não o constrói.
+  const campoDaLetra =
+    rejeicoesEstruturais === undefined
+      ? undefined
+      : new Map(CAMPOS_DO_CONTRATO.map((campo) => [nomeDaColuna(mapeamento[campo]), campo] as const));
 
   return registros.map((registro) => {
     const celula = (campo: CampoDoContrato): string => (registro.celulas[indices[campo]] ?? '').trim();
     const contaPai = celula('conta_pai');
+    const rejeicaoEstrutural =
+      campoDaLetra === undefined ? undefined : rejeicaoEstruturalDaLinha(rejeicoesEstruturais, registro.numeroDaLinha, campoDaLetra);
     return {
       numeroDaLinha: registro.numeroDaLinha,
       codigo: celula('codigo'),
@@ -286,6 +300,7 @@ export const normalizarLinhas = (
       natureza: normalizarEnumerado(celula('natureza'), NATUREZAS),
       contaPai: contaPai === '' ? null : contaPai,
       ...(registro.camposAMais > 0 ? { defeitoDeEstrutura: 'CAMPOS_A_MAIS' as const } : {}),
+      ...(rejeicaoEstrutural === undefined ? {} : { rejeicaoEstrutural }),
     };
   });
 };

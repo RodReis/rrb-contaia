@@ -138,6 +138,27 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO]: HttpStatus.UNPROCESSABLE_ENTITY,
   // CSV ilegível ou fora do formato (SPEC-013 §7): rejeição do arquivo antes do staging.
   [CODIGOS_DE_ERRO.ARQUIVO_INVALIDO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  // SPEC-015 §7. Arquivo/estrutura da planilha recusados são regra de negócio (422), inclusive a
+  // aba inexistente: ela é uma posição DENTRO do arquivo enviado, não um recurso da rota (404 aqui
+  // se confundiria com o isolamento de tenant). Aba ou cabeçalho que faltam no envio são pedido
+  // malformado (400). O leitor de planilhas saturado ou com falha técnica é 503, com `Retry-After`.
+  [CODIGOS_DE_ERRO.FORMATO_XLS_NAO_SUPORTADO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.FORMATO_XLSM_NAO_SUPORTADO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.ARQUIVO_PROTEGIDO_OU_CRIPTOGRAFADO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.ARQUIVO_CORROMPIDO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.EXTENSAO_DIFERENTE_DO_CONTEUDO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.LIMITE_DE_PROCESSAMENTO_EXCEDIDO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.PLANILHA_SEM_ABA_UTILIZAVEL]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.ABA_INEXISTENTE]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.ABA_SEM_DADOS]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.CABECALHO_MESCLADO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.CONFIGURACAO_DE_PLANILHA_INCOMPLETA]: HttpStatus.BAD_REQUEST,
+  [CODIGOS_DE_ERRO.SERVICO_OCUPADO]: HttpStatus.SERVICE_UNAVAILABLE,
+};
+
+/** Segundos do `Retry-After` dos códigos que pedem para o cliente tentar de novo em instantes. */
+const NOVA_TENTATIVA_EM_SEGUNDOS: Partial<Record<CodigoDeErro, number>> = {
+  [CODIGOS_DE_ERRO.SERVICO_OCUPADO]: 5,
 };
 
 export const statusDoErro = (erro: ErroDeDominio): number =>
@@ -264,6 +285,11 @@ export class FiltroDeProblema implements ExceptionFilter {
 
     if (erroDeDominio !== null) {
       const problema = montarProblema(erroDeDominio, correlationId);
+      const novaTentativa = NOVA_TENTATIVA_EM_SEGUNDOS[erroDeDominio.codigo];
+
+      if (novaTentativa !== undefined) {
+        resposta.setHeader('Retry-After', String(novaTentativa));
+      }
 
       resposta.status(problema.status).type('application/problem+json').json(problema);
 

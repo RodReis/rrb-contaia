@@ -1,5 +1,5 @@
 /**
- * Contrato entre o fluxo de importação por CSV (envio, mapeamento, acompanhamento, prévia,
+ * Contrato entre o fluxo de importação por arquivo (envio, mapeamento, acompanhamento, prévia,
  * resultado, rejeições, histórico) e cada domínio que o usa: plano de contas (SPEC-013) e
  * empregados (SPEC-014). O pipeline é o mesmo nas duas fatias; muda o recurso da API, os campos do
  * mapeamento, as colunas que identificam a linha rejeitada, as permissões e as palavras.
@@ -54,8 +54,12 @@ export type ColunaDaRejeicao = Readonly<{
 }>;
 
 export type TextosDaImportacao = Readonly<{
-  /** Rótulo acessível do `<input type="file">`. */
+  /** Rótulo acessível do `<input type="file">` do CSV. */
   arquivoCsv: string;
+  /** Rótulo acessível do `<input type="file">` das planilhas XLSX/ODS (SPEC-015). */
+  arquivoPlanilha: string;
+  /** Nome do grupo dos modelos oficiais do domínio (CSV, XLSX e ODS). */
+  modelos: string;
   arrasteAqui: string;
   semPermissaoDeImportar: Readonly<{ titulo: string; descricao: string }>;
   /** Descrição do cartão enquanto o worker trabalha. */

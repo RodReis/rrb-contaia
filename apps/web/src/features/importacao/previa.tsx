@@ -88,7 +88,7 @@ const AvisoDaPrevia = ({ totais }: { totais: Totais }) =>
     <p className="flex items-start gap-xs rounded-md bg-warning px-md py-sm text-body-sm text-warning-foreground">
       <TriangleAlert className="mt-xs size-icon-xs shrink-0" aria-hidden="true" />
       {plural(totais.rejeitadas, 'linha foi rejeitada', 'linhas foram rejeitadas')} e fica de fora. As demais podem ser
-      aplicadas agora; para incluir as rejeitadas, corrija o CSV de origem e envie de novo depois.
+      aplicadas agora; para incluir as rejeitadas, corrija o arquivo de origem e envie de novo depois.
     </p>
   );
 

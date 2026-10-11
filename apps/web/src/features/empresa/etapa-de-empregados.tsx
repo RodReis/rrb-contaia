@@ -97,13 +97,13 @@ export const EtapaDeEmpregados = ({ empresaId }: { empresaId: string }) => {
 
           <div className="flex max-w-prose flex-col gap-xs text-body-md text-muted-foreground">
             <p>
-              A empresa já está ativa. Os empregados podem ser importados agora por CSV ou depois, na aba Empregados
+              A empresa já está ativa. Os empregados podem ser importados agora por CSV, XLSX ou ODS, ou depois, na aba Empregados
               desta empresa. Nenhum empregado muda antes da sua confirmação.
             </p>
             {semPermissaoDeImportar ? (
               <p>
                 <span className="text-title-sm text-foreground">{dominio.textos.semPermissaoDeImportar.titulo}</span>{' '}
-                O envio de CSV é feito por quem tem a permissão Importar em Empresas → Empregados.
+                O envio de arquivos é feito por quem tem a permissão Importar em Empresas → Empregados.
               </p>
             ) : null}
             {pendenciaAberta ? (

@@ -23,14 +23,19 @@ const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
 
 /**
  * Cabeçalhos da resposta repassados ao navegador (lista fechada): nome do arquivo baixado, id de
- * correlação e as proteções que a API põe nos downloads (`X-Content-Type-Options: nosniff` e
- * `Cache-Control: no-store`, emitidos pela API — este proxy só os repassa, não os cria).
+ * correlação, as proteções que a API põe nos downloads (`X-Content-Type-Options: nosniff` e
+ * `Cache-Control: no-store`, emitidos pela API — este proxy só os repassa, não os cria) e o
+ * `Retry-After` do serviço de leitura de planilhas ocupado (SPEC-015 §3.10).
+ *
+ * Sem prazo próprio no repasse: a inspeção de uma planilha grande leva até ~80 s na API, e o
+ * `fetch` do servidor só desiste nos tetos do undici (300 s).
  */
 const CABECALHOS_DEVOLVIDOS = [
   'content-disposition',
   'x-correlation-id',
   'x-content-type-options',
   'cache-control',
+  'retry-after',
 ] as const;
 
 const semSessao = (): NextResponse =>

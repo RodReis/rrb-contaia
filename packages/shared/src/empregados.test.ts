@@ -157,7 +157,8 @@ describe('base de empregados', () => {
 });
 
 describe('arquivo de importação de empregados', () => {
-  it('limite de 10 MB igual ao do domínio e CSV como único formato', () => {
+  // A F15 (SPEC-015) passou a aceitar .xlsx e .ods; o que segue recusado é planilha com macros.
+  it('limite de 10 MB igual ao do domínio; CSV aceito e planilha com macros recusada', () => {
     expect(LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES).toBe(LIMITE_DE_BYTES);
     expect(formatarLimite(LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES)).toBe('10 MB');
     expect(validarArquivo('IMPORTACAO_EMPREGADOS', { tipoConteudo: 'text/csv', tamanhoBytes: 1024 })).toBeNull();
@@ -166,7 +167,7 @@ describe('arquivo de importação de empregados', () => {
     ).toBeNull();
     expect(
       validarArquivo('IMPORTACAO_EMPREGADOS', {
-        tipoConteudo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        tipoConteudo: 'application/vnd.ms-excel.sheet.macroEnabled.12',
         tamanhoBytes: 1024,
       }),
     ).toBe('TIPO_NAO_ACEITO');

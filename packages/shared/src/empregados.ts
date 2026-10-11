@@ -28,13 +28,23 @@ export const CODIGOS_DE_ERRO_DE_EMPREGADO = [
   'CHAVE_DUPLICADA_NO_ARQUIVO',
   'EMPREGADO_ARQUIVADO',
 ] as const;
-export type CodigoDeErroDeEmpregado = (typeof CODIGOS_DE_ERRO_DE_EMPREGADO)[number];
+
+/**
+ * Os sete acima são os do CSV (SPEC-014); em planilha a linha também pode ser rejeitada por fórmula
+ * ou mescla (SPEC-015). Esta é a lista completa que a prévia lê.
+ */
+export const CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO = [
+  ...CODIGOS_DE_ERRO_DE_EMPREGADO,
+  'CELULA_COM_FORMULA',
+  'CELULA_MESCLADA',
+] as const;
+export type CodigoDeErroDeEmpregado = (typeof CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO)[number];
 
 /**
  * Rejeição de empregado: CPF e matrícula como vieram no arquivo, quando disponíveis (SPEC-014
  * §3.4). É dado pessoal servido só a quem tem `consultar`; a mensagem nunca repete o CPF.
  */
-export const RejeicaoDeEmpregadoSchema = criarRejeicaoDaImportacaoSchema(CODIGOS_DE_ERRO_DE_EMPREGADO, {
+export const RejeicaoDeEmpregadoSchema = criarRejeicaoDaImportacaoSchema(CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO, {
   cpf: z.string().nullable(),
   matricula: z.string().nullable(),
 });

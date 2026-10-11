@@ -46,3 +46,14 @@ describe('requisitar sem resposta do servidor', () => {
     expect(erro.problema).toMatchObject({ code: 'ERRO_DESCONHECIDO', status: 502, correlationId: 'corr-acao-456' });
   });
 });
+
+describe('requisitar cancelado', () => {
+  it('um pedido cancelado não vira falha de rede: devolve o próprio cancelamento', async () => {
+    const cancelamento = new DOMException('cancelado', 'AbortError');
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(cancelamento)));
+    const controle = new AbortController();
+    controle.abort();
+
+    await expect(requisitar('/empresas', { signal: controle.signal })).rejects.toBe(cancelamento);
+  });
+});

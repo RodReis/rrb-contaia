@@ -13,7 +13,7 @@
 import { pipeline } from 'node:stream/promises';
 
 import { MODELO_CSV_DE_EMPREGADOS } from '@contaia/domain';
-import { LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES } from '@contaia/shared';
+import { LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES, tipoDeConteudoDoFormato } from '@contaia/shared';
 import {
   Body,
   Controller,
@@ -35,20 +35,22 @@ import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { analisar } from '../escritorio/escritorio.dto';
+import { analisarCamposDePlanilha, analisarPedidoDeInspecao } from '../importacao/dto';
 import {
   CSV_UTF8,
   InterceptorDoArquivoDeImportacao,
-  MARCA_DE_ORDEM,
   comoAnexo,
   contextoDa,
   exigirArquivo,
   type ArquivoMultipart,
 } from '../importacao/http';
+import { consultaDoModeloSchema, montarModelo } from '../importacao/modelos';
 import { analisarEnvio, confirmacaoSchema, consultaComBuscaSchema, idDaTentativa, paginaSchema } from './empregados.dto';
 import { EmpregadosService } from './empregados.service';
 
 const NOME_PADRAO = 'empregados.csv';
-const NOME_DO_MODELO = 'modelo-empregados.csv';
+const NOME_DO_MODELO = 'modelo-empregados';
+const InterceptorDoArquivoDeEmpregados = InterceptorDoArquivoDeImportacao(LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES);
 
 @Controller('empresas/:empresaId/empregados')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
@@ -64,18 +66,41 @@ export class EmpregadosDaEmpresaController {
     return this.empregadosService.empregados(contextoDa(requisicao), empresaId, pagina, busca);
   }
 
-  /** Modelo oficial: com BOM, para o Excel abrir em UTF-8. */
+  /** Modelo oficial (SPEC-015 §3.1): `?formato=csv|xlsx|ods`, padrão CSV com BOM. */
   @Get('modelo')
   @ExigePermissao('empresas.empregados.baixar_relatorio')
-  modelo(@Res() resposta: Response): void {
-    comoAnexo(resposta, CSV_UTF8, NOME_DO_MODELO, NOME_PADRAO).send(`${MARCA_DE_ORDEM}${MODELO_CSV_DE_EMPREGADOS}`);
+  modelo(@Query() consulta: unknown, @Res() resposta: Response): void {
+    const modelo = montarModelo(MODELO_CSV_DE_EMPREGADOS, analisar(consultaDoModeloSchema, consulta).formato);
+
+    comoAnexo(resposta, modelo.tipoConteudo, `${NOME_DO_MODELO}.${modelo.extensao}`, NOME_PADRAO).send(modelo.conteudo);
   }
 
-  /** Envio: multipart com `arquivo` e `mapeamento` (JSON). A validação é assíncrona: 202. */
+  /**
+   * Inspeção sem estado da planilha (SPEC-015 §3.3–§3.4): multipart com `arquivo` e, opcionais,
+   * `aba` (posição) e `linhaCabecalho`. Nada é gravado; a permissão é a de importar.
+   */
+  @Post('planilhas/inspecao')
+  @HttpCode(200)
+  @ExigePermissao('empresas.empregados.importar')
+  @UseInterceptors(InterceptorDoArquivoDeEmpregados)
+  inspecionarPlanilha(
+    @Req() requisicao: RequisicaoAutenticada,
+    @UploadedFile() arquivo: ArquivoMultipart | undefined,
+    @Body() corpo: unknown,
+  ) {
+    const pedido = analisarPedidoDeInspecao(corpo);
+
+    return this.empregadosService.inspecionarPlanilha(contextoDa(requisicao), exigirArquivo(arquivo), pedido);
+  }
+
+  /**
+   * Envio: multipart com `arquivo` e `mapeamento` (JSON); na planilha, também `aba` e
+   * `linhaCabecalho`, e o mapeamento aponta a LETRA da coluna. A validação é assíncrona: 202.
+   */
   @Post('importacoes')
   @HttpCode(202)
   @ExigePermissao('empresas.empregados.importar')
-  @UseInterceptors(InterceptorDoArquivoDeImportacao(LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES))
+  @UseInterceptors(InterceptorDoArquivoDeEmpregados)
   enviar(
     @Req() requisicao: RequisicaoAutenticada,
     @Param('empresaId') empresaId: string,
@@ -83,8 +108,9 @@ export class EmpregadosDaEmpresaController {
     @Body() corpo: unknown,
   ) {
     const mapeamento = analisarEnvio(corpo);
+    const planilha = analisarCamposDePlanilha(corpo);
 
-    return this.empregadosService.enviar(contextoDa(requisicao), empresaId, exigirArquivo(arquivo), mapeamento);
+    return this.empregadosService.enviar(contextoDa(requisicao), empresaId, exigirArquivo(arquivo, planilha), mapeamento);
   }
 
   @Get('importacoes')
@@ -144,7 +170,7 @@ export class EmpregadosDaEmpresaController {
     await pipeline(conteudo, resposta).catch(() => undefined);
   }
 
-  /** Arquivo original como foi enviado: sem charset, porque a codificação é a do usuário. */
+  /** Arquivo original como foi enviado, com o tipo do formato (CSV sem charset: a codificação é a do usuário). */
   @Get('importacoes/:tentativaId/arquivo')
   @ExigePermissao('empresas.empregados.baixar_relatorio')
   @Header('X-Content-Type-Options', 'nosniff')
@@ -156,7 +182,7 @@ export class EmpregadosDaEmpresaController {
   ): Promise<void> {
     const original = await this.empregadosService.arquivoOriginal(contextoDa(requisicao), empresaId, idDaTentativa(tentativaId));
 
-    comoAnexo(resposta, 'text/csv', original.nome, NOME_PADRAO).send(original.conteudo);
+    comoAnexo(resposta, tipoDeConteudoDoFormato(original.formato), original.nome, NOME_PADRAO).send(original.conteudo);
   }
 
   @Post('importacoes/:tentativaId/confirmar')

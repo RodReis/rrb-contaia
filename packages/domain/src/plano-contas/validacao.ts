@@ -7,6 +7,11 @@
  * lote): ver `hierarquia.ts`.
  */
 
+import {
+  MENSAGEM_DA_REJEICAO_ESTRUTURAL,
+  type RejeicaoEstruturalDaLinha,
+} from '../planilhas/rejeicao-estrutural.js';
+import type { CampoDoContrato } from './csv.js';
 import { resolverHierarquia, type MotivoDeRejeicaoNaHierarquia } from './hierarquia.js';
 
 export type TipoDaConta = 'analitica' | 'sintetica';
@@ -40,6 +45,11 @@ export interface LinhaBrutaDeEntrada {
    * o cabeçalho, o que torna as colunas da linha inconfiáveis. A linha é rejeitada.
    */
   readonly defeitoDeEstrutura?: DefeitoDeEstrutura;
+  /**
+   * Fórmula ou mescla na célula de um campo mapeado (só planilha, SPEC-015): a linha é rejeitada com
+   * o código e o campo, sem olhar os demais valores, e não é conta-pai nem chave válida.
+   */
+  readonly rejeicaoEstrutural?: RejeicaoEstruturalDaLinha<CampoDoContrato>;
 }
 
 export interface ContaVigente {
@@ -65,6 +75,8 @@ export const CODIGOS_DE_ERRO_DA_LINHA = [
   'CICLO_HIERARQUICO',
   'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA',
   'CONTA_ARQUIVADA',
+  'CELULA_COM_FORMULA',
+  'CELULA_MESCLADA',
 ] as const;
 export type CodigoDeErroDaLinha = (typeof CODIGOS_DE_ERRO_DA_LINHA)[number];
 
@@ -127,6 +139,8 @@ const CAMPO_DO_ERRO: Readonly<Record<CodigoDeErroDaLinha, string | null>> = {
   CICLO_HIERARQUICO: 'conta_pai',
   SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA: 'tipo',
   CONTA_ARQUIVADA: 'codigo',
+  CELULA_COM_FORMULA: null,
+  CELULA_MESCLADA: null,
 };
 
 const rejeicao = (
@@ -157,6 +171,10 @@ const acimaDoLimite = (
  * domínio → valor fora do domínio. Não decide hierarquia, duplicidade nem conflito com o vigente.
  */
 const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | LinhaDeEntrada => {
+  if (linha.rejeicaoEstrutural !== undefined) {
+    const { codigo, campo } = linha.rejeicaoEstrutural;
+    return { ...rejeicao(linha, codigo, campo), mensagem: MENSAGEM_DA_REJEICAO_ESTRUTURAL[codigo] };
+  }
   if (linha.defeitoDeEstrutura === 'CAMPOS_A_MAIS') {
     // Linha inteira: com colunas deslocadas, nenhum campo é confiável o bastante para ser apontado.
     return { ...rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', null), mensagem: MENSAGEM_CAMPOS_A_MAIS };

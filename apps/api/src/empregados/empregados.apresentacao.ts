@@ -16,4 +16,4 @@ export const paraPreviaDeEmpregados = (
   amostra: readonly RejeicaoDeEmpregado[],
   diagnostico: DiagnosticoDaTentativa | null,
 ): PreviaDaImportacaoDeEmpregados =>
-  montarPrevia(tentativa, tentativa.versaoNaValidacao, amostra, paraDiagnosticoCom(MENSAGENS_DO_DIAGNOSTICO, diagnostico));
+  montarPrevia(tentativa, tentativa.versaoNaValidacao, amostra, paraDiagnosticoCom(MENSAGENS_DO_DIAGNOSTICO, diagnostico, tentativa.formato));

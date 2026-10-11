@@ -98,7 +98,7 @@ export type FilaDeValidacao = 'plano-contas-validacao' | 'empregados-validacao';
 
 export type Resposta = Readonly<{ status: number; corpo: unknown; texto: string }>;
 
-const lerResposta = async (resposta: APIResponse): Promise<Resposta> => {
+export const lerResposta = async (resposta: APIResponse): Promise<Resposta> => {
   const texto = await resposta.text();
   let corpo: unknown = null;
 

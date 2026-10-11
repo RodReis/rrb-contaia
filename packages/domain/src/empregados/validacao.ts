@@ -17,6 +17,10 @@
  */
 import { ehCpfValido, normalizarCpf } from '../validadores/cpf.js';
 import { lerDataCivil, type DataCivil } from '../datas/data-civil.js';
+import {
+  MENSAGEM_DA_REJEICAO_ESTRUTURAL,
+  type RejeicaoEstruturalDaLinha,
+} from '../planilhas/rejeicao-estrutural.js';
 import type { CampoDeEmpregado, CodigoDeErroDeEmpregado } from './campos.js';
 
 export type DefeitoDeEstruturaDeEmpregado = 'CAMPOS_A_MAIS';
@@ -31,6 +35,11 @@ export interface LinhaBrutaDeEmpregado {
   readonly dataAdmissao: string;
   /** `CAMPOS_A_MAIS`: mais campos preenchidos que o cabeçalho; as colunas da linha são inconfiáveis. */
   readonly defeitoDeEstrutura?: DefeitoDeEstruturaDeEmpregado;
+  /**
+   * Fórmula ou mescla na célula de um campo mapeado (só planilha, SPEC-015): a linha é rejeitada com
+   * o código e o campo, antes de qualquer outra regra.
+   */
+  readonly rejeicaoEstrutural?: RejeicaoEstruturalDaLinha<CampoDeEmpregado>;
 }
 
 export type EmpregadoVigente = Readonly<{ arquivado: boolean }>;
@@ -73,6 +82,7 @@ const ROTULO_DO_CAMPO: Readonly<Record<CampoDeEmpregado, string>> = {
 const FORMATOS_DE_DATA = 'use dd/mm/aaaa ou aaaa-mm-dd, em uma data que exista no calendário';
 
 const MENSAGEM: Readonly<Record<Exclude<CodigoDeErroDeEmpregado, 'CAMPO_OBRIGATORIO_AUSENTE'>, string>> = {
+  ...MENSAGEM_DA_REJEICAO_ESTRUTURAL,
   CPF_INVALIDO: 'CPF inválido: informe 11 dígitos com os dígitos verificadores corretos.',
   DATA_NASCIMENTO_INVALIDA: `Data de nascimento inválida: ${FORMATOS_DE_DATA}.`,
   DATA_ADMISSAO_INVALIDA: `Data de admissão inválida: ${FORMATOS_DE_DATA}.`,
@@ -107,6 +117,10 @@ const montarChave = (linha: LinhaBrutaDeEmpregado): string | null =>
 const primeiroErroDaLinha = (
   linha: LinhaBrutaDeEmpregado,
 ): Readonly<{ codigo: CodigoDeErroDeEmpregado; campo: CampoDeEmpregado | null; mensagem: string }> | null => {
+  if (linha.rejeicaoEstrutural !== undefined) {
+    const { codigo, campo } = linha.rejeicaoEstrutural;
+    return { codigo, campo, mensagem: MENSAGEM[codigo] };
+  }
   if (linha.defeitoDeEstrutura === 'CAMPOS_A_MAIS') {
     return { codigo: 'CAMPO_OBRIGATORIO_AUSENTE', campo: null, mensagem: MENSAGEM_CAMPOS_A_MAIS };
   }

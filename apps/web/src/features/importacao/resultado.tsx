@@ -5,12 +5,13 @@
  */
 'use client';
 
-import type { EstadoDaImportacao } from '@contaia/shared';
+import { CODIGOS_DE_ERRO_DE_PLANILHA, type EstadoDaImportacao } from '@contaia/shared';
 import { Ban, CheckCircle2, CircleX, FileUp, OctagonAlert, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
+import { mensagemDoCodigo } from '@/lib/mensagens';
 import { plural } from './apresentacao';
 import type { DominioDaImportacao, PreviaBase } from './dominio';
 import { CodigoDeSuporte } from './pecas';
@@ -27,6 +28,15 @@ const CLASSES_DO_TOM: Readonly<Record<Tom, string>> = {
 };
 
 type Desfecho = Readonly<{ tom: Tom; icone: ReactNode; titulo: string; descricao: string }>;
+
+const CODIGOS_DA_PLANILHA: readonly string[] = CODIGOS_DE_ERRO_DE_PLANILHA;
+
+/**
+ * Planilha recusada inteira pelo worker (protegida, corrompida, aba que sumiu…, SPEC-015 §3.10): a
+ * mesma frase acionável da recusa no envio, e o código de suporte junto dela.
+ */
+const recusadaPelaPlanilha = (previa: PreviaBase): boolean =>
+  previa.estado === 'REJEITADA' && CODIGOS_DA_PLANILHA.includes(previa.diagnostico?.codigo ?? '');
 
 const desfechoDe = (dominio: DominioDaImportacao, previa: PreviaBase): Desfecho => {
   const { textos } = dominio;
@@ -49,14 +59,16 @@ const desfechoDe = (dominio: DominioDaImportacao, previa: PreviaBase): Desfecho 
           previa.totais?.rejeitadas ?? 0,
           'linha rejeitada ficou',
           'linhas rejeitadas ficaram',
-        )} de fora e está no relatório; corrija o CSV de origem e envie de novo para incluí-las.`,
+        )} de fora e está no relatório; corrija o arquivo de origem e envie de novo para incluí-las.`,
       };
     case 'REJEITADA':
       return {
         tom: 'critico',
         icone: <CircleX />,
         titulo: 'Nenhuma linha foi aplicada',
-        descricao: previa.diagnostico?.mensagem ?? textos.rejeitada,
+        descricao: recusadaPelaPlanilha(previa)
+          ? mensagemDoCodigo(previa.diagnostico?.codigo ?? '')
+          : (previa.diagnostico?.mensagem ?? textos.rejeitada),
       };
     case 'CANCELADA':
       return {
@@ -95,6 +107,7 @@ export const Resultado = ({
   downloads: ReactNode;
 }) => {
   const desfecho = desfechoDe(dominio, previa);
+  const comCodigoNoDesfecho = previa.estado === 'FALHA' || recusadaPelaPlanilha(previa);
   const titulo = useRef<HTMLHeadingElement>(null);
 
   // O desfecho substitui a prévia (ou chega pelo link da notificação): o foco vai para ele, em vez
@@ -115,15 +128,13 @@ export const Resultado = ({
               {desfecho.titulo}
             </h4>
             <p className="max-w-prose text-body-md">{desfecho.descricao}</p>
-            {previa.estado === 'FALHA' ? (
-              <CodigoDeSuporte valor={previa.correlationId} className="text-body-sm" />
-            ) : null}
+            {comCodigoNoDesfecho ? <CodigoDeSuporte valor={previa.correlationId} className="text-body-sm" /> : null}
           </div>
         </div>
       </div>
 
-      {/* Na falha o código de suporte já está na mensagem persistente acima: uma vez só. */}
-      <ResumoDaTentativa dominio={dominio} previa={previa} mostrarCodigoDeSuporte={previa.estado !== 'FALHA'} />
+      {/* Na falha (e na planilha recusada) o código de suporte já está na mensagem acima: uma vez só. */}
+      <ResumoDaTentativa dominio={dominio} previa={previa} mostrarCodigoDeSuporte={!comCodigoNoDesfecho} />
 
       <TabelaDeRejeicoes
         dominio={dominio}

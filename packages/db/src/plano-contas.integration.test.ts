@@ -379,10 +379,14 @@ describe('tentativa de importação: idempotência e estado (SPEC-013 §3.7, §3
           and privilege_type = 'UPDATE' order by 1`,
     );
 
+    // SPEC-015 (0018): mais o resultado da leitura da planilha, gravado pelo worker.
     expect(rows.map((linha) => linha.coluna)).toEqual([
+      'diagnosticos',
       'estado',
       'finalizado_em',
       'iniciado_em',
+      'linhas_ignoradas_antes_do_cabecalho',
+      'linhas_ocultas',
       'mapeamento',
       'obsoleta',
       'plano_versao_na_validacao',

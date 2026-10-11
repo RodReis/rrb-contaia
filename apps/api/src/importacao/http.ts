@@ -21,6 +21,7 @@ import type { RequisicaoAutenticada } from '../auth/sessao.guard';
 import { nomeSeguro } from '../comum/nome-seguro';
 import { obterCorrelationId } from '../comum/problema';
 import type { ArquivoEnviado, ContextoDaImportacao } from './orquestrador';
+import type { CamposDePlanilhaInformados } from './planilha';
 
 export type ArquivoMultipart = Readonly<{ originalname: string; mimetype: string; buffer: Buffer }>;
 
@@ -49,13 +50,14 @@ export const comoAnexo = (resposta: Response, tipo: string, nome: string, nomePa
     .setHeader('Cache-Control', 'no-store');
 
 /**
- * Multipart com `arquivo` e o mapeamento. O multer corta o upload no limite, antes de o processo
+ * Multipart com `arquivo` e até três campos de texto (o mapeamento; na planilha, `aba` e
+ * `linhaCabecalho`; na inspeção, só os dois últimos). O multer corta o upload no limite, antes de o processo
  * carregar o excedente (o caso de uso refaz a conferência, que é a fronteira real); o corte sai
  * como `ARQUIVO_ACIMA_DO_LIMITE` (413), o mesmo código do caso de uso.
  */
 export const InterceptorDoArquivoDeImportacao = (limiteBytes: number): Type<NestInterceptor> => {
   const Multipart = FileInterceptor('arquivo', {
-    limits: { fileSize: limiteBytes, files: 1, fields: 2, fieldSize: 16 * 1024 },
+    limits: { fileSize: limiteBytes, files: 1, fields: 3, fieldSize: 16 * 1024 },
   });
 
   @Injectable()
@@ -81,12 +83,21 @@ export const InterceptorDoArquivoDeImportacao = (limiteBytes: number): Type<Nest
   return mixin(InterceptorDoArquivo);
 };
 
-export const exigirArquivo = (arquivo: ArquivoMultipart | undefined): ArquivoEnviado => {
+/** O arquivo do multipart; a configuração da planilha (`aba`, `linhaCabecalho`) vai junto quando veio. */
+export const exigirArquivo = (
+  arquivo: ArquivoMultipart | undefined,
+  planilha?: CamposDePlanilhaInformados | undefined,
+): ArquivoEnviado => {
   if (arquivo === undefined) {
     throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO, 'Nenhum arquivo foi enviado.', [
       { campo: 'arquivo', codigo: CODIGOS_DE_ERRO.ARQUIVO_INVALIDO },
     ]);
   }
 
-  return { buffer: arquivo.buffer, nome: arquivo.originalname, mimetype: arquivo.mimetype };
+  return {
+    buffer: arquivo.buffer,
+    nome: arquivo.originalname,
+    mimetype: arquivo.mimetype,
+    ...(planilha === undefined ? {} : { planilha }),
+  };
 };

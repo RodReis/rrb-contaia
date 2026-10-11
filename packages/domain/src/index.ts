@@ -380,6 +380,7 @@ export { lerDataCivil, type DataCivil } from './datas/data-civil.js';
 export {
   CAMPOS_DE_EMPREGADO,
   CODIGOS_DE_ERRO_DE_EMPREGADO,
+  CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO,
   type CampoDeEmpregado,
   type CodigoDeErroDeEmpregado,
   type MapeamentoDeEmpregados,
@@ -403,3 +404,47 @@ export {
   gerarRelatorioCsvDeEmpregados,
   type LinhaDoRelatorioDeEmpregados,
 } from './empregados/relatorio.js';
+
+// Planilhas XLSX/ODS (SPEC-015): contrato tabular e regras de célula/cabeçalho.
+export { ULTIMA_COLUNA, colunaParaLetra, ehLetraDeColuna, letraParaColuna } from './planilhas/colunas.js';
+export {
+  cabecalhoEstaMesclado,
+  celulaTemConteudo,
+  conferirCabecalho,
+  amostraDaAba,
+  linhaTemConteudo,
+  resumoDaAba,
+  rotulosDasColunas,
+  sugerirLinhaDeCabecalho,
+  type CabecalhoConferido,
+  type CodigoDeCabecalhoInutilizavel,
+  type LinhaDeAmostra,
+  type ResumoDaAba,
+} from './planilhas/cabecalho.js';
+export { tabelaParaRegistros } from './planilhas/tabela-para-registros.js';
+export { LIMITE_DE_TEXTO_DA_INSPECAO, LIMITE_DO_ROTULO_DA_COLUNA, truncarTexto } from './planilhas/texto.js';
+export {
+  CODIGOS_DE_REJEICAO_ESTRUTURAL,
+  MENSAGEM_DA_REJEICAO_ESTRUTURAL,
+  type RejeicaoEstruturalDaLinha,
+} from './planilhas/rejeicao-estrutural.js';
+export {
+  CODIGOS_DE_DIAGNOSTICO_DE_PLANILHA,
+  diagnosticosDaTabela,
+  type CodigoDeDiagnosticoDePlanilha,
+  type DiagnosticoDeLeitura,
+} from './planilhas/diagnosticos.js';
+export type {
+  AbaDaPlanilha,
+  CelulaDaTabela,
+  CodigoDeRejeicaoEstrutural,
+  ConfiguracaoDePlanilha,
+  IntervaloMesclado,
+  LeituraDaAba,
+  LinhaDaTabela,
+  OpcoesDaTabela,
+  RejeicaoEstruturalDeCelula,
+  ResultadoTabular,
+  RotuloDaColuna,
+  TipoNativoDeCelula,
+} from './planilhas/tipos.js';

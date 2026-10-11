@@ -15,6 +15,7 @@
     "@aws-sdk/client-s3": "^3.1136.0",
     "@contaia/db": "workspace:*",
     "@contaia/domain": "workspace:*",
+    "@contaia/planilhas": "workspace:*",
     "@contaia/shared": "workspace:*",
     "@contaia/signer-client": "workspace:*",
     "@nestjs/common": "11.2.5",

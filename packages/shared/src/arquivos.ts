@@ -4,6 +4,7 @@
  * Formato e tamanho são decisão técnica do Code, mas precisam valer igual na
  * interface e na API — por isso moram aqui e não duplicados nos dois lados.
  */
+import { MENSAGEM_DO_ERRO_DE_PLANILHA, type FormatoDeArquivo } from './tabela.js';
 
 export const LIMITE_DE_LOGO_BYTES = 2 * 1024 * 1024;
 export const LIMITE_DE_DOCUMENTO_BYTES = 10 * 1024 * 1024;
@@ -49,6 +50,14 @@ export const TIPOS_DE_IMPORTACAO_DO_PLANO = [
   'text/plain',
 ] as const;
 
+/** XLSX e ODS (SPEC-015): o tipo de conteúdo canônico de cada um. */
+export const TIPO_DE_CONTEUDO_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+export const TIPO_DE_CONTEUDO_ODS = 'application/vnd.oasis.opendocument.spreadsheet';
+export const TIPOS_DE_PLANILHA = [TIPO_DE_CONTEUDO_XLSX, TIPO_DE_CONTEUDO_ODS] as const;
+
+/** Importação tabular: CSV (os tipos que os navegadores anunciam para ele) mais XLSX e ODS. */
+export const TIPOS_DE_IMPORTACAO_TABULAR = [...TIPOS_DE_IMPORTACAO_DO_PLANO, ...TIPOS_DE_PLANILHA] as const;
+
 export type TipoDeArquivo =
   | 'LOGO'
   | 'DOCUMENTO'
@@ -64,11 +73,21 @@ export type TipoDeArquivo =
  */
 export type TipoDeArquivoDoEscritorio = Extract<TipoDeArquivo, 'LOGO' | 'DOCUMENTO'>;
 
+/** Falhas que a extensão do nome, sozinha, decide (`.xls` e `.xlsm` nunca são lidos). */
+export type FalhaPorExtensao = 'FORMATO_XLS_NAO_SUPORTADO' | 'FORMATO_XLSM_NAO_SUPORTADO';
+
 export type RegraDeArquivo = Readonly<{
   limiteBytes: number;
   tiposAceitos: readonly string[];
   extensoesAceitas: readonly string[];
+  /** Extensão (minúscula, com ponto) → falha. Só conferida quando `validarArquivo` recebe o `nome`. */
+  extensoesRecusadas?: Readonly<Record<string, FalhaPorExtensao>>;
 }>;
+
+const EXTENSOES_RECUSADAS_NA_IMPORTACAO: Readonly<Record<string, FalhaPorExtensao>> = {
+  '.xls': 'FORMATO_XLS_NAO_SUPORTADO',
+  '.xlsm': 'FORMATO_XLSM_NAO_SUPORTADO',
+};
 
 export const REGRAS_DE_ARQUIVO: Readonly<Record<TipoDeArquivo, RegraDeArquivo>> = {
   LOGO: {
@@ -88,14 +107,15 @@ export const REGRAS_DE_ARQUIVO: Readonly<Record<TipoDeArquivo, RegraDeArquivo>> 
   },
   IMPORTACAO_PLANO_CONTAS: {
     limiteBytes: LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
-    tiposAceitos: TIPOS_DE_IMPORTACAO_DO_PLANO,
-    extensoesAceitas: ['.csv'],
+    tiposAceitos: TIPOS_DE_IMPORTACAO_TABULAR,
+    extensoesAceitas: ['.csv', '.xlsx', '.ods'],
+    extensoesRecusadas: EXTENSOES_RECUSADAS_NA_IMPORTACAO,
   },
-  // Só CSV nesta fatia; XLSX/ODS é a F15 (SPEC-015).
   IMPORTACAO_EMPREGADOS: {
     limiteBytes: LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES,
-    tiposAceitos: TIPOS_DE_IMPORTACAO_DO_PLANO,
-    extensoesAceitas: ['.csv'],
+    tiposAceitos: TIPOS_DE_IMPORTACAO_TABULAR,
+    extensoesAceitas: ['.csv', '.xlsx', '.ods'],
+    extensoesRecusadas: EXTENSOES_RECUSADAS_NA_IMPORTACAO,
   },
 };
 
@@ -103,7 +123,8 @@ export type FalhaDeArquivo =
   | 'TIPO_NAO_ACEITO'
   | 'TAMANHO_EXCEDIDO'
   | 'ARQUIVO_VAZIO'
-  | 'CONTEUDO_NAO_CONFERE';
+  | 'CONTEUDO_NAO_CONFERE'
+  | FalhaPorExtensao;
 
 /**
  * Assinatura dos formatos aceitos, em bytes iniciais.
@@ -121,10 +142,20 @@ const ASSINATURAS: Readonly<Record<string, readonly (readonly number[])[]>> = {
 const comecaCom = (inicio: Uint8Array, assinatura: readonly number[]): boolean =>
   inicio.length >= assinatura.length && assinatura.every((byte, indice) => inicio[indice] === byte);
 
-/** Formatos binários que não podem se passar por texto (PDF, zip/xlsx, PNG, JPEG). */
+/** ZIP (xlsx, ods): registro local, diretório central vazio e arquivo multivolume. */
+const ASSINATURAS_ZIP: readonly (readonly number[])[] = [
+  [0x50, 0x4b, 0x03, 0x04],
+  [0x50, 0x4b, 0x05, 0x06],
+  [0x50, 0x4b, 0x07, 0x08],
+];
+/** Contêiner CFB/OLE2: `.xls`, `.doc` e o envelope de OOXML criptografado. */
+const ASSINATURA_CFB: readonly number[] = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+
+/** Formatos binários que não podem se passar por texto (PDF, zip/xlsx, CFB/xls, PNG, JPEG). */
 const ASSINATURAS_BINARIAS: readonly (readonly number[])[] = [
   [0x25, 0x50, 0x44, 0x46],
-  [0x50, 0x4b, 0x03, 0x04],
+  ...ASSINATURAS_ZIP,
+  ASSINATURA_CFB,
   [0x89, 0x50, 0x4e, 0x47],
   [0xff, 0xd8, 0xff],
 ];
@@ -146,6 +177,15 @@ const pareceTexto = (inicio: Uint8Array): boolean => {
 };
 
 const TIPOS_DE_TEXTO: readonly string[] = TIPOS_DE_IMPORTACAO_DO_PLANO;
+const TIPOS_DE_PLANILHA_ACEITOS: readonly string[] = TIPOS_DE_PLANILHA;
+
+/**
+ * Planilha precisa abrir como ZIP. O CFB também passa: o OOXML criptografado e o `.xls` com extensão
+ * trocada têm essa assinatura, e quem decide o formato real é o leitor (que devolve
+ * `ARQUIVO_PROTEGIDO_OU_CRIPTOGRAFADO` ou `EXTENSAO_DIFERENTE_DO_CONTEUDO` em vez de uma recusa genérica).
+ */
+const parecePlanilha = (inicio: Uint8Array): boolean =>
+  ASSINATURAS_ZIP.some((assinatura) => comecaCom(inicio, assinatura)) || comecaCom(inicio, ASSINATURA_CFB);
 
 /**
  * Confere se os bytes iniciais correspondem ao tipo declarado.
@@ -159,6 +199,10 @@ export const conteudoConfereComOTipo = (
 ): boolean => {
   if (TIPOS_DE_TEXTO.includes(tipoConteudo)) {
     return pareceTexto(inicio);
+  }
+
+  if (TIPOS_DE_PLANILHA_ACEITOS.includes(tipoConteudo)) {
+    return parecePlanilha(inicio);
   }
 
   const assinaturas = ASSINATURAS[tipoConteudo];
@@ -177,15 +221,47 @@ export const conteudoConfereComOTipo = (
 export const formatarLimite = (bytes: number): string =>
   `${Math.round((bytes / (1024 * 1024)) * 10) / 10} MB`;
 
-/** Devolve a falha ou `null` quando o arquivo é aceitável. */
+const extensaoDoNome = (nome: string): string => {
+  const ponto = nome.lastIndexOf('.');
+  return ponto <= 0 ? '' : nome.slice(ponto).toLowerCase();
+};
+
+/** Formato pela extensão do nome (`.csv`, `.xlsx`, `.ods`); `null` para qualquer outra, `.xls` e `.xlsm` inclusive. */
+export const formatoPelaExtensao = (nome: string): FormatoDeArquivo | null => {
+  switch (extensaoDoNome(nome)) {
+    case '.csv':
+      return 'CSV';
+    case '.xlsx':
+      return 'XLSX';
+    case '.ods':
+      return 'ODS';
+    default:
+      return null;
+  }
+};
+
+/** O tipo de conteúdo que o navegador e o servidor devem usar para o formato (o do multipart é livre). */
+export const tipoDeConteudoDoFormato = (formato: FormatoDeArquivo): string =>
+  formato === 'XLSX' ? TIPO_DE_CONTEUDO_XLSX : formato === 'ODS' ? TIPO_DE_CONTEUDO_ODS : 'text/csv';
+
+/**
+ * Devolve a falha ou `null` quando o arquivo é aceitável. Com o `nome`, a extensão recusada pela
+ * regra (`.xls`, `.xlsm` na importação) vence o tipo declarado, que é escolha de quem envia.
+ */
 export const validarArquivo = (
   tipo: TipoDeArquivo,
-  arquivo: Readonly<{ tipoConteudo: string; tamanhoBytes: number }>,
+  arquivo: Readonly<{ tipoConteudo: string; tamanhoBytes: number; nome?: string }>,
 ): FalhaDeArquivo | null => {
   const regra = REGRAS_DE_ARQUIVO[tipo];
 
   if (arquivo.tamanhoBytes <= 0) {
     return 'ARQUIVO_VAZIO';
+  }
+
+  const recusadaPelaExtensao =
+    arquivo.nome === undefined ? undefined : regra.extensoesRecusadas?.[extensaoDoNome(arquivo.nome)];
+  if (recusadaPelaExtensao !== undefined) {
+    return recusadaPelaExtensao;
   }
 
   if (!regra.tiposAceitos.includes(arquivo.tipoConteudo)) {
@@ -211,5 +287,8 @@ export const mensagemDaFalha = (tipo: TipoDeArquivo, falha: FalhaDeArquivo): str
       return `Arquivo acima do limite de ${formatarLimite(regra.limiteBytes)}.`;
     case 'CONTEUDO_NAO_CONFERE':
       return 'O conteúdo do arquivo não corresponde à extensão informada.';
+    case 'FORMATO_XLS_NAO_SUPORTADO':
+    case 'FORMATO_XLSM_NAO_SUPORTADO':
+      return MENSAGEM_DO_ERRO_DE_PLANILHA[falha];
   }
 };

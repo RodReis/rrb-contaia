@@ -30,6 +30,7 @@ import {
 } from '@contaia/db';
 import type {
   HistoricoDeImportacoes,
+  InspecaoDePlanilha,
   PaginaDeEmpregados,
   PaginaDeRejeicoesDeEmpregados,
   PreviaDaImportacaoDeEmpregados,
@@ -51,6 +52,7 @@ import {
   type PrazosDoRelatorio,
   type RelatorioDaImportacao,
 } from '../importacao/orquestrador';
+import { LEITURA_DE_PLANILHAS, type CamposDePlanilhaInformados, type LeituraDePlanilhas } from '../importacao/planilha';
 import { paraPreviaDeEmpregados } from './empregados.apresentacao';
 import type { MapeamentoDeEmpregadosInformado } from './empregados.dto';
 import { FILA_DE_VALIDACAO_DOS_EMPREGADOS } from './empregados.fila';
@@ -59,8 +61,8 @@ import { reconciliarPendenciaDosEmpregados } from './pendencia-dos-empregados';
 export const ITENS_POR_PAGINA_DE_EMPREGADOS = 50;
 
 /** Chave endereçada por conteúdo, como na F13: o mesmo arquivo ocupa um objeto só. */
-export const chaveDoOriginalDeEmpregados = (tenantId: string, empresaId: string, hash: string): string =>
-  `${tenantId}/${empresaId}/empregados/${hash}.csv`;
+export const chaveDoOriginalDeEmpregados = (tenantId: string, empresaId: string, hash: string, extensao: string): string =>
+  `${tenantId}/${empresaId}/empregados/${hash}.${extensao}`;
 
 const validarMapeamento = (informado: unknown, cabecalho: readonly string[]) => {
   const resultado = validarMapeamentoDeEmpregados(informado, cabecalho);
@@ -143,10 +145,11 @@ export class EmpregadosService {
     storage: StorageService,
     @Inject(FILA_DE_VALIDACAO_DOS_EMPREGADOS) fila: FilaDeValidacao,
     @Optional() @Inject(PRAZOS_DO_RELATORIO) prazos?: PrazosDoRelatorio,
+    @Optional() @Inject(LEITURA_DE_PLANILHAS) leitura?: LeituraDePlanilhas,
   ) {
     this.orquestrador = new OrquestradorDeImportacao(
       ESTRATEGIA_DE_EMPREGADOS,
-      { pool: pool.instancia, storage, fila, prazos, agora: () => this.agora() },
+      { pool: pool.instancia, storage, fila, prazos, leitura, agora: () => this.agora() },
       EmpregadosService.name,
     );
   }
@@ -163,6 +166,15 @@ export class EmpregadosService {
     informado: MapeamentoDeEmpregadosInformado,
   ): Promise<PreviaDaImportacaoDeEmpregados> {
     return this.orquestrador.enviar(contexto, empresaId, arquivo, informado);
+  }
+
+  /** Inspeção sem estado da planilha (SPEC-015 §3.3–§3.4): nada é gravado. */
+  inspecionarPlanilha(
+    contexto: ContextoDaImportacao,
+    arquivo: ArquivoEnviado,
+    pedido: CamposDePlanilhaInformados,
+  ): Promise<InspecaoDePlanilha> {
+    return this.orquestrador.inspecionar(contexto, arquivo, pedido);
   }
 
   confirmar(

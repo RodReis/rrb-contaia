@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROVA_ESCOPO: SPEC-014
+  PROVA_ESCOPO: SPEC-015
 
 jobs:
   quality:
@@ -96,7 +96,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:5432/contaia
       REDIS_URL: redis://127.0.0.1:6379
-      # Storage local da importação do plano de contas e dos empregados (SPEC-013/014): a API grava o original e o worker
+      # Storage local da importação do plano de contas e dos empregados, em CSV, XLSX ou ODS (SPEC-013/014/015): a API grava o original e o worker
       # o lê. O bucket nasce nos próprios testes (StorageService e o teste do worker o criam).
       S3_ENDPOINT: http://127.0.0.1:19000
       S3_BUCKET: contaia-documentos
@@ -309,6 +309,7 @@ jobs:
             --test-reporter-destination=stdout \
             --test-reporter-destination="test-results/$PROVA_ESCOPO/e2e/infra-signer-junit.xml" \
             infra/docker/signer-alcance.test.mjs infra/docker/vault/signer-politica.test.mjs
+      # Também gera o `dist` de @contaia/planilhas: a spec-015 monta as planilhas de teste com os construtores dele.
       - run: pnpm build
       - run: pnpm test:e2e
       - name: Resumo da categoria

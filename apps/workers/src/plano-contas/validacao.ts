@@ -7,9 +7,12 @@
  *   1. transação curta (contexto técnico da empresa): RECEBIDA → VALIDANDO, lê a versão do plano,
  *      a chave do original, o mapeamento e as contas vigentes — versão e contas saem da MESMA
  *      transação, então a prévia nunca combina a versão de um momento com o plano de outro;
- *   2. sem transação: lê o original no storage, faz o parse e a validação integral (pura);
+ *   2. sem transação: lê o original no storage, faz o parse e a validação integral (pura) — na
+ *      planilha (SPEC-015), a aba é lida no processo filho, na vaga do limitador do processo;
  *   3. transação curta: grava staging + versão + estado de uma vez (idempotente), o evento e, se o
- *      desfecho for terminal (REJEITADA), a notificação ao iniciador.
+ *      desfecho for terminal (REJEITADA), a notificação ao iniciador. Na planilha lida, antes disso e
+ *      na MESMA transação: o que a leitura apurou na tentativa e o evento `LEITURA_PLANILHA` (a
+ *      reentrega sobrescreve e nunca duplica).
  *
  * Reentrega: tentativa já além de VALIDANDO → `ESTADO_INVALIDO_PARA_ACAO` → ack sem efeito; ainda
  * em VALIDANDO (queda no meio) → refaz e o staging não duplica. Falha transitória relança (o BullMQ
@@ -26,6 +29,7 @@ import {
   iniciarValidacaoDaImportacao,
   registrarEventoDeImportacao,
   registrarFalhaDaImportacao,
+  registrarLeituraDaPlanilhaDaImportacao,
   type MapeamentoDaImportacao,
 } from '@contaia/db';
 import { CODIGOS_DE_ERRO, type ContaVigente } from '@contaia/domain';
@@ -43,7 +47,8 @@ import {
   type DependenciasDaValidacao,
   type ResultadoDaValidacaoDoJob,
 } from '../importacao/falhas.js';
-import { analisarArquivo } from './analise.js';
+import { analisarPlanilha, configuracaoDaPlanilha, type ConfiguracaoDaPlanilha } from '../importacao/planilha.js';
+import { analisarAba, analisarArquivo, type ResultadoDaAnalise } from './analise.js';
 
 export {
   CODIGOS_DA_FALHA_DA_VALIDACAO,
@@ -61,6 +66,8 @@ type Inicio = Readonly<{
   planoVersaoNaValidacao: number;
   arquivoChave: string;
   mapeamento: MapeamentoDaImportacao;
+  /** `null` = CSV. */
+  planilha: ConfiguracaoDaPlanilha | null;
   contasVigentes: readonly ContaVigente[];
 }>;
 
@@ -91,6 +98,7 @@ const iniciar = async (deps: DependenciasDaValidacao, comando: ComandoValidarImp
         planoVersaoNaValidacao: inicio.planoVersaoNaValidacao,
         arquivoChave: tentativa.arquivoChave,
         mapeamento: tentativa.mapeamento,
+        planilha: configuracaoDaPlanilha(tentativa),
         contasVigentes: await carregarContasVigentes(c, empresaId),
       };
     });
@@ -112,7 +120,7 @@ const gravar = async (
   deps: DependenciasDaValidacao,
   comando: ComandoValidarImportacao,
   inicio: Inicio,
-  analise: ReturnType<typeof analisarArquivo>,
+  analise: ResultadoDaAnalise,
 ): Promise<ResultadoDaValidacaoDoJob> => {
   const { empresaId, tentativaId, correlationId } = comando;
   const linhas = analise.tipo === 'LINHAS' ? analise.linhas : [];
@@ -121,6 +129,16 @@ const gravar = async (
   try {
     return await naEmpresa(deps.pool, comando, async (c) => {
       const agora = deps.agora();
+
+      if (analise.tipo === 'LINHAS' && analise.leitura !== undefined) {
+        // Antes do resultado: a gravação da leitura só vale com a tentativa ainda em VALIDANDO.
+        await registrarLeituraDaPlanilhaDaImportacao(c, { empresaId, tentativaId, ...analise.leitura });
+        await registrarEventoDeImportacao(c, {
+          empresaId, tentativaId, acao: 'LEITURA_PLANILHA', estadoAnterior: 'VALIDANDO', estadoNovo: 'VALIDANDO',
+          usuarioId: null, totais: null, codigo: null, correlationId, agora,
+        });
+      }
+
       const gravado = await gravarResultadoDaValidacao(c, empresaId, tentativaId, linhas, inicio.planoVersaoNaValidacao, agora);
 
       if (!gravado.transicionou) {
@@ -161,7 +179,11 @@ export const processarValidacao = async (deps: DependenciasDaValidacao, dados: u
   }
 
   const bytes = await lerOriginal(deps, inicio.arquivoChave);
-  const analise = analisarArquivo(bytes, inicio.mapeamento, inicio.contasVigentes);
+  const { planilha, mapeamento, contasVigentes } = inicio;
+  const analise =
+    planilha === null
+      ? analisarArquivo(bytes, mapeamento, contasVigentes)
+      : await analisarPlanilha(deps, bytes, planilha, (leitura) => analisarAba(leitura, planilha.linhaCabecalho, mapeamento, contasVigentes));
 
   return gravar(deps, comando, inicio, analise);
 };

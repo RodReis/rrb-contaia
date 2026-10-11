@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { camposDePlanilhaDaTentativa } from './tabela.js';
+
 /**
  * Contrato interno da importação de plano de contas (SPEC-013).
  *
@@ -35,6 +37,8 @@ export const CODIGOS_DE_ERRO_DA_LINHA = [
   'CICLO_HIERARQUICO',
   'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA',
   'CONTA_ARQUIVADA',
+  'CELULA_COM_FORMULA',
+  'CELULA_MESCLADA',
 ] as const;
 export type CodigoDeErroDaLinha = (typeof CODIGOS_DE_ERRO_DA_LINHA)[number];
 
@@ -115,6 +119,8 @@ export const criarPreviaDaImportacaoSchema = <Rejeicao extends z.ZodType>(rejeic
      * ausente nos demais casos. Nunca a mensagem crua de uma exceção.
      */
     diagnostico: DiagnosticoDaImportacaoSchema.nullable().optional(),
+    /** Formato, aba, cabeçalho e diagnósticos de planilha (SPEC-015): aditivos, padrão CSV. */
+    ...camposDePlanilhaDaTentativa,
   });
 
 export const PreviaDaImportacaoSchema = criarPreviaDaImportacaoSchema(RejeicaoDaImportacaoSchema);
@@ -180,6 +186,7 @@ export const TentativaDoHistoricoSchema = z.strictObject({
   fimEm: z.string().datetime().nullable(),
   correlationId: chaveTextual,
   reutilizadaPorIdempotencia: z.boolean(),
+  ...camposDePlanilhaDaTentativa,
 });
 export type TentativaDoHistorico = z.infer<typeof TentativaDoHistoricoSchema>;
 

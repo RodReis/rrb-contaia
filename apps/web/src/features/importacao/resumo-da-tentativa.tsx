@@ -4,11 +4,19 @@
  * de metadados do cartão do protótipo, sem as métricas que ele inventava ("vetorizadas",
  * percentual de garantia) e sem barra de proporção (FRONTEND.md §16/§21: o número já está escrito).
  */
-import { Recycle } from 'lucide-react';
+import { EyeOff, Recycle } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { tamanhoEmTexto } from '@/lib/arquivo';
 import { cn } from '@/lib/cn';
 import { formatarInstante, formatarNumero, hashCurto, plural } from './apresentacao';
+import {
+  colunaDoMapeamento,
+  ehPlanilha,
+  quantidadeDoDiagnostico,
+  resumoDasLinhas,
+  rotuloDaAba,
+} from './apresentacao-da-planilha';
 import type { DominioDaImportacao, PreviaBase, Totais } from './dominio';
 import { CodigoDeSuporte } from './pecas';
 
@@ -39,6 +47,62 @@ const aproveitamento = (totais: Totais, previstas: string | null): string => {
   return previstas === null ? frase : `${frase} ${previstas}`;
 };
 
+const Detalhe = ({ rotulo, children }: { rotulo: string; children: ReactNode }) => (
+  <div className="flex min-w-0 max-w-full flex-col gap-xs">
+    <dt className="text-label-sm uppercase text-muted-foreground">{rotulo}</dt>
+    {children}
+  </div>
+);
+
+/**
+ * O que a leitura da planilha decidiu (SPEC-015 §3.7): formato, aba, cabeçalho, linhas ignoradas e
+ * ocultas, e as linhas rejeitadas por fórmula ou mescla. Linha oculta é sinalizada (ícone e texto):
+ * ela entrou na validação como qualquer outra.
+ */
+const PlanilhaLida = ({ previa }: { previa: PreviaBase }) => {
+  const ignoradas = previa.linhasIgnoradasAntesDoCabecalho ?? 0;
+  const ocultas = previa.linhasOcultas ?? 0;
+  const formulas = quantidadeDoDiagnostico(previa.diagnosticosDaPlanilha, 'LINHAS_COM_FORMULA_REJEITADAS');
+  const mesclas = quantidadeDoDiagnostico(previa.diagnosticosDaPlanilha, 'LINHAS_COM_CELULA_MESCLADA_REJEITADAS');
+  const aba = previa.aba ?? null;
+
+  return (
+    <div role="group" aria-label="Planilha lida" className="flex flex-col gap-sm rounded-md border border-border px-md py-sm">
+      {/* Cada detalhe na largura do próprio conteúdo, quebrando para a linha de baixo quando não cabe:
+          a grade de 4 colunas pela largura da janela espremia a aba no cartão estreito (1024 px). */}
+      <dl className="flex flex-wrap gap-x-xl gap-y-md">
+        <Detalhe rotulo="Formato">
+          <dd className="font-mono text-code-sm text-foreground">{previa.formato}</dd>
+        </Detalhe>
+        <Detalhe rotulo="Aba">
+          <dd title={aba === null ? undefined : rotuloDaAba(aba)} className="truncate text-body-sm text-foreground">
+            {aba === null ? '—' : rotuloDaAba(aba)}
+          </dd>
+        </Detalhe>
+        <Detalhe rotulo="Cabeçalho">
+          <dd className="text-body-sm tabular-nums text-foreground">{`Linha ${formatarNumero(previa.linhaCabecalho ?? 1)}`}</dd>
+        </Detalhe>
+        <Detalhe rotulo="Linhas fora dos dados">
+          <dd className="flex items-start gap-xs text-body-sm text-foreground">
+            {ocultas > 0 ? <EyeOff className="mt-xs size-icon-xs shrink-0 text-warning-foreground" aria-hidden="true" /> : null}
+            <span>{resumoDasLinhas(ignoradas, ocultas)}</span>
+          </dd>
+        </Detalhe>
+      </dl>
+      <p className="text-body-sm text-muted-foreground">
+        {formulas === 0 && mesclas === 0
+          ? 'Nenhuma linha rejeitada por fórmula ou célula mesclada.'
+          : [
+              formulas > 0 ? plural(formulas, 'linha rejeitada por fórmula', 'linhas rejeitadas por fórmula') : '',
+              mesclas > 0 ? plural(mesclas, 'linha rejeitada por célula mesclada', 'linhas rejeitadas por célula mesclada') : '',
+            ]
+              .filter((frase) => frase !== '')
+              .join(' · ')}
+      </p>
+    </div>
+  );
+};
+
 export const ResumoDaTentativa = ({
   dominio,
   previa,
@@ -59,6 +123,7 @@ export const ResumoDaTentativa = ({
           <dt className="text-label-sm uppercase text-muted-foreground">Arquivo</dt>
           <dd className="font-mono text-code-sm text-foreground [overflow-wrap:anywhere]">{previa.arquivo.nome}</dd>
           <dd className="font-mono text-code-xs tabular-nums text-muted-foreground">
+            {previa.formato === undefined ? null : `${previa.formato} · `}
             {tamanhoEmTexto(previa.arquivo.tamanho)} · <span title={previa.arquivo.hash}>SHA-256 {hashCurto(previa.arquivo.hash)}</span>
           </dd>
         </div>
@@ -84,7 +149,7 @@ export const ResumoDaTentativa = ({
                 <li key={campo} className="flex flex-wrap gap-xs">
                   <span className="text-muted-foreground">{dominio.rotuloDoCampo(campo)}:</span>
                   <span className="font-mono text-code-sm text-foreground [overflow-wrap:anywhere]">
-                    {previa.mapeamento[campo] ?? '—'}
+                    {colunaDoMapeamento(previa.formato, previa.mapeamento[campo])}
                   </span>
                 </li>
               ))}
@@ -93,11 +158,14 @@ export const ResumoDaTentativa = ({
         </div>
       </dl>
 
+      {ehPlanilha(previa.formato) ? <PlanilhaLida previa={previa} /> : null}
+
       {previa.reutilizadaPorIdempotencia ? (
         <p className="flex items-start gap-xs rounded-md bg-info px-md py-sm text-body-sm text-info-foreground">
           <Recycle className="mt-xs size-icon-xs shrink-0" aria-hidden="true" />
-          Este arquivo, com o mesmo mapeamento, já tinha sido processado: o resultado foi reaproveitado, sem nova
-          aplicação nem nova notificação.
+          {ehPlanilha(previa.formato)
+            ? 'Este arquivo, com a mesma aba, o mesmo cabeçalho e o mesmo mapeamento, já tinha sido processado: o resultado foi reaproveitado, sem nova aplicação nem nova notificação.'
+            : 'Este arquivo, com o mesmo mapeamento, já tinha sido processado: o resultado foi reaproveitado, sem nova aplicação nem nova notificação.'}
         </p>
       ) : null}
 

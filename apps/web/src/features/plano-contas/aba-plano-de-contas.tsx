@@ -13,7 +13,7 @@ import { PlanoVigente } from './plano-vigente';
 const CABECALHO = {
   titulo: 'Plano de contas',
   introducao:
-    'Importe e reimporte o plano de contas desta empresa por CSV, no modelo do ContaIA ou mapeando as colunas de um arquivo legado. Nenhuma conta muda antes da sua confirmação.',
+    'Importe e reimporte o plano de contas desta empresa por CSV, XLSX ou ODS, no modelo do ContaIA ou mapeando as colunas de um arquivo legado. Nenhuma conta muda antes da sua confirmação.',
 } as const;
 
 export const AbaPlanoDeContas = ({

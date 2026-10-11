@@ -36,6 +36,7 @@ import {
 } from '@contaia/db';
 import type {
   HistoricoDeImportacoes,
+  InspecaoDePlanilha,
   PaginaDeRejeicoesDaImportacao,
   PaginaDoPlanoDeContas,
   PreviaDaImportacao,
@@ -54,6 +55,7 @@ import {
   type PrazosDoRelatorio,
   type RelatorioDaImportacao,
 } from '../importacao/orquestrador';
+import { LEITURA_DE_PLANILHAS, type CamposDePlanilhaInformados, type LeituraDePlanilhas } from '../importacao/planilha';
 import { reconciliarPendenciaDoPlano } from './pendencia-do-plano';
 import { paraPaginaDeRejeicoes, paraPaginaDoPlano, paraPrevia } from './plano-contas.apresentacao';
 import { FILA_DE_VALIDACAO_DO_PLANO, type FilaDeValidacaoDoPlano } from './plano-contas.fila';
@@ -82,8 +84,8 @@ export const ITENS_POR_PAGINA_DO_PLANO = 50;
  * antes do commit da tentativa; se ela não nascer, o objeto fica — inofensivo, e o próximo envio do
  * mesmo conteúdo o sobrescreve com bytes idênticos.
  */
-export const chaveDoOriginal = (tenantId: string, empresaId: string, hash: string): string =>
-  `${tenantId}/${empresaId}/plano-contas/${hash}.csv`;
+export const chaveDoOriginal = (tenantId: string, empresaId: string, hash: string, extensao: string): string =>
+  `${tenantId}/${empresaId}/plano-contas/${hash}.${extensao}`;
 
 /** Os cinco campos do contrato, aparados: a identidade idempotente não depende de espaço. */
 const validarMapeamentoDoPlano = (informado: unknown, cabecalho: readonly string[]): Mapeamento => {
@@ -165,10 +167,11 @@ export class PlanoContasService {
     storage: StorageService,
     @Inject(FILA_DE_VALIDACAO_DO_PLANO) fila: FilaDeValidacaoDoPlano,
     @Optional() @Inject(PRAZOS_DO_RELATORIO) prazos?: PrazosDoRelatorio,
+    @Optional() @Inject(LEITURA_DE_PLANILHAS) leitura?: LeituraDePlanilhas,
   ) {
     this.orquestrador = new OrquestradorDeImportacao(
       ESTRATEGIA_DO_PLANO,
-      { pool: pool.instancia, storage, fila, prazos, agora: () => this.agora() },
+      { pool: pool.instancia, storage, fila, prazos, leitura, agora: () => this.agora() },
       PlanoContasService.name,
     );
   }
@@ -185,6 +188,15 @@ export class PlanoContasService {
     informado: MapeamentoInformado,
   ): Promise<PreviaDaImportacao> {
     return this.orquestrador.enviar(contexto, empresaId, arquivo, informado);
+  }
+
+  /** Inspeção sem estado da planilha (SPEC-015 §3.3–§3.4): nada é gravado. */
+  inspecionarPlanilha(
+    contexto: ContextoDaImportacao,
+    arquivo: ArquivoDoPlano,
+    pedido: CamposDePlanilhaInformados,
+  ): Promise<InspecaoDePlanilha> {
+    return this.orquestrador.inspecionar(contexto, arquivo, pedido);
   }
 
   confirmar(contexto: ContextoDaImportacao, empresaId: string, tentativaId: string, versaoDaPrevia: number): Promise<PreviaDaImportacao> {

@@ -10,8 +10,8 @@ import type { EstadoDaImportacao } from '@contaia/domain';
 import type { HistoricoDeImportacoes } from '@contaia/shared';
 import type { PoolClient, QueryResultRow } from 'pg';
 
-import { exigirDescritor } from './importacao-ciclo.js';
-import type { DescritorDaImportacao, TotaisDaImportacao } from './importacao-ciclo.js';
+import { colunasDePlanilhaSql, exigirDescritor, paraDetalhesDePlanilha } from './importacao-ciclo.js';
+import type { ColunasDePlanilha, DescritorDaImportacao, TotaisDaImportacao } from './importacao-ciclo.js';
 
 /** Desfecho que carrega diagnóstico: a falha técnica e a rejeição do arquivo inteiro. */
 export type DiagnosticoDaTentativa = Readonly<{
@@ -53,7 +53,7 @@ export const padraoDeBusca = (busca: string): string => `%${busca.replace(/[\\%_
 
 const TOTAIS_ZERADOS: TotaisDaImportacao = { lidas: 0, novas: 0, atualizadas: 0, rejeitadas: 0 };
 
-type LinhaDoHistorico = {
+type LinhaDoHistorico = ColunasDePlanilha & {
   id: string;
   arquivo_nome: string;
   arquivo_tamanho: string;
@@ -88,7 +88,7 @@ export const listarHistorico = async (
     `select t.id, t.arquivo_nome, t.arquivo_tamanho::text as arquivo_tamanho, t.hash_arquivo, t.mapeamento,
             t.estado, t.totais, t.criado_em, t.finalizado_em, t.correlation_id, t.reutilizada_por_idempotencia,
             ui.id as iniciador_id, ui.nome as iniciador_nome,
-            ua.id as autor_id, ua.nome as autor_nome
+            ua.id as autor_id, ua.nome as autor_nome, ${colunasDePlanilhaSql('t')}
        from app.${d.tabela} t
        join app.usuario ui on ui.id = t.usuario_iniciador_id and ui.tenant_id = t.tenant_id
        left join app.usuario ua
@@ -116,6 +116,9 @@ export const listarHistorico = async (
       fimEm: linha.finalizado_em === null ? null : linha.finalizado_em.toISOString(),
       correlationId: linha.correlation_id,
       reutilizadaPorIdempotencia: linha.reutilizada_por_idempotencia,
+      ...paraDetalhesDePlanilha(linha),
+      // O contrato do histórico é o tipo inferido do zod (array mutável).
+      diagnosticosDaPlanilha: linha.diagnosticos,
     })),
   };
 };

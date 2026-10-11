@@ -1,14 +1,23 @@
 /**
- * Chamadas da importação por CSV (SPEC-013/014 §6.2), por domínio: `/empresas/{id}/{recurso}`.
+ * Chamadas da importação por CSV, XLSX ou ODS (SPEC-013/014 §6.2; SPEC-015 §6.2), por domínio:
+ * `/empresas/{id}/{recurso}`.
  * Toda resposta passa pelo leitor do domínio (schema do `@contaia/shared`) antes de chegar à tela:
  * dado externo é `unknown` até ser validado.
  *
  * Cada ação do usuário leva um `x-correlation-id` próprio: é esse id que a API grava na tentativa,
  * no evento e no problem+json, e que o suporte procura do outro lado.
  */
-import { HistoricoDeImportacoesSchema, type HistoricoDeImportacoes } from '@contaia/shared';
+import {
+  HistoricoDeImportacoesSchema,
+  InspecaoDePlanilhaSchema,
+  formatoPelaExtensao,
+  tipoDeConteudoDoFormato,
+  type HistoricoDeImportacoes,
+  type InspecaoDePlanilha,
+} from '@contaia/shared';
 
 import { ErroDaApi, ehProblema, requisitar } from '@/lib/http';
+import type { FormatoDoModelo } from './apresentacao-da-planilha';
 import type { DominioDaImportacao, PaginaDeRejeicoesBase, PreviaBase } from './dominio';
 
 /** Um id por ação; o formato (UUID) cabe no que a API aceita (`[A-Za-z0-9-]{8,64}`). */
@@ -51,26 +60,91 @@ export const listarRejeicoes = async (
   );
 
 /**
- * O navegador pode mandar `.csv` como `application/vnd.ms-excel` (Excel no Windows) ou sem tipo
- * nenhum; o arquivo já passou pela checagem de extensão e de conteúdo, então segue como `text/csv`.
+ * O tipo declarado pelo navegador não é confiável: o Windows com Excel manda `.csv` como
+ * `application/vnd.ms-excel`, e planilhas às vezes chegam sem tipo. O arquivo já passou pela
+ * checagem de extensão; segue com o tipo canônico do formato (`text/csv`, XLSX ou ODS).
  */
-const comoCsv = (arquivo: File): File =>
-  arquivo.type === 'text/csv' ? arquivo : new File([arquivo], arquivo.name, { type: 'text/csv' });
+const comTipoDoFormato = (arquivo: File): File => {
+  const tipo = tipoDeConteudoDoFormato(formatoPelaExtensao(arquivo.name) ?? 'CSV');
+
+  return arquivo.type === tipo ? arquivo : new File([arquivo], arquivo.name, { type: tipo });
+};
+
+/** Aba (posição, base 1) e linha do cabeçalho escolhidas para uma planilha (SPEC-015 §3.3–3.4). */
+export type ConfiguracaoDoEnvio = Readonly<{ aba: number; linhaCabecalho: number }>;
 
 /**
  * Envio do arquivo com o mapeamento. `FormData` sem `content-type` explícito: o navegador define o
  * boundary do multipart. Responde 202 com a tentativa (nova ou reaproveitada por idempotência).
+ * Planilha leva a aba e a linha do cabeçalho, e o mapeamento por letra de coluna; o CSV, nenhum dos
+ * dois (a identidade do CSV continua a das F13/F14).
  */
 export const enviarImportacao = async (
   dominio: DominioDaImportacao,
   empresaId: string,
-  entrada: Readonly<{ arquivo: File; mapeamento: Readonly<Record<string, string>> }>,
+  entrada: Readonly<{
+    arquivo: File;
+    mapeamento: Readonly<Record<string, string>>;
+    planilha?: ConfiguracaoDoEnvio | undefined;
+  }>,
 ): Promise<PreviaBase> => {
   const corpo = new FormData();
-  corpo.append('arquivo', comoCsv(entrada.arquivo));
+  corpo.append('arquivo', comTipoDoFormato(entrada.arquivo));
   corpo.append('mapeamento', JSON.stringify(entrada.mapeamento));
 
+  if (entrada.planilha !== undefined) {
+    corpo.append('aba', String(entrada.planilha.aba));
+    corpo.append('linhaCabecalho', String(entrada.planilha.linhaCabecalho));
+  }
+
   return dominio.lerPrevia(await ler(`${caminhoDoRecurso(dominio, empresaId)}/importacoes`, { method: 'POST', body: corpo }));
+};
+
+/**
+ * Inspeção sem estado da planilha (SPEC-015 §6.2): abas, cabeçalho sugerido ou o pedido, colunas
+ * com rótulo inequívoco e amostra. Nada fica guardado no servidor; o arquivo vai de novo no envio.
+ *
+ * O `signal` cancela o pedido quando a tela deixa de precisar dele (arquivo, aba ou linha trocados):
+ * a API só lê duas planilhas por vez, e uma leitura abandonada seguraria uma vaga por até ~80 s.
+ * Resposta fora do contrato vira "erro desconhecido" com o id que este pedido levou — é esse que o
+ * suporte encontra no log da API.
+ */
+export const inspecionarPlanilha = async (
+  dominio: DominioDaImportacao,
+  empresaId: string,
+  entrada: Readonly<{ arquivo: File; aba: number | null; linhaCabecalho: number | null }>,
+  signal?: AbortSignal,
+): Promise<InspecaoDePlanilha> => {
+  const corpo = new FormData();
+  const correlationId = novoCorrelationId();
+  corpo.append('arquivo', comTipoDoFormato(entrada.arquivo));
+
+  if (entrada.aba !== null) {
+    corpo.append('aba', String(entrada.aba));
+  }
+  if (entrada.linhaCabecalho !== null) {
+    corpo.append('linhaCabecalho', String(entrada.linhaCabecalho));
+  }
+
+  const resposta = await ler(`${caminhoDoRecurso(dominio, empresaId)}/planilhas/inspecao`, {
+    method: 'POST',
+    body: corpo,
+    headers: { [CABECALHO_DE_CORRELACAO]: correlationId },
+    ...(signal === undefined ? {} : { signal }),
+  });
+  const lida = InspecaoDePlanilhaSchema.safeParse(resposta);
+
+  if (!lida.success) {
+    throw new ErroDaApi({
+      type: 'https://contaia.local/erros/desconhecido',
+      title: 'Resposta inesperada.',
+      status: 0,
+      code: 'ERRO_DESCONHECIDO',
+      correlationId,
+    });
+  }
+
+  return lida.data;
 };
 
 export const confirmarImportacao = async (
@@ -96,8 +170,11 @@ export const cancelarImportacao = async (
     await ler(`${caminhoDoRecurso(dominio, empresaId)}/importacoes/${tentativaId}/cancelar`, { method: 'POST' }),
   );
 
-export const caminhoDoModelo = (dominio: DominioDaImportacao, empresaId: string): string =>
-  `${caminhoDoRecurso(dominio, empresaId)}/modelo`;
+/** O modelo CSV mantém a rota das F13/F14; XLSX e ODS pedem o formato (SPEC-015 §3.1). */
+export const caminhoDoModelo = (dominio: DominioDaImportacao, empresaId: string, formato: FormatoDoModelo = 'csv'): string =>
+  formato === 'csv'
+    ? `${caminhoDoRecurso(dominio, empresaId)}/modelo`
+    : `${caminhoDoRecurso(dominio, empresaId)}/modelo?formato=${formato}`;
 
 export const caminhoDoRelatorio = (dominio: DominioDaImportacao, empresaId: string, tentativaId: string): string =>
   `${caminhoDoRecurso(dominio, empresaId)}/importacoes/${tentativaId}/relatorio`;
@@ -127,6 +204,14 @@ const salvarNoNavegador = (conteudo: Blob, nome: string): void => {
 };
 
 /**
+ * O que o download aceita, pelo formato do arquivo esperado: o relatório e o original de um CSV pedem
+ * `text/csv` como nas F13/F14; os modelos e o original de uma planilha, o tipo dela. Sempre com
+ * `problem+json`, que é como a recusa chega.
+ */
+const aceitoNoDownload = (nomePadrao: string): string =>
+  `${tipoDeConteudoDoFormato(formatoPelaExtensao(nomePadrao) ?? 'CSV')}, application/problem+json`;
+
+/**
  * Download por `fetch`, não por `<a href>`: um relatório indisponível (409, 500) vira erro na tela,
  * com código de suporte e nova tentativa, em vez de um "arquivo" com o JSON do erro.
  */
@@ -136,7 +221,7 @@ export const baixarArquivo = async (caminho: string, nomePadrao: string): Promis
 
   try {
     resposta = await fetch(`/api/proxy${caminho}`, {
-      headers: { accept: 'text/csv, application/problem+json', [CABECALHO_DE_CORRELACAO]: correlationId },
+      headers: { accept: aceitoNoDownload(nomePadrao), [CABECALHO_DE_CORRELACAO]: correlationId },
     });
   } catch {
     throw new ErroDaApi({

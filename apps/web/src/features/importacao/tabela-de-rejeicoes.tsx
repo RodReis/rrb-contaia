@@ -1,7 +1,7 @@
 /**
  * Rejeições da tentativa, paginadas (SPEC-013/014 §3.4, §3.5): linha, o que identifica a linha no
  * domínio (código da conta; CPF e matrícula do empregado), campo, código de erro estável e a
- * mensagem acionável. Só leitura — a correção é no CSV de origem (§3.5: nada de
+ * mensagem acionável. Só leitura — a correção é no arquivo de origem (§3.5: nada de
  * correção inline nem sugestão automática, que o protótipo oferecia).
  *
  * A primeira página vem na própria prévia (`amostraRejeicoes`); as seguintes, da rota paginada.

@@ -41,6 +41,9 @@ importers:
       '@contaia/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@contaia/planilhas':
+        specifier: workspace:*
+        version: link:../../packages/planilhas
       '@contaia/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -348,6 +351,9 @@ importers:
       '@contaia/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@contaia/planilhas':
+        specifier: workspace:*
+        version: link:../../packages/planilhas
       '@contaia/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -436,6 +442,40 @@ importers:
         version: 3.2.7(@types/node@24.13.5)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.8.2)
 
   packages/domain:
+    devDependencies:
+      '@contaia/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 24.13.5
+        version: 24.13.5
+      eslint:
+        specifier: 9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.13.5)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.8.2)
+
+  packages/planilhas:
+    dependencies:
+      '@contaia/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@contaia/shared':
+        specifier: workspace:*
+        version: link:../shared
+      saxes:
+        specifier: 6.0.0
+        version: 6.0.0
+      ssf:
+        specifier: 0.11.2
+        version: 0.11.2
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@contaia/config':
         specifier: workspace:*
@@ -4106,6 +4146,10 @@ packages:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
 
+  frac@1.1.2:
+    resolution: {integrity: sha512-w/XBfkibaTl3YDqASwfDUqkna4Z2p9cFSr1aHDt0WoMTECnRfBOv2WArlZILlqgWlmdIlALXGpM2AOhEk5W3IA==}
+    engines: {node: '>=0.8'}
+
   fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
     engines: {node: '>= 0.8'}
@@ -5371,6 +5415,10 @@ packages:
   split2@4.2.0:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
     engines: {node: '>= 10.x'}
+
+  ssf@0.11.2:
+    resolution: {integrity: sha512-+idbmIXoYET47hH+d7dfm2epdOMUDjqcB4648sTZ+t2JwoyBFL/insLfB/racrDmsKB3diwsDA696pZMieAC5g==}
+    engines: {node: '>=0.8'}
 
   stable-hash@0.0.5:
     resolution: {integrity: sha512-+L3ccpzibovGXFK+Ap/f8LOS0ahMrHTf3xu7mMLSpEGU0EO9ucaysSylKo9eRDFNhWve/y275iPmIZ4z39a9iA==}
@@ -9440,6 +9488,8 @@ snapshots:
 
   forwarded@0.2.0: {}
 
+  frac@1.1.2: {}
+
   fresh@2.0.0: {}
 
   fs-extra@10.1.0:
@@ -10782,6 +10832,10 @@ snapshots:
   source-map@0.7.4: {}
 
   split2@4.2.0: {}
+
+  ssf@0.11.2:
+    dependencies:
+      frac: 1.1.2
 
   stable-hash@0.0.5: {}
 

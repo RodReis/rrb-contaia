@@ -8,7 +8,7 @@
 import type { TentativaDoHistorico } from '@contaia/shared';
 import { ArrowRight, History } from 'lucide-react';
 import { clsx } from 'clsx';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
@@ -16,7 +16,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { cn } from '@/lib/cn';
-import { APARENCIA_DO_ESTADO, formatarInstante, formatarNumero } from './apresentacao';
+import { APARENCIA_DO_ESTADO, formatarInstante, formatarNumero, plural } from './apresentacao';
+import { ehPlanilha, quantidadeDoDiagnostico, rotuloDaAba } from './apresentacao-da-planilha';
 import type { DominioDaImportacao } from './dominio';
 import { Paginacao, RegiaoRolavel, Secao } from './pecas';
 import { useHistorico } from './queries';
@@ -38,6 +39,61 @@ const quemDecidiu = (tentativa: TentativaDoHistorico): string | null => {
   // FALHA depois da confirmação: houve a decisão, mas nada foi aplicado.
   return tentativa.estado === 'FALHA' ? `confirmação tentada por ${outro.nome}` : `confirmada por ${outro.nome}`;
 };
+
+/**
+ * Formato e configuração da planilha (SPEC-015 §3.9): "XLSX · aba Plano (posição 2) · cabeçalho na
+ * linha 3". CSV diz só o formato; tentativa anterior à F15, sem o campo, não diz nada.
+ */
+const configuracaoDaTentativa = (tentativa: TentativaDoHistorico): readonly string[] => {
+  if (tentativa.formato === undefined) {
+    return [];
+  }
+
+  if (!ehPlanilha(tentativa.formato) || tentativa.aba === undefined || tentativa.aba === null) {
+    return [tentativa.formato];
+  }
+
+  return [
+    tentativa.formato,
+    `aba ${rotuloDaAba(tentativa.aba)}`,
+    `cabeçalho na linha ${formatarNumero(tentativa.linhaCabecalho ?? 1)}`,
+  ];
+};
+
+/** "2 ignoradas · 1 oculta · 1 com fórmula": o que a leitura da planilha separou dos dados. */
+const leituraDaTentativa = (tentativa: TentativaDoHistorico): readonly string[] => {
+  if (!ehPlanilha(tentativa.formato)) {
+    return [];
+  }
+
+  const formulas = quantidadeDoDiagnostico(tentativa.diagnosticosDaPlanilha, 'LINHAS_COM_FORMULA_REJEITADAS');
+  const mesclas = quantidadeDoDiagnostico(tentativa.diagnosticosDaPlanilha, 'LINHAS_COM_CELULA_MESCLADA_REJEITADAS');
+
+  return [
+    plural(tentativa.linhasIgnoradasAntesDoCabecalho ?? 0, 'ignorada', 'ignoradas'),
+    plural(tentativa.linhasOcultas ?? 0, 'oculta', 'ocultas'),
+    formulas > 0 ? `${formatarNumero(formulas)} com fórmula` : '',
+    mesclas > 0 ? `${formatarNumero(mesclas)} com mescla` : '',
+  ].filter((parte) => parte !== '');
+};
+
+/**
+ * Partes separadas por " · " que só quebram entre si, nunca no meio ("1 com / fórmula"); a parte que
+ * sozinha não cabe (aba de nome longo) fica numa linha, inteira no título.
+ */
+const Partes = ({ partes }: { partes: readonly string[] }) => (
+  <span title={partes.join(' · ')} className="flex max-w-[16rem] flex-wrap gap-x-xs text-body-sm text-muted-foreground">
+    {partes.map((parte, indice) => (
+      // O espaço entre as partes não ocupa lugar no flex, mas separa as palavras no texto lido.
+      <Fragment key={parte}>
+        <span className="min-w-0 max-w-full truncate">
+          {parte}
+          {indice < partes.length - 1 ? <span aria-hidden="true"> ·</span> : null}
+        </span>{' '}
+      </Fragment>
+    ))}
+  </span>
+);
 
 // `clsx`, não `cn`: o tailwind-merge trata `text-code-sm` e a cor como o mesmo grupo e descartaria o tamanho.
 const Numero = ({ valor, critico = false }: { valor: number; critico?: boolean }) => (
@@ -62,6 +118,8 @@ const Linha = ({
 }) => {
   const aparencia = APARENCIA_DO_ESTADO[tentativa.estado];
   const decisao = quemDecidiu(tentativa);
+  const configuracao = configuracaoDaTentativa(tentativa);
+  const leitura = leituraDaTentativa(tentativa);
 
   return (
     <tr aria-current={aberta ? 'true' : undefined} className={cn('border-t border-border align-top', aberta ? 'bg-accent' : 'hover:bg-accent/40')}>
@@ -73,6 +131,8 @@ const Linha = ({
         <span title={tentativa.arquivo.nome} className="block max-w-[14rem] truncate font-mono text-code-sm text-foreground">
           {tentativa.arquivo.nome}
         </span>
+        {configuracao.length === 0 ? null : <Partes partes={configuracao} />}
+        {leitura.length === 0 ? null : <Partes partes={leitura} />}
         {tentativa.reutilizadaPorIdempotencia ? (
           <span className="text-body-sm text-muted-foreground">Resultado reaproveitado</span>
         ) : null}
@@ -166,7 +226,7 @@ export const HistoricoDeImportacoes = ({
             <EmptyState
               icone={<History />}
               titulo="Nenhuma importação ainda"
-              descricao="Cada envio de CSV aparece aqui, da mais recente para a mais antiga, com a situação, os totais e o relatório."
+              descricao="Cada envio de arquivo aparece aqui, da mais recente para a mais antiga, com a situação, os totais e o relatório."
             />
           )}
         </div>

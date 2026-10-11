@@ -15,6 +15,12 @@ const portaApi = process.env['API_PORT'] ?? '15101';
 const portaCofre = process.env['COFRE_PORT'] ?? '15104';
 /** Porta do dublê da CNPJá; fora da faixa das aplicações (DEVELOPMENT.md §1.2). */
 const portaDubleDaCnpja = process.env['CNPJA_DUBLE_PORTA'] ?? '15310';
+/** Specs de importação que compartilham as filas de validação: rodam encadeadas (ver `projects`). */
+const SPECS_DE_IMPORTACAO = [
+  /spec-013-plano-contas\.spec\.ts$/u,
+  /spec-014-importacao-empregados\.spec\.ts$/u,
+  /spec-015-importacao-planilhas\.spec\.ts$/u,
+] as const;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -33,7 +39,26 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // As três specs de importação (SPEC-013/014/015) usam as mesmas filas de validação nos mesmos
+  // workers, e a prova de falha de cada uma PAUSA a fila do domínio: em paralelo, os jobs de uma
+  // ficariam parados na pausa da outra e as retomadas se cruzariam. Elas rodam encadeadas, uma
+  // spec por vez (013 → 014 → 015); o resto da suíte segue em paralelo no projeto `chromium`.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: [...SPECS_DE_IMPORTACAO] },
+    { name: 'importacao-013', use: { ...devices['Desktop Chrome'] }, testMatch: SPECS_DE_IMPORTACAO[0] },
+    {
+      name: 'importacao-014',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: SPECS_DE_IMPORTACAO[1],
+      dependencies: ['importacao-013'],
+    },
+    {
+      name: 'importacao-015',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: SPECS_DE_IMPORTACAO[2],
+      dependencies: ['importacao-014'],
+    },
+  ],
   // O `env` de um webServer substitui o ambiente herdado em vez de completá-lo:
   // sem repassar o processo, a Web e a API subiriam sem DATABASE_URL,
   // KEYCLOAK_ISSUER_URL nem credencial de storage, e o E2E falharia no login.

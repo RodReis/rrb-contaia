@@ -5,7 +5,7 @@
  */
 import {
   CAMPOS_DE_EMPREGADO,
-  CODIGOS_DE_ERRO_DE_EMPREGADO,
+  CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO,
   formatarCpf,
   type CampoDeEmpregado,
   type CodigoDeErroDeEmpregado,
@@ -35,6 +35,8 @@ export const ROTULO_DO_ERRO_DA_LINHA: Readonly<Record<CodigoDeErroDeEmpregado, s
   ADMISSAO_NAO_POSTERIOR_AO_NASCIMENTO: 'Admissão não posterior ao nascimento',
   CHAVE_DUPLICADA_NO_ARQUIVO: 'CPF e matrícula repetidos no arquivo',
   EMPREGADO_ARQUIVADO: 'Empregado arquivado',
+  CELULA_COM_FORMULA: 'Fórmula na célula',
+  CELULA_MESCLADA: 'Célula mesclada',
 };
 
 /** Quando a linha não traz mensagem própria, o rótulo do código já orienta. */
@@ -46,13 +48,15 @@ export const MENSAGEM_PADRAO_DO_ERRO: Readonly<Record<CodigoDeErroDeEmpregado, s
   ADMISSAO_NAO_POSTERIOR_AO_NASCIMENTO: 'A data de admissão precisa ser posterior à de nascimento.',
   CHAVE_DUPLICADA_NO_ARQUIVO: 'Deixe uma linha só por CPF e matrícula; todas as ocorrências foram rejeitadas.',
   EMPREGADO_ARQUIVADO: 'O empregado está arquivado e não é alterado nem reativado pela importação.',
+  CELULA_COM_FORMULA: 'Substitua a fórmula da célula pelo valor e reenvie a planilha.',
+  CELULA_MESCLADA: 'Desfaça a mescla da célula, preencha o valor e reenvie a planilha.',
 };
 
 export const ehCampoDeEmpregado = (campo: string): campo is CampoDeEmpregado =>
   (CAMPOS_DE_EMPREGADO as readonly string[]).includes(campo);
 
 export const ehCodigoDeErroDeEmpregado = (codigo: string): codigo is CodigoDeErroDeEmpregado =>
-  (CODIGOS_DE_ERRO_DE_EMPREGADO as readonly string[]).includes(codigo);
+  (CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO as readonly string[]).includes(codigo);
 
 /** Campo da rejeição como a API o devolve (`data_admissao`, `null` = a linha inteira). */
 export const rotuloDoCampo = (campo: string | null): string =>

@@ -4,7 +4,7 @@
  * ação saem do estado — a permissão continua conferida em cada rota.
  */
 import type { DiagnosticoDaTentativa, TentativaDoCiclo, TotaisDaImportacao } from '@contaia/db';
-import type { DiagnosticoDaImportacao, EstadoDaImportacao } from '@contaia/shared';
+import { MENSAGEM_DO_ERRO_DE_PLANILHA, type DiagnosticoDaImportacao, type EstadoDaImportacao } from '@contaia/shared';
 
 type SituacaoDaTentativa = Readonly<{ estado: EstadoDaImportacao; totais: TotaisDaImportacao | null }>;
 
@@ -22,6 +22,13 @@ export type TentativaApresentavel = Pick<
   | 'finalizadoEm'
   | 'correlationId'
   | 'reutilizadaPorIdempotencia'
+  // SPEC-015: configuração e leitura da planilha (no CSV, os padrões: formato CSV, sem aba, linha 1).
+  | 'formato'
+  | 'aba'
+  | 'linhaCabecalho'
+  | 'linhasIgnoradasAntesDoCabecalho'
+  | 'linhasOcultas'
+  | 'diagnosticosDaPlanilha'
 >;
 
 /**
@@ -40,10 +47,13 @@ export const temDiagnostico = (tentativa: Readonly<{ estado: EstadoDaImportacao 
 
 /**
  * Mensagem PT-BR FECHADA por código estável do diagnóstico (SPEC-013 §7, SPEC-014 §7: desfecho
- * acionável). O texto nunca vem do evento nem de exceção: código fora do mapa recebe a genérica.
+ * acionável; SPEC-015 §7). O texto nunca vem do evento nem de exceção: código fora do mapa recebe a genérica.
  * `FALHA_NA_APLICACAO` diz o que não mudou, e isso é do domínio: cada um passa a sua.
  */
 export const mensagensDoDiagnostico = (falhaNaAplicacao: string): Readonly<Record<string, string>> => ({
+  // SPEC-015: a planilha que o worker recusa (formato, cifra, corrompida, aba, cabeçalho, limite).
+  // Primeiro, para os textos das F13/F14 abaixo continuarem valendo nos códigos comuns.
+  ...MENSAGEM_DO_ERRO_DE_PLANILHA,
   ARQUIVO_VAZIO: 'O arquivo não tem linhas de dados. Confira o arquivo e envie de novo.',
   ARQUIVO_ACIMA_DO_LIMITE: 'O arquivo passa do limite de 10 MB ou de 10.000 linhas. Divida o arquivo e envie de novo.',
   ARQUIVO_INVALIDO: 'Não foi possível ler o arquivo como CSV (aspas ou formato). Confira o arquivo e envie de novo.',
@@ -57,16 +67,25 @@ export const mensagensDoDiagnostico = (falhaNaAplicacao: string): Readonly<Recor
   FALHA_NA_APLICACAO: falhaNaAplicacao,
 });
 
+/** Planilha: o cabeçalho é a linha que o usuário escolheu, não "o cabeçalho do arquivo" do CSV. */
+const MENSAGEM_DE_CABECALHO_INVALIDO_DA_PLANILHA =
+  'A linha de cabeçalho escolhida tem coluna sem nome ou repetida. Escolha outra linha de cabeçalho ou corrija a planilha e envie de novo.';
+
 const MENSAGEM_GENERICA_DO_DIAGNOSTICO =
   'A importação não pôde ser concluída. Envie o arquivo de novo; se persistir, informe o código de correlação ao suporte.';
 
 export const paraDiagnosticoCom = (
   mensagens: Readonly<Record<string, string>>,
   diagnostico: DiagnosticoDaTentativa | null,
-): DiagnosticoDaImportacao | null =>
-  diagnostico === null
-    ? null
-    : { codigo: diagnostico.codigo, mensagem: mensagens[diagnostico.codigo] ?? MENSAGEM_GENERICA_DO_DIAGNOSTICO };
+  formato: TentativaApresentavel['formato'],
+): DiagnosticoDaImportacao | null => {
+  if (diagnostico === null) return null;
+  const mensagem =
+    formato !== 'CSV' && diagnostico.codigo === 'CABECALHO_INVALIDO'
+      ? MENSAGEM_DE_CABECALHO_INVALIDO_DA_PLANILHA
+      : (mensagens[diagnostico.codigo] ?? MENSAGEM_GENERICA_DO_DIAGNOSTICO);
+  return { codigo: diagnostico.codigo, mensagem };
+};
 
 /** Envelope da prévia, igual nos domínios; muda o formato da rejeição e a versão do agregado. */
 export const montarPrevia = <Rejeicao>(
@@ -93,5 +112,11 @@ export const montarPrevia = <Rejeicao>(
     podeCancelar: aguardando,
     relatorioDisponivel: relatorioDisponivel(tentativa),
     diagnostico: temDiagnostico(tentativa) ? diagnostico : null,
+    formato: tentativa.formato,
+    aba: tentativa.aba === null ? null : { ...tentativa.aba },
+    linhaCabecalho: tentativa.linhaCabecalho,
+    linhasIgnoradasAntesDoCabecalho: tentativa.linhasIgnoradasAntesDoCabecalho,
+    linhasOcultas: tentativa.linhasOcultas,
+    diagnosticosDaPlanilha: tentativa.diagnosticosDaPlanilha.map((diagnostico) => ({ ...diagnostico })),
   };
 };

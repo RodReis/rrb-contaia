@@ -15,6 +15,8 @@ export type Problema = Readonly<{
   campos?: readonly CampoComProblema[];
   /** Dados estruturados do erro (ex.: nome e CNPJ da empresa fora da carteira). */
   detalhes?: Readonly<Record<string, unknown>>;
+  /** `Retry-After` em segundos, quando a API pede espera (503 do serviço ocupado). */
+  retryAfterSegundos?: number;
 }>;
 
 export class ErroDaApi extends Error {
@@ -45,6 +47,16 @@ const BASE_PUBLICA = '/api/publico';
 
 const SEM_CORRELACAO = 'sem-correlacao';
 
+/** Só a forma em segundos (`Retry-After: 5`); data HTTP ou lixo não vira espera. */
+const segundosDeEspera = (valor: string | null): number | undefined =>
+  valor !== null && /^\d{1,6}$/u.test(valor.trim()) ? Number(valor.trim()) : undefined;
+
+const comEspera = (problema: Problema, resposta: Response): Problema => {
+  const segundos = segundosDeEspera(resposta.headers.get('retry-after'));
+
+  return segundos === undefined ? problema : { ...problema, retryAfterSegundos: segundos };
+};
+
 /** O id que a tela gerou para a ação (se gerou): é o que o suporte procura do outro lado. */
 const correlacaoEnviada = (cabecalhos: HeadersInit | undefined): string | null =>
   cabecalhos === undefined ? null : new Headers(cabecalhos).get('x-correlation-id');
@@ -58,7 +70,12 @@ const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Pr
       ...opcoes,
       headers: { accept: 'application/json', ...(opcoes.headers ?? {}) },
     });
-  } catch {
+  } catch (erro) {
+    // Cancelado por quem pediu (`signal`): não é falha de rede e não vai para a tela; o TanStack
+    // Query reconhece o cancelamento e descarta o resultado.
+    if (opcoes.signal?.aborted === true) {
+      throw erro;
+    }
     // Sem resposta não há id do servidor; o que a ação enviou continua valendo como referência.
     throw new ErroDaApi({ ...PROBLEMA_DE_REDE, correlationId: enviada ?? SEM_CORRELACAO });
   }
@@ -67,19 +84,28 @@ const chamar = async <T>(base: string, caminho: string, opcoes: RequestInit): Pr
     return undefined as T;
   }
 
-  const corpo: unknown = await resposta.json().catch(() => null);
+  const corpo: unknown = await resposta.json().catch((erro: unknown) => {
+    if (opcoes.signal?.aborted === true) {
+      throw erro;
+    }
+
+    return null;
+  });
 
   if (!resposta.ok) {
     throw new ErroDaApi(
-      ehProblema(corpo)
-        ? corpo
-        : {
-            type: 'https://contaia.local/erros/desconhecido',
-            title: 'Não foi possível concluir a operação.',
-            status: resposta.status,
-            code: 'ERRO_DESCONHECIDO',
-            correlationId: resposta.headers.get('x-correlation-id') ?? enviada ?? SEM_CORRELACAO,
-          },
+      comEspera(
+        ehProblema(corpo)
+          ? corpo
+          : {
+              type: 'https://contaia.local/erros/desconhecido',
+              title: 'Não foi possível concluir a operação.',
+              status: resposta.status,
+              code: 'ERRO_DESCONHECIDO',
+              correlationId: resposta.headers.get('x-correlation-id') ?? enviada ?? SEM_CORRELACAO,
+            },
+        resposta,
+      ),
     );
   }
 
