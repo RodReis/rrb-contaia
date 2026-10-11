@@ -8,7 +8,7 @@
 
 import type { ContaDoPlanoDeContas } from '@contaia/shared';
 import { ListTree, SearchX } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Campo } from '@/components/ui/campo';
@@ -17,13 +17,13 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { cn } from '@/lib/cn';
+import { Paginacao, RegiaoRolavel, Secao } from '../importacao/pecas';
+import { useBuscaComAtraso } from '../importacao/use-busca-com-atraso';
+import type { EstadoNaUrl } from '../importacao/use-estado-na-url';
 import { ROTULO_DA_NATUREZA, ROTULO_DO_TIPO } from './apresentacao';
-import { Paginacao, RegiaoRolavel, Secao } from './pecas';
 import { useContasDoPlano } from './queries';
-import type { EstadoNaUrl } from './use-estado-na-url';
 
 export const CONTAS_POR_PAGINA = 50;
-const ATRASO_DA_BUSCA_MS = 300;
 
 const Linha = ({ conta }: { conta: ContaDoPlanoDeContas }) => {
   const sintetica = conta.tipo === 'sintetica';
@@ -58,60 +58,8 @@ const Linha = ({ conta }: { conta: ContaDoPlanoDeContas }) => {
   );
 };
 
-/**
- * Busca com atraso de 300 ms (PATTERNS.md §11), publicada na URL com `replace`. Se a busca da URL
- * muda por fora (voltar do navegador, outro link), o que estava digitado e ainda não publicado
- * deixa de valer — senão o atraso republicaria o rascunho velho por cima. A navegação é
- * assíncrona: quando a URL enfim reflete o que ESTE campo publicou, é eco, não mudança por fora, e
- * o que foi digitado nesse meio-tempo continua no campo.
- */
-const useBuscaComAtraso = (url: EstadoNaUrl) => {
-  const [rascunho, definirRascunho] = useState<string | null>(null);
-  const [buscaVista, definirBuscaVista] = useState(url.busca);
-  // Valores que este campo publicou e a URL ainda não refletiu, em ordem (estado, não ref: são
-  // lidos durante a renderização).
-  const [publicadas, definirPublicadas] = useState<readonly string[]>([]);
-  const buscar = useRef(url.buscar);
-
-  if (url.busca !== buscaVista) {
-    definirBuscaVista(url.busca);
-
-    const posicao = publicadas.indexOf(url.busca);
-
-    if (posicao >= 0) {
-      // Eco de uma publicação deste campo: as anteriores a ela já passaram.
-      definirPublicadas(publicadas.slice(posicao + 1));
-    } else {
-      definirPublicadas([]);
-
-      if (rascunho !== null && rascunho.trim() !== url.busca) {
-        definirRascunho(null);
-      }
-    }
-  }
-
-  useEffect(() => {
-    buscar.current = url.buscar;
-  });
-
-  useEffect(() => {
-    if (rascunho === null || rascunho.trim() === url.busca) {
-      return undefined;
-    }
-
-    const relogio = setTimeout(() => {
-      definirPublicadas((anteriores) => [...anteriores, rascunho.trim()]);
-      buscar.current(rascunho.trim());
-    }, ATRASO_DA_BUSCA_MS);
-
-    return () => clearTimeout(relogio);
-  }, [rascunho, url.busca]);
-
-  return { texto: rascunho ?? url.busca, definir: definirRascunho, limpar: () => definirRascunho('') };
-};
-
 export const PlanoVigente = ({ empresaId, url }: { empresaId: string; url: EstadoNaUrl }) => {
-  const consulta = useContasDoPlano(empresaId, url.paginaDasContas, url.busca);
+  const consulta = useContasDoPlano(empresaId, url.paginaDaBase, url.busca);
   const busca = useBuscaComAtraso(url);
   const dados = consulta.data;
 
@@ -224,10 +172,10 @@ export const PlanoVigente = ({ empresaId, url }: { empresaId: string; url: Estad
       {dados === undefined ? null : (
         <Paginacao
           rotulo="Paginação do plano de contas"
-          pagina={url.paginaDasContas}
+          pagina={url.paginaDaBase}
           total={dados.total}
           porPagina={CONTAS_POR_PAGINA}
-          aoIr={url.irParaContas}
+          aoIr={url.irParaBase}
           unidade={dados.total === 1 ? 'conta' : 'contas'}
         />
       )}

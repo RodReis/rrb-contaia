@@ -1,19 +1,16 @@
 /**
- * Resumo da tentativa (SPEC-013 §3.5): arquivo e instante, mapeamento usado e os totais de lidas,
+ * Resumo da tentativa (SPEC-013/014 §3.5): arquivo e instante, mapeamento usado e os totais de lidas,
  * novas, atualizadas e rejeitadas, e o `correlationId` da tentativa (§3.9), copiável. Segue a faixa
  * de metadados do cartão do protótipo, sem as métricas que ele inventava ("vetorizadas",
  * percentual de garantia) e sem barra de proporção (FRONTEND.md §16/§21: o número já está escrito).
  */
-import { CAMPOS_DO_CONTRATO } from '@contaia/domain';
-import type { PreviaDaImportacao } from '@contaia/shared';
 import { Recycle } from 'lucide-react';
 
 import { tamanhoEmTexto } from '@/lib/arquivo';
 import { cn } from '@/lib/cn';
-import { ROTULO_DO_CAMPO, formatarInstante, formatarNumero, hashCurto, plural } from './apresentacao';
+import { formatarInstante, formatarNumero, hashCurto, plural } from './apresentacao';
+import type { DominioDaImportacao, PreviaBase, Totais } from './dominio';
 import { CodigoDeSuporte } from './pecas';
-
-type Totais = NonNullable<PreviaDaImportacao['totais']>;
 
 const Total = ({ rotulo, valor, destaque }: { rotulo: string; valor: number; destaque?: 'critico' }) => (
   <div className="flex flex-col gap-xs rounded-md border border-border bg-card px-md py-sm">
@@ -30,7 +27,7 @@ const Total = ({ rotulo, valor, destaque }: { rotulo: string; valor: number; des
 );
 
 /** Linhas aproveitáveis, em texto: a contagem é a informação (sem barra decorativa). */
-const aproveitamento = (totais: Totais, previstas: boolean): string => {
+const aproveitamento = (totais: Totais, previstas: string | null): string => {
   const validas = totais.novas + totais.atualizadas;
 
   if (totais.lidas === 0) {
@@ -39,14 +36,16 @@ const aproveitamento = (totais: Totais, previstas: boolean): string => {
 
   const frase = `${plural(validas, 'linha válida', 'linhas válidas')} de ${plural(totais.lidas, 'lida', 'lidas')}.`;
 
-  return previstas ? `${frase} Nenhuma foi aplicada: a aplicação falhou e o plano não mudou.` : frase;
+  return previstas === null ? frase : `${frase} ${previstas}`;
 };
 
 export const ResumoDaTentativa = ({
+  dominio,
   previa,
   mostrarCodigoDeSuporte = true,
 }: {
-  previa: PreviaDaImportacao;
+  dominio: DominioDaImportacao;
+  previa: PreviaBase;
   /** Falso quando quem hospeda o resumo já mostra o código junto da mensagem da falha. */
   mostrarCodigoDeSuporte?: boolean;
 }) => {
@@ -81,9 +80,9 @@ export const ResumoDaTentativa = ({
           <dt className="text-label-sm uppercase text-muted-foreground">Mapeamento usado</dt>
           <dd>
             <ul className="flex flex-col gap-xs text-body-sm">
-              {CAMPOS_DO_CONTRATO.map((campo) => (
+              {dominio.campos.map((campo) => (
                 <li key={campo} className="flex flex-wrap gap-xs">
-                  <span className="text-muted-foreground">{ROTULO_DO_CAMPO[campo]}:</span>
+                  <span className="text-muted-foreground">{dominio.rotuloDoCampo(campo)}:</span>
                   <span className="font-mono text-code-sm text-foreground [overflow-wrap:anywhere]">
                     {previa.mapeamento[campo] ?? '—'}
                   </span>
@@ -110,7 +109,9 @@ export const ResumoDaTentativa = ({
             <Total rotulo={previstas ? 'Atualizadas previstas' : 'Atualizadas'} valor={previa.totais.atualizadas} />
             <Total rotulo="Rejeitadas" valor={previa.totais.rejeitadas} destaque="critico" />
           </dl>
-          <p className="text-body-sm text-muted-foreground">{aproveitamento(previa.totais, previstas)}</p>
+          <p className="text-body-sm text-muted-foreground">
+            {aproveitamento(previa.totais, previstas ? dominio.textos.previstasNaoAplicadas : null)}
+          </p>
         </div>
       )}
     </div>

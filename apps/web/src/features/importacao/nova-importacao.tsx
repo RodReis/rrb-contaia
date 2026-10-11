@@ -1,6 +1,6 @@
 /**
  * Começo de uma importação: escolher o CSV, mapear as colunas e enviar para validação
- * (SPEC-013 §5.2 itens 3 e 4). Ao ser aceito, o envio abre a tentativa na URL e o acompanhamento
+ * (SPEC-013/014 §5.2 itens 3 e 4). Ao ser aceito, o envio abre a tentativa na URL e o acompanhamento
  * assume. Quem não pode importar vê por quê, e o resto da aba continua disponível.
  */
 'use client';
@@ -12,20 +12,23 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { APARENCIA_DO_ESTADO, formatarInstante, naoTerminada } from './apresentacao';
+import type { DominioDaImportacao } from './dominio';
 import { EnvioDoCsv, type ArquivoLido } from './envio-do-csv';
 import { EtapasDaImportacao } from './etapas';
 import { MapeamentoDeColunas } from './mapeamento-de-colunas';
-import { useEnviarImportacao, useHistoricoDoPlano } from './queries';
+import { useEnviarImportacao, useHistorico } from './queries';
 
 /** A tentativa mais recente que ainda não terminou: quem volta à aba precisa achá-la. */
 const AvisoDeTentativaAberta = ({
+  dominio,
   empresaId,
   aoAbrir,
 }: {
+  dominio: DominioDaImportacao;
   empresaId: string;
   aoAbrir: (tentativaId: string) => void;
 }) => {
-  const { data } = useHistoricoDoPlano(empresaId, 1);
+  const { data } = useHistorico(dominio, empresaId, 1);
   const recente = data?.itens[0];
 
   if (recente === undefined || !naoTerminada(recente.estado)) {
@@ -50,30 +53,29 @@ const AvisoDeTentativaAberta = ({
 };
 
 export const NovaImportacao = ({
+  dominio,
   empresaId,
   podeImportar,
   aoAbrirTentativa,
 }: {
+  dominio: DominioDaImportacao;
   empresaId: string;
   podeImportar: boolean;
   aoAbrirTentativa: (tentativaId: string) => void;
 }) => {
   const [lido, definirLido] = useState<ArquivoLido | null>(null);
-  const enviar = useEnviarImportacao(empresaId);
+  const enviar = useEnviarImportacao(dominio, empresaId);
   const falhaDoEnvio = enviar.error instanceof ErroDaApi ? enviar.error.problema : null;
 
   if (!podeImportar) {
     return (
       <div className="flex flex-col gap-md px-lg py-lg">
-        <AvisoDeTentativaAberta empresaId={empresaId} aoAbrir={aoAbrirTentativa} />
+        <AvisoDeTentativaAberta dominio={dominio} empresaId={empresaId} aoAbrir={aoAbrirTentativa} />
         <div className="flex items-start gap-sm rounded-md bg-secondary px-md py-md">
           <Lock className="mt-xs size-icon-sm shrink-0 text-muted-foreground" aria-hidden="true" />
           <p className="max-w-prose text-body-sm text-muted-foreground">
-            <span className="text-title-sm text-foreground">
-              Seu papel pode consultar o plano de contas, mas não tem permissão para importar.
-            </span>{' '}
-            O envio de CSV é feito por quem tem a permissão Importar em Empresas → Plano de contas. O
-            histórico, o plano vigente e os relatórios continuam disponíveis abaixo.
+            <span className="text-title-sm text-foreground">{dominio.textos.semPermissaoDeImportar.titulo}</span>{' '}
+            {dominio.textos.semPermissaoDeImportar.descricao}
           </p>
         </div>
       </div>
@@ -83,10 +85,11 @@ export const NovaImportacao = ({
   return (
     <div className="flex flex-col gap-lg px-lg py-lg">
       <EtapasDaImportacao atual={lido === null ? 'arquivo' : 'mapeamento'} />
-      <AvisoDeTentativaAberta empresaId={empresaId} aoAbrir={aoAbrirTentativa} />
+      <AvisoDeTentativaAberta dominio={dominio} empresaId={empresaId} aoAbrir={aoAbrirTentativa} />
 
       {lido === null ? (
         <EnvioDoCsv
+          dominio={dominio}
           aoLer={(novo) => {
             enviar.reset();
             definirLido(novo);
@@ -94,6 +97,7 @@ export const NovaImportacao = ({
         />
       ) : (
         <MapeamentoDeColunas
+          dominio={dominio}
           key={`${lido.arquivo.name}-${lido.arquivo.size}-${lido.arquivo.lastModified}`}
           lido={lido}
           enviando={enviar.isPending}

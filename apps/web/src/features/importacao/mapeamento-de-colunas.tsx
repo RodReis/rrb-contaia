@@ -1,14 +1,13 @@
 /**
- * Mapeamento das colunas do arquivo para os cinco campos do contrato (SPEC-013 §3.3, §7).
+ * Mapeamento das colunas do arquivo para os campos do contrato do domínio (SPEC-013/014 §3.3, §7).
  *
  * As colunas com o mesmo nome do modelo já vêm escolhidas; o resto é decisão de quem importa. A
- * regra é a do domínio (`validarMapeamento`, a mesma da API): os cinco campos associados e nenhuma
+ * regra é a do domínio (a mesma da API): todos os campos associados e nenhuma
  * coluna alimentando dois campos. O botão continua clicável (PATTERNS.md §6): com pendência, ele
  * destaca os campos, diz o que falta e leva o foco ao primeiro — e nada é enviado.
  */
 'use client';
 
-import { CAMPOS_DO_CONTRATO, type CampoDoContrato, type Mapeamento, type PendenciaDoMapeamento } from '@contaia/domain';
 import { ArrowRight, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -18,8 +17,7 @@ import type { Problema } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { tamanhoEmTexto } from '@/lib/arquivo';
 import { cn } from '@/lib/cn';
-import { AJUDA_DO_CAMPO, ROTULO_DO_CAMPO } from './apresentacao';
-import { mapeamentoSugerido, pendenciasDoRascunho, type RascunhoDoMapeamento } from './cabecalho-csv';
+import { mapeamentoCompleto, type DominioDaImportacao, type PendenciaDoRascunho, type RascunhoDoMapeamento } from './dominio';
 import type { ArquivoLido } from './envio-do-csv';
 import { CodigoDeSuporte, RegiaoRolavel } from './pecas';
 
@@ -32,7 +30,8 @@ const NOME_DO_DELIMITADOR: Readonly<Record<string, string>> = {
 };
 
 const erroDoCampo = (
-  pendencia: PendenciaDoMapeamento | undefined,
+  dominio: DominioDaImportacao,
+  pendencia: PendenciaDoRascunho | undefined,
   coluna: string | undefined,
   tentou: boolean,
 ): string | undefined => {
@@ -41,29 +40,23 @@ const erroDoCampo = (
   }
 
   if (pendencia !== undefined && tentou) {
-    return `Escolha a coluna para o campo ${ROTULO_DO_CAMPO[pendencia.campo]}.`;
+    return `Escolha a coluna para o campo ${dominio.rotuloDoCampo(pendencia.campo)}.`;
   }
 
   return undefined;
 };
 
-const mapeamentoCompleto = (rascunho: RascunhoDoMapeamento): Mapeamento => ({
-  codigo: rascunho.codigo ?? '',
-  nome: rascunho.nome ?? '',
-  tipo: rascunho.tipo ?? '',
-  natureza: rascunho.natureza ?? '',
-  conta_pai: rascunho.conta_pai ?? '',
-});
-
 const AmostraDoArquivo = ({
+  dominio,
   lido,
   rascunho,
 }: {
+  dominio: DominioDaImportacao;
   lido: ArquivoLido;
   rascunho: RascunhoDoMapeamento;
 }) => {
-  const campoDaColuna = (coluna: string): CampoDoContrato | undefined =>
-    CAMPOS_DO_CONTRATO.find((campo) => rascunho[campo] === coluna);
+  const campoDaColuna = (coluna: string): string | undefined =>
+    dominio.campos.find((campo) => rascunho[campo] === coluna);
 
   return (
     <div className="flex flex-col gap-xs">
@@ -85,7 +78,7 @@ const AmostraDoArquivo = ({
                         campo === undefined ? 'text-muted-foreground' : 'bg-info text-info-foreground',
                       )}
                     >
-                      {campo === undefined ? 'não usada' : `→ ${ROTULO_DO_CAMPO[campo]}`}
+                      {campo === undefined ? 'não usada' : `→ ${dominio.rotuloDoCampo(campo)}`}
                     </span>
                   </th>
                 );
@@ -110,25 +103,27 @@ const AmostraDoArquivo = ({
 };
 
 export const MapeamentoDeColunas = ({
+  dominio,
   lido,
   enviando,
   falhaDoEnvio,
   aoEnviar,
   aoTrocar,
 }: {
+  dominio: DominioDaImportacao;
   lido: ArquivoLido;
   enviando: boolean;
   falhaDoEnvio: Problema | null;
-  aoEnviar: (mapeamento: Mapeamento) => void;
+  aoEnviar: (mapeamento: Readonly<Record<string, string>>) => void;
   aoTrocar: () => void;
 }) => {
   const { cabecalho } = lido.leitura;
-  const [rascunho, definirRascunho] = useState<RascunhoDoMapeamento>(() => mapeamentoSugerido(cabecalho));
+  const [rascunho, definirRascunho] = useState<RascunhoDoMapeamento>(() => dominio.mapeamentoSugerido(cabecalho));
   const [tentou, definirTentou] = useState(false);
   const campos = useRef<HTMLDivElement>(null);
 
-  const pendencias = pendenciasDoRascunho(cabecalho, rascunho);
-  const pendenciaDe = (campo: CampoDoContrato): PendenciaDoMapeamento | undefined =>
+  const pendencias = dominio.pendenciasDoRascunho(cabecalho, rascunho);
+  const pendenciaDe = (campo: string): PendenciaDoRascunho | undefined =>
     pendencias.find((pendencia) => pendencia.campo === campo);
 
   const opcoes = [
@@ -136,9 +131,9 @@ export const MapeamentoDeColunas = ({
     ...cabecalho.map((coluna) => ({ valor: coluna, rotulo: coluna })),
   ];
 
-  const associar = (campo: CampoDoContrato, valor: string): void => {
+  const associar = (campo: string, valor: string): void => {
     definirRascunho((atual) => {
-      const proximo: Partial<Record<CampoDoContrato, string>> = { ...atual };
+      const proximo: Partial<Record<string, string>> = { ...atual };
 
       if (valor === NENHUMA_COLUNA) {
         delete proximo[campo];
@@ -159,7 +154,7 @@ export const MapeamentoDeColunas = ({
       return;
     }
 
-    aoEnviar(mapeamentoCompleto(rascunho));
+    aoEnviar(mapeamentoCompleto(dominio, rascunho));
   };
 
   return (
@@ -191,17 +186,17 @@ export const MapeamentoDeColunas = ({
         </legend>
 
         <div ref={campos} className="grid gap-md tablet:grid-cols-2">
-          {CAMPOS_DO_CONTRATO.map((campo) => (
+          {dominio.campos.map((campo) => (
             <div key={campo} data-campo={campo}>
               <Select
-                rotulo={ROTULO_DO_CAMPO[campo]}
+                rotulo={dominio.rotuloDoCampo(campo)}
                 obrigatorio
                 opcoes={opcoes}
                 valor={rascunho[campo]}
                 placeholder="Escolha a coluna"
                 onValorChange={(valor) => associar(campo, valor)}
-                erro={erroDoCampo(pendenciaDe(campo), rascunho[campo], tentou)}
-                ajuda={AJUDA_DO_CAMPO[campo]}
+                erro={erroDoCampo(dominio, pendenciaDe(campo), rascunho[campo], tentou)}
+                ajuda={dominio.ajudaDoCampo(campo)}
                 disabled={enviando}
               />
             </div>
@@ -209,12 +204,12 @@ export const MapeamentoDeColunas = ({
         </div>
       </fieldset>
 
-      <AmostraDoArquivo lido={lido} rascunho={rascunho} />
+      <AmostraDoArquivo dominio={dominio} lido={lido} rascunho={rascunho} />
 
       {tentou && pendencias.length > 0 ? (
         <p role="alert" className="rounded-md bg-danger px-md py-sm text-body-sm text-danger-foreground">
           O mapeamento ainda não pode ser validado. Revise:{' '}
-          {pendencias.map((pendencia) => ROTULO_DO_CAMPO[pendencia.campo]).join(', ')}.
+          {pendencias.map((pendencia) => dominio.rotuloDoCampo(pendencia.campo)).join(', ')}.
         </p>
       ) : null}
 

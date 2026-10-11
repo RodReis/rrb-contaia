@@ -1,5 +1,5 @@
 /**
- * Peças pequenas da aba "Plano de contas": código de suporte copiável, download com estado de
+ * Peças pequenas das abas de importação: código de suporte copiável, download com estado de
  * falha e paginação. Compostas a partir de `Button`; nenhuma vira componente do design system.
  */
 'use client';
@@ -47,7 +47,7 @@ export const CodigoDeSuporte = ({ valor, className }: { valor: string; className
 };
 
 /**
- * Download que pode falhar sem esconder o resto da tela (SPEC-013 §7, relatório indisponível): a
+ * Download que pode falhar sem esconder o resto da tela (SPEC-013/014 §7, relatório indisponível): a
  * falha fica escrita ao lado do botão, com o código de suporte, e o mesmo botão tenta de novo.
  */
 export const BotaoDeDownload = ({

@@ -1,6 +1,6 @@
 /**
  * Acompanhamento de uma tentativa aberta pela URL (`?tentativa=`): progresso enquanto o worker
- * valida, prévia para decidir, desfecho no fim (SPEC-013 §5.2 itens 5 a 9).
+ * valida, prévia para decidir, desfecho no fim (SPEC-013/014 §5.2 itens 5 a 9).
  *
  * A consulta se repete só enquanto há trabalho em curso (`refetchInterval`). O anúncio para
  * tecnologia assistiva sai de uma única região `aria-live="polite"` cujo texto depende só do
@@ -8,7 +8,6 @@
  */
 'use client';
 
-import type { PreviaDaImportacao } from '@contaia/shared';
 import { FileSearch, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 
@@ -20,22 +19,22 @@ import { mensagemDoCodigo } from '@/lib/mensagens';
 import { avisarFalha } from '../escritorio/queries';
 import { baixarArquivo, caminhoDoOriginal, caminhoDoRelatorio } from './api';
 import { APARENCIA_DO_ESTADO, emAndamento, plural } from './apresentacao';
+import type { DominioDaImportacao, PermissoesDaImportacao, PreviaBase } from './dominio';
 import { EtapasDaImportacao, etapaDoEstado } from './etapas';
 import { BotaoDeDownload, CodigoDeSuporte } from './pecas';
-import type { PermissoesDoPlano } from './permissoes';
 import { Previa } from './previa';
 import { useTentativa } from './queries';
 import { Resultado } from './resultado';
 import type { EstadoNaUrl } from './use-estado-na-url';
 
-const anuncioDo = (previa: PreviaDaImportacao): string => {
+const anuncioDo = (dominio: DominioDaImportacao, previa: PreviaBase): string => {
   switch (previa.estado) {
     case 'RECEBIDA':
       return 'Arquivo recebido. A validação vai começar.';
     case 'VALIDANDO':
       return 'Validando o arquivo.';
     case 'APLICANDO':
-      return 'Aplicando as linhas válidas ao plano de contas.';
+      return dominio.textos.anuncioAplicando;
     case 'AGUARDANDO_CONFIRMACAO':
       return `Validação concluída: ${plural(previa.totais?.rejeitadas ?? 0, 'linha rejeitada', 'linhas rejeitadas')}. Revise a prévia e confirme ou cancele.`;
     default:
@@ -43,7 +42,7 @@ const anuncioDo = (previa: PreviaDaImportacao): string => {
   }
 };
 
-const nomeDoRelatorio = (previa: PreviaDaImportacao): string =>
+const nomeDoRelatorio = (previa: PreviaBase): string =>
   `relatorio-${previa.arquivo.nome.replace(/\.csv$/iu, '')}.csv`;
 
 /**
@@ -58,7 +57,7 @@ const AvisoDeLeituraFalha = ({
   aoSumirComFoco,
 }: {
   problema: Problema | null;
-  previa: PreviaDaImportacao;
+  previa: PreviaBase;
   aoTentar: () => void;
   /** O aviso some quando a leitura volta: se o foco estava no botão dele, alguém o recebe. */
   aoSumirComFoco: () => void;
@@ -103,17 +102,17 @@ const AvisoDeLeituraFalha = ({
   );
 };
 
-const Progresso = ({ previa }: { previa: PreviaDaImportacao }) => (
+const Progresso = ({ dominio, previa }: { dominio: DominioDaImportacao; previa: PreviaBase }) => (
   <div className="flex flex-col items-center gap-md rounded-md border border-info-indicator/40 bg-info px-lg py-xl text-center">
     <LoaderCircle className="size-icon-xl text-info-foreground motion-safe:animate-spin" aria-hidden="true" />
     <div className="flex flex-col gap-xs">
       <p className="font-display text-headline-sm text-info-foreground">
-        {previa.estado === 'APLICANDO' ? 'Aplicando ao plano de contas' : 'Validando o arquivo inteiro'}
+        {previa.estado === 'APLICANDO' ? dominio.textos.tituloAplicando : 'Validando o arquivo inteiro'}
       </p>
       <p className="mx-auto max-w-prose text-body-sm text-info-foreground">
         {previa.estado === 'APLICANDO'
           ? 'As linhas válidas entram numa única transação. O resultado aparece aqui assim que terminar.'
-          : 'Cada linha é conferida contra o plano atual e contra as demais linhas do arquivo. Nada muda no plano antes da sua confirmação; você pode sair desta tela e voltar pelo histórico.'}
+          : dominio.textos.descricaoValidando}
       </p>
     </div>
     <p className="font-mono text-code-xs text-info-foreground [overflow-wrap:anywhere]">{previa.arquivo.nome}</p>
@@ -121,20 +120,22 @@ const Progresso = ({ previa }: { previa: PreviaDaImportacao }) => (
 );
 
 export const Acompanhamento = ({
+  dominio,
   empresaId,
   tentativaId,
   permissoes,
   url,
   aoPerderOFoco,
 }: {
+  dominio: DominioDaImportacao;
   empresaId: string;
   tentativaId: string;
-  permissoes: PermissoesDoPlano;
+  permissoes: PermissoesDaImportacao;
   url: EstadoNaUrl;
   /** Leva o foco a um ponto estável quando o controle acionado desaparece. */
   aoPerderOFoco: () => void;
 }) => {
-  const consulta = useTentativa(empresaId, tentativaId);
+  const consulta = useTentativa(dominio, empresaId, tentativaId);
   const previa = consulta.data;
 
   if (previa === undefined) {
@@ -184,7 +185,7 @@ export const Acompanhamento = ({
   const relatorio = relatorioDisponivel ? (
     <BotaoDeDownload
       rotulo="Baixar relatório CSV"
-      caminho={caminhoDoRelatorio(empresaId, previa.tentativaId)}
+      caminho={caminhoDoRelatorio(dominio, empresaId, previa.tentativaId)}
       nomePadrao={nomeDoRelatorio(previa)}
       indisponivel="O relatório não está disponível agora; o histórico continua abaixo."
       rotuloDeNovaTentativa="Tentar baixar de novo o relatório"
@@ -194,7 +195,7 @@ export const Acompanhamento = ({
     <BotaoDeDownload
       rotulo="Baixar arquivo enviado"
       variante="fantasma"
-      caminho={caminhoDoOriginal(empresaId, previa.tentativaId)}
+      caminho={caminhoDoOriginal(dominio, empresaId, previa.tentativaId)}
       nomePadrao={previa.arquivo.nome}
       indisponivel="O arquivo enviado não está disponível agora."
       rotuloDeNovaTentativa="Tentar baixar de novo o arquivo enviado"
@@ -204,7 +205,7 @@ export const Acompanhamento = ({
   // atalho vira toast persistente com o código de suporte; o botão do relatório segue na tela.
   const baixarRelatorio = permissoes.baixar
     ? (): void => {
-        void baixarArquivo(caminhoDoRelatorio(empresaId, previa.tentativaId), nomeDoRelatorio(previa)).catch(
+        void baixarArquivo(caminhoDoRelatorio(dominio, empresaId, previa.tentativaId), nomeDoRelatorio(previa)).catch(
           avisarFalha,
         );
       }
@@ -212,12 +213,13 @@ export const Acompanhamento = ({
 
   const corpo = (): ReactNode => {
     if (emAndamento(previa.estado)) {
-      return <Progresso previa={previa} />;
+      return <Progresso dominio={dominio} previa={previa} />;
     }
 
     if (previa.estado === 'AGUARDANDO_CONFIRMACAO') {
       return (
         <Previa
+          dominio={dominio}
           empresaId={empresaId}
           previa={previa}
           permissoes={permissoes}
@@ -232,6 +234,7 @@ export const Acompanhamento = ({
 
     return (
       <Resultado
+        dominio={dominio}
         empresaId={empresaId}
         previa={previa}
         podeImportar={permissoes.importar}
@@ -258,7 +261,7 @@ export const Acompanhamento = ({
       </div>
 
       <p role="status" aria-live="polite" className="sr-only">
-        {anuncioDo(previa)}
+        {anuncioDo(dominio, previa)}
       </p>
 
       {consulta.isError ? (

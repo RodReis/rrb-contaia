@@ -1,7 +1,7 @@
 /**
- * Histórico de importações da empresa (SPEC-013 §3.9): 15 por página, da mais recente para a mais
+ * Histórico de importações da empresa (SPEC-013/014 §3.9): 15 por página, da mais recente para a mais
  * antiga, página na URL. Cada linha abre a tentativa com o resumo e o relatório. Se a leitura
- * falha, só esta seção mostra o erro: a importação e o plano continuam usáveis.
+ * falha, só esta seção mostra o erro: a importação e a base continuam usáveis.
  */
 'use client';
 
@@ -16,8 +16,9 @@ import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { cn } from '@/lib/cn';
 import { APARENCIA_DO_ESTADO, formatarInstante, formatarNumero } from './apresentacao';
+import type { DominioDaImportacao } from './dominio';
 import { Paginacao, RegiaoRolavel, Secao } from './pecas';
-import { useHistoricoDoPlano } from './queries';
+import { useHistorico } from './queries';
 import type { EstadoNaUrl } from './use-estado-na-url';
 
 export const TENTATIVAS_POR_PAGINA = 15;
@@ -96,8 +97,16 @@ const Linha = ({
   );
 };
 
-export const HistoricoDeImportacoes = ({ empresaId, url }: { empresaId: string; url: EstadoNaUrl }) => {
-  const consulta = useHistoricoDoPlano(empresaId, url.paginaDoHistorico);
+export const HistoricoDeImportacoes = ({
+  dominio,
+  empresaId,
+  url,
+}: {
+  dominio: DominioDaImportacao;
+  empresaId: string;
+  url: EstadoNaUrl;
+}) => {
+  const consulta = useHistorico(dominio, empresaId, url.paginaDoHistorico);
   const dados = consulta.data;
 
   const corpo = (): ReactNode => {
@@ -162,7 +171,9 @@ export const HistoricoDeImportacoes = ({ empresaId, url }: { empresaId: string; 
         className={cn(consulta.isPlaceholderData && 'opacity-60 transition-opacity duration-fast')}
       >
         <table className="w-full text-left">
-          <caption className="sr-only">Importações do plano de contas, página {dados.pagina}</caption>
+          <caption className="sr-only">
+            {dominio.textos.legendaDoHistorico}, página {dados.pagina}
+          </caption>
           <thead className="bg-muted">
             <tr>
               <th scope="col" className="px-md py-sm text-label-sm uppercase text-muted-foreground">Enviada em</th>

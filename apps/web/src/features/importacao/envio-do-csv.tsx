@@ -1,5 +1,5 @@
 /**
- * Seleção do CSV (SPEC-013 §3.2, §5.3 "arquivo rejeitado antes do envio").
+ * Seleção do CSV (SPEC-013/014 §3.2, §5.3 "arquivo rejeitado antes do envio").
  *
  * Dropzone de verdade, como a dos documentos: `<input type="file">` real, estado de arrasto e a
  * checagem de extensão, tamanho e conteúdo **antes** do envio — o protótipo tinha um `<div>`
@@ -15,8 +15,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { lerCabecalhoDoArquivo, type LeituraDoCabecalho } from './cabecalho-csv';
-
-const REGRA = REGRAS_DE_ARQUIVO.IMPORTACAO_PLANO_CONTAS;
+import type { DominioDaImportacao } from './dominio';
 
 export type ArquivoLido = Readonly<{
   arquivo: File;
@@ -29,12 +28,18 @@ export type ArquivoLido = Readonly<{
  * `.txt`, que o navegador chama de `text/plain`) é formato não aceito; o conteúdo ainda é conferido
  * na leitura do cabeçalho.
  */
-const tipoDeclarado = (arquivo: File): string =>
-  REGRA.extensoesAceitas.some((extensao) => arquivo.name.toLowerCase().endsWith(extensao))
+const tipoDeclarado = (dominio: DominioDaImportacao, arquivo: File): string =>
+  REGRAS_DE_ARQUIVO[dominio.tipoDeArquivo].extensoesAceitas.some((extensao) => arquivo.name.toLowerCase().endsWith(extensao))
     ? 'text/csv'
     : 'application/octet-stream';
 
-export const EnvioDoCsv = ({ aoLer }: { aoLer: (lido: ArquivoLido) => void }) => {
+export const EnvioDoCsv = ({
+  dominio,
+  aoLer,
+}: {
+  dominio: DominioDaImportacao;
+  aoLer: (lido: ArquivoLido) => void;
+}) => {
   const [arrastando, definirArrastando] = useState(false);
   const [lendo, definirLendo] = useState(false);
   const [recusa, definirRecusa] = useState<Readonly<{ nome: string; motivo: string }> | null>(null);
@@ -51,13 +56,13 @@ export const EnvioDoCsv = ({ aoLer }: { aoLer: (lido: ArquivoLido) => void }) =>
       return;
     }
 
-    const falha = validarArquivo('IMPORTACAO_PLANO_CONTAS', {
-      tipoConteudo: tipoDeclarado(arquivo),
+    const falha = validarArquivo(dominio.tipoDeArquivo, {
+      tipoConteudo: tipoDeclarado(dominio, arquivo),
       tamanhoBytes: arquivo.size,
     });
 
     if (falha !== null) {
-      definirRecusa({ nome: arquivo.name, motivo: mensagemDaFalha('IMPORTACAO_PLANO_CONTAS', falha) });
+      definirRecusa({ nome: arquivo.name, motivo: mensagemDaFalha(dominio.tipoDeArquivo, falha) });
       return;
     }
 
@@ -110,7 +115,7 @@ export const EnvioDoCsv = ({ aoLer }: { aoLer: (lido: ArquivoLido) => void }) =>
         <span className="text-muted-foreground [&_svg]:size-icon-xl" aria-hidden="true">
           <FileUp />
         </span>
-        <p className="text-title-md text-foreground">Arraste o CSV do plano de contas aqui</p>
+        <p className="text-title-md text-foreground">{dominio.textos.arrasteAqui}</p>
         <p id={idDaAjuda} className="text-body-sm text-muted-foreground">
           Arquivo <span className="font-mono text-code-sm">.csv</span> de até{' '}
           <span className="font-mono text-code-sm tabular-nums">10 MB</span> e até{' '}
@@ -125,7 +130,7 @@ export const EnvioDoCsv = ({ aoLer }: { aoLer: (lido: ArquivoLido) => void }) =>
           tabIndex={-1}
           className="sr-only"
           accept=".csv,text/csv"
-          aria-label="Arquivo CSV do plano de contas"
+          aria-label={dominio.textos.arquivoCsv}
           aria-describedby={recusa === null ? idDaAjuda : `${idDaAjuda} ${idDaRecusa}`}
           onChange={(evento) => {
             void escolher(evento.target.files?.[0]);

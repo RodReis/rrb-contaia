@@ -22,7 +22,7 @@ import { ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Stepper, type EtapaDoStepper } from '@/components/ui/stepper';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
-import { naoTerminada } from '../plano-contas/apresentacao';
+import { naoTerminada } from '../importacao/apresentacao';
 import { permissoesDoPlano } from '../plano-contas/permissoes';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';

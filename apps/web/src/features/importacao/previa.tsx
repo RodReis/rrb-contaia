@@ -1,16 +1,15 @@
 /**
- * Prévia em `AGUARDANDO_CONFIRMACAO` (SPEC-013 §3.5, §3.6, §3.8): nada mudou no plano ainda. A
+ * Prévia em `AGUARDANDO_CONFIRMACAO` (SPEC-013/014 §3.5, §3.6, §3.8): nada mudou na base ainda. A
  * pessoa vê os totais e as rejeições e decide — `Confirmar importação` aplica só as linhas válidas
- * numa transação; `Cancelar importação` encerra a tentativa sem tocar no plano. As duas passam por
+ * numa transação; `Cancelar importação` encerra a tentativa sem tocar na base. As duas passam por
  * `AlertDialog` com os números da decisão.
  *
- * Conflito de versão (o plano mudou depois da validação, HTTP 409): nada foi aplicado e a prévia
+ * Conflito de versão (a base mudou depois da validação, HTTP 409): nada foi aplicado e a prévia
  * ficou obsoleta. A saída é cancelar e enviar o arquivo de novo; a tela não promete revalidar esta
  * mesma tentativa, porque o servidor não faz isso.
  */
 'use client';
 
-import type { PreviaDaImportacao } from '@contaia/shared';
 import { Ban, CheckCircle2, LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
@@ -19,7 +18,7 @@ import { ConfirmacaoDeAcao } from '@/components/ui/confirmacao-de-acao';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { plural } from './apresentacao';
-import type { PermissoesDoPlano } from './permissoes';
+import type { DominioDaImportacao, PermissoesDaImportacao, PreviaBase, Totais } from './dominio';
 import { useCancelarImportacao, useConfirmarImportacao } from './queries';
 import { ResumoDaTentativa } from './resumo-da-tentativa';
 import { TabelaDeRejeicoes } from './tabela-de-rejeicoes';
@@ -33,29 +32,16 @@ const explicarRecusa = (erro: unknown): string | null => {
   return erro.problema.code === 'ESTADO_INVALIDO_PARA_ACAO' ? mensagemDoCodigo(erro.problema.code) : null;
 };
 
-const textoDaDecisao = (totais: NonNullable<PreviaDaImportacao['totais']>): string =>
-  [
-    `${plural(totais.novas, 'conta nova será incluída', 'contas novas serão incluídas')} e ${plural(
-      totais.atualizadas,
-      'existente será atualizada',
-      'existentes serão atualizadas',
-    )} pelo código, numa única transação.`,
-    totais.rejeitadas > 0
-      ? `${plural(totais.rejeitadas, 'linha rejeitada fica', 'linhas rejeitadas ficam')} de fora e no relatório.`
-      : '',
-    'Contas que não estão no arquivo continuam como estão.',
-  ]
-    .filter((frase) => frase !== '')
-    .join(' ');
-
 /**
  * O conflito chega com o diálogo de confirmação aberto; ele some junto com o botão e o foco vem
  * para cá, onde está a explicação e a única saída possível.
  */
 const PainelDeConflito = ({
+  dominio,
   nomeDoArquivo,
   aoCancelar,
 }: {
+  dominio: DominioDaImportacao;
   nomeDoArquivo: string;
   aoCancelar: () => Promise<unknown>;
 }) => {
@@ -68,12 +54,9 @@ const PainelDeConflito = ({
   return (
     <div role="alert" className="flex flex-col gap-sm rounded-md border border-danger-indicator/40 bg-danger px-md py-md">
       <p ref={titulo} tabIndex={-1} className="text-title-sm text-danger-foreground focus-visible:outline-none">
-        O plano de contas mudou depois desta validação
+        {dominio.textos.conflito.titulo}
       </p>
-      <p className="max-w-prose text-body-sm text-danger-foreground">
-        Nenhuma conta foi alterada. Esta prévia ficou obsoleta: cancele-a e envie o arquivo de novo, para a validação
-        usar o plano atual.
-      </p>
+      <p className="max-w-prose text-body-sm text-danger-foreground">{dominio.textos.conflito.descricao}</p>
       <div>
         <ConfirmacaoDeAcao
           gatilho={
@@ -83,7 +66,7 @@ const PainelDeConflito = ({
             </Button>
           }
           titulo="Cancelar esta prévia?"
-          descricao={`A tentativa de ${nomeDoArquivo} fica no histórico como cancelada e o plano não muda. Em seguida, envie o arquivo de novo.`}
+          descricao={dominio.textos.conflito.cancelar(nomeDoArquivo)}
           rotuloDeConfirmacao="Cancelar prévia"
           rotuloDeRecusa="Manter prévia"
           destrutivo
@@ -94,7 +77,7 @@ const PainelDeConflito = ({
   );
 };
 
-const AvisoDaPrevia = ({ totais }: { totais: NonNullable<PreviaDaImportacao['totais']> }) =>
+const AvisoDaPrevia = ({ totais }: { totais: Totais }) =>
   totais.rejeitadas === 0 ? (
     <p className="flex items-start gap-xs rounded-md bg-success px-md py-sm text-body-sm text-success-foreground">
       <CheckCircle2 className="mt-xs size-icon-xs shrink-0" aria-hidden="true" />
@@ -110,6 +93,7 @@ const AvisoDaPrevia = ({ totais }: { totais: NonNullable<PreviaDaImportacao['tot
   );
 
 export const Previa = ({
+  dominio,
   empresaId,
   previa,
   permissoes,
@@ -119,26 +103,25 @@ export const Previa = ({
   aoBaixarRelatorio,
   relatorio,
 }: {
+  dominio: DominioDaImportacao;
   empresaId: string;
-  previa: PreviaDaImportacao;
-  permissoes: PermissoesDoPlano;
+  previa: PreviaBase;
+  permissoes: PermissoesDaImportacao;
   paginaDasRejeicoes: number;
   aoIrParaRejeicoes: (pagina: number) => void;
   aoNovaImportacao: () => void;
   aoBaixarRelatorio: (() => void) | null;
   relatorio: ReactNode;
 }) => {
-  const confirmar = useConfirmarImportacao(empresaId, previa.tentativaId, aoBaixarRelatorio);
-  const cancelar = useCancelarImportacao(empresaId, previa.tentativaId);
+  const confirmar = useConfirmarImportacao(dominio, empresaId, previa.tentativaId, aoBaixarRelatorio);
+  const cancelar = useCancelarImportacao(dominio, empresaId, previa.tentativaId);
   const conflito = confirmar.error instanceof ErroDaApi && confirmar.error.problema.code === 'CONFLITO_DE_VERSAO';
   const totais = previa.totais;
 
   const acoes = (): ReactNode => {
     if (!permissoes.confirmar) {
       return (
-        <p className="max-w-prose text-body-sm text-muted-foreground">
-          A confirmação ou o cancelamento desta prévia é feito por quem tem a permissão Confirmar importação.
-        </p>
+        <p className="max-w-prose text-body-sm text-muted-foreground">{dominio.textos.confirmacaoNegada}</p>
       );
     }
 
@@ -150,6 +133,7 @@ export const Previa = ({
     if (conflito && previa.podeCancelar) {
       return (
         <PainelDeConflito
+          dominio={dominio}
           nomeDoArquivo={previa.arquivo.nome}
           aoCancelar={() => cancelar.mutateAsync(undefined, { onSuccess: aoNovaImportacao })}
         />
@@ -176,7 +160,7 @@ export const Previa = ({
               </Button>
             }
             titulo={`Cancelar a importação de ${previa.arquivo.nome}?`}
-            descricao="Nenhuma conta é criada ou alterada. A tentativa, o arquivo e o relatório ficam no histórico como cancelados."
+            descricao={dominio.textos.descricaoDoCancelamento}
             rotuloDeConfirmacao="Cancelar importação"
             rotuloDeRecusa="Manter prévia"
             destrutivo
@@ -196,8 +180,8 @@ export const Previa = ({
                 Confirmar importação
               </Button>
             }
-            titulo={`Confirmar a importação de ${previa.arquivo.nome}?`}
-            descricao={textoDaDecisao(totais)}
+            titulo={dominio.textos.tituloDaConfirmacao(previa.arquivo.nome)}
+            descricao={dominio.textos.decisao(totais)}
             rotuloDeConfirmacao="Confirmar importação"
             explicarBloqueio={explicarRecusa}
             aoConfirmar={() => confirmar.mutateAsync(versaoDaPrevia)}
@@ -209,10 +193,11 @@ export const Previa = ({
 
   return (
     <div className="flex flex-col gap-lg">
-      <ResumoDaTentativa previa={previa} />
+      <ResumoDaTentativa dominio={dominio} previa={previa} />
       {totais === null ? null : <AvisoDaPrevia totais={totais} />}
 
       <TabelaDeRejeicoes
+        dominio={dominio}
         empresaId={empresaId}
         previa={previa}
         pagina={paginaDasRejeicoes}
@@ -222,7 +207,7 @@ export const Previa = ({
       {confirmar.isPending ? (
         <p role="status" className="flex items-center gap-xs rounded-md bg-info px-md py-sm text-body-sm text-info-foreground">
           <LoaderCircle className="size-icon-sm motion-safe:animate-spin" aria-hidden="true" />
-          Confirmação em andamento: aplicando as linhas válidas ao plano de contas.
+          {dominio.textos.confirmando}
         </p>
       ) : null}
 

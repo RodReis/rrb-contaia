@@ -1,18 +1,18 @@
 /**
- * Desfecho da tentativa (SPEC-013 §3.11): concluída, concluída com rejeições, rejeitada,
+ * Desfecho da tentativa (SPEC-013/014 §3.11): concluída, concluída com rejeições, rejeitada,
  * cancelada ou falha técnica. Terminal não reabre: a saída é sempre uma nova tentativa. A falha
  * mostra o diagnóstico fechado da API e o `correlationId` copiável, nunca a mensagem crua.
  */
 'use client';
 
-import type { EstadoDaImportacao, PreviaDaImportacao } from '@contaia/shared';
+import type { EstadoDaImportacao } from '@contaia/shared';
 import { Ban, CheckCircle2, CircleX, FileUp, OctagonAlert, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { mensagemDoCodigo } from '@/lib/mensagens';
 import { cn } from '@/lib/cn';
 import { plural } from './apresentacao';
+import type { DominioDaImportacao, PreviaBase } from './dominio';
 import { CodigoDeSuporte } from './pecas';
 import { ResumoDaTentativa } from './resumo-da-tentativa';
 import { TabelaDeRejeicoes } from './tabela-de-rejeicoes';
@@ -28,14 +28,8 @@ const CLASSES_DO_TOM: Readonly<Record<Tom, string>> = {
 
 type Desfecho = Readonly<{ tom: Tom; icone: ReactNode; titulo: string; descricao: string }>;
 
-const aplicadas = (totais: PreviaDaImportacao['totais']): string =>
-  `${plural(totais?.novas ?? 0, 'conta nova incluída', 'contas novas incluídas')} e ${plural(
-    totais?.atualizadas ?? 0,
-    'atualizada',
-    'atualizadas',
-  )}`;
-
-const desfechoDe = (previa: PreviaDaImportacao): Desfecho => {
+const desfechoDe = (dominio: DominioDaImportacao, previa: PreviaBase): Desfecho => {
+  const { textos } = dominio;
   const estado: EstadoDaImportacao = previa.estado;
 
   switch (estado) {
@@ -44,14 +38,14 @@ const desfechoDe = (previa: PreviaDaImportacao): Desfecho => {
         tom: 'conforme',
         icone: <CheckCircle2 />,
         titulo: 'Importação concluída',
-        descricao: `${aplicadas(previa.totais)}. As contas que não estavam no arquivo continuam como estavam.`,
+        descricao: `${textos.aplicadas(previa.totais)}. ${textos.concluida}`,
       };
     case 'CONCLUIDA_COM_REJEICOES':
       return {
         tom: 'atencao',
         icone: <TriangleAlert />,
         titulo: 'Importação concluída com rejeições',
-        descricao: `${aplicadas(previa.totais)}. ${plural(
+        descricao: `${textos.aplicadas(previa.totais)}. ${plural(
           previa.totais?.rejeitadas ?? 0,
           'linha rejeitada ficou',
           'linhas rejeitadas ficaram',
@@ -62,28 +56,27 @@ const desfechoDe = (previa: PreviaDaImportacao): Desfecho => {
         tom: 'critico',
         icone: <CircleX />,
         titulo: 'Nenhuma linha foi aplicada',
-        descricao:
-          previa.diagnostico?.mensagem ??
-          'Nenhuma linha do arquivo pôde ser aplicada. Veja os motivos abaixo, corrija o CSV de origem e envie de novo. Enquanto a empresa não tiver nenhuma conta válida, a pendência de plano de contas segue aberta na Central de Pendências.',
+        descricao: previa.diagnostico?.mensagem ?? textos.rejeitada,
       };
     case 'CANCELADA':
       return {
         tom: 'neutro',
         icone: <Ban />,
         titulo: 'Importação cancelada',
-        descricao: 'O plano de contas não foi alterado. A tentativa, o arquivo e o relatório ficam no histórico.',
+        descricao: textos.cancelada,
       };
     default:
       return {
         tom: 'critico',
         icone: <OctagonAlert />,
         titulo: 'A importação falhou por um problema técnico',
-        descricao: previa.diagnostico?.mensagem ?? mensagemDoCodigo('FALHA_TECNICA'),
+        descricao: previa.diagnostico?.mensagem ?? textos.falhaTecnica,
       };
   }
 };
 
 export const Resultado = ({
+  dominio,
   empresaId,
   previa,
   podeImportar,
@@ -92,15 +85,16 @@ export const Resultado = ({
   aoNovaImportacao,
   downloads,
 }: {
+  dominio: DominioDaImportacao;
   empresaId: string;
-  previa: PreviaDaImportacao;
+  previa: PreviaBase;
   podeImportar: boolean;
   paginaDasRejeicoes: number;
   aoIrParaRejeicoes: (pagina: number) => void;
   aoNovaImportacao: () => void;
   downloads: ReactNode;
 }) => {
-  const desfecho = desfechoDe(previa);
+  const desfecho = desfechoDe(dominio, previa);
   const titulo = useRef<HTMLHeadingElement>(null);
 
   // O desfecho substitui a prévia (ou chega pelo link da notificação): o foco vai para ele, em vez
@@ -129,9 +123,15 @@ export const Resultado = ({
       </div>
 
       {/* Na falha o código de suporte já está na mensagem persistente acima: uma vez só. */}
-      <ResumoDaTentativa previa={previa} mostrarCodigoDeSuporte={previa.estado !== 'FALHA'} />
+      <ResumoDaTentativa dominio={dominio} previa={previa} mostrarCodigoDeSuporte={previa.estado !== 'FALHA'} />
 
-      <TabelaDeRejeicoes empresaId={empresaId} previa={previa} pagina={paginaDasRejeicoes} aoIr={aoIrParaRejeicoes} />
+      <TabelaDeRejeicoes
+        dominio={dominio}
+        empresaId={empresaId}
+        previa={previa}
+        pagina={paginaDasRejeicoes}
+        aoIr={aoIrParaRejeicoes}
+      />
 
       <div className="flex flex-col gap-md border-t border-border pt-md tablet:flex-row tablet:items-start tablet:justify-between">
         <div className="flex flex-wrap gap-sm">{downloads}</div>
