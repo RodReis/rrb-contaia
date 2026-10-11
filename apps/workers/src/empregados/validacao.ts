@@ -7,9 +7,12 @@
  *   1. transação curta (contexto técnico da empresa): RECEBIDA → VALIDANDO, lê a versão da base, a
  *      chave do original, o mapeamento e os empregados vigentes — versão e vigentes saem da MESMA
  *      transação, então a prévia nunca combina a versão de um momento com a base de outro;
- *   2. sem transação: lê o original no storage, faz o parse e a validação integral (pura);
+ *   2. sem transação: lê o original no storage, faz o parse e a validação integral (pura) — na
+ *      planilha (SPEC-015), a aba é lida no processo filho, na vaga do limitador do processo;
  *   3. transação curta: grava staging + versão + estado de uma vez (idempotente), o evento e, se o
- *      desfecho for terminal (REJEITADA), a notificação ao iniciador e aos administradores.
+ *      desfecho for terminal (REJEITADA), a notificação ao iniciador e aos administradores. Na
+ *      planilha lida, antes disso e na MESMA transação: o que a leitura apurou na tentativa e o evento
+ *      `LEITURA_PLANILHA` (a reentrega sobrescreve e nunca duplica).
  *
  * Reentrega: tentativa já além de VALIDANDO → `ESTADO_INVALIDO_PARA_ACAO` → ack sem efeito; ainda
  * em VALIDANDO (queda no meio) → refaz e o staging não duplica. Falha transitória relança (o BullMQ
@@ -45,7 +48,8 @@ import {
   type DependenciasDaValidacao,
   type ResultadoDaValidacaoDoJob,
 } from '../importacao/falhas.js';
-import { analisarArquivo, type ResultadoDaAnalise } from './analise.js';
+import { analisarPlanilha, configuracaoDaPlanilha, type ConfiguracaoDaPlanilha } from '../importacao/planilha.js';
+import { analisarAba, analisarArquivo, type ResultadoDaAnalise } from './analise.js';
 
 export {
   CODIGOS_DA_FALHA_DA_VALIDACAO,
@@ -63,6 +67,8 @@ type Inicio = Readonly<{
   versaoNaValidacao: number;
   arquivoChave: string;
   mapeamento: unknown;
+  /** `null` = CSV. */
+  planilha: ConfiguracaoDaPlanilha | null;
   usuarioIniciadorId: string;
   vigentes: ReadonlyMap<string, EmpregadoVigente>;
 }>;
@@ -109,6 +115,7 @@ const iniciar = async (deps: DependenciasDaValidacao, comando: ComandoValidarImp
         versaoNaValidacao: inicio.versaoNaValidacao,
         arquivoChave: tentativa.arquivoChave,
         mapeamento: tentativa.mapeamento,
+        planilha: configuracaoDaPlanilha(tentativa),
         usuarioIniciadorId: tentativa.usuarioIniciadorId,
         vigentes: await carregarEmpregadosVigentes(c, empresaId),
       };
@@ -140,6 +147,16 @@ const gravar = async (
   try {
     return await naEmpresa(deps.pool, comando, async (c) => {
       const agora = deps.agora();
+
+      if (analise.tipo === 'LINHAS' && analise.leitura !== undefined) {
+        // Antes do resultado: a gravação da leitura só vale com a tentativa ainda em VALIDANDO.
+        await ciclo.registrarLeituraDaPlanilha(c, D, { empresaId, tentativaId, ...analise.leitura });
+        await ciclo.registrarEvento(c, D, {
+          empresaId, tentativaId, acao: 'LEITURA_PLANILHA', estadoAnterior: 'VALIDANDO', estadoNovo: 'VALIDANDO',
+          usuarioId: null, totais: null, codigo: null, correlationId, agora,
+        });
+      }
+
       const gravado = await gravarResultadoDaValidacaoDeEmpregados(c, empresaId, tentativaId, linhas, inicio.versaoNaValidacao, agora);
 
       if (!gravado.transicionou) {
@@ -181,7 +198,11 @@ export const processarValidacaoDeEmpregados = async (deps: DependenciasDaValidac
   }
 
   const bytes = await lerOriginal(deps, inicio.arquivoChave);
-  const analise = analisarArquivo(bytes, inicio.mapeamento, inicio.vigentes);
+  const { planilha, mapeamento, vigentes } = inicio;
+  const analise =
+    planilha === null
+      ? analisarArquivo(bytes, mapeamento, vigentes)
+      : await analisarPlanilha(deps, bytes, planilha, (leitura) => analisarAba(leitura, planilha.linhaCabecalho, mapeamento, vigentes));
 
   return gravar(deps, comando, inicio, analise);
 };

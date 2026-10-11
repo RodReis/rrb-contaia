@@ -351,6 +351,9 @@ importers:
       '@contaia/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@contaia/planilhas':
+        specifier: workspace:*
+        version: link:../../packages/planilhas
       '@contaia/shared':
         specifier: workspace:*
         version: link:../../packages/shared

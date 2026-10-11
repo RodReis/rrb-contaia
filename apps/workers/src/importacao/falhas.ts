@@ -12,6 +12,7 @@ import { UnrecoverableError } from 'bullmq';
 import type { Pool, PoolClient } from 'pg';
 
 import { ErroDoArmazenamento } from './leitura-s3.js';
+import type { LeitorDeAba } from './planilha.js';
 
 /** Códigos estáveis de falha técnica (evento `FALHA_TECNICA` e fila morta). Nunca mensagem crua. */
 export const CODIGOS_DA_FALHA_DA_VALIDACAO = {
@@ -33,6 +34,8 @@ export type DependenciasDaValidacao = Readonly<{
   /** Lê o original pela chave; falha com `ErroDoArmazenamento` (código estável). */
   ler: (chave: string) => Promise<Buffer>;
   agora: () => Date;
+  /** Leitor de aba de planilha (padrão: o processo filho real, na vaga do limitador do processo). */
+  lerPlanilha?: LeitorDeAba | undefined;
 }>;
 
 export type TotaisDaValidacao = Readonly<{ lidas: number; novas: number; atualizadas: number; rejeitadas: number }>;

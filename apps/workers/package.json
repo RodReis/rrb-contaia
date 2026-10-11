@@ -17,6 +17,7 @@
     "@aws-sdk/client-s3": "^3.1136.0",
     "@contaia/db": "workspace:*",
     "@contaia/domain": "workspace:*",
+    "@contaia/planilhas": "workspace:*",
     "@contaia/shared": "workspace:*",
     "@contaia/signer-client": "workspace:*",
     "bullmq": "6.3.11",

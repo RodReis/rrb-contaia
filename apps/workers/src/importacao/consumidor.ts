@@ -66,6 +66,7 @@ export const iniciarConsumidor = async (config: ConfiguracaoDoConsumidor, opcoes
     ler: opcoes.ler,
     agora: opcoes.agora,
     ...(opcoes.esperaParaRegistrarFalhaMs === undefined ? {} : { esperaParaRegistrarFalhaMs: opcoes.esperaParaRegistrarFalhaMs }),
+    ...(opcoes.lerPlanilha === undefined ? {} : { lerPlanilha: opcoes.lerPlanilha }),
   };
   const processar = criarProcessadorDeValidacao(config.estrategia);
 
