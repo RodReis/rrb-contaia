@@ -10,6 +10,7 @@
 'use client';
 
 import type { EmpregadoDaBase } from '@contaia/shared';
+import { clsx } from 'clsx';
 import { IdCard, SearchX, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -29,29 +30,43 @@ import { useEmpregados } from './queries';
 
 const COLUNAS = ['Nome completo', 'CPF', 'Matrícula', 'Nascimento', 'Admissão', 'Situação'] as const;
 
-const Dado = ({ children, className }: { children: ReactNode; className?: string }) => (
-  <td className={cn('whitespace-nowrap px-md py-sm font-mono text-code-sm tabular-nums text-foreground', className)}>
+// `clsx`, não `cn`: o tailwind-merge trata `text-code-sm` e a cor como o mesmo grupo e descartaria o
+// tamanho (o mono saía maior que o nome). Tom e quebra viram props para não haver classe em conflito.
+const Dado = ({
+  children,
+  secundario = false,
+  quebra = false,
+}: {
+  children: ReactNode;
+  secundario?: boolean;
+  quebra?: boolean;
+}) => (
+  <td
+    className={clsx(
+      'px-md py-sm font-mono text-code-sm tabular-nums',
+      secundario ? 'text-muted-foreground' : 'text-foreground',
+      quebra ? 'max-w-[10rem] [overflow-wrap:anywhere]' : 'whitespace-nowrap',
+    )}
+  >
     {children}
   </td>
 );
 
 const Linha = ({ empregado }: { empregado: EmpregadoDaBase }) => (
   <tr className={cn('border-t border-border align-top', empregado.arquivado ? 'bg-muted/40' : 'hover:bg-accent/40')}>
-    <th scope="row" className="min-w-[14rem] max-w-[24rem] px-md py-sm text-left text-body-md font-normal text-foreground [overflow-wrap:anywhere]">
+    <th scope="row" className="min-w-[12rem] max-w-[24rem] px-md py-sm text-left text-body-md font-normal text-foreground [overflow-wrap:anywhere]">
       {empregado.nome}
     </th>
     <Dado>
       <span className="font-mono tabular-nums">{cpfParaExibir(empregado.cpf)}</span>
     </Dado>
-    <Dado className="max-w-[10rem] whitespace-normal [overflow-wrap:anywhere]">{empregado.matricula}</Dado>
-    <Dado className="text-muted-foreground">{formatarDataCivil(empregado.dataNascimento)}</Dado>
+    <Dado quebra>{empregado.matricula}</Dado>
+    <Dado secundario>{formatarDataCivil(empregado.dataNascimento)}</Dado>
     <Dado>{formatarDataCivil(empregado.dataAdmissao)}</Dado>
-    <td className="px-md py-sm">
-      {empregado.arquivado ? (
-        <StatusBadge tom="neutro" rotulo="Arquivado" />
-      ) : (
-        <span className="text-body-sm text-muted-foreground">Ativo</span>
-      )}
+    {/* Tamanho do selo pela célula, como no histórico (o StatusBadge perde `text-label-sm` no tailwind-merge). */}
+    <td className="px-md py-sm text-label-sm">
+      {/* O mesmo selo nas duas situações (só o tom muda): a linha da arquivada não fica mais alta. */}
+      <StatusBadge tom={empregado.arquivado ? 'neutro' : 'conforme'} rotulo={empregado.arquivado ? 'Arquivado' : 'Ativo'} />
     </td>
   </tr>
 );

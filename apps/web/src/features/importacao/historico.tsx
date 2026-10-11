@@ -7,6 +7,7 @@
 
 import type { TentativaDoHistorico } from '@contaia/shared';
 import { ArrowRight, History } from 'lucide-react';
+import { clsx } from 'clsx';
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -38,9 +39,10 @@ const quemDecidiu = (tentativa: TentativaDoHistorico): string | null => {
   return tentativa.estado === 'FALHA' ? `confirmação tentada por ${outro.nome}` : `confirmada por ${outro.nome}`;
 };
 
+// `clsx`, não `cn`: o tailwind-merge trata `text-code-sm` e a cor como o mesmo grupo e descartaria o tamanho.
 const Numero = ({ valor, critico = false }: { valor: number; critico?: boolean }) => (
   <td
-    className={cn(
+    className={clsx(
       'whitespace-nowrap px-md py-sm text-right font-mono text-code-sm tabular-nums',
       critico && valor > 0 ? 'text-danger-foreground' : 'text-foreground',
     )}
@@ -66,13 +68,19 @@ const Linha = ({
       <td className="whitespace-nowrap px-md py-sm font-mono text-code-sm tabular-nums text-muted-foreground">
         {formatarInstante(tentativa.inicioEm)}
       </td>
-      <th scope="row" className="max-w-[16rem] px-md py-sm text-left font-normal">
-        <span className="block font-mono text-code-sm text-foreground [overflow-wrap:anywhere]">{tentativa.arquivo.nome}</span>
+      <th scope="row" className="px-md py-sm text-left font-normal">
+        {/* Uma linha só: nome longo termina em reticências e segue inteiro no título e no botão "Abrir". */}
+        <span title={tentativa.arquivo.nome} className="block max-w-[14rem] truncate font-mono text-code-sm text-foreground">
+          {tentativa.arquivo.nome}
+        </span>
         {tentativa.reutilizadaPorIdempotencia ? (
           <span className="text-body-sm text-muted-foreground">Resultado reaproveitado</span>
         ) : null}
       </th>
-      <td className="px-md py-sm">
+      {/* `text-label-sm` na célula: o selo herda daqui o tamanho do contrato (COMPONENTS §3.4), que o
+          tailwind-merge descarta dentro do próprio StatusBadge (achado global, fora desta fatia). Sem isso
+          o selo sai no corpo de 16 px e empurra "Abrir" para fora da tabela em 1024/1440. */}
+      <td className="px-md py-sm text-label-sm">
         <StatusBadge tom={aparencia.tom} rotulo={aparencia.rotulo} />
       </td>
       <Numero valor={tentativa.totais.novas} />

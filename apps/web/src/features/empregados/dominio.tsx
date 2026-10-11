@@ -26,10 +26,20 @@ const Ausente = ({ texto }: { texto: string }) => (
   <span className="font-sans text-body-sm text-muted-foreground">{texto}</span>
 );
 
+const TAMANHO_DO_CPF_COM_MASCARA = '000.000.000-00'.length;
+
 const CpfDaLinha = ({ rejeicao }: { rejeicao: RejeicaoBase }) => {
   const cpf = rejeicao['cpf'];
 
-  return typeof cpf === 'string' && cpf !== '' ? cpfParaExibir(cpf) : <Ausente texto="sem CPF" />;
+  if (typeof cpf !== 'string' || cpf === '') {
+    return <Ausente texto="sem CPF" />;
+  }
+
+  const exibido = cpfParaExibir(cpf);
+
+  // CPF com máscara (14 caracteres) é lido de uma vez: nunca quebra no meio. O que veio fora da
+  // forma de CPF aparece como veio e pode ser longo, então esse ainda quebra para não estourar.
+  return exibido.length <= TAMANHO_DO_CPF_COM_MASCARA ? <span className="whitespace-nowrap">{exibido}</span> : exibido;
 };
 
 const MatriculaDaLinha = ({ rejeicao }: { rejeicao: RejeicaoBase }) => {

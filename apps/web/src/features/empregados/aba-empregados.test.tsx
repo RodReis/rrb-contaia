@@ -231,6 +231,11 @@ describe('prévia', () => {
     expect(cabecalhos).toEqual(['Linha', 'CPF', 'Matrícula', 'Campo', 'Erro', 'O que fazer']);
     const linhas = within(tabela).getAllByRole('row');
     expect(linhas[1]).toHaveTextContent('529.982.247-25');
+    // O CPF é lido de uma vez, nunca partido caractere a caractere numa coluna estreita.
+    expect(within(linhas[1] as HTMLElement).getByText('529.982.247-25')).toHaveClass('whitespace-nowrap');
+    // CPF e matrícula juntos: a tabela aperta o respiro para "O que fazer" caber no cartão, sem ficar fora da borda.
+    const celulas = within(linhas[1] as HTMLElement).getAllByRole('cell');
+    expect(celulas.at(-1)).toHaveClass('min-w-[10rem]', 'px-sm');
     expect(linhas[1]).toHaveTextContent('00123');
     expect(linhas[1]).toHaveTextContent('CPF e matrícula repetidos no arquivo');
     expect(linhas[1]).toHaveTextContent('CHAVE_DUPLICADA_NO_ARQUIVO');
@@ -465,6 +470,20 @@ describe('histórico', () => {
   });
 });
 
+describe('histórico — nome de arquivo', () => {
+  it('nome longo fica numa linha com reticências, e o nome inteiro segue no título e no botão', async () => {
+    const nome = `${'empregados-legado-'.repeat(6)}final.csv`;
+    backend.estado.historico = [tentativaDoHistorico({ arquivo: { nome, tamanho: 2048, hash: 'b'.repeat(64) } })];
+    renderizar();
+
+    const tabela = await screen.findByRole('table', { name: /Importações de empregados, página 1/u });
+    const celula = within(tabela).getByText(nome);
+    expect(celula).toHaveClass('truncate');
+    expect(celula).toHaveAttribute('title', nome);
+    expect(within(tabela).getByRole('button', { name: new RegExp(`Abrir a importação de ${nome}`, 'u') })).toBeInTheDocument();
+  });
+});
+
 describe('base em consulta', () => {
   it('lista os empregados com CPF mascarado em mono, matrícula preservada e datas civis, sem editar', async () => {
     backend.estado.empregados = [
@@ -482,6 +501,14 @@ describe('base em consulta', () => {
     expect(ana).toHaveTextContent('02/03/2015');
     expect(ana).toHaveTextContent('Ativo');
     expect(within(tabela).getByRole('row', { name: /Bruno Costa/u })).toHaveTextContent('Arquivado');
+    // Ativo e Arquivado são o mesmo selo (só muda o tom): a linha da arquivada não fica mais alta.
+    const ativo = within(ana).getByText('Ativo');
+    const arquivado = within(tabela).getByText('Arquivado');
+    expect(ativo).toHaveClass('inline-flex', 'py-xs', 'px-sm');
+    expect(arquivado).toHaveClass('inline-flex', 'py-xs', 'px-sm');
+    expect(ativo.closest('td')).toHaveClass('text-label-sm');
+    // O tamanho `code-sm` do mono não pode ser descartado pela fusão de classes (cor e tamanho são `text-*`).
+    expect(cpf.closest('td')).toHaveClass('text-code-sm');
     expect(screen.getByText(/2 empregados na base/u)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /editar|arquivar|reativar|excluir/iu })).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
