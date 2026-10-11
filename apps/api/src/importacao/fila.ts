@@ -14,8 +14,6 @@
 import { Logger, type OnModuleDestroy } from '@nestjs/common';
 import {
   ComandoValidarImportacaoSchema,
-  NOME_DO_JOB_DE_VALIDACAO_PLANO_CONTAS,
-  OPCOES_DE_VALIDACAO_PLANO_CONTAS,
   idDoJobDeValidacao,
   type ComandoValidarImportacao,
 } from '@contaia/shared';
@@ -40,8 +38,6 @@ export type JobDoBullmq = Readonly<{
 
 /** Nome e opções de retry/backoff do job de validação de um domínio. */
 export type DefinicaoDoJob = Readonly<{ nome: string; opcoes: Readonly<Record<string, unknown>> }>;
-
-const JOB_DO_PLANO: DefinicaoDoJob = { nome: NOME_DO_JOB_DE_VALIDACAO_PLANO_CONTAS, opcoes: OPCOES_DE_VALIDACAO_PLANO_CONTAS };
 
 /** Redis fora do ar faz o BullMQ esperar a reconexão para sempre: o envio desiste antes. */
 export const PRAZO_DA_FILA_MS = 5_000;
@@ -69,7 +65,7 @@ export const enfileirarValidacao = async (
   fila: FilaDoBullmq,
   comando: ComandoValidarImportacao,
   prazoMs: number = PRAZO_DA_FILA_MS,
-  job: DefinicaoDoJob = JOB_DO_PLANO,
+  job: DefinicaoDoJob,
 ): Promise<void> => {
   const dados = ComandoValidarImportacaoSchema.parse(comando);
   const jobId = idDoJobDeValidacao(dados.tentativaId);
