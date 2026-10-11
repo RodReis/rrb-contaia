@@ -229,9 +229,22 @@ export type ColunasDePlanilha = {
   diagnosticos: DiagnosticoDeLeituraDaPlanilha[];
 };
 
-/** Lista de seleção das `ColunasDePlanilha` (nomes sem prefixo: só a tentativa os tem). */
-export const COLUNAS_DE_PLANILHA_SQL = `formato, aba_nome, aba_posicao, linha_cabecalho,
-  linhas_ignoradas_antes_do_cabecalho, linhas_ocultas, diagnosticos`;
+const NOMES_DAS_COLUNAS_DE_PLANILHA = [
+  'formato',
+  'aba_nome',
+  'aba_posicao',
+  'linha_cabecalho',
+  'linhas_ignoradas_antes_do_cabecalho',
+  'linhas_ocultas',
+  'diagnosticos',
+] as const;
+
+/**
+ * Lista de seleção das `ColunasDePlanilha`. Em consulta com junção, passar o alias da tentativa
+ * (constante do chamador, nunca entrada externa): nome homônimo em outra tabela não fica ambíguo.
+ */
+export const colunasDePlanilhaSql = (alias?: 't'): string =>
+  NOMES_DAS_COLUNAS_DE_PLANILHA.map((coluna) => (alias === undefined ? coluna : `${alias}.${coluna}`)).join(', ');
 
 /** Colunas de planilha → contrato compartilhado (`aba` nula no CSV). */
 export const paraDetalhesDePlanilha = (linha: ColunasDePlanilha): DetalhesDePlanilha => ({
@@ -269,7 +282,7 @@ const colunasDaTentativa = (d: DescritorDaImportacao): string => `id, tenant_id,
   mapeamento, arquivo_nome, arquivo_tamanho::text as arquivo_tamanho, arquivo_chave, estado,
   ${d.colunaVersaoNoAgregado}::text as versao_na_validacao, totais, usuario_iniciador_id,
   usuario_confirmador_id, usuario_cancelador_id, correlation_id, reutilizada_por_idempotencia,
-  criado_em, iniciado_em, finalizado_em, ${COLUNAS_DE_PLANILHA_SQL}`;
+  criado_em, iniciado_em, finalizado_em, ${colunasDePlanilhaSql()}`;
 
 /** Resultado terminal que o reenvio idêntico reaproveita (SPEC-013/014 §3.7). */
 const RESULTADOS_REUTILIZAVEIS_SQL = `('CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA')`;

@@ -112,11 +112,13 @@ BEGIN
           linhas_ignoradas_antes_do_cabecalho >= 0 AND linhas_ocultas >= 0
         ),
         ADD CONSTRAINT %1$s_diagnosticos_check CHECK (jsonb_typeof(diagnosticos) = 'array'),
-        -- CSV nao tem aba; planilha sempre tem (uma aba por tentativa, SPEC-015 §3.2/§3.3).
+        -- CSV nao tem aba nem escolhe cabecalho (outra linha abriria identidade separada para o
+        -- mesmo arquivo); planilha sempre tem uma aba (SPEC-015 §3.2/§3.3), com nome no limite do
+        -- contrato compartilhado (IdentificacaoDaAbaSchema: 1 a 255 caracteres).
         ADD CONSTRAINT %1$s_aba_condizente CHECK (
           CASE WHEN formato = 'CSV'
-            THEN aba_posicao = 0 AND aba_nome IS NULL
-            ELSE aba_posicao >= 1 AND aba_nome IS NOT NULL
+            THEN aba_posicao = 0 AND aba_nome IS NULL AND linha_cabecalho = 1
+            ELSE aba_posicao >= 1 AND aba_nome IS NOT NULL AND char_length(aba_nome) BETWEEN 1 AND 255
           END
         )
     $sql$, tabela);

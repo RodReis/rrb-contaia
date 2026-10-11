@@ -347,6 +347,14 @@ describe.each(DOMINIOS)('$nome: colunas, CHECKs e triggers (0018)', ({ d }) => {
     expect(await tentar({ formato: 'CSV', linhas_ocultas: -1 })).toBe('23514');
     expect(await tentar({ formato: 'CSV', linhas_ignoradas_antes_do_cabecalho: -1 })).toBe('23514');
     expect(await tentar({ formato: 'ODS', aba_nome: 'Plan1', aba_posicao: 1, linha_cabecalho: 4 })).toBe('nao_lancou');
+
+    // CSV não escolhe cabeçalho: outra linha abriria identidade separada para o mesmo arquivo.
+    expect(await tentar({ formato: 'CSV', linha_cabecalho: 2 })).toBe('23514');
+    expect(await tentar({ formato: 'XLSX', aba_nome: 'Plan1', aba_posicao: 1, linha_cabecalho: 7 })).toBe('nao_lancou');
+    // Nome da aba no limite do contrato compartilhado (IdentificacaoDaAbaSchema: 1–255).
+    expect(await tentar({ formato: 'XLSX', aba_nome: '', aba_posicao: 1 })).toBe('23514');
+    expect(await tentar({ formato: 'ODS', aba_nome: 'a'.repeat(256), aba_posicao: 1 })).toBe('23514');
+    expect(await tentar({ formato: 'ODS', aba_nome: 'a'.repeat(255), aba_posicao: 1 })).toBe('nao_lancou');
   });
 
   it('configuração só muda enquanto RECEBIDA; a aplicação nem tem o privilégio', async () => {
@@ -524,6 +532,29 @@ describe.each(DOMINIOS)('$nome: identidade idempotente com a configuração (SPE
 
 describe.each(DOMINIOS)('$nome: leitura da planilha, busca e histórico (SPEC-015 §3.9, §6.3)', (dominio) => {
   const { d } = dominio;
+
+  it('histórico qualifica as colunas da tentativa: coluna homônima em usuario não gera ambiguidade', async () => {
+    const empresaId = await novaEmpresa();
+    const planilha = await como((cli) => criarTentativa(cli, d, nova(dominio, empresaId, hex64(), XLSX_ABA_2)));
+    const cliente = await admin.connect();
+
+    try {
+      await cliente.query('begin');
+      // Só nesta transação (revertida): `usuario` passa a ter colunas com os nomes das de planilha.
+      await cliente.query(
+        `alter table app.usuario
+           add column formato text, add column aba_nome text, add column aba_posicao integer,
+           add column linha_cabecalho integer, add column linhas_ignoradas_antes_do_cabecalho integer,
+           add column linhas_ocultas integer, add column diagnosticos jsonb`,
+      );
+      const pagina = await listarHistorico(cliente, d, empresaId, 1);
+
+      expect(pagina.itens[0]).toMatchObject({ id: planilha.id, formato: 'XLSX', aba: { nome: 'Contas', posicao: 2 } });
+    } finally {
+      await cliente.query('rollback');
+      cliente.release();
+    }
+  });
 
   it('registra a leitura em RECEBIDA e VALIDANDO, sobrescrevendo na repetição; depois recusa', async () => {
     const empresaId = await novaEmpresa();
