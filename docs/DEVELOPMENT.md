@@ -354,7 +354,11 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
   - **Tx1 do worker com falha determinística** (diferente de banco fora) deixa a tentativa em RECEBIDA, sem FALHA nem aviso. É a mesma limitação da F13: a máquina de estados não permite RECEBIDA → FALHA.
   - **`packages/db/src/notificacoes.integration.test.ts`** usa e-mails fixos e quebra depois de uma rodada interrompida. Sugestão: `[FIX]` separado.
   - **Texto herdado da F13** "fica de fora" na prévia, comum aos dois domínios.
-  - **Rollback da migration 0017**: dropar as 6 tabelas e as 4 funções, remover as pendências `EMPREGADOS` e seus eventos e restaurar os CHECKs da 0015.
+  - **Rollback da migration 0017** (nesta ordem, com o papel dono do schema, pois a trilha de pendências é append-only):
+    1. remover as pendências com `origem = 'EMPREGADOS'` / `tipo = 'EMPREGADOS_NAO_IMPORTADOS'` (incluindo as do backfill) e os seus eventos em `app.empresa_evento_de_pendencia`; esses eventos só saem com o trigger `empresa_evento_de_pendencia_append_only` (0007) desabilitado durante a remoção e reabilitado em seguida;
+    2. restaurar `empresa_pendencia_origem_check` e `empresa_pendencia_tipo_check` às definições da 0015 (a 0016 não os altera): origem sem `EMPREGADOS` e tipo sem `EMPREGADOS_NAO_IMPORTADOS`;
+    3. dropar as 6 tabelas, filhas antes das mães: `app.importacao_empregados_notificacao`, `app.importacao_empregados_evento`, `app.importacao_empregados_linha`, `app.importacao_empregados`, `app.empresa_empregados_versao`, `app.empregado`; com elas saem as policies, os índices e os triggers `escopo_imutavel` (um por tabela), `empregado_protegido`, `empresa_empregados_versao_protegida`, `importacao_empregados_protegida` e `importacao_empregados_evento_append_only`;
+    4. dropar as 5 funções, depois das tabelas porque `data_civil_valida` é usada em CHECK da linha e as `proteger_*` por triggers: `app.proteger_empregado()`, `app.proteger_versao_do_agregado()`, `app.proteger_tentativa_de_importacao()`, `app.data_civil_valida(text)` e `app.admins_autorizados_da_empresa(uuid)`.
   - **Lista para o passe `impeccable`** (ver corpo da PR): a coluna CPF da tabela de rejeições quebra caractere a caractere, "O que fazer" é cortado na borda, o nome do arquivo quebra no histórico e o selo "Arquivado" é mais alto que "Ativo".
 - [ ] Fora da fatia: XLSX/ODS (F15), cargo, salário, vínculo, dependentes, folha, eSocial, IA, edição, arquivamento e reativação de empregado (MVP-3) e retenção produtiva
 
