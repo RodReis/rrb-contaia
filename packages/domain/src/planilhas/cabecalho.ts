@@ -64,3 +64,47 @@ export const cabecalhoEstaMesclado = (leitura: LeituraDaAba, linhaCabecalho: num
     return area !== null && area.linhaInicial <= linhaCabecalho && linhaCabecalho <= area.linhaFinal;
   });
 };
+
+export interface ResumoDaAba {
+  readonly ignoradasAntesDoCabecalho: number;
+  /** Linhas com conteúdo depois do cabeçalho: as que contam para o limite de 10.000. */
+  readonly linhasDeDados: number;
+  /** Entre as linhas de dados. */
+  readonly ocultas: number;
+  readonly cabecalhoMesclado: boolean;
+}
+
+/** O que a inspeção mostra antes de haver mapeamento; as mesmas contagens que `tabelaParaRegistros` devolve. */
+export const resumoDaAba = (leitura: LeituraDaAba, linhaCabecalho: number): ResumoDaAba => {
+  const comConteudo = leitura.linhas.filter(linhaTemConteudo);
+  const dados = comConteudo.filter((linha) => linha.numero > linhaCabecalho);
+  return {
+    ignoradasAntesDoCabecalho: comConteudo.filter((linha) => linha.numero < linhaCabecalho).length,
+    linhasDeDados: dados.length,
+    ocultas: dados.filter((linha) => linha.oculta).length,
+    cabecalhoMesclado: cabecalhoEstaMesclado(leitura, linhaCabecalho),
+  };
+};
+
+export interface LinhaDeAmostra {
+  readonly numero: number;
+  readonly oculta: boolean;
+  /** Só as células preenchidas, em valor exibido. */
+  readonly celulas: Readonly<Record<string, string>>;
+}
+
+/** As primeiras linhas com conteúdo da aba, a partir do topo: é entre elas que o usuário escolhe o cabeçalho. */
+export const amostraDaAba = (leitura: LeituraDaAba, limite = 30): readonly LinhaDeAmostra[] =>
+  leitura.linhas
+    .filter(linhaTemConteudo)
+    .sort((a, b) => a.numero - b.numero)
+    .slice(0, limite)
+    .map((linha) => ({
+      numero: linha.numero,
+      oculta: linha.oculta,
+      celulas: Object.fromEntries(
+        Object.entries(linha.celulas)
+          .filter(([, celula]) => celula.valorExibido.trim() !== '')
+          .map(([letra, celula]) => [letra, celula.valorExibido]),
+      ),
+    }));

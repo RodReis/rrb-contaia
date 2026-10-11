@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cabecalhoEstaMesclado, rotulosDasColunas, sugerirLinhaDeCabecalho } from './cabecalho.js';
+import { amostraDaAba, cabecalhoEstaMesclado, resumoDaAba, rotulosDasColunas, sugerirLinhaDeCabecalho } from './cabecalho.js';
 import type { CelulaDaTabela, LeituraDaAba, LinhaDaTabela } from './tipos.js';
 
 type Entrada = string | Partial<CelulaDaTabela>;
@@ -131,5 +131,46 @@ describe('cabecalhoEstaMesclado', () => {
 
   it('um intervalo de uma célula só não é mescla', () => {
     expect(cabecalhoEstaMesclado(aba([{ de: 'A2', ate: 'A2' }]), 2)).toBe(false);
+  });
+});
+
+describe('resumoDaAba', () => {
+  it('conta, sem precisar de mapeamento, o que a inspeção mostra antes do envio', () => {
+    const aba = leitura(
+      [
+        linha(1, { A: 'Título' }),
+        linha(2, { A: 'Código', B: 'Nome' }),
+        linha(3, { A: '1', B: 'Ativo' }, true),
+        linha(4, { A: '' }),
+        linha(5, { A: '2', B: 'Caixa' }),
+        linha(6, { A: '3', B: 'Banco' }, true),
+      ],
+      [{ de: 'A2', ate: 'A3' }],
+    );
+
+    expect(resumoDaAba(aba, 2)).toEqual({
+      ignoradasAntesDoCabecalho: 1,
+      linhasDeDados: 3,
+      ocultas: 2,
+      cabecalhoMesclado: true,
+    });
+  });
+});
+
+describe('amostraDaAba', () => {
+  it('devolve as primeiras linhas com conteúdo, só com as células preenchidas, em valor exibido', () => {
+    const aba = leitura([
+      linha(7, { A: 'sétima' }),
+      linha(2, { A: 'Código', B: '', C: 'Nome' }, true),
+      linha(4, { A: '   ' }),
+      linha(3, { A: { valorExibido: '00123', tipoNativo: 'numero' } }),
+    ]);
+
+    expect(amostraDaAba(aba, 3)).toEqual([
+      { numero: 2, oculta: true, celulas: { A: 'Código', C: 'Nome' } },
+      { numero: 3, oculta: false, celulas: { A: '00123' } },
+      { numero: 7, oculta: false, celulas: { A: 'sétima' } },
+    ]);
+    expect(amostraDaAba(aba, 2).map((l) => l.numero)).toEqual([2, 3]);
   });
 });

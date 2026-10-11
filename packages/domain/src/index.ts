@@ -410,9 +410,13 @@ export { ULTIMA_COLUNA, colunaParaLetra, ehLetraDeColuna, letraParaColuna } from
 export {
   cabecalhoEstaMesclado,
   celulaTemConteudo,
+  amostraDaAba,
   linhaTemConteudo,
+  resumoDaAba,
   rotulosDasColunas,
   sugerirLinhaDeCabecalho,
+  type LinhaDeAmostra,
+  type ResumoDaAba,
 } from './planilhas/cabecalho.js';
 export { tabelaParaRegistros } from './planilhas/tabela-para-registros.js';
 export {
