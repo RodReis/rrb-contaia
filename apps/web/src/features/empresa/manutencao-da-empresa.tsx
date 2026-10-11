@@ -212,8 +212,8 @@ export const ManutencaoDaEmpresa = ({
   // pedida ainda não existe, e cair em Identificação para trocar logo depois piscaria a tela.
   const esperandoAbaPedida =
     sessao === undefined && carregandoSessao && aba.pedida !== null && ABAS_QUE_DEPENDEM_DA_SESSAO.includes(aba.pedida);
-  const nomeDaEmpresa =
-    visao.cadastro.identificacao?.nomeFantasia ?? visao.cadastro.identificacao?.razaoSocial ?? 'a empresa';
+  const nomeIdentificado = visao.cadastro.identificacao?.nomeFantasia ?? visao.cadastro.identificacao?.razaoSocial ?? null;
+  const nomeDaEmpresa = nomeIdentificado ?? 'a empresa';
 
   return (
     <div className="flex flex-col gap-xl">
@@ -316,7 +316,7 @@ export const ManutencaoDaEmpresa = ({
 
           {consultaDeEmpregados ? (
             <Tabs.Content value="empregados" className="focus-visible:outline-none">
-              <AbaEmpregados empresaId={visao.id} nomeDaEmpresa={nomeDaEmpresa} somenteLeitura={arquivada} />
+              <AbaEmpregados empresaId={visao.id} nomeDaEmpresa={nomeIdentificado} somenteLeitura={arquivada} />
             </Tabs.Content>
           ) : null}
 

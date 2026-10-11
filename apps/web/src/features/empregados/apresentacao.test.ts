@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { cpfParaExibir, formatarDataCivil, rotuloDoCampo } from './apresentacao';
+import { criarDominioDeEmpregados } from './dominio';
 
 describe('cpfParaExibir', () => {
   it.each([
@@ -36,5 +37,19 @@ describe('rotuloDoCampo', () => {
   it('nomeia o campo e a linha inteira', () => {
     expect(rotuloDoCampo('data_admissao')).toBe('Data de admissão');
     expect(rotuloDoCampo(null)).toBe('Linha inteira');
+  });
+});
+
+describe('título da confirmação', () => {
+  it('nomeia a empresa quando ela tem nome', () => {
+    expect(criarDominioDeEmpregados('Padaria Aurora').textos.tituloDaConfirmacao('a.csv')).toBe(
+      'Confirmar a importação de a.csv em Padaria Aurora?',
+    );
+  });
+
+  it('sem nome nem razão social, não vira “em a empresa”', () => {
+    expect(criarDominioDeEmpregados(null).textos.tituloDaConfirmacao('a.csv')).toBe(
+      'Confirmar a importação de a.csv nesta empresa?',
+    );
   });
 });

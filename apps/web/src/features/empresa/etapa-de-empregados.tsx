@@ -45,9 +45,9 @@ export const EtapaDeEmpregados = ({ empresaId }: { empresaId: string }) => {
   const sessaoIndisponivel = consultaDaSessao.isError && sessao === undefined;
   const problemaDaSessao = consultaDaSessao.error instanceof ErroDaApi ? consultaDaSessao.error.problema : null;
   const permissoes = permissoesDeEmpregados(sessao, false);
-  const nome =
-    visao?.cadastro.identificacao?.nomeFantasia ?? visao?.cadastro.identificacao?.razaoSocial ?? 'Empresa';
-  const dominio = criarDominioDeEmpregados(nome);
+  const nomeIdentificado = visao?.cadastro.identificacao?.nomeFantasia ?? visao?.cadastro.identificacao?.razaoSocial ?? null;
+  const nome = nomeIdentificado ?? 'Empresa';
+  const dominio = criarDominioDeEmpregados(nomeIdentificado);
   const { tentativaId } = useEstadoNaUrl(empresaId, ABA_DE_EMPREGADOS, 'empregados');
   const { data: tentativa } = useTentativa(dominio, empresaId, tentativaId);
   // A primeira página da base diz se já existe empregado (é a mesma consulta da aba, em cache).
@@ -147,7 +147,7 @@ export const EtapaDeEmpregados = ({ empresaId }: { empresaId: string }) => {
           />
         ) : null}
         {permissoes.importar ? (
-          <AbaEmpregados empresaId={empresaId} nomeDaEmpresa={nome} somenteLeitura={false} comCabecalho={false} />
+          <AbaEmpregados empresaId={empresaId} nomeDaEmpresa={nomeIdentificado} somenteLeitura={false} comCabecalho={false} />
         ) : null}
       </section>
     </div>

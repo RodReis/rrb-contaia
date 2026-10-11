@@ -76,7 +76,8 @@ const decisao = (totais: Totais): string =>
 
 export const ABA_DE_EMPREGADOS = 'empregados';
 
-export const criarDominioDeEmpregados = (nomeDaEmpresa: string): DominioDaImportacao => ({
+/** Nulo = empresa sem nome fantasia nem razão social; a frase muda para não sair "em a empresa". */
+export const criarDominioDeEmpregados = (nomeDaEmpresa: string | null): DominioDaImportacao => ({
   aba: ABA_DE_EMPREGADOS,
   recurso: 'empregados',
   tipoDeArquivo: 'IMPORTACAO_EMPREGADOS',
@@ -113,7 +114,10 @@ export const criarDominioDeEmpregados = (nomeDaEmpresa: string): DominioDaImport
     tituloAplicando: 'Aplicando à base de empregados',
     descricaoValidando:
       'Cada linha é conferida contra a base atual e contra as demais linhas do arquivo. Nenhum empregado muda antes da sua confirmação; você pode sair desta tela e voltar pelo histórico.',
-    tituloDaConfirmacao: (arquivo) => `Confirmar a importação de ${arquivo} em ${nomeDaEmpresa}?`,
+    tituloDaConfirmacao: (arquivo) =>
+      nomeDaEmpresa === null
+        ? `Confirmar a importação de ${arquivo} nesta empresa?`
+        : `Confirmar a importação de ${arquivo} em ${nomeDaEmpresa}?`,
     decisao,
     descricaoDoCancelamento:
       'Nenhum empregado é incluído ou alterado. A tentativa, o arquivo e o relatório ficam no histórico como cancelados.',

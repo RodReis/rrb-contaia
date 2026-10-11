@@ -56,7 +56,8 @@ export const AbaEmpregados = ({
   comCabecalho = true,
 }: {
   empresaId: string;
-  nomeDaEmpresa: string;
+  /** Nulo quando a empresa não tem nome fantasia nem razão social. */
+  nomeDaEmpresa: string | null;
   somenteLeitura: boolean;
   /** Falso quando quem hospeda a aba (a etapa do cadastro) já tem o próprio título e introdução. */
   comCabecalho?: boolean;
