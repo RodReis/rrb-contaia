@@ -53,6 +53,7 @@ import type { DadosPublicosDoCnpj, MotivoDeFalhaDaConsulta } from '@contaia/shar
 
 import { PoolDoBanco } from '../banco/pool.provider';
 import { autoatribuirCriador } from '../carteira/registro';
+import { reconciliarPendenciaDosEmpregados } from '../empregados/pendencia-dos-empregados';
 import { reconciliarPendenciaDoPlano } from '../plano-contas/pendencia-do-plano';
 import { ConsultaDeCnpjNaCnpja } from './cnpja.adapter';
 
@@ -558,6 +559,8 @@ export class EmpresaService {
         // Empresa ativa sem conta válida abre a pendência do plano de contas (SPEC-013 §3.10):
         // sem isso, quem é ativada depois da migration 0015 nunca a receberia.
         await reconciliarPendenciaDoPlano(cliente, { tenantId, empresaId, usuarioId, agora: new Date() });
+        // Idem para empregados (SPEC-014 §3.10): sem empregado confirmado, a pendência abre.
+        await reconciliarPendenciaDosEmpregados(cliente, { tenantId, empresaId, usuarioId, agora: new Date() });
       }
 
       return this.recarregar(cliente, tenantId, empresaId);

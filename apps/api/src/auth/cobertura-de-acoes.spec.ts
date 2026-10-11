@@ -29,6 +29,7 @@ import {
 import { GuardDeServicoInterno } from '../certificados/servico-interno.guard';
 import { CarteirasController, HistoricoDeCarteirasController } from '../carteira/carteira.controller';
 import { DocumentosDaEmpresaController } from '../empresa/documentos.controller';
+import { EmpregadosDaEmpresaController } from '../empregados/empregados.controller';
 import { EmpresaController } from '../empresa/empresa.controller';
 import { HistoricoController, ManutencaoDaEmpresaController } from '../empresa/manutencao.controller';
 import { EscritorioController } from '../escritorio/escritorio.controller';
@@ -191,6 +192,17 @@ describe('matriz da SPEC-007 §3.1 nas rotas reais, agora por permissão do cat�
     [PlanoContasDaEmpresaController, 'enviar', so('admin_escritorio', 'contador')],
     [PlanoContasDaEmpresaController, 'confirmar', so('admin_escritorio', 'contador')],
     [PlanoContasDaEmpresaController, 'cancelar', so('admin_escritorio', 'contador')],
+    // Empregados (SPEC-014 §3.12): admin tudo; contador e auditor consultam e baixam; auxiliar nada.
+    [EmpregadosDaEmpresaController, 'modelo', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [EmpregadosDaEmpresaController, 'historico', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [EmpregadosDaEmpresaController, 'previa', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [EmpregadosDaEmpresaController, 'rejeicoes', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [EmpregadosDaEmpresaController, 'relatorio', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [EmpregadosDaEmpresaController, 'arquivoOriginal', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [EmpregadosDaEmpresaController, 'empregados', so('admin_escritorio', 'contador', 'auditor_readonly')],
+    [EmpregadosDaEmpresaController, 'enviar', so('admin_escritorio')],
+    [EmpregadosDaEmpresaController, 'confirmar', so('admin_escritorio')],
+    [EmpregadosDaEmpresaController, 'cancelar', so('admin_escritorio')],
     // Central de Pendências
     [PendenciasController, 'consultarCentral', TODOS],
     [PendenciasDaEmpresaController, 'dispensar', OPERADORES],
@@ -334,6 +346,25 @@ describe('papel personalizado nas rotas reais (SPEC-008 §3.4)', () => {
     [PlanoContasDaEmpresaController, 'relatorio', ['empresas.plano_contas.consultar'], 'negado'],
     [PlanoContasDaEmpresaController, 'arquivoOriginal', ['empresas.plano_contas.consultar'], 'negado'],
     [PlanoContasDaEmpresaController, 'contas', ['empresas.cadastro.consultar'], 'negado'],
+    // Empregados: o `dp` do MVP-3 entra por papel personalizado com as quatro chaves; cada ação
+    // exige a sua (importar não confirma; confirmar não importa; consultar não baixa).
+    [EmpregadosDaEmpresaController, 'enviar', normalizarMatriz(['empresas.empregados.importar']), 'permitido'],
+    [EmpregadosDaEmpresaController, 'confirmar', normalizarMatriz(['empresas.empregados.importar']), 'negado'],
+    [EmpregadosDaEmpresaController, 'cancelar', normalizarMatriz(['empresas.empregados.confirmar_importacao']), 'permitido'],
+    [EmpregadosDaEmpresaController, 'enviar', normalizarMatriz(['empresas.empregados.confirmar_importacao']), 'negado'],
+    [EmpregadosDaEmpresaController, 'relatorio', ['empresas.empregados.consultar'], 'negado'],
+    [EmpregadosDaEmpresaController, 'empregados', ['empresas.empregados.consultar'], 'permitido'],
+    [EmpregadosDaEmpresaController, 'empregados', ['empresas.plano_contas.consultar'], 'negado'],
+    [
+      EmpregadosDaEmpresaController,
+      'confirmar',
+      normalizarMatriz([
+        'empresas.empregados.importar',
+        'empresas.empregados.confirmar_importacao',
+        'empresas.empregados.baixar_relatorio',
+      ]),
+      'permitido',
+    ],
     // Sem permissão alguma, nada é aberto (exceto rota livre).
     [EmpresaController, 'listar', [], 'negado'],
     [UsuariosController, 'eu', [], 'permitido'],
