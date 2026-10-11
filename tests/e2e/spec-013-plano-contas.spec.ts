@@ -15,7 +15,9 @@
  *
  * Isolamento: escritório, usuários e empresas próprios (`e2e-f13-*`, CNPJs `1313…`). Nenhum
  * contêiner é derrubado: a falha do worker pausa só a fila de validação do plano (o `afterAll` a
- * retoma mesmo se a prova falhar no meio), porque na CI as specs rodam em paralelo.
+ * retoma mesmo se a prova falhar no meio). As specs 013, 014 e 015 compartilham as filas e os workers e
+ * rodam encadeadas (projetos `importacao-013` → `-014` → `-015` do `playwright.config.ts`); o resto da
+ * suíte segue em paralelo.
  *
  * Depende de: composição no ar (`pnpm docker:up`) com API e workers, `pnpm db:migrate`, `pnpm build`
  * e dos processos Web, cofre e dublê da CNPJá (o `playwright.config.ts` os sobe).
@@ -74,7 +76,7 @@ import {
 
 const ESCOPO = process.env['PROVA_ESCOPO'] ?? 'local';
 // Subpasta própria: com o escopo de outra SPEC (a spec-014 grava em `provas/` com os mesmos nomes
-// de estado e roda em paralelo), a limpeza e as capturas desta spec não tocam as dela.
+// de estado e roda depois dela na cadeia), a limpeza e as capturas desta spec não tocam as dela.
 const PASTA_DAS_PROVAS = resolve(
   ESCOPO === 'SPEC-013' ? `test-results/${ESCOPO}/e2e/provas` : `test-results/${ESCOPO}/e2e/provas/spec-013`,
 );
@@ -780,8 +782,8 @@ test('conflito concorrente: o plano muda entre a prévia e a confirmação → 4
  * objeto que o MinIO recusa servir (nome acima do limite de 1.024 bytes do S3). Retomada a fila,
  * o worker lê, o armazenamento recusa com erro transitório (`ARMAZENAMENTO_INDISPONIVEL`) e o
  * BullMQ repete com backoff até o teto (5 tentativas): a tentativa termina em FALHA. Nenhum
- * contêiner é derrubado — na CI esta prova roda em paralelo com specs que usam o mesmo MinIO e os
- * mesmos workers (o monitor do Signer da spec-012). "Pilha de volta" = o mesmo arquivo reenviado:
+ * contêiner é derrubado — esta prova roda com o resto da suíte em paralelo (inclusive a spec-012, cujo
+ * monitor do Signer usa o mesmo MinIO e os mesmos workers); só as specs de importação seguem em cadeia. "Pilha de volta" = o mesmo arquivo reenviado:
  * a API grava o original na chave correta e a nova tentativa valida.
  */
 test('falha do worker: sem consumidor a tentativa espera; o armazenamento recusa até esgotar o retry → FALHA acionável com correlationId; o reenvio cria nova tentativa', async () => {

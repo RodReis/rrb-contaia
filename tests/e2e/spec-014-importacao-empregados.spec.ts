@@ -19,8 +19,9 @@
  *
  * Isolamento: escritório, usuários e empresas próprios (`e2e-f14-*`, CNPJs `1414…`). Nenhum
  * contêiner é derrubado: a falha do worker pausa só a fila de validação dos empregados (o `afterAll`
- * a retoma mesmo se a prova falhar no meio), porque na CI as specs rodam em paralelo — inclusive a
- * spec-013, que usa a outra fila nos mesmos workers.
+ * a retoma mesmo se a prova falhar no meio). As specs 013, 014 e 015 rodam encadeadas, uma por vez
+ * (projetos `importacao-013` → `-014` → `-015` do `playwright.config.ts`); o resto da suíte segue em
+ * paralelo.
  *
  * Depende de: composição no ar (`pnpm docker:up`) com API e workers, `pnpm db:migrate`, `pnpm build`
  * e dos processos Web, cofre e dublê da CNPJá (o `playwright.config.ts` os sobe).
@@ -86,7 +87,7 @@ import {
 
 const ESCOPO = process.env['PROVA_ESCOPO'] ?? 'local';
 // Subpasta própria fora do escopo SPEC-014 (como a spec-013): com o escopo de outra SPEC, a spec-015
-// grava em `provas/` e roda em paralelo; a limpeza dos `.png` desta spec não pode apagar as dela.
+// grava em `provas/` e roda depois desta na cadeia; a limpeza dos `.png` desta spec não pode apagar as dela.
 const PASTA_DAS_PROVAS = resolve(
   ESCOPO === 'SPEC-014' ? `test-results/${ESCOPO}/e2e/provas` : `test-results/${ESCOPO}/e2e/provas/spec-014`,
 );
