@@ -239,6 +239,14 @@ afterAll(async () => {
 });
 
 // Primeiro do arquivo: nada desta suíte foi gravado ainda (ver a limpeza das planilhas abaixo).
+//
+// Janela de lock: o rollback e a reaplicação da 0018 são DDL (ACCESS EXCLUSIVE) dentro de uma
+// transação aberta, enquanto os outros arquivos de `test:banco` rodam em paralelo no mesmo banco. As
+// quatro tabelas que a 0018 altera são travadas logo no `begin`, todas de uma vez e antes de qualquer
+// outra: quem chega depois só ESPERA o rollback (dezenas de ms), sem deadlock nem leitura do esquema
+// sem as colunas — a transação nunca confirma. Rodar este arquivo isolado exigiria `projects` com
+// `groupOrder` no `criarConfigVitest` compartilhado (e não isolaria das suítes de banco de api e
+// workers, que podem rodar ao mesmo tempo); a trava explícita já cobre os dois casos.
 describe('migration 0018 sobre um banco da 0017 com dados', () => {
   it('aplica, reverte pelo plano de rollback e reaplica; tentativas antigas leem como CSV', async () => {
     const sql = await readFile(new URL('../migrations/0018_importacao_planilhas.sql', import.meta.url), 'utf8');
