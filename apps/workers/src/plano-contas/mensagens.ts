@@ -4,7 +4,7 @@
  * validação do domínio já traz um texto próprio (defeito de estrutura, limite de coluna), ele vence;
  * senão vale o texto padrão do código de erro.
  */
-import type { CodigoDeErroDaLinha, LinhaRejeitada } from '@contaia/domain';
+import { MENSAGEM_DA_REJEICAO_ESTRUTURAL, type CodigoDeErroDaLinha, type LinhaRejeitada } from '@contaia/domain';
 
 const ROTULOS_DOS_CAMPOS: Readonly<Record<string, string>> = {
   codigo: 'código',
@@ -29,6 +29,7 @@ const foraDoDominio = (campo: string | null): string => {
 };
 
 const MENSAGENS_FIXAS: Readonly<Record<Exclude<CodigoDeErroDaLinha, 'CAMPO_OBRIGATORIO_AUSENTE' | 'VALOR_FORA_DO_DOMINIO'>, string>> = {
+  ...MENSAGEM_DA_REJEICAO_ESTRUTURAL,
   CODIGO_DUPLICADO_NO_ARQUIVO:
     'O código aparece mais de uma vez no arquivo e todas as ocorrências foram rejeitadas; deixe uma linha só por código.',
   CONTA_PAI_INEXISTENTE: 'A conta-pai não existe no plano de contas nem entre as linhas válidas do arquivo.',
