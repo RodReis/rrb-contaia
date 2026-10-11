@@ -8,7 +8,7 @@
 import type { TentativaDoHistorico } from '@contaia/shared';
 import { ArrowRight, History } from 'lucide-react';
 import { clsx } from 'clsx';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
@@ -44,22 +44,26 @@ const quemDecidiu = (tentativa: TentativaDoHistorico): string | null => {
  * Formato e configuração da planilha (SPEC-015 §3.9): "XLSX · aba Plano (posição 2) · cabeçalho na
  * linha 3". CSV diz só o formato; tentativa anterior à F15, sem o campo, não diz nada.
  */
-const configuracaoDaTentativa = (tentativa: TentativaDoHistorico): string | null => {
+const configuracaoDaTentativa = (tentativa: TentativaDoHistorico): readonly string[] => {
   if (tentativa.formato === undefined) {
-    return null;
+    return [];
   }
 
   if (!ehPlanilha(tentativa.formato) || tentativa.aba === undefined || tentativa.aba === null) {
-    return tentativa.formato;
+    return [tentativa.formato];
   }
 
-  return `${tentativa.formato} · aba ${rotuloDaAba(tentativa.aba)} · cabeçalho na linha ${formatarNumero(tentativa.linhaCabecalho ?? 1)}`;
+  return [
+    tentativa.formato,
+    `aba ${rotuloDaAba(tentativa.aba)}`,
+    `cabeçalho na linha ${formatarNumero(tentativa.linhaCabecalho ?? 1)}`,
+  ];
 };
 
 /** "2 ignoradas · 1 oculta · 1 com fórmula": o que a leitura da planilha separou dos dados. */
-const leituraDaTentativa = (tentativa: TentativaDoHistorico): string | null => {
+const leituraDaTentativa = (tentativa: TentativaDoHistorico): readonly string[] => {
   if (!ehPlanilha(tentativa.formato)) {
-    return null;
+    return [];
   }
 
   const formulas = quantidadeDoDiagnostico(tentativa.diagnosticosDaPlanilha, 'LINHAS_COM_FORMULA_REJEITADAS');
@@ -70,10 +74,26 @@ const leituraDaTentativa = (tentativa: TentativaDoHistorico): string | null => {
     plural(tentativa.linhasOcultas ?? 0, 'oculta', 'ocultas'),
     formulas > 0 ? `${formatarNumero(formulas)} com fórmula` : '',
     mesclas > 0 ? `${formatarNumero(mesclas)} com mescla` : '',
-  ]
-    .filter((parte) => parte !== '')
-    .join(' · ');
+  ].filter((parte) => parte !== '');
 };
+
+/**
+ * Partes separadas por " · " que só quebram entre si, nunca no meio ("1 com / fórmula"); a parte que
+ * sozinha não cabe (aba de nome longo) fica numa linha, inteira no título.
+ */
+const Partes = ({ partes }: { partes: readonly string[] }) => (
+  <span title={partes.join(' · ')} className="flex max-w-[16rem] flex-wrap gap-x-xs text-body-sm text-muted-foreground">
+    {partes.map((parte, indice) => (
+      // O espaço entre as partes não ocupa lugar no flex, mas separa as palavras no texto lido.
+      <Fragment key={parte}>
+        <span className="min-w-0 max-w-full truncate">
+          {parte}
+          {indice < partes.length - 1 ? <span aria-hidden="true"> ·</span> : null}
+        </span>{' '}
+      </Fragment>
+    ))}
+  </span>
+);
 
 // `clsx`, não `cn`: o tailwind-merge trata `text-code-sm` e a cor como o mesmo grupo e descartaria o tamanho.
 const Numero = ({ valor, critico = false }: { valor: number; critico?: boolean }) => (
@@ -111,12 +131,8 @@ const Linha = ({
         <span title={tentativa.arquivo.nome} className="block max-w-[14rem] truncate font-mono text-code-sm text-foreground">
           {tentativa.arquivo.nome}
         </span>
-        {configuracao === null ? null : (
-          <span title={configuracao} className="line-clamp-2 max-w-[16rem] text-body-sm text-muted-foreground [overflow-wrap:anywhere]">
-            {configuracao}
-          </span>
-        )}
-        {leitura === null ? null : <span className="block text-body-sm text-muted-foreground">{leitura}</span>}
+        {configuracao.length === 0 ? null : <Partes partes={configuracao} />}
+        {leitura.length === 0 ? null : <Partes partes={leitura} />}
         {tentativa.reutilizadaPorIdempotencia ? (
           <span className="text-body-sm text-muted-foreground">Resultado reaproveitado</span>
         ) : null}

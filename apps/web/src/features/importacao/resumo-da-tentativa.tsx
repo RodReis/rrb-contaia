@@ -48,7 +48,7 @@ const aproveitamento = (totais: Totais, previstas: string | null): string => {
 };
 
 const Detalhe = ({ rotulo, children }: { rotulo: string; children: ReactNode }) => (
-  <div className="flex min-w-0 flex-col gap-xs">
+  <div className="flex min-w-0 max-w-full flex-col gap-xs">
     <dt className="text-label-sm uppercase text-muted-foreground">{rotulo}</dt>
     {children}
   </div>
@@ -68,7 +68,9 @@ const PlanilhaLida = ({ previa }: { previa: PreviaBase }) => {
 
   return (
     <div role="group" aria-label="Planilha lida" className="flex flex-col gap-sm rounded-md border border-border px-md py-sm">
-      <dl className="grid gap-md tablet:grid-cols-2 desktop:grid-cols-4">
+      {/* Cada detalhe na largura do próprio conteúdo, quebrando para a linha de baixo quando não cabe:
+          a grade de 4 colunas pela largura da janela espremia a aba no cartão estreito (1024 px). */}
+      <dl className="flex flex-wrap gap-x-xl gap-y-md">
         <Detalhe rotulo="Formato">
           <dd className="font-mono text-code-sm text-foreground">{previa.formato}</dd>
         </Detalhe>
