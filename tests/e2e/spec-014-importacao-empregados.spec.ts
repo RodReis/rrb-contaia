@@ -325,6 +325,11 @@ test('base vazia; acima de 10 MB, acima de 10.000 linhas, ZIP com extensão .csv
     recarregar: true,
     pronto: (page) => page.getByText('Esta empresa ainda não tem empregados importados'),
   });
+  await provar(dp, 'historico-vazio', {
+    recarregar: true,
+    pronto: (page) => page.getByRole('region', { name: 'Histórico de importações' }).getByText('Nenhuma importação ainda'),
+    recorte: (page) => page.getByRole('region', { name: 'Histórico de importações' }),
+  });
 
   const entrada = dp.getByLabel(ROTULO_DO_ARQUIVO);
   const recusa = dp.getByRole('alert').filter({ hasText: 'Arquivo recusado antes do envio' });
@@ -344,6 +349,10 @@ test('base vazia; acima de 10 MB, acima de 10.000 linhas, ZIP com extensão .csv
 
   await entrada.setInputFiles(caminhoDe('empregados-so-cabecalho.csv'));
   await expect(recusa).toContainText('O arquivo não tem nenhuma linha de dados para importar');
+  await provar(dp, 'arquivo-rejeitado-antes-do-envio', {
+    recarregar: false,
+    pronto: (page) => page.getByRole('alert').filter({ hasText: 'Arquivo recusado antes do envio' }),
+  });
 
   // 10.001 linhas cabem no tamanho: o cabeçalho é lido, o servidor conta as linhas e recusa (413).
   await entrada.setInputFiles(arquivos.acimaDasLinhas);
@@ -416,6 +425,32 @@ test('histórico: 15 tentativas por página, da mais recente para a mais antiga'
   await expect(dp).toHaveURL(/historico=2/u);
   await expect(linhas).toHaveCount(2);
   await expect(linhas.nth(1)).toContainText('historico-01.csv');
+});
+
+test('modelo do ContaIA: baixado pela tela, importado de volta com o mapeamento padrão e confirmado', async () => {
+  await abrirAbaDeEmpregados(dp, empresa.limites);
+  const modelo = await baixarPeloBotao(dp, 'Baixar modelo CSV');
+
+  expect(modelo.nome).toBe('modelo-empregados.csv');
+  expect([...modelo.bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+  expect(modelo.bytes.subarray(3).toString('utf8').split('\r\n')[0]).toBe(
+    'cpf;nome;matricula;data_nascimento;data_admissao',
+  );
+
+  // O mesmo arquivo, de volta pela tela: as cinco colunas vêm escolhidas e as linhas de exemplo valem.
+  await dp.getByLabel(ROTULO_DO_ARQUIVO).setInputFiles({ name: modelo.nome, mimeType: 'text/csv', buffer: modelo.bytes });
+  await expect(dp.getByRole('combobox', { name: /^Data de admissão/u })).toContainText('data_admissao');
+  const enviado = await validarEmpregadosPelaTela(dp);
+  await expect(dp.getByText(/Todas as 2 linhas lidas são válidas/u)).toBeVisible({ timeout: 60_000 });
+  await confirmarPelaTela(dp);
+  await expect(dp.getByRole('heading', { name: 'Importação concluída', exact: true })).toBeVisible({ timeout: 30_000 });
+  expect((await tentativaDeEmpregados(pool, enviado.tentativaId))?.estado).toBe('CONCLUIDA');
+  expect([...(await empregadosDa(pool, empresa.limites)).keys()]).toEqual(['11144477735|00124', '52998224725|00123']);
+
+  await provar(dp, 'concluida-sem-rejeicoes', {
+    recarregar: true,
+    pronto: (page) => page.getByRole('heading', { name: 'Importação concluída', exact: true }),
+  });
 });
 
 // -- Jornada principal (Alfa), pelo papel personalizado de DP ------------------------------------
@@ -494,6 +529,8 @@ test('jornada: CSV legado (Latin-1, `;`) → mapeamento → validação parcial 
   await expect(linhaFisica('12')).toContainText('142.142.142-93');
   await expect(linhaFisica('12')).toContainText('00300');
   await expect(linhaFisica('12')).toContainText('EMPREGADO_ARQUIVADO');
+  // A linha orienta a reativação no cadastro de empregados do MVP-3 (SPEC §3.6, §7).
+  await expect(linhaFisica('12')).toContainText('a reativação é feita no cadastro de empregados (MVP-3)');
   // CPF sem máscara no arquivo aparece mascarado; matrícula com zeros à esquerda, como veio.
   await expect(linhaFisica('11')).toContainText('145.145.145-86');
   for (const codigo of [
@@ -625,6 +662,7 @@ test('relatório CSV: BOM, `;`, linha física, CPF, matrícula, código e campo;
   comecaCom('10;145.145.145-86;Fábio Repetido;00600;');
   comecaCom('11;14514514586;Fábio Repetido Outra Vez;00600;');
   comecaCom('12;142.142.142-93;Carla Reativada;00300;1979-09-20;2000-01-02;REJEITADA;;EMPREGADO_ARQUIVADO;matricula;');
+  expect(linhas.find((linha) => linha.startsWith('12;'))).toContain('a reativação é feita no cadastro de empregados (MVP-3)');
   comecaCom('13;149.149.149-30;;01000;1990-01-01;2012-01-01;REJEITADA;;CAMPO_OBRIGATORIO_AUSENTE;nome;');
   expect(linhas.filter((linha) => linha.includes('CHAVE_DUPLICADA_NO_ARQUIVO'))).toHaveLength(2);
   expect(linhas.filter((linha) => linha !== '')).toHaveLength(13);
@@ -714,9 +752,16 @@ test('notificação: o iniciador e a administradora com a empresa na carteira; c
   await aviso.click();
   await expect(dp).toHaveURL(new RegExp(`/empresas/${empresa.alfa}\\?aba=empregados&tentativa=${principal.tentativaId}`, 'u'));
 
-  const painelDoContador = await pelaApi(contador, '/notificacoes/painel');
-  expect(painelDoContador.status).toBe(200);
-  expect(painelDoContador.texto).not.toContain('IMPORTACAO_EMPREGADOS_CONCLUIDA');
+  // O contador consulta a mesma empresa, mas não é destinatário: nada no banco e nada no sino dele.
+  expect(await avisosDeEmpregadosDo(pool, ids.contador)).toBe(0);
+  await contador.goto('/empresas');
+  await contador.getByRole('button', { name: 'Notificações' }).click();
+  const painelDoContador = contador.getByRole('dialog', { name: 'Painel de notificações' });
+  await expect(
+    painelDoContador.getByRole('heading', { name: 'Sem notificações' }).or(painelDoContador.getByRole('listitem').first()),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(painelDoContador.getByText(/Importação de empregados/u)).toHaveCount(0);
+  await contador.keyboard.press('Escape');
 });
 
 // -- Papéis, cancelamento e escopo (Beta) --------------------------------------------------------
@@ -779,6 +824,10 @@ test('cancelar preserva tentativa, arquivo, relatório e trilha, sem alterar a b
   await dp.getByRole('button', { name: 'Cancelar importação' }).click();
   await dp.getByRole('alertdialog').getByRole('button', { name: 'Cancelar importação' }).click();
   await expect(dp.getByRole('heading', { name: 'Importação cancelada' })).toBeVisible();
+  await provar(dp, 'cancelada', {
+    recarregar: true,
+    pronto: (page) => page.getByRole('heading', { name: 'Importação cancelada' }),
+  });
 
   expect(await empregadosDa(pool, empresa.beta)).toEqual(antes);
   expect(await tentativaDeEmpregados(pool, previaDaBeta)).toMatchObject({ estado: 'CANCELADA', usuario_cancelador_id: ids.dp });
@@ -790,6 +839,44 @@ test('cancelar preserva tentativa, arquivo, relatório e trilha, sem alterar a b
   // Terminal não volta: cancelar de novo é recusado.
   const deNovo = await pelaApi(dp, `/empresas/${empresa.beta}/empregados/importacoes/${previaDaBeta}/cancelar`, { metodo: 'POST' });
   expect([deNovo.status, codigoDo(deNovo)]).toEqual([409, 'ESTADO_INVALIDO_PARA_ACAO']);
+});
+
+test('confirmação repetida, em sequência e em paralelo: uma aplica, a outra 409 ESTADO_INVALIDO_PARA_ACAO, sem empregado nem aviso duplicado', async () => {
+  const confirmar = (id: string, versaoDaPrevia: unknown) =>
+    pelaApi(dp, `/empresas/${empresa.beta}/empregados/importacoes/${id}/confirmar`, { metodo: 'POST', corpo: { versaoDaPrevia } });
+  const aguardarPrevia = async (nome: string, conteudo: Buffer): Promise<{ id: string; versao: unknown }> => {
+    const envio = await enviarEmpregadosPelaApi(dp, empresa.beta, { nome, conteudo });
+    expect(envio.status, envio.texto.slice(0, 300)).toBe(202);
+    const id = String(campoDe(envio.corpo, 'tentativaId'));
+
+    await esperarEstadoDosEmpregados(pool, id, 'AGUARDANDO_CONFIRMACAO');
+
+    return { id, versao: campoDe(await previaDaApi(dp, empresa.beta, id), 'versaoDaPrevia') };
+  };
+  const aplicacoes = async (id: string): Promise<number> =>
+    (await eventosDaTentativa(pool, id)).filter((evento) => evento.acao.startsWith('APLICACAO_')).length;
+
+  // Em sequência: a segunda chega com a tentativa já concluída.
+  const primeira = await aguardarPrevia('empregados-bom.csv', bytesDe('empregados-bom.csv'));
+  const aplicada = await confirmar(primeira.id, primeira.versao);
+  expect([aplicada.status, campoDe(aplicada.corpo, 'estado')]).toEqual([200, 'CONCLUIDA']);
+  const repetida = await confirmar(primeira.id, primeira.versao);
+  expect([repetida.status, codigoDo(repetida)]).toEqual([409, 'ESTADO_INVALIDO_PARA_ACAO']);
+  expect((await empregadosDa(pool, empresa.beta)).size).toBe(3);
+  expect(await aplicacoes(primeira.id)).toBe(1);
+  expect(ordenados(await destinatariosDosEmpregados(pool, primeira.id))).toEqual(ordenados([ids.dp, ids.admin]));
+
+  // Em paralelo: as duas disputam a mesma prévia; só uma aplica.
+  const segunda = await aguardarPrevia(basename(arquivos.variante), readFileSync(arquivos.variante));
+  const respostas = await Promise.all([confirmar(segunda.id, segunda.versao), confirmar(segunda.id, segunda.versao)]);
+  expect(respostas.map((resposta) => resposta.status).sort()).toEqual([200, 409]);
+  expect(respostas.find((resposta) => resposta.status === 409)?.corpo).toMatchObject({ code: 'ESTADO_INVALIDO_PARA_ACAO' });
+  expect((await tentativaDeEmpregados(pool, segunda.id))?.estado).toBe('CONCLUIDA');
+  const base = await empregadosDa(pool, empresa.beta);
+  expect(base.size).toBe(4);
+  expect(new Set([...base.keys()]).size).toBe(4);
+  expect(await aplicacoes(segunda.id)).toBe(1);
+  expect(ordenados(await destinatariosDosEmpregados(pool, segunda.id))).toEqual(ordenados([ids.dp, ids.admin]));
 });
 
 test('fora da carteira: 403 EMPRESA_FORA_DA_CARTEIRA; outro escritório: 404; tentativa de outra empresa: 404; nenhum dado revelado', async () => {
@@ -1143,14 +1230,18 @@ test('referência do protótipo: o code.html de importação de legados é rende
 test('provas visuais: os estados-chave capturados, sem violação do axe (WCAG 2.1 A/AA) e sem rolagem horizontal', () => {
   expect(Object.keys(achados).sort()).toEqual(
     [
+      'arquivo-rejeitado-antes-do-envio',
       'arquivo-selecionado',
       'base-vazia',
+      'cancelada',
       'concluida-com-rejeicoes',
+      'concluida-sem-rejeicoes',
       'confirmacao',
       'conflito-409',
       'falha-tecnica',
       'fora-da-carteira',
       'historico',
+      'historico-vazio',
       'mapeamento-incompleto',
       'onboarding-empregados',
       'permissao-insuficiente',
