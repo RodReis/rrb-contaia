@@ -42,18 +42,56 @@ const RESUMO_DO_SIGNER: Readonly<Record<string, string>> = {
   SIGNER_RECUPERADO: 'Signer recuperado',
 };
 
-/** Fim da importação do plano de contas (SPEC-013 §3.10): da empresa, só do iniciador. */
-export const ehAvisoDeImportacao = (notificacao: Notificacao): boolean =>
-  notificacao.tipo === 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA';
+/**
+ * Fim de uma importação por CSV, da empresa: plano de contas (SPEC-013 §3.10, só do iniciador) ou
+ * empregados (SPEC-014 §3.10, iniciador e administradores autorizados). Cada uma diz o desfecho com
+ * as próprias palavras e abre a tentativa na própria aba.
+ */
+type AvisoDeImportacao = Readonly<{
+  aba: string;
+  resumoPorEstado: Readonly<Record<string, string>>;
+  resumoGenerico: string;
+  nadaAlterado: string;
+  incluidas: readonly [string, string];
+  atualizadas: readonly [string, string];
+  rejeitadas: readonly [string, string];
+}>;
 
-const RESUMO_DA_IMPORTACAO: Readonly<Record<string, string>> = {
-  CONCLUIDA: 'Importação do plano de contas concluída',
-  CONCLUIDA_COM_REJEICOES: 'Importação do plano de contas concluída com rejeições',
-  REJEITADA: 'Importação do plano de contas rejeitada',
-  FALHA: 'Importação do plano de contas com falha',
+const AVISOS_DE_IMPORTACAO: Readonly<Record<string, AvisoDeImportacao>> = {
+  IMPORTACAO_PLANO_CONTAS_CONCLUIDA: {
+    aba: 'plano-contas',
+    resumoPorEstado: {
+      CONCLUIDA: 'Importação do plano de contas concluída',
+      CONCLUIDA_COM_REJEICOES: 'Importação do plano de contas concluída com rejeições',
+      REJEITADA: 'Importação do plano de contas rejeitada',
+      FALHA: 'Importação do plano de contas com falha',
+    },
+    resumoGenerico: 'Importação do plano de contas',
+    nadaAlterado: 'Nenhuma conta foi alterada',
+    incluidas: ['incluída', 'incluídas'],
+    atualizadas: ['atualizada', 'atualizadas'],
+    rejeitadas: ['rejeitada', 'rejeitadas'],
+  },
+  IMPORTACAO_EMPREGADOS_CONCLUIDA: {
+    aba: 'empregados',
+    resumoPorEstado: {
+      CONCLUIDA: 'Importação de empregados concluída',
+      CONCLUIDA_COM_REJEICOES: 'Importação de empregados concluída com rejeições',
+      REJEITADA: 'Importação de empregados rejeitada',
+      FALHA: 'Importação de empregados com falha',
+    },
+    resumoGenerico: 'Importação de empregados',
+    nadaAlterado: 'Nenhum empregado foi alterado',
+    incluidas: ['incluído', 'incluídos'],
+    atualizadas: ['atualizado', 'atualizados'],
+    rejeitadas: ['rejeitado', 'rejeitados'],
+  },
 };
 
-const RESUMO_GENERICO_DA_IMPORTACAO = 'Importação do plano de contas';
+const avisoDeImportacao = (notificacao: Notificacao): AvisoDeImportacao | undefined =>
+  AVISOS_DE_IMPORTACAO[notificacao.tipo];
+
+export const ehAvisoDeImportacao = (notificacao: Notificacao): boolean => avisoDeImportacao(notificacao) !== undefined;
 
 export const tituloDaNotificacao = (notificacao: Notificacao): string => {
   if (ehAvisoDeCarteira(notificacao)) {
@@ -64,8 +102,10 @@ export const tituloDaNotificacao = (notificacao: Notificacao): string => {
 };
 
 export const tipoDaNotificacao = (notificacao: Notificacao): string => {
-  if (ehAvisoDeImportacao(notificacao)) {
-    return RESUMO_DA_IMPORTACAO[notificacao.importacao?.estado ?? ''] ?? RESUMO_GENERICO_DA_IMPORTACAO;
+  const importacao = avisoDeImportacao(notificacao);
+
+  if (importacao !== undefined) {
+    return importacao.resumoPorEstado[notificacao.importacao?.estado ?? ''] ?? importacao.resumoGenerico;
   }
 
   if (ehAvisoDoSigner(notificacao)) {
@@ -111,24 +151,28 @@ export const resumoDoSigner = (notificacao: Notificacao): string => {
  * diz o que entrou; rejeitada diz que nada mudou; falha não inventa causa nem totais.
  */
 export const resumoDaImportacao = (notificacao: Notificacao): string => {
+  const aviso = avisoDeImportacao(notificacao);
   const { estado, totais } = notificacao.importacao ?? { estado: '', totais: null };
 
+  if (aviso === undefined) {
+    return '';
+  }
   if (estado === 'FALHA') {
     return 'O processamento do arquivo falhou.';
   }
   if (estado === 'REJEITADA') {
     return totais === null
-      ? 'Nenhuma conta foi alterada.'
-      : `Nenhuma conta foi alterada: ${plural(totais.rejeitadas, 'linha rejeitada', 'linhas rejeitadas')}.`;
+      ? `${aviso.nadaAlterado}.`
+      : `${aviso.nadaAlterado}: ${plural(totais.rejeitadas, 'linha rejeitada', 'linhas rejeitadas')}.`;
   }
   if (totais === null) {
     return '';
   }
 
   return `${[
-    plural(totais.novas, 'incluída', 'incluídas'),
-    plural(totais.atualizadas, 'atualizada', 'atualizadas'),
-    plural(totais.rejeitadas, 'rejeitada', 'rejeitadas'),
+    plural(totais.novas, ...aviso.incluidas),
+    plural(totais.atualizadas, ...aviso.atualizadas),
+    plural(totais.rejeitadas, ...aviso.rejeitadas),
   ].join(', ')}.`;
 };
 
@@ -162,14 +206,16 @@ export const rotaDaNotificacao = (notificacao: Notificacao): string => {
     return '/carteira';
   }
 
-  if (ehAvisoDeImportacao(notificacao)) {
-    // Abre a tentativa no plano de contas da empresa: lá está o relatório completo. Sem empresa
+  const importacao = avisoDeImportacao(notificacao);
+
+  if (importacao !== undefined) {
+    // Abre a tentativa na aba da importação da empresa: lá está o relatório completo. Sem empresa
     // (aviso incompleto), um link quebrado não leva a lugar nenhum: fica o histórico de avisos.
     const tentativaId = notificacao.importacao?.tentativaId;
 
     return notificacao.empresaId === null || notificacao.empresaId === undefined || notificacao.empresaId === ''
       ? '/notificacoes'
-      : `/empresas/${notificacao.empresaId}?aba=plano-contas${tentativaId === undefined ? '' : `&tentativa=${tentativaId}`}`;
+      : `/empresas/${notificacao.empresaId}?aba=${importacao.aba}${tentativaId === undefined ? '' : `&tentativa=${tentativaId}`}`;
   }
 
   if (ehAvisoDoSigner(notificacao)) {

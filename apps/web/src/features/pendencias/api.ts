@@ -10,7 +10,9 @@ import { requisitar } from '@/lib/http';
 // certificado ou escolhendo responsável, nunca por dispensa.
 // `PLANO_CONTAS` é do plano de contas sem conta válida (SPEC-013 §3.10): resolve-se com a
 // primeira conta válida, nunca por dispensa.
-export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO' | 'PLANO_CONTAS';
+// `EMPREGADOS` é da empresa sem empregado confirmado (SPEC-014 §3.10): resolve-se com o primeiro
+// empregado confirmado, nunca por dispensa.
+export type OrigemDaPendencia = 'CADASTRAL' | 'DOCUMENTAL' | 'CERTIFICADO' | 'PLANO_CONTAS' | 'EMPREGADOS';
 export type TipoDaPendencia =
   | 'CAMPO_AUSENTE'
   | 'CAMPO_INVALIDO'
@@ -21,7 +23,8 @@ export type TipoDaPendencia =
   | 'CERTIFICADO_AUSENTE'
   | 'CERTIFICADO_VENCIDO'
   | 'CERTIFICADO_SEM_RESPONSAVEL'
-  | 'PLANO_CONTAS_INCOMPLETO';
+  | 'PLANO_CONTAS_INCOMPLETO'
+  | 'EMPREGADOS_NAO_IMPORTADOS';
 export type EstadoDaPendencia = 'ABERTA' | 'RESOLVIDA';
 
 export type Pendencia = Readonly<{

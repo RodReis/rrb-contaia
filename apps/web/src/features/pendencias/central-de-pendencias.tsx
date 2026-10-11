@@ -43,6 +43,7 @@ import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { DialogoDeJustificativa } from '../empresa/dialogo-de-justificativa';
+import { consultaEmpregados } from '../empregados/permissoes';
 import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
 import { useSessao } from '../usuarios/queries';
 import type {
@@ -62,6 +63,7 @@ const ROTULO_DA_ORIGEM: Readonly<Record<OrigemDaPendencia, string>> = {
   DOCUMENTAL: 'Documental',
   CERTIFICADO: 'Certificado',
   PLANO_CONTAS: 'Plano de contas',
+  EMPREGADOS: 'Empregados',
 };
 
 const ROTULO_DO_TIPO: Readonly<Record<TipoDaPendencia, string>> = {
@@ -75,6 +77,7 @@ const ROTULO_DO_TIPO: Readonly<Record<TipoDaPendencia, string>> = {
   CERTIFICADO_VENCIDO: 'Certificado vencido',
   CERTIFICADO_SEM_RESPONSAVEL: 'Certificado sem responsável',
   PLANO_CONTAS_INCOMPLETO: 'Plano de contas incompleto',
+  EMPREGADOS_NAO_IMPORTADOS: 'Empregados não importados',
 };
 
 const OPCOES_DE_ORIGEM = [
@@ -82,6 +85,7 @@ const OPCOES_DE_ORIGEM = [
   { valor: 'DOCUMENTAL', rotulo: 'Documental' },
   { valor: 'CERTIFICADO', rotulo: 'Certificado' },
   { valor: 'PLANO_CONTAS', rotulo: 'Plano de contas' },
+  { valor: 'EMPREGADOS', rotulo: 'Empregados' },
 ] as const;
 
 const OPCOES_DE_TIPO = (Object.keys(ROTULO_DO_TIPO) as TipoDaPendencia[]).map((tipo) => ({
@@ -103,7 +107,8 @@ const ehOrigem = (valor: string | null): valor is OrigemDaPendencia =>
   valor === 'CADASTRAL' ||
   valor === 'DOCUMENTAL' ||
   valor === 'CERTIFICADO' ||
-  valor === 'PLANO_CONTAS';
+  valor === 'PLANO_CONTAS' ||
+  valor === 'EMPREGADOS';
 
 const ehTipo = (valor: string | null): valor is TipoDaPendencia =>
   valor !== null && valor in ROTULO_DO_TIPO;
@@ -187,6 +192,26 @@ const AtalhoDoPlanoDeContas = ({ pendencia }: { pendencia: Pendencia }) => {
   );
 };
 
+/** Atalho da pendência de empregados para a aba da empresa, só para quem consulta empregados (SPEC-014 §3.10). */
+const AtalhoDosEmpregados = ({ pendencia }: { pendencia: Pendencia }) => {
+  const { data: sessao } = useSessao();
+
+  if (!consultaEmpregados(sessao)) {
+    return null;
+  }
+
+  return (
+    <Button asChild variante="contorno" tamanho="compacto">
+      <Link
+        href={`/empresas/${pendencia.empresaId}?aba=empregados`}
+        aria-label={`Abrir aba Empregados de ${pendencia.empresaNome}`}
+      >
+        Abrir aba Empregados
+      </Link>
+    </Button>
+  );
+};
+
 const AcaoDeDispensa = ({ pendencia }: { pendencia: Pendencia }) => {
   const dispensar = useDispensarPendencia();
 
@@ -194,6 +219,12 @@ const AcaoDeDispensa = ({ pendencia }: { pendencia: Pendencia }) => {
   // primeira conta válida, na aba "Plano de contas" da empresa.
   if (pendencia.origem === 'PLANO_CONTAS') {
     return <AtalhoDoPlanoDeContas pendencia={pendencia} />;
+  }
+
+  // Empregados não importados também não se dispensa: resolve-se com o primeiro empregado
+  // confirmado, na aba "Empregados" da empresa.
+  if (pendencia.origem === 'EMPREGADOS') {
+    return <AtalhoDosEmpregados pendencia={pendencia} />;
   }
 
   // Pendência do cofre não se dispensa: resolve-se cadastrando o certificado ou escolhendo o
