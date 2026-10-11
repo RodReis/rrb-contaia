@@ -61,7 +61,7 @@ import { reconciliarPendenciaDosEmpregados } from './pendencia-dos-empregados';
 export const ITENS_POR_PAGINA_DE_EMPREGADOS = 50;
 
 /** Chave endereçada por conteúdo, como na F13: o mesmo arquivo ocupa um objeto só. */
-export const chaveDoOriginalDeEmpregados = (tenantId: string, empresaId: string, hash: string, extensao = 'csv'): string =>
+export const chaveDoOriginalDeEmpregados = (tenantId: string, empresaId: string, hash: string, extensao: string): string =>
   `${tenantId}/${empresaId}/empregados/${hash}.${extensao}`;
 
 const validarMapeamento = (informado: unknown, cabecalho: readonly string[]) => {

@@ -43,15 +43,17 @@ const MENSAGENS_DO_DIAGNOSTICO = mensagensDoDiagnostico(
   'Uma falha técnica interrompeu a aplicação e nenhuma conta foi alterada. Envie o arquivo de novo.',
 );
 
-export const paraDiagnostico = (diagnostico: DiagnosticoDaTentativa | null): DiagnosticoDaImportacao | null =>
-  paraDiagnosticoCom(MENSAGENS_DO_DIAGNOSTICO, diagnostico);
+export const paraDiagnostico = (
+  diagnostico: DiagnosticoDaTentativa | null,
+  formato: TentativaDeImportacao['formato'],
+): DiagnosticoDaImportacao | null => paraDiagnosticoCom(MENSAGENS_DO_DIAGNOSTICO, diagnostico, formato);
 
 export const paraPrevia = (
   tentativa: TentativaDeImportacao,
   amostra: readonly RejeicaoDaLinha[],
   diagnostico: DiagnosticoDaTentativa | null = null,
 ): PreviaDaImportacao =>
-  montarPrevia(tentativa, tentativa.planoVersaoNaValidacao, amostra.map(paraRejeicao), paraDiagnostico(diagnostico));
+  montarPrevia(tentativa, tentativa.planoVersaoNaValidacao, amostra.map(paraRejeicao), paraDiagnostico(diagnostico, tentativa.formato));
 
 const paraConta = (conta: ContaDoPlano): ContaDoPlanoDeContas => ({
   id: conta.id,

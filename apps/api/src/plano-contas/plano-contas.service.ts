@@ -84,7 +84,7 @@ export const ITENS_POR_PAGINA_DO_PLANO = 50;
  * antes do commit da tentativa; se ela não nascer, o objeto fica — inofensivo, e o próximo envio do
  * mesmo conteúdo o sobrescreve com bytes idênticos.
  */
-export const chaveDoOriginal = (tenantId: string, empresaId: string, hash: string, extensao = 'csv'): string =>
+export const chaveDoOriginal = (tenantId: string, empresaId: string, hash: string, extensao: string): string =>
   `${tenantId}/${empresaId}/plano-contas/${hash}.${extensao}`;
 
 /** Os cinco campos do contrato, aparados: a identidade idempotente não depende de espaço. */

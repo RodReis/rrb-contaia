@@ -7,8 +7,9 @@
  * 1. **Formato por extensão + conteúdo, nunca pelo `Content-Type`** (livre no multipart). `.xlsx`/`.ods`
  *    passam pelo `detectarFormato` (diretório central do ZIP e partes pequenas, barato no processo
  *    principal); qualquer outro nome segue o caminho do CSV exatamente como nas F13/F14.
- * 2. **Todo conteúdo de planilha é lido no processo filho** (`lerPlanilhaIsolada`). Uma leitura pode
- *    levar até ~40 s no pior caso (10 s para subir o filho + 30 s de trabalho): não há prazo menor
+ * 2. **Todo conteúdo de planilha é lido no processo filho** (`lerPlanilhaIsolada`). Uma leitura
+ *    de envio leva até ~40 s no pior caso (10 s para subir o filho + 30 s de trabalho); a inspeção usa
+ *    DOIS filhos em sequência no mesmo slot do limitador, então chega a ~80 s. Não há prazo menor
  *    aqui, para um arquivo legítimo lento não virar erro falso.
  * 3. **No máximo `LEITURAS_SIMULTANEAS_DE_PLANILHA` leituras por processo**, somando inspeção e envio
  *    dos dois domínios: o pai segura por instantes o JSON do filho (até ~330 MB de pico por leitura).

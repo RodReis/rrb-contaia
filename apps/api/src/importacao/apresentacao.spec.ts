@@ -11,7 +11,17 @@ const MENSAGENS = mensagensDoDiagnostico('nada mudou');
 
 describe('mensagensDoDiagnostico', () => {
   it.each(CODIGOS_DE_ERRO_DE_PLANILHA)('%s (recusa da planilha no worker) → mensagem fixa do código', (codigo) => {
-    expect(paraDiagnosticoCom(MENSAGENS, { acao: 'VALIDACAO_REJEITADA', codigo })).toEqual({ codigo, mensagem: MENSAGEM_DO_ERRO_DE_PLANILHA[codigo] });
+    expect(paraDiagnosticoCom(MENSAGENS, { acao: 'VALIDACAO_REJEITADA', codigo }, 'XLSX')).toEqual({ codigo, mensagem: MENSAGEM_DO_ERRO_DE_PLANILHA[codigo] });
+  });
+
+  it('CABECALHO_INVALIDO: o texto do CSV fica no CSV; na planilha fala da linha de cabeçalho escolhida', () => {
+    const diagnostico = { acao: 'VALIDACAO_REJEITADA', codigo: 'CABECALHO_INVALIDO' } as const;
+    expect(paraDiagnosticoCom(MENSAGENS, diagnostico, 'CSV')?.mensagem).toBe(MENSAGENS['CABECALHO_INVALIDO']);
+    for (const formato of ['XLSX', 'ODS'] as const) {
+      const mensagem = paraDiagnosticoCom(MENSAGENS, diagnostico, formato)?.mensagem;
+      expect(mensagem).toContain('linha de cabeçalho escolhida');
+      expect(mensagem).not.toBe(MENSAGENS['CABECALHO_INVALIDO']);
+    }
   });
 
   it('os códigos das F13/F14 mantêm os próprios textos', () => {
