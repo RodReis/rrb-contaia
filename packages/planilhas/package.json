@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testes": {
+      "types": "./dist/testes/construtores.d.ts",
+      "default": "./dist/testes/construtores.js"
     }
   },
   "scripts": {
