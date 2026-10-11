@@ -10,12 +10,14 @@
 
 import { Lock } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
+import { EtapaDeEmpregados } from './etapa-de-empregados';
 import { EtapaDePlanoDeContas } from './etapa-plano-de-contas';
 import { ManutencaoDaEmpresa } from './manutencao-da-empresa';
 import { useEmpresa } from './queries';
@@ -25,12 +27,27 @@ export const PaginaDaEmpresa = ({ empresaId }: { empresaId: string }) => {
   const { data, isPending, isError, error, refetch } = useEmpresa(empresaId);
   // Ativada agora, nesta sessão de tela: só quem acabou de ativar vê a etapa final do cadastro.
   // Abrir o endereço de uma empresa que já estava ativa cai direto na manutenção.
-  const [ativadaAgora, definirAtivadaAgora] = useState(false);
+  // As etapas finais opcionais: plano de contas e, para quem consulta empregados, empregados.
+  const [etapaFinal, definirEtapaFinal] = useState<'plano' | 'empregados' | null>(null);
+  const navegador = useRouter();
 
   // Antes de qualquer outro estado: a releitura que a ativação dispara não pode trocar a etapa
   // por skeleton ou erro de tela.
-  if (ativadaAgora) {
-    return <EtapaDePlanoDeContas empresaId={empresaId} />;
+  if (etapaFinal === 'plano') {
+    return (
+      <EtapaDePlanoDeContas
+        empresaId={empresaId}
+        aoSeguirParaEmpregados={() => {
+          // A tentativa do plano aberta na URL não é uma tentativa de empregados.
+          navegador.replace(`/empresas/${empresaId}`, { scroll: false });
+          definirEtapaFinal('empregados');
+        }}
+      />
+    );
+  }
+
+  if (etapaFinal === 'empregados') {
+    return <EtapaDeEmpregados empresaId={empresaId} />;
   }
 
   if (isPending) {
@@ -93,7 +110,7 @@ export const PaginaDaEmpresa = ({ empresaId }: { empresaId: string }) => {
   // Empresa ainda em cadastro continua no wizard; ativada — ou arquivada, que
   // só existe depois da ativação — abre na manutenção.
   if (data.cadastro.status === 'CADASTRO_INCOMPLETO') {
-    return <WizardDaEmpresa empresaId={empresaId} aoAtivar={() => definirAtivadaAgora(true)} />;
+    return <WizardDaEmpresa empresaId={empresaId} aoAtivar={() => definirEtapaFinal('plano')} />;
   }
 
   return <ManutencaoDaEmpresa visao={data} arquivada={data.situacao === 'arquivado'} />;

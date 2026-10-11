@@ -44,6 +44,15 @@ const PLANO_CONTAS_LEITURA = [
   'empresas.plano_contas.consultar',
   'empresas.plano_contas.baixar_relatorio',
 ];
+// SPEC-014 §3.12: só admin_escritorio importa e confirma (o `dp` entra no MVP-3). Contador e
+// auditor consultam e baixam; o auxiliar e os demais papéis padrão não têm acesso nesta fatia.
+const EMPREGADOS_TODAS = [
+  'empresas.empregados.consultar',
+  'empresas.empregados.importar',
+  'empresas.empregados.confirmar_importacao',
+  'empresas.empregados.baixar_relatorio',
+];
+const EMPREGADOS_LEITURA = ['empresas.empregados.consultar', 'empresas.empregados.baixar_relatorio'];
 const OPERACAO = [
   ...DOCUMENTOS_TODAS,
   'pendencias.pendencias.consultar',
@@ -78,6 +87,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.reativar',
     'empresas.historico.consultar',
     ...PLANO_CONTAS_TODAS,
+    ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...CERTIFICADOS_TODAS,
     'historico.global.consultar',
@@ -96,6 +106,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.consultar',
     'empresas.historico.consultar',
     ...PLANO_CONTAS_LEITURA,
+    ...EMPREGADOS_LEITURA,
     ...DOCUMENTOS_LEITURA,
     'pendencias.pendencias.consultar',
     'notificacoes.sino.consultar',
@@ -124,6 +135,30 @@ describe('papéis padrão em chaves do catálogo', () => {
     expect(concedidas('auditor_readonly')).toEqual(['usuarios.usuarios_e_papeis.consultar']);
     expect(concedidas('contador')).toEqual([]);
     expect(concedidas('auxiliar')).toEqual([]);
+  });
+
+  it('empregados (SPEC-014 §3.12): admin tudo; contador e auditor só consultam e baixam; auxiliar nada', () => {
+    const concedidas = (papel: PapelPadrao): string[] =>
+      permissoesDoPapelPadrao(papel).filter((chave) => chave.startsWith('empresas.empregados.'));
+
+    expect(ordenadas(concedidas('admin_escritorio'))).toEqual(ordenadas(EMPREGADOS_TODAS));
+    expect(ordenadas(concedidas('contador'))).toEqual(ordenadas(EMPREGADOS_LEITURA));
+    expect(ordenadas(concedidas('auditor_readonly'))).toEqual(ordenadas(EMPREGADOS_LEITURA));
+    expect(concedidas('auxiliar')).toEqual([]);
+  });
+
+  it('o contador continua importando e confirmando o plano de contas (F13 não muda)', () => {
+    const chaves = permissoesDoPapelPadrao('contador');
+
+    for (const chave of PLANO_CONTAS_TODAS) {
+      expect(chaves).toContain(chave);
+    }
+  });
+
+  it('o molde de papel personalizado herda o recorte de empregados do papel padrão', () => {
+    expect(moldeDoPapelPadrao('contador')).not.toContain('empresas.empregados.importar');
+    expect(moldeDoPapelPadrao('contador')).toContain('empresas.empregados.consultar');
+    expect(moldeDoPapelPadrao('auxiliar').some((c) => c.startsWith('empresas.empregados.'))).toBe(false);
   });
 
   it('toda ação concedida vem com Consultar da funcionalidade', () => {

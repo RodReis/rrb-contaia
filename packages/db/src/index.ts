@@ -362,3 +362,30 @@ export type {
   RejeicaoDaLinha,
   SituacaoDaEmpresaParaImportacao,
 } from './repositorios/plano-contas-consultas.js';
+
+// Ciclo genérico da importação (F13 + F14): funções que recebem o descritor da allowlist.
+export * as cicloDeImportacao from './repositorios/importacao-ciclo.js';
+export * as consultasDeImportacao from './repositorios/importacao-ciclo-consultas.js';
+export { DESCRITOR_EMPREGADOS, DESCRITOR_PLANO_CONTAS } from './repositorios/importacao-ciclo.js';
+export type {
+  DescritorDaImportacao,
+  InicioDaValidacao,
+  NovasNotificacoes,
+  TentativaCriadaNoCiclo,
+  TentativaDoCiclo,
+} from './repositorios/importacao-ciclo.js';
+export {
+  aplicarLinhasDeEmpregados,
+  criarNotificacoesDeImportacaoDeEmpregados,
+  criarTentativaDeEmpregados,
+  gravarResultadoDaValidacaoDeEmpregados,
+  listarAdminsAutorizadosDaEmpresa,
+} from './repositorios/empregados.js';
+export type { AplicacaoDeEmpregados, ResultadoDaAplicacaoDeEmpregados } from './repositorios/empregados.js';
+export {
+  carregarEmpregadosVigentes,
+  contarEmpregadosConfirmados,
+  listarEmpregados,
+  listarLinhasParaRelatorioDeEmpregados,
+  listarRejeicoesDeEmpregados,
+} from './repositorios/empregados-consultas.js';

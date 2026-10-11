@@ -3,7 +3,8 @@
  * Dados fiscais e Endereços, com arquivamento e reativação.
  *
  * A aba aberta vive na URL (`?aba=`): o link da notificação de importação
- * (`?aba=plano-contas&tentativa=…`, SPEC-013 §3.10) cai direto no Plano de contas, e
+ * (`?aba=plano-contas&tentativa=…`, SPEC-013 §3.10; `?aba=empregados&tentativa=…`, SPEC-014
+ * §3.10) cai direto na aba da importação, e
  * aba desconhecida ou sem permissão volta para a primeira permitida.
  *
  * Os formulários são os mesmos do cadastro, com o salvamento trocado: aqui cada
@@ -25,6 +26,8 @@ import { Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/cn';
 import { AbaDeColaboradores } from '../carteira/aba-de-colaboradores';
+import { AbaEmpregados } from '../empregados/aba-empregados';
+import { consultaEmpregados } from '../empregados/permissoes';
 import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
 import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
@@ -50,6 +53,7 @@ const ABAS = [
   { id: 'enderecos', rotulo: 'Endereços' },
   { id: 'documentos', rotulo: 'Documentos' },
   { id: 'plano-contas', rotulo: 'Plano de contas' },
+  { id: 'empregados', rotulo: 'Empregados' },
   { id: 'colaboradores', rotulo: 'Colaboradores' },
 ] as const;
 
@@ -86,7 +90,7 @@ const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
 };
 
 /** Abas que só existem depois que a sessão diz o que o papel pode. */
-const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'colaboradores'];
+const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'empregados', 'colaboradores'];
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
@@ -192,9 +196,13 @@ export const ManutencaoDaEmpresa = ({
   const administraCarteira = sessao !== undefined && pode(sessao, ADMINISTRACAO_DE_USUARIOS);
   // Plano de contas aparece para quem consulta (SPEC-013 §3.12); a API revalida em cada rota.
   const consultaPlano = sessao !== undefined && concede(sessao, CONSULTA_DO_PLANO);
+  // Empregados idem, com a permissão própria (SPEC-014 §3.12).
+  const consultaDeEmpregados = consultaEmpregados(sessao);
   const abas = ABAS.filter(
     (aba) =>
-      (aba.id !== 'colaboradores' || administraCarteira) && (aba.id !== 'plano-contas' || consultaPlano),
+      (aba.id !== 'colaboradores' || administraCarteira) &&
+      (aba.id !== 'plano-contas' || consultaPlano) &&
+      (aba.id !== 'empregados' || consultaDeEmpregados),
   );
   const aba = useAbaNaUrl(
     visao.id,
@@ -204,8 +212,8 @@ export const ManutencaoDaEmpresa = ({
   // pedida ainda não existe, e cair em Identificação para trocar logo depois piscaria a tela.
   const esperandoAbaPedida =
     sessao === undefined && carregandoSessao && aba.pedida !== null && ABAS_QUE_DEPENDEM_DA_SESSAO.includes(aba.pedida);
-  const nomeDaEmpresa =
-    visao.cadastro.identificacao?.nomeFantasia ?? visao.cadastro.identificacao?.razaoSocial ?? 'a empresa';
+  const nomeIdentificado = visao.cadastro.identificacao?.nomeFantasia ?? visao.cadastro.identificacao?.razaoSocial ?? null;
+  const nomeDaEmpresa = nomeIdentificado ?? 'a empresa';
 
   return (
     <div className="flex flex-col gap-xl">
@@ -303,6 +311,12 @@ export const ManutencaoDaEmpresa = ({
           {consultaPlano ? (
             <Tabs.Content value="plano-contas" className="focus-visible:outline-none">
               <AbaPlanoDeContas empresaId={visao.id} somenteLeitura={arquivada} />
+            </Tabs.Content>
+          ) : null}
+
+          {consultaDeEmpregados ? (
+            <Tabs.Content value="empregados" className="focus-visible:outline-none">
+              <AbaEmpregados empresaId={visao.id} nomeDaEmpresa={nomeIdentificado} somenteLeitura={arquivada} />
             </Tabs.Content>
           ) : null}
 

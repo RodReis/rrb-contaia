@@ -165,6 +165,40 @@ describe('edição da matriz', () => {
     ).toEqual(['empresas.cadastro.consultar']);
   });
 
+  it('empregados: toda ação nova implica Consultar da própria funcionalidade (SPEC-014)', () => {
+    for (const acao of ['importar', 'confirmar_importacao', 'baixar_relatorio'] as const) {
+      expect(consultaImplicada(`empresas.empregados.${acao}`)).toBe('empresas.empregados.consultar');
+    }
+    expect(dependentesDeConsulta('empresas.empregados.consultar')).toEqual([
+      'empresas.empregados.importar',
+      'empresas.empregados.confirmar_importacao',
+      'empresas.empregados.baixar_relatorio',
+    ]);
+  });
+
+  it('empregados: confirmar importação concede só Consultar, sem Importar', () => {
+    expect(concederPermissao([], 'empresas.empregados.confirmar_importacao')).toEqual([
+      'empresas.empregados.consultar',
+      'empresas.empregados.confirmar_importacao',
+    ]);
+  });
+
+  it('empregados: retirar Consultar revoga importar, confirmar e baixar sem tocar no plano de contas', () => {
+    expect(
+      revogarPermissao(
+        [
+          'empresas.plano_contas.consultar',
+          'empresas.plano_contas.importar',
+          'empresas.empregados.consultar',
+          'empresas.empregados.importar',
+          'empresas.empregados.confirmar_importacao',
+          'empresas.empregados.baixar_relatorio',
+        ],
+        'empresas.empregados.consultar',
+      ),
+    ).toEqual(['empresas.plano_contas.consultar', 'empresas.plano_contas.importar']);
+  });
+
   it('módulo é visível quando alguma funcionalidade tem Consultar', () => {
     expect(moduloVisivel(BASE, 'documentos')).toBe(true);
     expect(moduloVisivel(BASE, 'empresas')).toBe(false);

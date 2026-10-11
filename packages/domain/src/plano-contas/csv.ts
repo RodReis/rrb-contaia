@@ -19,10 +19,15 @@ export type Mapeamento = Readonly<Record<CampoDoContrato, string>>;
 
 export type Delimitador = ',' | ';' | '\t';
 
-export type PendenciaDoMapeamento = Readonly<{
-  campo: CampoDoContrato;
-  motivo: 'AUSENTE' | 'COLUNA_INEXISTENTE' | 'COLUNA_REPETIDA';
+export type MotivoDePendenciaDoMapeamento = 'AUSENTE' | 'COLUNA_INEXISTENTE' | 'COLUNA_REPETIDA';
+
+/** Pendência de um campo do mapeamento; o contrato (plano de contas, empregados) fixa os campos. */
+export type PendenciaDoMapeamentoDe<Campo extends string> = Readonly<{
+  campo: Campo;
+  motivo: MotivoDePendenciaDoMapeamento;
 }>;
+
+export type PendenciaDoMapeamento = PendenciaDoMapeamentoDe<CampoDoContrato>;
 
 /** Ordem de preferência no desempate: o Excel pt-BR grava `;`. */
 const DELIMITADORES: readonly Delimitador[] = [';', ',', '\t'];
@@ -156,26 +161,34 @@ export const decodificarCsv = (bytes: Uint8Array): Readonly<{ texto: string; del
 
 const nomeDaColuna = (nome: string): string => nome.trim();
 
+/** Nome da coluna mapeada para o campo; valor que não é texto vale como ausente. */
+const colunaMapeada = (mapeamento: Readonly<Record<string, unknown>>, campo: string): string => {
+  const valor = mapeamento[campo];
+  return typeof valor === 'string' ? nomeDaColuna(valor) : '';
+};
+
 /**
- * Confere se o mapeamento cobre os cinco campos com colunas que existem no cabeçalho e que não
- * se repetem entre campos. Um motivo por campo: ausente > inexistente > repetida.
+ * Confere se o mapeamento cobre todos os `campos` do contrato com colunas que existem no
+ * cabeçalho e que não se repetem entre campos. Um motivo por campo: ausente > inexistente >
+ * repetida. Compartilhada pelos contratos de CSV (plano de contas, empregados).
  */
-export const validarMapeamento = (
+export const pendenciasDoMapeamento = <Campo extends string>(
+  campos: readonly Campo[],
   cabecalho: readonly string[],
-  mapeamento: Mapeamento,
-): readonly PendenciaDoMapeamento[] => {
+  mapeamento: Readonly<Record<string, unknown>>,
+): readonly PendenciaDoMapeamentoDe<Campo>[] => {
   const colunas = new Set(cabecalho.map(nomeDaColuna));
   const usos = new Map<string, number>();
-  for (const campo of CAMPOS_DO_CONTRATO) {
-    const coluna = nomeDaColuna(mapeamento[campo] ?? '');
+  for (const campo of campos) {
+    const coluna = colunaMapeada(mapeamento, campo);
     if (coluna !== '') {
       usos.set(coluna, (usos.get(coluna) ?? 0) + 1);
     }
   }
 
-  const pendencias: PendenciaDoMapeamento[] = [];
-  for (const campo of CAMPOS_DO_CONTRATO) {
-    const coluna = nomeDaColuna(mapeamento[campo] ?? '');
+  const pendencias: PendenciaDoMapeamentoDe<Campo>[] = [];
+  for (const campo of campos) {
+    const coluna = colunaMapeada(mapeamento, campo);
     if (coluna === '') {
       pendencias.push({ campo, motivo: 'AUSENTE' });
     } else if (!colunas.has(coluna)) {
@@ -186,6 +199,12 @@ export const validarMapeamento = (
   }
   return pendencias;
 };
+
+/** Plano de contas: os cinco campos de `CAMPOS_DO_CONTRATO`. */
+export const validarMapeamento = (
+  cabecalho: readonly string[],
+  mapeamento: Mapeamento,
+): readonly PendenciaDoMapeamento[] => pendenciasDoMapeamento(CAMPOS_DO_CONTRATO, cabecalho, mapeamento);
 
 const semAcentoEmMinusculo = (valor: string): string =>
   valor.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -203,16 +222,22 @@ const normalizarEnumerado = (valor: string, validos: readonly string[]): string 
 const TIPOS = ['analitica', 'sintetica'] as const;
 const NATUREZAS = ['devedora', 'credora'] as const;
 
-const indicesDasColunas = (
+/**
+ * Posição, no cabeçalho, da coluna mapeada para cada campo. Mapeamento que não aponta para
+ * colunas existentes é `MAPEAMENTO_INCOMPLETO` (a API já o recusa antes; aqui é a rede de segurança
+ * do worker).
+ */
+export const indicesDasColunasDe = <Campo extends string>(
+  campos: readonly Campo[],
   cabecalho: readonly string[],
-  mapeamento: Mapeamento,
-): Readonly<Record<CampoDoContrato, number>> => {
+  mapeamento: Readonly<Record<string, unknown>>,
+): Readonly<Record<Campo, number>> => {
   const nomes = cabecalho.map(nomeDaColuna);
   const indices = Object.fromEntries(
-    CAMPOS_DO_CONTRATO.map((campo) => [campo, nomes.indexOf(nomeDaColuna(mapeamento[campo] ?? ''))]),
-  ) as Record<CampoDoContrato, number>;
+    campos.map((campo) => [campo, nomes.indexOf(colunaMapeada(mapeamento, campo))]),
+  ) as Record<Campo, number>;
 
-  const faltantes = CAMPOS_DO_CONTRATO.filter((campo) => indices[campo] < 0);
+  const faltantes = campos.filter((campo) => indices[campo] < 0);
   if (faltantes.length > 0) {
     throw new ErroDeDominio(
       CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO,
@@ -248,7 +273,7 @@ export const normalizarLinhas = (
   registros: readonly RegistroDoCsv[],
   mapeamento: Mapeamento,
 ): readonly LinhaBrutaDeEntrada[] => {
-  const indices = indicesDasColunas(cabecalho, mapeamento);
+  const indices = indicesDasColunasDe(CAMPOS_DO_CONTRATO, cabecalho, mapeamento);
 
   return registros.map((registro) => {
     const celula = (campo: CampoDoContrato): string => (registro.celulas[indices[campo]] ?? '').trim();

@@ -38,23 +38,38 @@ export const CODIGOS_DE_ERRO_DA_LINHA = [
 ] as const;
 export type CodigoDeErroDaLinha = (typeof CODIGOS_DE_ERRO_DA_LINHA)[number];
 
-const identificador = z
+export const identificador = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
-const chaveTextual = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/u);
+export const chaveTextual = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/u);
 
-/** Rejeição como a API a mostra (amostra da prévia e páginas): com a mensagem acionável. */
-export const RejeicaoDaImportacaoSchema = z.strictObject({
-  numeroDaLinha: z.number().int().min(1),
+/**
+ * Rejeição como a API a mostra (amostra da prévia e páginas): com a mensagem acionável. A fábrica
+ * serve a todo contrato de importação: cada um fixa seus códigos de erro e como identifica a linha
+ * (o plano de contas pelo `codigo` da conta; empregados por CPF e matrícula).
+ */
+export const criarRejeicaoDaImportacaoSchema = <
+  Codigos extends readonly [string, ...string[]],
+  Identificacao extends z.ZodRawShape,
+>(
+  codigosDeErro: Codigos,
+  identificacao: Identificacao,
+) =>
+  z.strictObject({
+    numeroDaLinha: z.number().int().min(1),
+    ...identificacao,
+    campo: z.string().max(64).nullable(),
+    codigoDeErro: z.enum(codigosDeErro),
+    mensagem: z.string().nullable(),
+  });
+
+export const RejeicaoDaImportacaoSchema = criarRejeicaoDaImportacaoSchema(CODIGOS_DE_ERRO_DA_LINHA, {
   // Valor cru do arquivo: a linha pode ter sido rejeitada justamente por exceder o limite.
   codigo: z.string().nullable(),
-  campo: z.string().max(64).nullable(),
-  codigoDeErro: z.enum(CODIGOS_DE_ERRO_DA_LINHA),
-  mensagem: z.string().nullable(),
 });
 export type RejeicaoDaImportacao = z.infer<typeof RejeicaoDaImportacaoSchema>;
 
-const totaisSchema = z.strictObject({
+export const TotaisDaImportacaoSchema = z.strictObject({
   lidas: z.number().int().min(0),
   novas: z.number().int().min(0),
   atualizadas: z.number().int().min(0),
@@ -73,41 +88,47 @@ export type DiagnosticoDaImportacao = z.infer<typeof DiagnosticoDaImportacaoSche
  * página das rejeições. As flags `pode*` e `relatorioDisponivel` saem do estado, calculadas no
  * servidor (a permissão continua sendo conferida em cada rota).
  */
-export const PreviaDaImportacaoSchema = z.strictObject({
-  tentativaId: identificador,
-  estado: z.enum(ESTADOS_DA_IMPORTACAO),
-  arquivo: z.strictObject({
-    nome: z.string().min(1).max(255),
-    tamanho: z.number().int().min(0).max(10_485_760),
-    hash: z.string().min(32).max(64),
-  }),
-  mapeamento: z.record(z.string(), z.string()),
-  totais: totaisSchema.nullable(),
-  amostraRejeicoes: z.array(RejeicaoDaImportacaoSchema).max(50),
-  criadoEm: z.string().datetime(),
-  finalizadoEm: z.string().datetime().nullable(),
-  correlationId: chaveTextual,
-  /** Versão do plano validada: o corpo da confirmação a devolve (`CONFLITO_DE_VERSAO` se mudou). */
-  versaoDaPrevia: z.number().int().min(0).nullable(),
-  reutilizadaPorIdempotencia: z.boolean(),
-  podeConfirmar: z.boolean(),
-  podeCancelar: z.boolean(),
-  relatorioDisponivel: z.boolean(),
-  /**
-   * Desfecho acionável (aditivo, v1): em FALHA e na REJEITADA do arquivo inteiro, o código estável
-   * do último evento de falha/rejeição e a mensagem PT-BR fechada que a API associa a ele. Nulo ou
-   * ausente nos demais casos. Nunca a mensagem crua de uma exceção.
-   */
-  diagnostico: DiagnosticoDaImportacaoSchema.nullable().optional(),
-});
+export const criarPreviaDaImportacaoSchema = <Rejeicao extends z.ZodType>(rejeicao: Rejeicao) =>
+  z.strictObject({
+    tentativaId: identificador,
+    estado: z.enum(ESTADOS_DA_IMPORTACAO),
+    arquivo: z.strictObject({
+      nome: z.string().min(1).max(255),
+      tamanho: z.number().int().min(0).max(10_485_760),
+      hash: z.string().min(32).max(64),
+    }),
+    mapeamento: z.record(z.string(), z.string()),
+    totais: TotaisDaImportacaoSchema.nullable(),
+    amostraRejeicoes: z.array(rejeicao).max(50),
+    criadoEm: z.string().datetime(),
+    finalizadoEm: z.string().datetime().nullable(),
+    correlationId: chaveTextual,
+    /** Versão da base validada (plano, empregados): o corpo da confirmação a devolve (`CONFLITO_DE_VERSAO` se mudou). */
+    versaoDaPrevia: z.number().int().min(0).nullable(),
+    reutilizadaPorIdempotencia: z.boolean(),
+    podeConfirmar: z.boolean(),
+    podeCancelar: z.boolean(),
+    relatorioDisponivel: z.boolean(),
+    /**
+     * Desfecho acionável (aditivo, v1): em FALHA e na REJEITADA do arquivo inteiro, o código estável
+     * do último evento de falha/rejeição e a mensagem PT-BR fechada que a API associa a ele. Nulo ou
+     * ausente nos demais casos. Nunca a mensagem crua de uma exceção.
+     */
+    diagnostico: DiagnosticoDaImportacaoSchema.nullable().optional(),
+  });
+
+export const PreviaDaImportacaoSchema = criarPreviaDaImportacaoSchema(RejeicaoDaImportacaoSchema);
 export type PreviaDaImportacao = z.infer<typeof PreviaDaImportacaoSchema>;
 
-export const PaginaDeRejeicoesDaImportacaoSchema = z.strictObject({
-  pagina: z.number().int().min(1),
-  itensPorPagina: z.number().int().min(1).max(100),
-  total: z.number().int().min(0),
-  itens: z.array(RejeicaoDaImportacaoSchema),
-});
+export const criarPaginaDeRejeicoesSchema = <Rejeicao extends z.ZodType>(rejeicao: Rejeicao) =>
+  z.strictObject({
+    pagina: z.number().int().min(1),
+    itensPorPagina: z.number().int().min(1).max(100),
+    total: z.number().int().min(0),
+    itens: z.array(rejeicao),
+  });
+
+export const PaginaDeRejeicoesDaImportacaoSchema = criarPaginaDeRejeicoesSchema(RejeicaoDaImportacaoSchema);
 export type PaginaDeRejeicoesDaImportacao = z.infer<typeof PaginaDeRejeicoesDaImportacaoSchema>;
 
 export const ContaDoPlanoDeContasSchema = z.strictObject({

@@ -76,7 +76,7 @@ export const Select = ({
             'text-body-md text-foreground transition-colors duration-fast ease-out tablet:h-10',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-            'disabled:opacity-50 data-[placeholder]:text-muted-foreground/70',
+            'disabled:opacity-50 data-[placeholder]:text-muted-foreground',
             temErro ? 'border-destructive' : 'border-input',
           )}
         >

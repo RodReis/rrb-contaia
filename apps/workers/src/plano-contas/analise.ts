@@ -23,24 +23,14 @@ import {
 } from '@contaia/domain';
 import { lerCsv } from '@contaia/shared';
 
+import { ehCodigoDeArquivoRecusado, type CodigoDeArquivoRecusado } from '../importacao/arquivo-recusado.js';
 import { mensagemDaRejeicao } from './mensagens.js';
 
-/** Defeitos do arquivo inteiro: a tentativa termina REJEITADA, sem staging. */
-export const CODIGOS_DE_ARQUIVO_RECUSADO = [
-  CODIGOS_DE_ERRO.ARQUIVO_VAZIO,
-  CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE,
-  CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,
-  CODIGOS_DE_ERRO.CABECALHO_INVALIDO,
-  CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO,
-] as const;
-export type CodigoDeArquivoRecusado = (typeof CODIGOS_DE_ARQUIVO_RECUSADO)[number];
+export { CODIGOS_DE_ARQUIVO_RECUSADO, type CodigoDeArquivoRecusado } from '../importacao/arquivo-recusado.js';
 
 export type ResultadoDaAnalise =
   | Readonly<{ tipo: 'LINHAS'; linhas: readonly LinhaDeStaging[] }>
   | Readonly<{ tipo: 'ARQUIVO_RECUSADO'; codigo: CodigoDeArquivoRecusado }>;
-
-const ehCodigoDeArquivoRecusado = (codigo: string): codigo is CodigoDeArquivoRecusado =>
-  (CODIGOS_DE_ARQUIVO_RECUSADO as readonly string[]).includes(codigo);
 
 /** O mapeamento gravado é JSON do banco: só os campos do contrato, texto; o resto vira ausente. */
 const paraMapeamento = (gravado: MapeamentoDaImportacao): Mapeamento => {

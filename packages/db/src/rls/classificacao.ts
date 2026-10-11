@@ -127,6 +127,17 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     appendOnly: true,
   },
   { tabela: 'app.importacao_plano_contas_notificacao', classe: 'empresa', origem: 'F13 / SPEC-013' },
+  { tabela: 'app.empregado', classe: 'empresa', origem: 'F14 / SPEC-014' },
+  { tabela: 'app.empresa_empregados_versao', classe: 'empresa', origem: 'F14 / SPEC-014' },
+  { tabela: 'app.importacao_empregados', classe: 'empresa', origem: 'F14 / SPEC-014' },
+  { tabela: 'app.importacao_empregados_linha', classe: 'empresa', origem: 'F14 / SPEC-014' },
+  {
+    tabela: 'app.importacao_empregados_evento',
+    classe: 'empresa',
+    origem: 'F14 / SPEC-014',
+    appendOnly: true,
+  },
+  { tabela: 'app.importacao_empregados_notificacao', classe: 'empresa', origem: 'F14 / SPEC-014' },
   { tabela: 'app.carteira_vinculo', classe: 'vinculo', origem: 'F9 / SPEC-009' },
   {
     tabela: 'app.usuario',

@@ -6,8 +6,9 @@ import { conexaoDoRedis, criarClienteDoSigner } from '@contaia/signer-client';
 import { lerConfig, type ConfigDoArmazenamento, type ConfigDoSigner } from './config.js';
 import { iniciarConsumidores } from './consumidores.js';
 import { verificarSaude } from './monitor.js';
+import { iniciarConsumidorDeEmpregados } from './empregados/consumidor.js';
+import { criarLeitorDoArmazenamento } from './importacao/leitura-s3.js';
 import { iniciarConsumidorDoPlanoDeContas } from './plano-contas/consumidor.js';
-import { criarLeitorDoArmazenamento } from './plano-contas/leitura-s3.js';
 import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
 
 type Fechar = () => Promise<void>;
@@ -37,12 +38,16 @@ const iniciarSigner = async (signer: ConfigDoSigner): Promise<Fechar> => {
   return consumidores.fechar;
 };
 
-const iniciarPlanoDeContas = async (armazenamento: ConfigDoArmazenamento): Promise<Fechar> => {
+// Os consumidores das importações (plano de contas e empregados) leem o original do mesmo storage e
+// sobem juntos: o mesmo grupo S3_* liga os dois.
+const iniciarImportacoes = async (armazenamento: ConfigDoArmazenamento): Promise<Fechar> => {
   const leitor = criarLeitorDoArmazenamento(armazenamento);
-  const consumidor = await iniciarConsumidorDoPlanoDeContas({ conexao, pool, ler: leitor.ler, agora });
+  const opcoes = { conexao, pool, ler: leitor.ler, agora };
+  const plano = await iniciarConsumidorDoPlanoDeContas(opcoes);
+  const empregados = await iniciarConsumidorDeEmpregados(opcoes);
 
   return async () => {
-    await consumidor.fechar();
+    await Promise.all([plano.fechar(), empregados.fechar()]);
     leitor.fechar();
   };
 };
@@ -55,8 +60,8 @@ if (config.signer !== null) {
   ativos.push('Signer');
 }
 if (config.armazenamento !== null) {
-  fechamentos.push(await iniciarPlanoDeContas(config.armazenamento));
-  ativos.push('plano de contas');
+  fechamentos.push(await iniciarImportacoes(config.armazenamento));
+  ativos.push('plano de contas', 'empregados');
 }
 
 const server = criarServidorDeSaude('workers');
@@ -69,7 +74,7 @@ encerrarComGraca(server, async () => {
 
 const desligados = [
   ...(config.signer === null ? ['Signer (sem os arquivos de mTLS)'] : []),
-  ...(config.armazenamento === null ? ['plano de contas (sem S3_*)'] : []),
+  ...(config.armazenamento === null ? ['plano de contas e empregados (sem S3_*)'] : []),
 ];
 
 console.warn(

@@ -1,78 +1,66 @@
 /**
  * Repositório do plano de contas e da importação por CSV (SPEC-013 §3.4–§3.11, §6.3, §6.4).
  *
- * Roda SEMPRE dentro de uma transação já aberta pelo chamador com `comContextoHumano` (API) ou
- * `comContexto(pool, contextoTecnico(...))` (worker da empresa): aqui não se abre, confirma nem
- * reverte transação — o caso de uso controla. A RLS limita tenant e empresa; ainda assim toda
- * consulta filtra pela `empresa_id` recebida, para que um id de outra empresa da mesma carteira
- * nunca seja lido nem alterado. O "agora" entra sempre por parâmetro.
- *
- * Transições de estado usam `UPDATE … WHERE estado = <origem>`: numa corrida a segunda transação
- * espera a primeira e, depois do commit, não encontra mais a origem (0 linhas → erro de estado).
+ * O ciclo de vida da tentativa é o genérico de `importacao-ciclo.ts` com `DESCRITOR_PLANO_CONTAS`;
+ * aqui ficam o que é do plano (formato do staging e upsert das contas) e as assinaturas que a F13
+ * já expunha, inalteradas. Roda SEMPRE dentro da transação do chamador (`comContextoHumano` ou
+ * contexto técnico da empresa) e filtra pela `empresa_id` recebida, além da RLS.
  */
-import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, podeTransicionar } from '@contaia/domain';
-import type {
-  CodigoDeErroDaLinha,
-  EstadoDaImportacao,
-  EventoDaImportacao,
-  NaturezaDaConta,
-  TipoDaConta,
-} from '@contaia/domain';
+import type { CodigoDeErroDaLinha, EstadoDaImportacao, NaturezaDaConta, TipoDaConta } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 
-export type Mapeamento = Readonly<Record<string, string>>;
-export type AcaoDaLinha = 'INCLUIR' | 'ATUALIZAR';
+import {
+  DESCRITOR_PLANO_CONTAS as D,
+  buscarTentativa as buscarNoCiclo,
+  cancelar as cancelarNoCiclo,
+  confirmar as confirmarNoCiclo,
+  criarNotificacoes,
+  criarTentativa as criarNoCiclo,
+  exigirNumerosDeLinhaUnicos,
+  finalizar as finalizarNoCiclo,
+  gravarResultadoDaValidacao as gravarNoCiclo,
+  iniciarValidacao as iniciarNoCiclo,
+  registrarEvento as registrarEventoNoCiclo,
+  registrarFalha as registrarFalhaNoCiclo,
+  subirVersao,
+  travarVersaoParaAplicar,
+} from './importacao-ciclo.js';
+import type {
+  AcaoDaLinha,
+  CancelamentoDaPrevia,
+  ConfirmacaoDaPrevia,
+  EstadoFinalDaAplicacao,
+  NovaTentativa,
+  NovoEvento,
+  ResultadoDaValidacaoGravada,
+  TentativaDoCiclo,
+  TotaisDaImportacao,
+} from './importacao-ciclo.js';
 
-export type TotaisDaImportacao = Readonly<{
-  lidas: number;
-  novas: number;
-  atualizadas: number;
-  rejeitadas: number;
-}>;
+export type {
+  AcaoDaLinha,
+  AcaoDoEvento,
+  CancelamentoDaPrevia,
+  ConfirmacaoDaPrevia,
+  EstadoFinalDaAplicacao,
+  Mapeamento,
+  NovaTentativa,
+  NovoEvento,
+  ResultadoDaValidacaoGravada,
+  TotaisDaImportacao,
+} from './importacao-ciclo.js';
+
 export type TotaisDaPrevia = TotaisDaImportacao;
 
-export type TentativaDeImportacao = Readonly<{
-  id: string;
-  tenantId: string;
-  empresaId: string;
-  hashArquivo: string;
-  mapeamento: Mapeamento;
-  arquivoNome: string;
-  arquivoTamanho: number;
-  arquivoChave: string;
-  estado: EstadoDaImportacao;
-  /** Versão do plano lida no início da validação; nula até lá. */
-  planoVersaoNaValidacao: number | null;
-  /** Nulos até a validação terminar. */
-  totais: TotaisDaImportacao | null;
-  usuarioIniciadorId: string;
-  usuarioConfirmadorId: string | null;
-  usuarioCanceladorId: string | null;
-  correlationId: string;
-  /** Marca do histórico: o último pedido idêntico reutilizou o resultado terminal. */
-  reutilizadaPorIdempotencia: boolean;
-  criadoEm: Date;
-  iniciadoEm: Date | null;
-  finalizadoEm: Date | null;
-}>;
+/** A tentativa do ciclo com o nome que a F13 expõe para a versão: a do plano. */
+export type TentativaDeImportacao = Omit<TentativaDoCiclo, 'versaoNaValidacao'> &
+  Readonly<{
+    /** Versão do plano lida no início da validação; nula até lá. */
+    planoVersaoNaValidacao: number | null;
+  }>;
 
 /** `reutilizada`: ESTE pedido caiu numa tentativa existente (mesmo tenant, empresa, hash e mapeamento). */
 export type TentativaCriada = TentativaDeImportacao & Readonly<{ reutilizada: boolean }>;
-
-export type NovaTentativa = Readonly<{
-  tenantId: string;
-  empresaId: string;
-  /** SHA-256 hexadecimal minúsculo, calculado no servidor. */
-  hashArquivo: string;
-  mapeamento: Mapeamento;
-  arquivoNome: string;
-  arquivoTamanho: number;
-  /** Chave do original no object storage local. */
-  arquivoChave: string;
-  usuarioIniciadorId: string;
-  correlationId: string;
-  agora: Date;
-}>;
 
 /** Linha aceita pela validação: valores normalizados e a ação que a prévia mostrou. */
 export type LinhaDeStagingValida = Readonly<{
@@ -109,28 +97,6 @@ export type ResultadoDoInicioDaValidacao = Readonly<{
   planoVersaoNaValidacao: number;
 }>;
 
-export type ResultadoDaValidacaoGravada = Readonly<{
-  estado: EstadoDaImportacao;
-  totais: TotaisDaPrevia;
-  /** `false` quando a validação já tinha sido gravada (reentrega): não registrar evento de novo. */
-  transicionou: boolean;
-}>;
-
-export type ConfirmacaoDaPrevia = Readonly<{
-  empresaId: string;
-  tentativaId: string;
-  usuarioId: string;
-  /** Versão do plano que a prévia exibiu; diferente da validada → `CONFLITO_DE_VERSAO`. */
-  versaoDaPrevia: number;
-}>;
-
-export type CancelamentoDaPrevia = Readonly<{
-  empresaId: string;
-  tentativaId: string;
-  usuarioId: string;
-  agora: Date;
-}>;
-
 export type ResultadoDaAplicacao = Readonly<{
   incluidas: number;
   atualizadas: number;
@@ -140,26 +106,6 @@ export type ResultadoDaAplicacao = Readonly<{
   versaoDoPlano: number;
 }>;
 
-export type EstadoFinalDaAplicacao = 'CONCLUIDA' | 'CONCLUIDA_COM_REJEICOES';
-
-/** Ações da trilha: criação, reuso idempotente e os eventos da máquina de estados do domínio. */
-export type AcaoDoEvento = 'CRIACAO' | 'REUTILIZACAO' | EventoDaImportacao;
-
-export type NovoEvento = Readonly<{
-  empresaId: string;
-  tentativaId: string;
-  acao: AcaoDoEvento;
-  estadoAnterior: EstadoDaImportacao | null;
-  estadoNovo: EstadoDaImportacao;
-  /** Autor humano; nulo no evento do worker. */
-  usuarioId: string | null;
-  totais: TotaisDaImportacao | null;
-  /** Código estável da falha técnica (`^[A-Z][A-Z0-9_]*$`), nunca mensagem crua. */
-  codigo: string | null;
-  correlationId: string;
-  agora: Date;
-}>;
-
 /** O destinatário não entra: é sempre o iniciador da tentativa (SPEC-013 §3.10). */
 export type NovaNotificacao = Readonly<{
   empresaId: string;
@@ -167,181 +113,18 @@ export type NovaNotificacao = Readonly<{
   agora: Date;
 }>;
 
-// --- apoio ---------------------------------------------------------------------------------------
-
-type LinhaDaTentativa = {
-  id: string;
-  tenant_id: string;
-  empresa_id: string;
-  hash_arquivo: string;
-  mapeamento: Record<string, string>;
-  arquivo_nome: string;
-  arquivo_tamanho: string;
-  arquivo_chave: string;
-  estado: EstadoDaImportacao;
-  plano_versao_na_validacao: string | null;
-  totais: TotaisDaImportacao | null;
-  usuario_iniciador_id: string;
-  usuario_confirmador_id: string | null;
-  usuario_cancelador_id: string | null;
-  correlation_id: string;
-  reutilizada_por_idempotencia: boolean;
-  criado_em: Date;
-  iniciado_em: Date | null;
-  finalizado_em: Date | null;
-};
-
-const COLUNAS_DA_TENTATIVA = `id, tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome,
-  arquivo_tamanho::text as arquivo_tamanho, arquivo_chave, estado,
-  plano_versao_na_validacao::text as plano_versao_na_validacao, totais, usuario_iniciador_id,
-  usuario_confirmador_id, usuario_cancelador_id, correlation_id, reutilizada_por_idempotencia,
-  criado_em, iniciado_em, finalizado_em`;
-
-/** Resultado terminal que o reenvio idêntico reaproveita (SPEC-013 §3.7). */
-const RESULTADOS_REUTILIZAVEIS_SQL = `('CONCLUIDA', 'CONCLUIDA_COM_REJEICOES', 'REJEITADA')`;
-/** Predicado da UNIQUE parcial `importacao_plano_contas_idempotente` (migration 0016), literal. */
-const PREDICADO_DA_IDENTIDADE_SQL = `estado not in ('FALHA', 'CANCELADA') and not obsoleta`;
-/**
- * O plano mudou depois que o resultado terminal `t` terminou (FIX #107). REJEITADA terminou na
- * versão da validação; CONCLUIDA* nela + 1 (a confirmação exige a versão validada e a aplicação a
- * sobe uma vez, na mesma transação — `aplicarLinhas`). Versão desconhecida → não obsoleto.
- */
-const PLANO_MUDOU_DEPOIS_DO_RESULTADO_SQL = `exists (
-  select 1 from app.empresa_plano_versao v
-   where v.empresa_id = t.empresa_id and v.tenant_id = t.tenant_id
-     and v.versao <> t.plano_versao_na_validacao + case when t.estado = 'REJEITADA' then 0 else 1 end)`;
-
-const paraTentativa = (linha: LinhaDaTentativa): TentativaDeImportacao => ({
-  id: linha.id,
-  tenantId: linha.tenant_id,
-  empresaId: linha.empresa_id,
-  hashArquivo: linha.hash_arquivo,
-  mapeamento: linha.mapeamento,
-  arquivoNome: linha.arquivo_nome,
-  arquivoTamanho: Number(linha.arquivo_tamanho),
-  arquivoChave: linha.arquivo_chave,
-  estado: linha.estado,
-  planoVersaoNaValidacao: linha.plano_versao_na_validacao === null ? null : Number(linha.plano_versao_na_validacao),
-  totais: linha.totais,
-  usuarioIniciadorId: linha.usuario_iniciador_id,
-  usuarioConfirmadorId: linha.usuario_confirmador_id,
-  usuarioCanceladorId: linha.usuario_cancelador_id,
-  correlationId: linha.correlation_id,
-  reutilizadaPorIdempotencia: linha.reutilizada_por_idempotencia,
-  criadoEm: linha.criado_em,
-  iniciadoEm: linha.iniciado_em,
-  finalizadoEm: linha.finalizado_em,
+const doPlano = ({ versaoNaValidacao, ...resto }: TentativaDoCiclo): TentativaDeImportacao => ({
+  ...resto,
+  planoVersaoNaValidacao: versaoNaValidacao,
 });
-
-const tentativaNaoEncontrada = (): ErroDeDominio =>
-  new ErroDeDominio(CODIGOS_DE_ERRO.TENTATIVA_NAO_ENCONTRADA, 'Tentativa de importação não encontrada.');
-
-const estadoInvalido = (estado: EstadoDaImportacao): ErroDeDominio =>
-  new ErroDeDominio(
-    CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO,
-    `A tentativa de importação está em ${estado} e não aceita esta ação.`,
-  );
-
-const conflitoDeVersao = (): ErroDeConflito =>
-  new ErroDeConflito(
-    CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,
-    'O plano de contas mudou depois da prévia. Valide o arquivo novamente.',
-  );
-
-/** Tentativa da empresa travada até o fim da transação (`FOR UPDATE`); ausente → erro. */
-const travarTentativa = async (
-  cliente: PoolClient,
-  empresaId: string,
-  tentativaId: string,
-): Promise<TentativaDeImportacao> => {
-  const { rows } = await cliente.query<LinhaDaTentativa>(
-    `select ${COLUNAS_DA_TENTATIVA}
-       from app.importacao_plano_contas
-      where id = $1 and empresa_id = $2
-      for update`,
-    [tentativaId, empresaId],
-  );
-  const linha = rows[0];
-
-  if (linha === undefined) {
-    throw tentativaNaoEncontrada();
-  }
-
-  return paraTentativa(linha);
-};
-
-/** Explica por que um `UPDATE … WHERE estado = …` não alterou nada. */
-const erroDaTransicao = async (
-  cliente: PoolClient,
-  empresaId: string,
-  tentativaId: string,
-): Promise<ErroDeDominio> => {
-  const { rows } = await cliente.query<{ estado: EstadoDaImportacao }>(
-    `select estado from app.importacao_plano_contas where id = $1 and empresa_id = $2`,
-    [tentativaId, empresaId],
-  );
-  const linha = rows[0];
-
-  return linha === undefined ? tentativaNaoEncontrada() : estadoInvalido(linha.estado);
-};
 
 // --- tentativa -----------------------------------------------------------------------------------
 
-/** Uma instrução: insere a tentativa ou cai na existente da identidade (ver `criarTentativa`). */
-const inserirOuReutilizar = async (
-  cliente: PoolClient,
-  nova: NovaTentativa,
-): Promise<Readonly<{ tentativa: TentativaCriada; obsoleta: boolean }>> => {
-  const { rows } = await cliente.query<LinhaDaTentativa & { nova: boolean; obsoleta: boolean }>(
-    `insert into app.importacao_plano_contas as t
-       (tenant_id, empresa_id, hash_arquivo, mapeamento, arquivo_nome, arquivo_tamanho, arquivo_chave,
-        usuario_iniciador_id, correlation_id, criado_em)
-     values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10)
-     on conflict (empresa_id, tenant_id, hash_arquivo, mapeamento) where ${PREDICADO_DA_IDENTIDADE_SQL}
-     do update
-       set obsoleta = t.estado in ${RESULTADOS_REUTILIZAVEIS_SQL} and ${PLANO_MUDOU_DEPOIS_DO_RESULTADO_SQL},
-           reutilizada_por_idempotencia = t.reutilizada_por_idempotencia
-             or (t.estado in ${RESULTADOS_REUTILIZAVEIS_SQL} and not ${PLANO_MUDOU_DEPOIS_DO_RESULTADO_SQL})
-     returning ${COLUNAS_DA_TENTATIVA}, (xmax = 0) as nova, obsoleta`,
-    [
-      nova.tenantId,
-      nova.empresaId,
-      nova.hashArquivo,
-      JSON.stringify(nova.mapeamento),
-      nova.arquivoNome,
-      nova.arquivoTamanho,
-      nova.arquivoChave,
-      nova.usuarioIniciadorId,
-      nova.correlationId,
-      nova.agora,
-    ],
-  );
-  const linha = rows[0]!;
-
-  return { tentativa: { ...paraTentativa(linha), reutilizada: !linha.nova }, obsoleta: linha.obsoleta };
-};
-
-/**
- * Cria a tentativa RECEBIDA, já com o mapeamento. A identidade idempotente (tenant + empresa +
- * hash + mapeamento) é a UNIQUE parcial da tabela, que ignora FALHA e CANCELADA: o pedido
- * repetido devolve a tentativa viva ou com resultado reutilizável, com `reutilizada = true`, numa
- * única instrução (sem corrida entre ler e inserir; o segundo de dois envios simultâneos espera o
- * primeiro e cai no reuso). Depois de FALHA ou CANCELADA nasce uma tentativa nova. Se a existente
- * tem resultado reutilizável, a marca de reuso do histórico também sobe.
- *
- * Resultado terminal de um plano que já mudou (FIX #107) não é reaproveitado: a mesma instrução,
- * com a linha travada, o marca `obsoleta` (sai da identidade, fica intacto no histórico) e a
- * inserção é refeita, abrindo a tentativa nova. O envio simultâneo espera essa transação e cai no
- * reuso da nova (I-9: uma só).
- */
+/** Ver `importacao-ciclo.criarTentativa` (identidade idempotente e obsolescência do FIX #107). */
 export const criarTentativa = async (cliente: PoolClient, nova: NovaTentativa): Promise<TentativaCriada> => {
-  const primeira = await inserirOuReutilizar(cliente, nova);
+  const { reutilizada, ...tentativa } = await criarNoCiclo(cliente, D, nova);
 
-  if (!primeira.obsoleta) {
-    return primeira.tentativa;
-  }
-
-  return (await inserirOuReutilizar(cliente, nova)).tentativa;
+  return { ...doPlano(tentativa), reutilizada };
 };
 
 /** Tentativa da empresa informada; de outra empresa, tenant ou fora da carteira → `null`. */
@@ -350,93 +133,36 @@ export const buscarTentativa = async (
   empresaId: string,
   tentativaId: string,
 ): Promise<TentativaDeImportacao | null> => {
-  const { rows } = await cliente.query<LinhaDaTentativa>(
-    `select ${COLUNAS_DA_TENTATIVA} from app.importacao_plano_contas where id = $1 and empresa_id = $2`,
-    [tentativaId, empresaId],
-  );
-  const linha = rows[0];
+  const tentativa = await buscarNoCiclo(cliente, D, empresaId, tentativaId);
 
-  return linha === undefined ? null : paraTentativa(linha);
+  return tentativa === null ? null : doPlano(tentativa);
 };
 
 // --- validação (worker) --------------------------------------------------------------------------
 
-/**
- * RECEBIDA → VALIDANDO e DEVOLVE a versão do plano lida agora (cria a linha de versão sob
- * demanda). A versão NÃO é gravada aqui: cada entrega do job leva a sua até
- * `gravarResultadoDaValidacao`, que a fixa junto com o staging. Assim uma reentrega que começou
- * depois de outra aplicação nunca rotula com a versão nova o staging que a entrega anterior
- * calculou sobre o plano antigo. Chamar ANTES de carregar as contas vigentes: uma aplicação
- * concorrente no meio do caminho só pode gerar conflito na confirmação, nunca uma prévia obsoleta
- * aceita. Reentrega com a tentativa já em VALIDANDO não falha e mantém o início.
- */
+/** RECEBIDA → VALIDANDO; devolve a versão do plano lida agora. Ver `importacao-ciclo.iniciarValidacao`. */
 export const iniciarValidacao = async (
   cliente: PoolClient,
   empresaId: string,
   tentativaId: string,
   agora: Date,
 ): Promise<ResultadoDoInicioDaValidacao> => {
-  const tentativa = await travarTentativa(cliente, empresaId, tentativaId);
+  const { transicionou, versaoNaValidacao } = await iniciarNoCiclo(cliente, D, empresaId, tentativaId, agora);
 
-  if (tentativa.estado !== 'RECEBIDA' && tentativa.estado !== 'VALIDANDO') {
-    throw estadoInvalido(tentativa.estado);
-  }
-
-  await cliente.query(
-    `insert into app.empresa_plano_versao (tenant_id, empresa_id) values ($1, $2)
-     on conflict (empresa_id, tenant_id) do nothing`,
-    [tentativa.tenantId, empresaId],
-  );
-  const { rows } = await cliente.query<{ versao: string }>(
-    `select versao::text as versao from app.empresa_plano_versao where empresa_id = $1 and tenant_id = $2`,
-    [empresaId, tentativa.tenantId],
-  );
-  const planoVersaoNaValidacao = Number(rows[0]!.versao);
-
-  await cliente.query(
-    `update app.importacao_plano_contas
-        set estado = 'VALIDANDO', iniciado_em = coalesce(iniciado_em, $3)
-      where id = $1 and empresa_id = $2`,
-    [tentativaId, empresaId, agora],
-  );
-
-  return { transicionou: tentativa.estado === 'RECEBIDA', planoVersaoNaValidacao };
-};
-
-const contarTotais = async (cliente: PoolClient, empresaId: string, tentativaId: string): Promise<TotaisDaPrevia> => {
-  const { rows } = await cliente.query<TotaisDaImportacao>(
-    `select count(*)::int as lidas,
-            count(*) filter (where status = 'VALIDA' and acao = 'INCLUIR')::int as novas,
-            count(*) filter (where status = 'VALIDA' and acao = 'ATUALIZAR')::int as atualizadas,
-            count(*) filter (where status = 'REJEITADA')::int as rejeitadas
-       from app.importacao_plano_contas_linha
-      where tentativa_id = $1 and empresa_id = $2`,
-    [tentativaId, empresaId],
-  );
-
-  return rows[0]!;
+  return { transicionou, planoVersaoNaValidacao: versaoNaValidacao };
 };
 
 /** Insere o lote inteiro numa instrução (`unnest` de arrays); reentrega não duplica (DO NOTHING). */
 const inserirStaging = async (
   cliente: PoolClient,
-  tentativa: TentativaDeImportacao,
+  tentativa: TentativaDoCiclo,
   linhas: readonly LinhaDeStaging[],
 ): Promise<void> => {
   if (linhas.length === 0) {
     return;
   }
 
-  // DO NOTHING descartaria em silêncio a segunda linha com o mesmo número e os totais sairiam
-  // menores que o arquivo: lote assim é defeito de quem chama, recusado antes de gravar.
-  const vistos = new Set<number>();
-  for (const linha of linhas) {
-    if (vistos.has(linha.numeroDaLinha)) {
-      throw new Error(`Lote de staging com número de linha repetido: ${linha.numeroDaLinha}.`);
-    }
-    vistos.add(linha.numeroDaLinha);
-  }
-
+  exigirNumerosDeLinhaUnicos(linhas.map((linha) => linha.numeroDaLinha));
   const coluna = <T>(valor: (linha: LinhaDeStaging) => T): T[] => linhas.map(valor);
 
   await cliente.query(
@@ -469,119 +195,36 @@ const inserirStaging = async (
 };
 
 /**
- * Grava o staging e fecha a validação: VALIDANDO → AGUARDANDO_CONFIRMACAO (ao menos uma linha
- * válida) ou REJEITADA (nenhuma; terminal, com término). Os totais vêm do que está no banco, não
- * do lote recebido. `planoVersaoNaValidacao` é a versão que ESTA entrega recebeu de
- * `iniciarValidacao` (antes de carregar as contas) e é fixada no mesmo UPDATE que muda o estado.
- * Idempotente: se a validação já foi gravada (reentrega do job), não insere nada, não troca a
- * versão e devolve o estado e os totais existentes com `transicionou = false`. Sem DELETE.
+ * Grava o staging e fecha a validação (AGUARDANDO_CONFIRMACAO ou REJEITADA), fixando a versão do
+ * plano que ESTA entrega leu. Idempotente na reentrega. Ver `importacao-ciclo.gravarResultadoDaValidacao`.
  */
-export const gravarResultadoDaValidacao = async (
+export const gravarResultadoDaValidacao = (
   cliente: PoolClient,
   empresaId: string,
   tentativaId: string,
   linhas: readonly LinhaDeStaging[],
   planoVersaoNaValidacao: number,
   agora: Date,
-): Promise<ResultadoDaValidacaoGravada> => {
-  const tentativa = await travarTentativa(cliente, empresaId, tentativaId);
-
-  if (tentativa.estado === 'RECEBIDA' || tentativa.estado === 'FALHA') {
-    throw estadoInvalido(tentativa.estado);
-  }
-
-  if (tentativa.estado !== 'VALIDANDO') {
-    return {
-      estado: tentativa.estado,
-      totais: tentativa.totais ?? (await contarTotais(cliente, empresaId, tentativaId)),
-      transicionou: false,
-    };
-  }
-
-  await inserirStaging(cliente, tentativa, linhas);
-  const totais = await contarTotais(cliente, empresaId, tentativaId);
-  const estado: EstadoDaImportacao = totais.novas + totais.atualizadas > 0 ? 'AGUARDANDO_CONFIRMACAO' : 'REJEITADA';
-
-  await cliente.query(
-    `update app.importacao_plano_contas
-        set estado = $3, totais = $4::jsonb, finalizado_em = $5, plano_versao_na_validacao = $6
-      where id = $1 and empresa_id = $2 and estado = 'VALIDANDO'`,
-    [
-      tentativaId,
-      empresaId,
-      estado,
-      JSON.stringify(totais),
-      estado === 'REJEITADA' ? agora : null,
-      planoVersaoNaValidacao,
-    ],
+): Promise<ResultadoDaValidacaoGravada> =>
+  gravarNoCiclo(cliente, D, empresaId, tentativaId, planoVersaoNaValidacao, agora, (tentativa) =>
+    inserirStaging(cliente, tentativa, linhas),
   );
 
-  return { estado, totais, transicionou: true };
-};
-
-/**
- * Falha técnica (tentativas do job esgotadas): VALIDANDO | APLICANDO → FALHA, com término.
- * Devolve o estado anterior, para o evento.
- */
-export const registrarFalha = async (
+/** Falha técnica: VALIDANDO | APLICANDO → FALHA, com término. Devolve o estado anterior. */
+export const registrarFalha = (
   cliente: PoolClient,
   empresaId: string,
   tentativaId: string,
   agora: Date,
-): Promise<EstadoDaImportacao> => {
-  const tentativa = await travarTentativa(cliente, empresaId, tentativaId);
-
-  if (!podeTransicionar(tentativa.estado, 'FALHA_TECNICA')) {
-    throw estadoInvalido(tentativa.estado);
-  }
-
-  await cliente.query(
-    `update app.importacao_plano_contas set estado = 'FALHA', finalizado_em = $3
-      where id = $1 and empresa_id = $2`,
-    [tentativaId, empresaId, agora],
-  );
-
-  return tentativa.estado;
-};
+): Promise<EstadoDaImportacao> => registrarFalhaNoCiclo(cliente, D, empresaId, tentativaId, agora);
 
 // --- confirmação, aplicação e cancelamento (caso de uso transacional da API) ---------------------
 
-/**
- * AGUARDANDO_CONFIRMACAO → APLICANDO, gravando o confirmador. Numa corrida só uma transação
- * encontra a origem; a outra (que esperou o commit da primeira) recebe `ESTADO_INVALIDO_PARA_ACAO`.
- * Versão da prévia diferente da validada → `CONFLITO_DE_VERSAO`.
- */
+/** AGUARDANDO_CONFIRMACAO → APLICANDO; versão diferente → `CONFLITO_DE_VERSAO`. */
 export const confirmar = async (
   cliente: PoolClient,
   confirmacao: ConfirmacaoDaPrevia,
-): Promise<TentativaDeImportacao> => {
-  const { rows } = await cliente.query<LinhaDaTentativa>(
-    `update app.importacao_plano_contas
-        set estado = 'APLICANDO', usuario_confirmador_id = $3
-      where id = $1 and empresa_id = $2
-        and estado = 'AGUARDANDO_CONFIRMACAO'
-        and plano_versao_na_validacao = $4
-      returning ${COLUNAS_DA_TENTATIVA}`,
-    [confirmacao.tentativaId, confirmacao.empresaId, confirmacao.usuarioId, confirmacao.versaoDaPrevia],
-  );
-  const linha = rows[0];
-
-  if (linha !== undefined) {
-    return paraTentativa(linha);
-  }
-
-  const atual = await buscarTentativa(cliente, confirmacao.empresaId, confirmacao.tentativaId);
-
-  if (atual === null) {
-    throw tentativaNaoEncontrada();
-  }
-
-  if (atual.estado !== 'AGUARDANDO_CONFIRMACAO') {
-    throw estadoInvalido(atual.estado);
-  }
-
-  throw conflitoDeVersao();
-};
+): Promise<TentativaDeImportacao> => doPlano(await confirmarNoCiclo(cliente, D, confirmacao));
 
 /**
  * Aplica as linhas válidas do staging ao plano, numa instrução, dentro da transação do chamador.
@@ -597,27 +240,7 @@ export const aplicarLinhas = async (
   tentativaId: string,
   agora: Date,
 ): Promise<ResultadoDaAplicacao> => {
-  const tentativa = await travarTentativa(cliente, empresaId, tentativaId);
-
-  if (tentativa.estado !== 'APLICANDO') {
-    throw estadoInvalido(tentativa.estado);
-  }
-
-  await cliente.query(
-    `insert into app.empresa_plano_versao (tenant_id, empresa_id) values ($1, $2)
-     on conflict (empresa_id, tenant_id) do nothing`,
-    [tentativa.tenantId, empresaId],
-  );
-  const { rows: versoes } = await cliente.query<{ versao: string }>(
-    `select versao::text as versao from app.empresa_plano_versao
-      where empresa_id = $1 and tenant_id = $2
-      for update`,
-    [empresaId, tentativa.tenantId],
-  );
-
-  if (Number(versoes[0]!.versao) !== tentativa.planoVersaoNaValidacao) {
-    throw conflitoDeVersao();
-  }
+  const tentativa = await travarVersaoParaAplicar(cliente, D, empresaId, tentativaId);
 
   const { rows } = await cliente.query<{ incluidas: number; atualizadas: number; ignoradas: string[] }>(
     `with validas as (
@@ -657,114 +280,49 @@ export const aplicarLinhas = async (
   await cliente.query(`set constraints app.conta_contabil_pai_da_mesma_empresa immediate`);
   await cliente.query(`set constraints app.conta_contabil_pai_da_mesma_empresa deferred`);
 
-  const { rows: nova } = await cliente.query<{ versao: string }>(
-    `update app.empresa_plano_versao set versao = versao + 1
-      where empresa_id = $1 and tenant_id = $2
-      returning versao::text as versao`,
-    [empresaId, tentativa.tenantId],
-  );
+  const versaoDoPlano = await subirVersao(cliente, D, tentativa.tenantId, empresaId);
   const resultado = rows[0]!;
 
   return {
     incluidas: resultado.incluidas,
     atualizadas: resultado.atualizadas,
     ignoradas: resultado.ignoradas,
-    versaoDoPlano: Number(nova[0]!.versao),
+    versaoDoPlano,
   };
 };
 
 /** APLICANDO → CONCLUIDA | CONCLUIDA_COM_REJEICOES, com os totais finais e o término. */
-export const finalizar = async (
+export const finalizar = (
   cliente: PoolClient,
   empresaId: string,
   tentativaId: string,
   estadoFinal: EstadoFinalDaAplicacao,
   totais: TotaisDaImportacao,
   agora: Date,
-): Promise<void> => {
-  const { rowCount } = await cliente.query(
-    `update app.importacao_plano_contas
-        set estado = $3, totais = $4::jsonb, finalizado_em = $5
-      where id = $1 and empresa_id = $2 and estado = 'APLICANDO'`,
-    [tentativaId, empresaId, estadoFinal, JSON.stringify(totais), agora],
-  );
-
-  if (rowCount !== 1) {
-    throw await erroDaTransicao(cliente, empresaId, tentativaId);
-  }
-};
+): Promise<void> => finalizarNoCiclo(cliente, D, empresaId, tentativaId, estadoFinal, totais, agora);
 
 /** AGUARDANDO_CONFIRMACAO → CANCELADA, com cancelador e término. Não toca o plano nem o staging. */
 export const cancelar = async (
   cliente: PoolClient,
   cancelamento: CancelamentoDaPrevia,
-): Promise<TentativaDeImportacao> => {
-  const { rows } = await cliente.query<LinhaDaTentativa>(
-    `update app.importacao_plano_contas
-        set estado = 'CANCELADA', usuario_cancelador_id = $3, finalizado_em = $4
-      where id = $1 and empresa_id = $2 and estado = 'AGUARDANDO_CONFIRMACAO'
-      returning ${COLUNAS_DA_TENTATIVA}`,
-    [cancelamento.tentativaId, cancelamento.empresaId, cancelamento.usuarioId, cancelamento.agora],
-  );
-  const linha = rows[0];
-
-  if (linha === undefined) {
-    throw await erroDaTransicao(cliente, cancelamento.empresaId, cancelamento.tentativaId);
-  }
-
-  return paraTentativa(linha);
-};
+): Promise<TentativaDeImportacao> => doPlano(await cancelarNoCiclo(cliente, D, cancelamento));
 
 // --- trilha e notificação ------------------------------------------------------------------------
 
 /** Evento append-only da tentativa. Tenant e empresa vêm da própria tentativa (nunca de fora). */
-export const registrarEvento = async (cliente: PoolClient, evento: NovoEvento): Promise<void> => {
-  const { rowCount } = await cliente.query(
-    `insert into app.importacao_plano_contas_evento
-       (tenant_id, empresa_id, tentativa_id, acao, estado_anterior, estado_novo, usuario_id, totais,
-        codigo, correlation_id, ocorrido_em)
-     select t.tenant_id, t.empresa_id, t.id, $3, $4, $5, $6, $7::jsonb, $8, $9, $10
-       from app.importacao_plano_contas t
-      where t.id = $1 and t.empresa_id = $2`,
-    [
-      evento.tentativaId,
-      evento.empresaId,
-      evento.acao,
-      evento.estadoAnterior,
-      evento.estadoNovo,
-      evento.usuarioId,
-      evento.totais === null ? null : JSON.stringify(evento.totais),
-      evento.codigo,
-      evento.correlationId,
-      evento.agora,
-    ],
-  );
-
-  if (rowCount !== 1) {
-    throw tentativaNaoEncontrada();
-  }
-};
+export const registrarEvento = (cliente: PoolClient, evento: NovoEvento): Promise<void> =>
+  registrarEventoNoCiclo(cliente, D, evento);
 
 /**
  * Notificação de conclusão, sempre para o iniciador: o destinatário vem da própria tentativa,
  * nunca de quem chama (SPEC-013 §3.10). Uma por tentativa: repetir devolve `false` e não cria
- * outra (reprocessar ou reusar não notifica de novo). Tentativa ausente nesta empresa →
- * `TENTATIVA_NAO_ENCONTRADA`, nunca confundida com "já existia". A RLS deixa a carteira ver as
- * notificações da empresa: quem lê filtra por `usuario_id`.
+ * outra. Tentativa ausente nesta empresa → `TENTATIVA_NAO_ENCONTRADA`, nunca confundida com
+ * "já existia". A RLS deixa a carteira ver as notificações da empresa: quem lê filtra por `usuario_id`.
  */
 export const criarNotificacao = async (cliente: PoolClient, notificacao: NovaNotificacao): Promise<boolean> => {
-  const tentativa = await buscarTentativa(cliente, notificacao.empresaId, notificacao.tentativaId);
+  const tentativa = await buscarNoCiclo(cliente, D, notificacao.empresaId, notificacao.tentativaId);
+  // Sem tentativa, `criarNotificacoes` lança TENTATIVA_NAO_ENCONTRADA.
+  const destinatarios = tentativa === null ? [] : [tentativa.usuarioIniciadorId];
 
-  if (tentativa === null) {
-    throw tentativaNaoEncontrada();
-  }
-
-  const { rowCount } = await cliente.query(
-    `insert into app.importacao_plano_contas_notificacao (tenant_id, empresa_id, tentativa_id, usuario_id, criado_em)
-     values ($1, $2, $3, $4, $5)
-     on conflict (tentativa_id, usuario_id) do nothing`,
-    [tentativa.tenantId, tentativa.empresaId, tentativa.id, tentativa.usuarioIniciadorId, notificacao.agora],
-  );
-
-  return rowCount === 1;
+  return (await criarNotificacoes(cliente, D, { ...notificacao, destinatarios })) === 1;
 };

@@ -8,6 +8,9 @@ import { GuardDeEscopoDeEmpresa } from './auth/escopo';
 import { CarteirasController, HistoricoDeCarteirasController } from './carteira/carteira.controller';
 import { CarteiraService } from './carteira/carteira.service';
 import { ConsultaDeCnpjNaCnpja } from './empresa/cnpja.adapter';
+import { EmpregadosDaEmpresaController } from './empregados/empregados.controller';
+import { PROVEDORES_DA_FILA_DOS_EMPREGADOS } from './empregados/empregados.fila';
+import { EmpregadosService } from './empregados/empregados.service';
 import { DocumentosDaEmpresaController } from './empresa/documentos.controller';
 import { DocumentosDaEmpresaService } from './empresa/documentos.service';
 import { EmpresaController } from './empresa/empresa.controller';
@@ -74,6 +77,7 @@ import { PlanoContasService } from './plano-contas/plano-contas.service';
     SignerDaEmpresaController,
     DocumentosDaEmpresaController,
     PlanoContasDaEmpresaController,
+    EmpregadosDaEmpresaController,
     EmpresaController,
     PendenciasController,
     CertificadosController,
@@ -99,6 +103,8 @@ import { PlanoContasService } from './plano-contas/plano-contas.service';
     ...PROVEDORES_DO_SIGNER,
     PlanoContasService,
     ...PROVEDORES_DA_FILA_DO_PLANO,
+    EmpregadosService,
+    ...PROVEDORES_DA_FILA_DOS_EMPREGADOS,
     GuardDeServicoInterno,
     NotificacoesService,
     UsuariosService,

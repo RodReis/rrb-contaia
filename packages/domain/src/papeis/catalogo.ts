@@ -65,6 +65,12 @@ export const CATALOGO = [
         rotulo: 'Plano de contas',
         acoes: ['consultar', 'importar', 'confirmar_importacao', 'baixar_relatorio'],
       },
+      // SPEC-014: importação de empregados por CSV, mesmas quatro ações e mesmas dependências.
+      {
+        id: 'empregados',
+        rotulo: 'Empregados',
+        acoes: ['consultar', 'importar', 'confirmar_importacao', 'baixar_relatorio'],
+      },
     ],
   },
   {

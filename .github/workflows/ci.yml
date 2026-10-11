@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROVA_ESCOPO: SPEC-013
+  PROVA_ESCOPO: SPEC-014
 
 jobs:
   quality:
@@ -96,7 +96,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://contaia:contaia_local@127.0.0.1:5432/contaia
       REDIS_URL: redis://127.0.0.1:6379
-      # Storage local da importação do plano de contas (SPEC-013): a API grava o original e o worker
+      # Storage local da importação do plano de contas e dos empregados (SPEC-013/014): a API grava o original e o worker
       # o lê. O bucket nasce nos próprios testes (StorageService e o teste do worker o criam).
       S3_ENDPOINT: http://127.0.0.1:19000
       S3_BUCKET: contaia-documentos

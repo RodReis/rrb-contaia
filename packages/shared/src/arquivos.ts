@@ -35,6 +35,8 @@ export const TIPOS_DE_DOCUMENTO_DA_EMPRESA = [
  * garante que os dois valores não divergem.
  */
 export const LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES = 10 * 1024 * 1024;
+/** CSV de importação de empregados (SPEC-014 §3.2): mesmo limite e mesmo parser da F13. */
+export const LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES = 10 * 1024 * 1024;
 
 /**
  * Tipos que navegadores e sistemas operacionais anunciam para `.csv`: o Windows com Excel
@@ -51,7 +53,8 @@ export type TipoDeArquivo =
   | 'LOGO'
   | 'DOCUMENTO'
   | 'DOCUMENTO_DA_EMPRESA'
-  | 'IMPORTACAO_PLANO_CONTAS';
+  | 'IMPORTACAO_PLANO_CONTAS'
+  | 'IMPORTACAO_EMPREGADOS';
 
 /**
  * Arquivo do cadastro do escritório (SPEC-001). Tipo próprio para o
@@ -85,6 +88,12 @@ export const REGRAS_DE_ARQUIVO: Readonly<Record<TipoDeArquivo, RegraDeArquivo>> 
   },
   IMPORTACAO_PLANO_CONTAS: {
     limiteBytes: LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
+    tiposAceitos: TIPOS_DE_IMPORTACAO_DO_PLANO,
+    extensoesAceitas: ['.csv'],
+  },
+  // Só CSV nesta fatia; XLSX/ODS é a F15 (SPEC-015).
+  IMPORTACAO_EMPREGADOS: {
+    limiteBytes: LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES,
     tiposAceitos: TIPOS_DE_IMPORTACAO_DO_PLANO,
     extensoesAceitas: ['.csv'],
   },

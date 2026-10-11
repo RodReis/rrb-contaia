@@ -18,3 +18,12 @@ describe('filtroDaCentralSchema — plano de contas (SPEC-013 §3.10)', () => {
     expect(filtroDaCentralSchema.safeParse({ tipo: 'PLANO_CONTAS' }).success).toBe(false);
   });
 });
+
+describe('filtroDaCentralSchema — empregados (SPEC-014 §3.10)', () => {
+  it('aceita a origem EMPREGADOS e o tipo EMPREGADOS_NAO_IMPORTADOS', () => {
+    const filtro = filtroDaCentralSchema.parse({ origem: 'EMPREGADOS', tipo: 'EMPREGADOS_NAO_IMPORTADOS' });
+
+    expect(filtro.origem).toBe('EMPREGADOS');
+    expect(filtro.tipo).toBe('EMPREGADOS_NAO_IMPORTADOS');
+  });
+});

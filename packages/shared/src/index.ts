@@ -4,6 +4,7 @@ export type { ProblemDetails } from './problem.js';
 export {
   LIMITE_DE_DOCUMENTO_BYTES,
   LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
+  LIMITE_DE_IMPORTACAO_DE_EMPREGADOS_BYTES,
   LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,
   LIMITE_DE_LOGO_BYTES,
   REGRAS_DE_ARQUIVO,
@@ -115,6 +116,10 @@ export type {
 } from './signer.js';
 
 export {
+  criarPaginaDeRejeicoesSchema,
+  criarPreviaDaImportacaoSchema,
+  criarRejeicaoDaImportacaoSchema,
+  TotaisDaImportacaoSchema,
   FILA_DE_VALIDACAO_PLANO_CONTAS,
   FILA_DE_VALIDACAO_PLANO_CONTAS_MORTA,
   NOME_DO_JOB_DE_VALIDACAO_PLANO_CONTAS,
@@ -152,3 +157,24 @@ export type {
 
 export { lerCsv } from './plano-contas-csv.js';
 export type { CsvLido } from './plano-contas-csv.js';
+
+export {
+  CODIGOS_DE_ERRO_DE_EMPREGADO,
+  EmpregadoDaBaseSchema,
+  FILA_DE_VALIDACAO_EMPREGADOS,
+  FILA_DE_VALIDACAO_EMPREGADOS_MORTA,
+  NOME_DO_JOB_DE_VALIDACAO_EMPREGADOS,
+  OPCOES_DE_VALIDACAO_EMPREGADOS,
+  PaginaDeEmpregadosSchema,
+  PaginaDeRejeicoesDeEmpregadosSchema,
+  PreviaDaImportacaoDeEmpregadosSchema,
+  RejeicaoDeEmpregadoSchema,
+} from './empregados.js';
+export type {
+  CodigoDeErroDeEmpregado,
+  EmpregadoDaBase,
+  PaginaDeEmpregados,
+  PaginaDeRejeicoesDeEmpregados,
+  PreviaDaImportacaoDeEmpregados,
+  RejeicaoDeEmpregado,
+} from './empregados.js';

@@ -356,12 +356,50 @@ export {
   MODELO_CSV,
   decodificarCsv,
   validarMapeamento,
+  pendenciasDoMapeamento,
+  indicesDasColunasDe,
   normalizarLinhas,
   type CampoDoContrato,
   type Mapeamento,
   type Delimitador,
+  type MotivoDePendenciaDoMapeamento,
   type PendenciaDoMapeamento,
+  type PendenciaDoMapeamentoDe,
   type RegistroDoCsv,
 } from './plano-contas/csv.js';
 
-export { gerarRelatorioCsv, type LinhaDoRelatorio } from './plano-contas/relatorio.js';
+export {
+  gerarRelatorioCsv,
+  gerarRelatorioCsvDe,
+  type LinhaDoRelatorio,
+  type ValorDeCelula,
+} from './plano-contas/relatorio.js';
+
+export { lerDataCivil, type DataCivil } from './datas/data-civil.js';
+
+export {
+  CAMPOS_DE_EMPREGADO,
+  CODIGOS_DE_ERRO_DE_EMPREGADO,
+  type CampoDeEmpregado,
+  type CodigoDeErroDeEmpregado,
+  type MapeamentoDeEmpregados,
+} from './empregados/campos.js';
+export {
+  validarMapeamentoDeEmpregados,
+  type PendenciaDoMapeamentoDeEmpregados,
+  type ResultadoDoMapeamentoDeEmpregados,
+} from './empregados/mapeamento.js';
+export { normalizarLinhasDeEmpregados } from './empregados/normalizacao.js';
+export {
+  validarLinhasDeEmpregados,
+  type DefeitoDeEstruturaDeEmpregado,
+  type EmpregadoVigente,
+  type LinhaBrutaDeEmpregado,
+  type LinhaDeStagingDeEmpregado,
+} from './empregados/validacao.js';
+export { CHAVE_DE_PENDENCIA_DE_EMPREGADOS, causasDeEmpregados } from './empregados/pendencias.js';
+export { MODELO_CSV_DE_EMPREGADOS } from './empregados/modelo.js';
+export {
+  gerarRelatorioCsvDeEmpregados,
+  type LinhaDoRelatorioDeEmpregados,
+} from './empregados/relatorio.js';

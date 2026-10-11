@@ -1263,22 +1263,81 @@ describe('backfill da migração e CHECKs da pendência', () => {
     const backfill = /WITH novas AS \([\s\S]*?FROM novas;/u.exec(sql)?.[0];
     expect(backfill).toBeDefined();
 
-    const sem = await novaEmpresa('Bf1', contador);
-    const com = await novaEmpresa('Bf2', contador);
-    await cadastrar(com, contador, contador);
+    const cliente = await admin.connect();
 
-    await admin.query(backfill ?? '');
-    expect(await pendenciasAbertas(sem)).toEqual(['certificado:ausente']);
-    expect(await pendenciasAbertas(com)).toEqual([]);
+    // Numa transação revertida: o backfill varre o banco inteiro e não pode mexer nas empresas das
+    // outras suítes que rodam em paralelo.
+    try {
+      await cliente.query('begin');
+      // As outras suítes apagam as próprias empresas no `afterAll`: sem a trava, uma empresa lida
+      // pelo backfill pode sumir antes da checagem da FK da pendência (23503 intermitente). SHARE
+      // só segura escrita em `empresa` durante esta transação curta.
+      await cliente.query('lock table app.empresa in share mode');
 
-    await admin.query(backfill ?? '');
-    expect(await pendenciasAbertas(sem)).toEqual(['certificado:ausente']);
-    const eventos = await admin.query(
-      `select 1 from app.empresa_evento_de_pendencia e join app.empresa_pendencia p on p.id = e.pendencia_id
-        where p.empresa_id = $1 and p.chave = 'certificado:ausente'`,
-      [sem],
-    );
-    expect(eventos.rowCount).toBe(1);
+      const criarEmpresa = async (rotulo: string): Promise<string> => {
+        const { rows } = await cliente.query<{ id: string }>(
+          `insert into app.empresa (tenant_id, cnpj, razao_social, status, situacao)
+           values ($1, $2, $3, 'ATIVA', 'ativo') returning id`,
+          [
+            c.tenantA,
+            `Z${String((numeroDaEmpresa += 1)).padStart(3, '0')}${c.sufixo}`.slice(0, 14),
+            `Empresa ${rotulo} ${c.sufixo}`,
+          ],
+        );
+
+        return rows[0]?.id ?? '';
+      };
+      const pendencias = async (empresaId: string): Promise<string[]> => {
+        const { rows } = await cliente.query<{ chave: string }>(
+          `select chave from app.empresa_pendencia
+            where empresa_id = $1 and origem = 'CERTIFICADO' and estado = 'ABERTA' order by chave`,
+          [empresaId],
+        );
+
+        return rows.map((linha) => linha.chave);
+      };
+
+      const sem = await criarEmpresa('Bf1');
+      const com = await criarEmpresa('Bf2');
+      const dados = dadosDe(dias(200));
+      await cliente.query(
+        `insert into app.empresa_certificado
+           (tenant_id, empresa_id, versao, titular, cnpj_titular, autoridade_certificadora, cadeia,
+            numero_serie, impressao_digital, valido_de, valido_ate, responsavel_id, referencia_segredo,
+            cadastrado_por)
+         values ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $11)`,
+        [
+          c.tenantA,
+          com,
+          dados.titular,
+          dados.cnpjTitular,
+          dados.autoridadeCertificadora,
+          dados.cadeia,
+          dados.numeroSerie,
+          dados.impressaoDigital,
+          dados.validoDe,
+          dados.validoAte,
+          contador,
+          dados.referenciaSegredo,
+        ],
+      );
+
+      await cliente.query(backfill ?? '');
+      expect(await pendencias(sem)).toEqual(['certificado:ausente']);
+      expect(await pendencias(com)).toEqual([]);
+
+      await cliente.query(backfill ?? '');
+      expect(await pendencias(sem)).toEqual(['certificado:ausente']);
+      const eventos = await cliente.query(
+        `select 1 from app.empresa_evento_de_pendencia e join app.empresa_pendencia p on p.id = e.pendencia_id
+          where p.empresa_id = $1 and p.chave = 'certificado:ausente'`,
+        [sem],
+      );
+      expect(eventos.rowCount).toBe(1);
+    } finally {
+      await cliente.query('rollback');
+      cliente.release();
+    }
   });
 
   it('a pendência aceita a nova origem e recusa tipo inventado', async () => {

@@ -1,0 +1,4 @@
+﻿cpf;nome;matricula;data_nascimento;data_admissao
+123.456.789-00;Nome Com CPF Errado;00020;01/01/1990;01/01/2010
+153.153.153-98;Sem Matrícula;;01/01/1990;01/01/2010
+154.154.154-59;Admissão Antes;00022;01/01/2000;31/12/1999

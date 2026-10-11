@@ -39,7 +39,7 @@ export type NotificacaoPersistida = Readonly<{
   removidas: readonly EmpresaDaNotificacaoDeCarteira[] | null;
   /** Só no aviso de recuperação do Signer (SPEC-012 §3.10): quanto o serviço ficou fora. */
   duracaoMs: number | null;
-  /** Só no aviso de conclusão da importação do plano de contas (SPEC-013 §3.10). */
+  /** Só no aviso de conclusão de importação: plano de contas (SPEC-013) ou empregados (SPEC-014), §3.10. */
   importacao: ImportacaoDaNotificacao | null;
 }>;
 
@@ -143,7 +143,18 @@ const ITENS_DO_SINO = `
     from app.importacao_plano_contas_notificacao i
     join app.importacao_plano_contas t on t.id = i.tentativa_id and t.empresa_id = i.empresa_id
     join app.empresa e on e.id = i.empresa_id
-   where i.tenant_id = $1 and i.usuario_id = $2`;
+   where i.tenant_id = $1 and i.usuario_id = $2
+  union all
+  -- Conclusão da importação de empregados (SPEC-014 §3.10): do iniciador e de cada admin autorizado
+  -- (uma linha por destinatário). Mesmo desenho do ramo do plano de contas.
+  select m.id, m.empresa_id, coalesce(e.nome_fantasia, e.razao_social, e.cnpj),
+         'IMPORTACAO_EMPREGADOS_CONCLUIDA', 'importacao-empregados:' || m.tentativa_id::text,
+         m.lida, m.lida_em, m.criado_em, m.sequencia, null::jsonb, null::jsonb, null::bigint,
+         t.id, t.estado, t.totais
+    from app.importacao_empregados_notificacao m
+    join app.importacao_empregados t on t.id = m.tentativa_id and t.empresa_id = m.empresa_id
+    join app.empresa e on e.id = m.empresa_id
+   where m.tenant_id = $1 and m.usuario_id = $2`;
 
 const SELECAO_DO_SINO = `select * from (${ITENS_DO_SINO}) itens`;
 
@@ -339,11 +350,19 @@ export const marcarVariasComoLidas = async (
     [ids, tenantId, usuarioId],
   );
 
+  const daImportacaoDeEmpregados = await cliente.query(
+    `update app.importacao_empregados_notificacao
+        set lida = true, lida_em = now()
+      where id = any($1) and tenant_id = $2 and usuario_id = $3 and lida = false`,
+    [ids, tenantId, usuarioId],
+  );
+
   return (
     deEmpresa.rows.length +
     (deCarteira.rowCount ?? 0) +
     (doCofre.rowCount ?? 0) +
     (doSigner.rowCount ?? 0) +
-    (daImportacao.rowCount ?? 0)
+    (daImportacao.rowCount ?? 0) +
+    (daImportacaoDeEmpregados.rowCount ?? 0)
   );
 };

@@ -85,6 +85,7 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | 7 | [#7](https://github.com/RodReis/rrb-contaia/issues/7) `[MVP1][SPEC-006][F6]` Notificações de pendências | F6 / SPEC-006 | entregue | #51 | sino, badge, painel das 15 mais recentes, seleção individual/lote, histórico paginado, notificação na mesma transação da reconciliação |
 | 8 | [#9](https://github.com/RodReis/rrb-contaia/issues/9) `[MVP1][SPEC-007][F7]` Gestão de usuários e papéis padrão | F7 / SPEC-007 | em revisão | #95 | convite por e-mail com link de uso único, quatro papéis padrão aditivos, suspensão/arquivamento, proteção do último administrador, histórico de usuários, rota pública do convite |
 | 9 | [#10](https://github.com/RodReis/rrb-contaia/issues/10) `[MVP1][SPEC-008][F8]` Papéis personalizados e permissões | F8 / SPEC-008 | em revisão | #98 | catálogo controlado por chave, papel por snapshot de um padrão, matriz por módulo/funcionalidade/ação, aplicação na próxima requisição, arquivamento e reativação com revisão, auditoria append-only |
+| 10 | [#16](https://github.com/RodReis/rrb-contaia/issues/16) `[MVP1][SPEC-014][F14]` Importação de empregados por CSV | F14 / SPEC-014 | em revisão | — | pipeline da F13 extraído para módulo genérico (banco, API, workers, web); chave CPF + matrícula, duplicata rejeita todas as ocorrências, arquivado não reativa, aba Empregados em consulta, etapa opcional no onboarding, aviso ao iniciador e aos administradores com a empresa na carteira |
 
 ---
 
@@ -287,6 +288,81 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [ ] **Achados registrados e não corrigidos**: a checagem de empresa arquivada no envio, na confirmação e no cancelamento não trava a linha da empresa (`FOR SHARE`), então um arquivamento exatamente entre a checagem e o commit não é barrado (mesmo padrão de documentos e cofre; backlog); query keys da web sem o tenant (a sessão não o carrega; um `QueryClient` por shell); `StatusBadge` fora de `label-sm` (achado da F11, vale aqui também); sem teto agregado de campos por linha no parse síncrono (pior caso ~0,9 s numa linha com milhões de campos); **toast de sucesso do Sonner (`richColors`, padrão da biblioteca no `Toaster` global de `provedores.tsx`) reprova o `color-contrast` do axe nos temas claro e escuro** — pré-existente e global, para o backlog do design system (a prova visual da etapa de onboarding espera o toast "Empresa ativada." sair antes da captura e do axe)
 - [x] **Correções após o merge — FIX #107** (reuso de resultado terminal obsoleto, decisão do PI): o reenvio idêntico só reaproveita CONCLUIDA, CONCLUIDA_COM_REJEICOES ou REJEITADA se o plano não mudou desde que ela terminou; se mudou, abre tentativa nova (revalida contra o plano atual). Regra: REJEITADA terminou na versão da validação; CONCLUIDA* nela + 1 (a confirmação exige a versão validada e a aplicação a sobe uma vez); versão atual diferente → obsoleta. `0016_importacao_plano_contas_reuso_obsoleto.sql`: coluna `obsoleta` (só sobe, só em resultado reutilizável, sozinha no terminal congelado) e a UNIQUE parcial passa a ignorá-la. `criarTentativa` decide e marca na mesma instrução (`ON CONFLICT … DO UPDATE`, linha travada) e refaz a inserção; o envio simultâneo cai no reuso da nova (I-9). A antiga fica intacta no histórico. Limitação conhecida: arquivar conta não sobe `empresa_plano_versao` (não existe fluxo de arquivamento hoje); quando o CRUD/arquivamento existir, ele precisa subir a versão, senão um plano mudado só por arquivamento continua reaproveitando o resultado antigo. API e web sem mudança
 - [ ] Fora da fatia: XLSX/ODS (F15), empregados (F14), centros de custo, CRUD manual do plano, IA/vetorização, uso do plano na escrituração e retenção produtiva
+
+### Card #16 — `[MVP1][SPEC-014][F14]` Importação de empregados por CSV
+
+- [x] **Contrato e domínio** (`packages/domain/src/empregados/`, `packages/shared/src/empregados.ts`): permissões `empresas.empregados.{consultar,importar,confirmar_importacao,baixar_relatorio}` no catálogo (admin todas; contador e auditor consultam e baixam; auxiliar nada; o `dp` vale por papel personalizado). Cinco campos obrigatórios, chave natural CPF + matrícula e validação integral pura com um código estável por linha (`CAMPO_OBRIGATORIO_AUSENTE`, `CPF_INVALIDO`, `DATA_NASCIMENTO_INVALIDA`, `DATA_ADMISSAO_INVALIDA`, `ADMISSAO_NAO_POSTERIOR_AO_NASCIMENTO`, `CHAVE_DUPLICADA_NO_ARQUIVO` — todas as ocorrências — e `EMPREGADO_ARQUIVADO`). Também ficam aqui o modelo CSV e o relatório no formato da F13, que neutraliza fórmula
+- [x] **Banco** (`0017_importacao_empregados.sql`):
+  - tabelas `empregado`, `empresa_empregados_versao` (versão otimista), tentativa, staging, eventos append-only e notificação individual;
+  - pendência `EMPREGADOS_NAO_IMPORTADOS`, não dispensável, com backfill para as empresas ATIVA;
+  - função `app.admins_autorizados_da_empresa`;
+  - RLS de dois níveis, anti-drift e matriz estendidos.
+
+  O ciclo de vida da tentativa (criar com idempotência e obsolescência, validar, confirmar, aplicar, finalizar, cancelar, falhar e eventos) virou módulo genérico, parametrizado por descritor de tabelas. O plano de contas delega a ele, e a suíte da F13 foi a rede de regressão
+- [x] **API** (`apps/api/src/importacao/` comum e `apps/api/src/empregados/`): orquestrador genérico extraído do plano de contas, sem editar nenhum teste da F13. Rotas `empresas/:empresaId/empregados`: base paginada com busca, modelo, envio (202), histórico de 15, prévia, rejeições, relatório em fluxo, original, confirmar e cancelar. Fila `empregados-validacao`. O aviso vai para o iniciador e os `admin_escritorio` com a empresa na carteira, e o reuso idempotente não avisa. O importador CSV morto (`apps/api/src/import/`) e o `csv-parse` da API saíram
+- [x] **Workers** (`apps/workers/src/importacao/` comum e `apps/workers/src/empregados/`): processador, consumidor, leitura do S3 e códigos de falha passaram a ser fábricas; o plano de contas virou um wrapper fino. A validação dos empregados roda em três passos, sem transação aberta durante I/O, com FALHA e fila morta só com códigos e sem CPF ou nome em log, job ou erro
+- [x] **UI**:
+  - fluxo de importação genérico em `features/importacao/`, por domínio;
+  - aba `Empregados` com base em consulta (sem editar, arquivar ou reativar), CPF em mono tabular e estados de acesso negado;
+  - etapa opcional `Empregados` no onboarding, depois do plano de contas;
+  - pendência na Central e aviso no sino.
+
+  `frontend-design` na construção e passe `impeccable critique bolder animate colorize layout clarify optimize polish` no fim, sobre a UI viva (detector mecânico limpo). A comparação com a referência `code.html` e os achados visuais estão no corpo da PR; um `COMPARACAO.md` local em `test-results/` (fora do Git) é só apoio
+- [x] **E2E da spec-014: 20/20; spec-013: 18/18, as duas em paralelo como na CI** (`tests/e2e/spec-014-importacao-empregados.spec.ts`, `fixtures/empregados.ts`, `fixtures/empregados*.csv`):
+  - jornada com CSV legado em Latin-1 até base, relatório e histórico, com `correlationId` no banco e no Redis;
+  - o modelo do ContaIA baixado pelo botão e importado de volta com o mapeamento padrão;
+  - os contrafactuais da SPEC §9;
+  - confirmação repetida, em sequência e em paralelo: uma aplica, a outra 409 `ESTADO_INVALIDO_PARA_ACAO`, sem empregado nem aviso duplicado;
+  - papéis, carteira e tenant; notificações conferidas no banco e no sino; pendência e onboarding;
+  - captura do protótipo e varredura de segredo e de PII nos logs.
+
+  A falha **durante a aplicação** (transação revertida inteira) é provada na integração da API (`apps/api/src/empregados/empregados.service.integration.test.ts`, trigger de falha com CPF e nome no `detail`) e não é duplicada no E2E. Os auxiliares da F13 (`fixtures/plano-contas.ts`) foram parametrizados pelo domínio, com o padrão no plano. As provas da spec-013 vão para `provas/spec-013/` quando o escopo é outro
+- [x] **Provas visuais**: 20 estados, CLARO/ESCURO em 768/1024/1440:
+  - base vazia, histórico vazio, arquivo rejeitado antes do envio, arquivo selecionado, mapeamento incompleto;
+  - validando, prévia parcial, rejeições, prévia sem rejeições, confirmação (diálogo);
+  - concluída, concluída com rejeições, zero válidas, cancelada, falha técnica com `correlationId`, conflito 409;
+  - histórico, permissão insuficiente, fora da carteira e etapa do onboarding.
+
+  O axe (WCAG 2.1 A/AA) roda em 1024 px por tema; 768 e 1440 só têm a medição de rolagem horizontal, como na F13. Os estados da SPEC §5.3 cobertos **só por `test:tela`** (`aba-empregados.test.tsx`, com jest-axe, que não mede contraste) são: carregando com skeleton, confirmação em andamento, histórico indisponível, relatório indisponível, conteúdo longo, busca sem resultado, erro da base, empresa arquivada (somente leitura) e o 403 de papel sem `consultar`
+- [x] **CI**: `PROVA_ESCOPO=SPEC-014`. A suíte E2E inteira continua rodando, com a spec-013 incluída
+- [x] **Defeitos que só a pilha real mostrou** (corrigidos nesta PR; a prova E2E reprovava antes):
+  - placeholder do `Select` em `muted-foreground/70` reprovava o axe `color-contrast` no mapeamento incompleto. É pré-existente (F2), mas só a F14 captura esse estado;
+  - stepper de seis etapas do onboarding rolava na horizontal em 768 px; passou a `compacto`;
+  - spec-002 e spec-013 esperavam a lista de empresas logo depois do plano de contas e agora passam pela etapa de empregados
+- [x] **Provas locais** (instância `contaia-f14`):
+  - `lint` e `typecheck`: 14/14;
+  - `test:regras`: domínio 679, shared 135, workers 132, API 1.110, cofre 176;
+  - `test:tela`: 935;
+  - `test:banco`: db 461, API 51, workers 49;
+  - `build`: 9/9.
+
+  Signer: a suíte quebrava localmente por CRLF nos shebangs. Com LF temporário passou 109/24/41; com o `eol=lf` desta PR (`.gitattributes`), signer `test:regras` 109/109, signer-client 24/24 e signer `test:banco` 41/41
+- [ ] **Suíte E2E inteira local**: 127 testes — 112 passaram, 1 falhou, 14 not_run (o processo do Playwright caiu com 0xC0000409 no Windows durante a spec-012; a spec-012 passou 15/15 isolada); a CI é quem decide
+- [ ] **not_run**:
+  - `check:signer-infra`: não pedido nesta fatia; roda na CI;
+  - CI remota: roda ao abrir a PR; o resultado fica na PR, não aqui
+- [ ] **Decisões para o PI confirmar**:
+  1. Comparação da matrícula: `trim` + NFC, sensível a caixa e com zeros preservados (`00123` ≠ `123`).
+  2. Datas aceitas: `dd/mm/aaaa` e `aaaa-mm-dd`, reais no calendário. `1/2/20`, `31/02/1990` e número serial do Excel são rejeitados, nunca interpretados.
+  3. CPF aceito: 11 dígitos ou a máscara padrão `000.000.000-00`; outra pontuação é rejeitada.
+  4. O papel `dp` ainda não existe como papel padrão (MVP-3) e vale por papel personalizado.
+  5. "`admin_escritorio` com acesso à empresa" foi implementado como vínculo de carteira ativo (regra da F9/F10/F11), e não como "toda empresa do tenant". O administrador sem a empresa na carteira não é avisado.
+  6. Nome e matrícula sem limite de tamanho; o limite de 10 MB do arquivo é o teto.
+  7. O `screen.png` da referência (`contaia_onboarding_de_clientes_importa_o_de_legados_rf_01`) está quebrado no repositório (28 bytes); a comparação usou o `code.html`.
+  8. Onboarding: a etapa de empregados vem depois do plano de contas e só aparece para quem tem `consultar` em Empresas → Empregados.
+  9. Base de empregados: "Ativo" é um selo verde por linha (precedente: "Ativa" na carteira); alternativa é ambos os estados em selo neutro.
+- [ ] **Achados registrados e não corrigidos**:
+  - **Tx1 do worker com falha determinística** (diferente de banco fora) deixa a tentativa em RECEBIDA, sem FALHA nem aviso. É a mesma limitação da F13: a máquina de estados não permite RECEBIDA → FALHA.
+  - **`packages/db/src/notificacoes.integration.test.ts`** usa e-mails fixos e quebra depois de uma rodada interrompida. Sugestão: `[FIX]` separado.
+  - **Texto herdado da F13** "fica de fora" na prévia, comum aos dois domínios.
+  - **Rollback da migration 0017** (nesta ordem, com o papel dono do schema, pois a trilha de pendências é append-only):
+    1. remover as pendências com `origem = 'EMPREGADOS'` / `tipo = 'EMPREGADOS_NAO_IMPORTADOS'` (incluindo as do backfill) e os seus eventos em `app.empresa_evento_de_pendencia`; esses eventos só saem com o trigger `empresa_evento_de_pendencia_append_only` (0007) desabilitado durante a remoção e reabilitado em seguida;
+    2. restaurar `empresa_pendencia_origem_check` e `empresa_pendencia_tipo_check` às definições da 0015 (a 0016 não os altera): origem sem `EMPREGADOS` e tipo sem `EMPREGADOS_NAO_IMPORTADOS`;
+    3. dropar as 6 tabelas, filhas antes das mães: `app.importacao_empregados_notificacao`, `app.importacao_empregados_evento`, `app.importacao_empregados_linha`, `app.importacao_empregados`, `app.empresa_empregados_versao`, `app.empregado`; com elas saem as policies, os índices e os triggers `escopo_imutavel` (um por tabela), `empregado_protegido`, `empresa_empregados_versao_protegida`, `importacao_empregados_protegida` e `importacao_empregados_evento_append_only`;
+    4. dropar as 5 funções, depois das tabelas porque `data_civil_valida` é usada em CHECK da linha e as `proteger_*` por triggers: `app.proteger_empregado()`, `app.proteger_versao_do_agregado()`, `app.proteger_tentativa_de_importacao()`, `app.data_civil_valida(text)` e `app.admins_autorizados_da_empresa(uuid)`.
+  - **Causa global do tamanho de texto (`cn()` + tailwind-merge sem configuração)**: `text-code-sm`/`text-label-sm`/`text-body-*` são tratados como cor e o tamanho é descartado quando há outra `text-*` na mesma chamada (20+ arquivos desde o MVP-1). Compensado só nos arquivos tocados; correção global (`extendTailwindMerge` com os tokens `--text-*`) fica para um `[FIX]` próprio, junto com o código `1.1.01.01` que ainda quebra na tabela de rejeições do plano de contas (F13).
+  - **Seguimentos sem card ainda**: busca por CPF exige termo com forma de CPF, mas termo numérico curto (matrícula `12`) ainda casa CPFs que contêm `12` (exigir ≥ 3 dígitos); índice único parcial `(tentativa_id, cpf, matrícula) WHERE VALIDA` como rede de segurança do staging; `main.ts` dos workers não fecha o 1º consumidor se o 2º falhar ao subir; `tests/e2e/spec-014-…` passa de 800 linhas (como a spec-013).
+- [ ] Fora da fatia: XLSX/ODS (F15), cargo, salário, vínculo, dependentes, folha, eSocial, IA, edição, arquivamento e reativação de empregado (MVP-3) e retenção produtiva
 
 ### Card #7 — `[MVP1][SPEC-006][F6]` Notificações de pendências (PR #51)
 

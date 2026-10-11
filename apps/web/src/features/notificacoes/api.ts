@@ -20,7 +20,10 @@ export type TipoDeNotificacao =
   | 'SIGNER_RECUPERADO'
   // Fim do processamento de uma importação do plano de contas (SPEC-013 §3.10): só para quem
   // iniciou; traz a tentativa, o estado terminal e os totais em `importacao`.
-  | 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA';
+  | 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA'
+  // Fim da importação de empregados (SPEC-014 §3.10): para o iniciador e os administradores
+  // autorizados; mesmo `importacao` do plano de contas.
+  | 'IMPORTACAO_EMPREGADOS_CONCLUIDA';
 
 export type EmpresaDoAviso = Readonly<{ id: string; nome: string; cnpj: string }>;
 
@@ -52,7 +55,7 @@ export type Notificacao = Readonly<{
   criadoEm: string;
   /** Só no `SIGNER_RECUPERADO`: quanto o incidente durou, em milissegundos. */
   duracaoMs?: number | null;
-  /** Só no `IMPORTACAO_PLANO_CONTAS_CONCLUIDA`: a tentativa, o estado e os totais. */
+  /** Só nos avisos de importação (`IMPORTACAO_*_CONCLUIDA`): a tentativa, o estado e os totais. */
   importacao?: ImportacaoNoAviso | null;
 }>;
 
