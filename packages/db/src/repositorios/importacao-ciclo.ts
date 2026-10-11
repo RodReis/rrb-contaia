@@ -19,9 +19,16 @@
  */
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, podeTransicionar } from '@contaia/domain';
 import type { EstadoDaImportacao, EventoDaImportacao } from '@contaia/domain';
-import { DiagnosticoDeLeituraSchema } from '@contaia/shared';
-import type { DetalhesDePlanilha, DiagnosticoDeLeituraDaPlanilha, FormatoDeArquivo } from '@contaia/shared';
+import type { DetalhesDePlanilha, FormatoDeArquivo } from '@contaia/shared';
 import type { PoolClient } from 'pg';
+
+import { colunasDePlanilhaSql, gravarLeituraDaPlanilha, paraDetalhesDePlanilha } from './importacao-ciclo-planilha.js';
+import type { ColunasDePlanilha, LeituraDaPlanilhaParaRegistrar } from './importacao-ciclo-planilha.js';
+
+// Colunas de planilha da tentativa (SPEC-015) vivem em `importacao-ciclo-planilha.ts`; reexportadas
+// aqui para o namespace `cicloDeImportacao` e os consumidores seguirem iguais.
+export { colunasDePlanilhaSql, paraDetalhesDePlanilha } from './importacao-ciclo-planilha.js';
+export type { ColunasDePlanilha, LeituraDaPlanilhaParaRegistrar } from './importacao-ciclo-planilha.js';
 
 // --- descritores (allowlist) ---------------------------------------------------------------------
 
@@ -144,15 +151,6 @@ export type NovaTentativa = Readonly<{
   linhaCabecalho?: number | undefined;
 }>;
 
-/** O que o worker apurou ao ler a planilha (SPEC-015 §3.9); a repetição do job sobrescreve. */
-export type LeituraDaPlanilhaParaRegistrar = Readonly<{
-  empresaId: string;
-  tentativaId: string;
-  linhasIgnoradasAntesDoCabecalho: number;
-  linhasOcultas: number;
-  diagnosticos: readonly DiagnosticoDeLeituraDaPlanilha[];
-}>;
-
 export type InicioDaValidacao = Readonly<{
   /** `false` na reentrega do job com a tentativa já em VALIDANDO. */
   transicionou: boolean;
@@ -217,44 +215,6 @@ export type NovasNotificacoes = Readonly<{
   destinatarios: readonly string[];
   agora: Date;
 }>;
-
-/** Colunas de planilha da tentativa (0018), como o `pg` as devolve. */
-export type ColunasDePlanilha = {
-  formato: FormatoDeArquivo;
-  aba_nome: string | null;
-  aba_posicao: number;
-  linha_cabecalho: number;
-  linhas_ignoradas_antes_do_cabecalho: number;
-  linhas_ocultas: number;
-  diagnosticos: DiagnosticoDeLeituraDaPlanilha[];
-};
-
-const NOMES_DAS_COLUNAS_DE_PLANILHA = [
-  'formato',
-  'aba_nome',
-  'aba_posicao',
-  'linha_cabecalho',
-  'linhas_ignoradas_antes_do_cabecalho',
-  'linhas_ocultas',
-  'diagnosticos',
-] as const;
-
-/**
- * Lista de seleção das `ColunasDePlanilha`. Em consulta com junção, passar o alias da tentativa
- * (constante do chamador, nunca entrada externa): nome homônimo em outra tabela não fica ambíguo.
- */
-export const colunasDePlanilhaSql = (alias?: 't'): string =>
-  NOMES_DAS_COLUNAS_DE_PLANILHA.map((coluna) => (alias === undefined ? coluna : `${alias}.${coluna}`)).join(', ');
-
-/** Colunas de planilha → contrato compartilhado (`aba` nula no CSV). */
-export const paraDetalhesDePlanilha = (linha: ColunasDePlanilha): DetalhesDePlanilha => ({
-  formato: linha.formato,
-  aba: linha.aba_nome === null ? null : { nome: linha.aba_nome, posicao: linha.aba_posicao },
-  linhaCabecalho: linha.linha_cabecalho,
-  linhasIgnoradasAntesDoCabecalho: linha.linhas_ignoradas_antes_do_cabecalho,
-  linhasOcultas: linha.linhas_ocultas,
-  diagnosticosDaPlanilha: linha.diagnosticos,
-});
 
 type LinhaDaTentativa = ColunasDePlanilha & {
   id: string;
@@ -591,14 +551,10 @@ export const gravarResultadoDaValidacao = async (
   return { estado, totais, transicionou: true };
 };
 
-/** Teto do contrato compartilhado (`camposDePlanilhaDaTentativa`): o histórico e a prévia o validam. */
-const DiagnosticosDaLeituraSchema = DiagnosticoDeLeituraSchema.array().max(20);
-
 /**
- * Grava o que a leitura da planilha apurou (linhas ignoradas antes do cabeçalho, ocultas,
- * diagnósticos), só com a tentativa em RECEBIDA ou VALIDANDO; a repetição do job sobrescreve
- * (nunca acumula). Diagnóstico fora do contrato compartilhado é recusado antes do banco. Não
- * registra evento: o chamador grava `LEITURA_PLANILHA` na mesma transação.
+ * Grava o que a leitura da planilha apurou, só com a tentativa em RECEBIDA ou VALIDANDO (a repetição
+ * do job sobrescreve). Ver `importacao-ciclo-planilha.gravarLeituraDaPlanilha`. Não registra evento:
+ * o chamador grava `LEITURA_PLANILHA` na mesma transação.
  */
 export const registrarLeituraDaPlanilha = async (
   cliente: PoolClient,
@@ -606,21 +562,8 @@ export const registrarLeituraDaPlanilha = async (
   leitura: LeituraDaPlanilhaParaRegistrar,
 ): Promise<void> => {
   const d = exigirDescritor(descritor);
-  const diagnosticos = DiagnosticosDaLeituraSchema.parse(leitura.diagnosticos);
-  const { rowCount } = await cliente.query(
-    `update app.${d.tabela}
-        set linhas_ignoradas_antes_do_cabecalho = $3, linhas_ocultas = $4, diagnosticos = $5::jsonb
-      where id = $1 and empresa_id = $2 and estado in ('RECEBIDA', 'VALIDANDO')`,
-    [
-      leitura.tentativaId,
-      leitura.empresaId,
-      leitura.linhasIgnoradasAntesDoCabecalho,
-      leitura.linhasOcultas,
-      JSON.stringify(diagnosticos),
-    ],
-  );
 
-  if (rowCount !== 1) {
+  if (!(await gravarLeituraDaPlanilha(cliente, d, leitura))) {
     throw await erroDaTransicao(cliente, d, leitura.empresaId, leitura.tentativaId);
   }
 };
