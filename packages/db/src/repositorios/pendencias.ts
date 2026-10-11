@@ -256,12 +256,14 @@ export const listarCentral = async (
  * Origens cuja pendência só se resolve quando a causa some — nunca por dispensa —, com o motivo da
  * recusa. A do cofre some ao cadastrar ou trocar o responsável (dispensá-la esconderia um
  * certificado ausente ou vencido, e a reconciliação a reabriria; SPEC-011 §3.6); a do plano de
- * contas, com a primeira conta válida (SPEC-013 §3.10). O servidor recusa, não a interface.
+ * contas, com a primeira conta válida (SPEC-013 §3.10); a de empregados, com o primeiro empregado
+ * confirmado (SPEC-014 §3.10). O servidor recusa, não a interface.
  * Fonte única: a checagem que explica a recusa e o filtro do UPDATE usam esta lista.
  */
 export const ORIGENS_NAO_DISPENSAVEIS: Readonly<Partial<Record<OrigemDaPendencia, string>>> = {
   CERTIFICADO: 'Pendência do cofre de certificados não se dispensa: ela se resolve no próprio cofre.',
   PLANO_CONTAS: 'Pendência do plano de contas não se dispensa: ela se resolve com a primeira conta válida.',
+  EMPREGADOS: 'Pendência de empregados não se dispensa: ela se resolve com o primeiro empregado confirmado.',
 };
 
 const motivoDaOrigemNaoDispensavel = (origem: string | undefined): string | undefined =>
