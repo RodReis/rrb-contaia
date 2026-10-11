@@ -73,7 +73,11 @@ import {
 } from './fixtures/plano-contas';
 
 const ESCOPO = process.env['PROVA_ESCOPO'] ?? 'local';
-const PASTA_DAS_PROVAS = resolve(`test-results/${ESCOPO}/e2e/provas`);
+// Subpasta própria: com o escopo de outra SPEC (a spec-014 grava em `provas/` com os mesmos nomes
+// de estado e roda em paralelo), a limpeza e as capturas desta spec não tocam as dela.
+const PASTA_DAS_PROVAS = resolve(
+  ESCOPO === 'SPEC-013' ? `test-results/${ESCOPO}/e2e/provas` : `test-results/${ESCOPO}/e2e/provas/spec-013`,
+);
 
 const CNPJ_DO_ESCRITORIO = cnpjValido('131313130001');
 const CNPJ_DO_OUTRO_ESCRITORIO = cnpjValido('139913990002');
@@ -916,6 +920,10 @@ test('onboarding: depois de ativar, a etapa opcional "Plano de contas"; sem impo
     pronto: (page) => page.getByText('Etapa opcional'),
   });
 
+  await admin.getByRole('button', { name: 'Continuar sem importar' }).click();
+  // A administradora consulta empregados: o cadastro segue para a etapa opcional de empregados
+  // (SPEC-014, provada na spec-014), que também se pode pular.
+  await expect(admin.getByRole('heading', { level: 2, name: 'Empregados' })).toBeVisible({ timeout: 30_000 });
   await admin.getByRole('button', { name: 'Continuar sem importar' }).click();
   await admin.waitForURL(/\/empresas$/u);
   expect(

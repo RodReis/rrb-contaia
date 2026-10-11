@@ -88,6 +88,14 @@ export const gerarArquivosGrandes = (): ArquivosGerados => {
 
 // -- API pelo proxy da Web -----------------------------------------------------------------------
 
+/**
+ * Domínio da importação: a mesma mecânica (rotas, tabelas, fila) serve ao plano de contas (SPEC-013)
+ * e aos empregados (SPEC-014). O padrão é o plano, para a spec-013 seguir como estava.
+ */
+export type Recurso = 'plano-contas' | 'empregados';
+export type TabelaDaImportacao = 'importacao_plano_contas' | 'importacao_empregados';
+export type FilaDeValidacao = 'plano-contas-validacao' | 'empregados-validacao';
+
 export type Resposta = Readonly<{ status: number; corpo: unknown; texto: string }>;
 
 const lerResposta = async (resposta: APIResponse): Promise<Resposta> => {
@@ -130,9 +138,10 @@ export const enviarPelaApi = async (
   arquivo: Readonly<{ nome: string; conteudo: Buffer }>,
   mapeamento: Readonly<Record<string, string>> = MAPEAMENTO_DO_MODELO,
   correlationId: string = randomUUID(),
+  recurso: Recurso = 'plano-contas',
 ): Promise<Resposta> =>
   lerResposta(
-    await page.request.post(`/api/proxy/empresas/${empresaId}/plano-contas/importacoes`, {
+    await page.request.post(`/api/proxy/empresas/${empresaId}/${recurso}/importacoes`, {
       headers: { 'x-correlation-id': correlationId },
       multipart: {
         arquivo: { name: arquivo.nome, mimeType: 'text/csv', buffer: arquivo.conteudo },
@@ -191,52 +200,72 @@ export type Tentativa = Readonly<{
   arquivo_chave: string;
 }>;
 
-export const tentativasDa = async (pool: Pool, empresaId: string): Promise<Tentativa[]> =>
+export const tentativasDa = async (
+  pool: Pool,
+  empresaId: string,
+  tabela: TabelaDaImportacao = 'importacao_plano_contas',
+): Promise<Tentativa[]> =>
   (
     await pool.query<Tentativa>(
       `select id, estado, correlation_id, totais, usuario_iniciador_id, usuario_confirmador_id,
               usuario_cancelador_id, reutilizada_por_idempotencia, finalizado_em::text as finalizado_em,
               arquivo_chave
-         from app.importacao_plano_contas where empresa_id = $1 order by sequencia`,
+         from app.${tabela} where empresa_id = $1 order by sequencia`,
       [empresaId],
     )
   ).rows;
 
-export const tentativa = async (pool: Pool, tentativaId: string): Promise<Tentativa | undefined> =>
+export const tentativa = async (
+  pool: Pool,
+  tentativaId: string,
+  tabela: TabelaDaImportacao = 'importacao_plano_contas',
+): Promise<Tentativa | undefined> =>
   (
     await pool.query<Tentativa>(
       `select id, estado, correlation_id, totais, usuario_iniciador_id, usuario_confirmador_id,
               usuario_cancelador_id, reutilizada_por_idempotencia, finalizado_em::text as finalizado_em,
               arquivo_chave
-         from app.importacao_plano_contas where id = $1`,
+         from app.${tabela} where id = $1`,
       [tentativaId],
     )
   ).rows[0];
 
 export type Evento = Readonly<{ acao: string; estado_novo: string; codigo: string | null; correlation_id: string }>;
 
-export const eventosDa = async (pool: Pool, tentativaId: string): Promise<Evento[]> =>
+export const eventosDa = async (
+  pool: Pool,
+  tentativaId: string,
+  tabela: TabelaDaImportacao = 'importacao_plano_contas',
+): Promise<Evento[]> =>
   (
     await pool.query<Evento>(
       `select acao, estado_novo, codigo, correlation_id
-         from app.importacao_plano_contas_evento where tentativa_id = $1 order by sequencia`,
+         from app.${tabela}_evento where tentativa_id = $1 order by sequencia`,
       [tentativaId],
     )
   ).rows;
 
-export const destinatariosDaNotificacao = async (pool: Pool, tentativaId: string): Promise<string[]> =>
+export const destinatariosDaNotificacao = async (
+  pool: Pool,
+  tentativaId: string,
+  tabela: TabelaDaImportacao = 'importacao_plano_contas',
+): Promise<string[]> =>
   (
     await pool.query<{ usuario_id: string }>(
-      `select usuario_id from app.importacao_plano_contas_notificacao where tentativa_id = $1 order by sequencia`,
+      `select usuario_id from app.${tabela}_notificacao where tentativa_id = $1 order by sequencia`,
       [tentativaId],
     )
   ).rows.map((linha) => linha.usuario_id);
 
-export const notificacoesDoUsuario = async (pool: Pool, usuarioId: string): Promise<number> =>
+export const notificacoesDoUsuario = async (
+  pool: Pool,
+  usuarioId: string,
+  tabela: TabelaDaImportacao = 'importacao_plano_contas',
+): Promise<number> =>
   Number(
     (
       await pool.query<{ total: string }>(
-        `select count(*) as total from app.importacao_plano_contas_notificacao where usuario_id = $1`,
+        `select count(*) as total from app.${tabela}_notificacao where usuario_id = $1`,
         [usuarioId],
       )
     ).rows[0]?.total ?? 0,
@@ -251,9 +280,15 @@ export const pendenciaDoPlano = async (pool: Pool, empresaId: string): Promise<s
     )
   ).rows.map((linha) => linha.estado);
 
-export const esperarEstado = async (pool: Pool, tentativaId: string, estado: string, timeout = 90_000): Promise<void> => {
+export const esperarEstado = async (
+  pool: Pool,
+  tentativaId: string,
+  estado: string,
+  timeout = 90_000,
+  tabela: TabelaDaImportacao = 'importacao_plano_contas',
+): Promise<void> => {
   await expect
-    .poll(async () => (await tentativa(pool, tentativaId))?.estado, { timeout, intervals: [500, 1_000] })
+    .poll(async () => (await tentativa(pool, tentativaId, tabela))?.estado, { timeout, intervals: [500, 1_000] })
     .toBe(estado);
 };
 
@@ -265,10 +300,13 @@ const doWorkers = createRequire(resolve('apps/workers/package.json'));
 type FilaDoBullmq = Readonly<{ pause: () => Promise<void>; resume: () => Promise<void>; close: () => Promise<void> }>;
 type ConstrutorDaFila = new (nome: string, opcoes: Readonly<{ connection: Readonly<{ host: string; port: number }> }>) => FilaDoBullmq;
 
-const comAFilaDeValidacao = async (acao: (fila: FilaDoBullmq) => Promise<void>): Promise<void> => {
+const comAFilaDeValidacao = async (
+  acao: (fila: FilaDoBullmq) => Promise<void>,
+  nome: FilaDeValidacao = 'plano-contas-validacao',
+): Promise<void> => {
   const { Queue } = doWorkers('bullmq') as { Queue: ConstrutorDaFila };
   const endereco = new URL(process.env['REDIS_URL'] ?? 'redis://127.0.0.1:16379');
-  const fila = new Queue('plano-contas-validacao', {
+  const fila = new Queue(nome, {
     connection: { host: endereco.hostname, port: Number(endereco.port || '6379') },
   });
 
@@ -280,11 +318,13 @@ const comAFilaDeValidacao = async (acao: (fila: FilaDoBullmq) => Promise<void>):
 };
 
 /**
- * Sem consumidor para a validação do plano: a fila fica pausada (só ela; os consumidores do Signer
- * e o monitor seguem), e o job espera como se o worker estivesse fora do ar.
+ * Sem consumidor para a validação do domínio: a fila fica pausada (só ela; a do outro domínio, os
+ * consumidores do Signer e o monitor seguem), e o job espera como se o worker estivesse fora do ar.
  */
-export const pausarAValidacao = (): Promise<void> => comAFilaDeValidacao((fila) => fila.pause());
-export const retomarAValidacao = (): Promise<void> => comAFilaDeValidacao((fila) => fila.resume());
+export const pausarAValidacao = (fila: FilaDeValidacao = 'plano-contas-validacao'): Promise<void> =>
+  comAFilaDeValidacao((alvo) => alvo.pause(), fila);
+export const retomarAValidacao = (fila: FilaDeValidacao = 'plano-contas-validacao'): Promise<void> =>
+  comAFilaDeValidacao((alvo) => alvo.resume(), fila);
 
 // -- Armazenamento (MinIO) -----------------------------------------------------------------------
 
@@ -375,15 +415,15 @@ const comoJson = (saida: string): unknown => {
 };
 
 /** Dados do job de validação da tentativa (id determinístico `validacao-<tentativaId>`). */
-export const dadosDoJob = (tentativaId: string): unknown =>
-  comoJson(redis('HGET', `bull:plano-contas-validacao:validacao-${tentativaId}`, 'data'));
+export const dadosDoJob = (tentativaId: string, fila: FilaDeValidacao = 'plano-contas-validacao'): unknown =>
+  comoJson(redis('HGET', `bull:${fila}:validacao-${tentativaId}`, 'data'));
 
 /** Chaves auxiliares do BullMQ: não são jobs. */
 const CHAVE_DE_CONTROLE = /:(meta|id|events|wait|completed|failed|active|paused|delayed|prioritized|marker|stalled-check|limiter|pc|logs)$/u;
 
 /** Jobs da fila morta (esgotados) cujos dados citam a tentativa. */
-export const jobsMortosDa = (tentativaId: string): unknown[] =>
-  redis('--scan', '--pattern', 'bull:plano-contas-validacao-morta:*')
+export const jobsMortosDa = (tentativaId: string, fila: FilaDeValidacao = 'plano-contas-validacao'): unknown[] =>
+  redis('--scan', '--pattern', `bull:${fila}-morta:*`)
     .split('\n')
     .map((chave) => chave.trim())
     .filter((chave) => chave !== '' && !CHAVE_DE_CONTROLE.test(chave))
@@ -418,10 +458,13 @@ export const totalNaTela = (page: Page, rotulo: string): Locator =>
  * Seleciona o CSV, valida com o mapeamento da tela e devolve o id da tentativa e o `x-correlation-id`
  * que a tela mandou no envio (é o que a API grava na tentativa, na fila e nos eventos).
  */
-export const validarPelaTela = async (page: Page): Promise<Readonly<{ tentativaId: string; correlationId: string }>> => {
+export const validarPelaTela = async (
+  page: Page,
+  recurso: Recurso = 'plano-contas',
+): Promise<Readonly<{ tentativaId: string; correlationId: string }>> => {
   const [requisicao] = await Promise.all([
     page.waitForRequest(
-      (pedido) => pedido.method() === 'POST' && /\/plano-contas\/importacoes$/u.test(new URL(pedido.url()).pathname),
+      (pedido) => pedido.method() === 'POST' && new URL(pedido.url()).pathname.endsWith(`/${recurso}/importacoes`),
     ),
     page.getByRole('button', { name: 'Validar arquivo' }).click(),
   ]);

@@ -257,6 +257,9 @@ test('cadastra o CNPJ consultado, retoma o cadastro e ativa a empresa', async ({
   // bloqueia nada: sem importar, a pessoa segue para a lista.
   await expect(page.getByRole('heading', { level: 2, name: 'Plano de contas' })).toBeVisible();
   await page.getByRole('button', { name: 'Continuar sem importar' }).click();
+  // Depois, a etapa opcional de empregados (SPEC-014 §3.1), que também se pode pular.
+  await expect(page.getByRole('heading', { level: 2, name: 'Empregados' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar sem importar' }).click();
 
   // Na lista, é encontrável pelo CNPJ, que é o identificador estável do cadastro.
   await page.waitForURL(/\/empresas(\?|$)/u);
