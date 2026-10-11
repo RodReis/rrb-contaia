@@ -82,6 +82,7 @@ updated: 2026-10-11
 
 ### Sem épico
 
+- [MVP1][SPEC-015][FIX] Seguimentos menores do leitor ODS, da auditoria e da suíte E2E (#114)
 - [MVP1][SPEC-014][FIX] Suítes de banco com e-mails fixos quebram depois de uma rodada interrompida (#112)
 - [MVP1][SPEC-014][FIX] Falha determinística na preparação da validação deixa a tentativa em RECEBIDA sem FALHA (#111)
 - [MVP1][SPEC-014][FIX] cn() descarta o tamanho de texto dos tokens (tailwind-merge) e código do plano quebra na tabela de rejeições (#110)
@@ -93,20 +94,17 @@ _(vazio)_
 
 ## Em Andamento
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17)
+_(vazio)_
 
 ## Feito
 
-### Sem épico
-
-- [FIX][SPEC-013][F13] Reuso de resultado terminal obsoleto na importação do plano de contas (#107)
+_(vazio)_
 
 ## Finalizado
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17, finalizado em: 2026-10-11)
 - [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16, finalizado em: 2026-10-11)
 - [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15, finalizado em: 2026-10-09)
 - [MVP1][SPEC-012][F12] Signer isolado e assinatura/mTLS simulada (#14, finalizado em: 2026-10-07)
@@ -124,6 +122,7 @@ _(vazio)_
 
 ### Sem épico
 
+- [FIX][SPEC-013][F13] Reuso de resultado terminal obsoleto na importação do plano de contas (#107, finalizado em: 2026-10-11)
 - [MVP1][SPEC-002][FIX] E2E da F2 compara o total global de empresas e falha sob paralelismo (#96, finalizado em: 2026-10-03)
 - [MVP1][SPEC-002][FIX] ambiente local nao subia a Web/API e desalinhamentos no wizard/listagem (#45, finalizado em: 2026-09-22)
 - [INFRA] Bootstrap local do MVP-1 (#1, finalizado em: 2026-09-18)
