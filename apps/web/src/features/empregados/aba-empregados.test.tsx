@@ -3,6 +3,7 @@
  * principais, teclado e a base em consulta. A API é dublada no `fetch` (problem+json nas recusas);
  * a URL é dublada com estado, para `?tentativa=` ser a mesma que a tela navega.
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
@@ -583,6 +584,27 @@ describe('permissões', () => {
     expect(await screen.findByRole('heading', { name: 'Seu papel não pode consultar os empregados desta empresa' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Escolher arquivo CSV' })).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('o 403 aparece direto, sem esperar a nova tentativa da consulta nem mostrar erro genérico', async () => {
+    let leituras = 0;
+    backend.estado.lerHistorico = () => {
+      leituras += 1;
+
+      // A segunda leitura (o retry do provedor) não volta: a decisão tem de sair da primeira recusa.
+      return leituras === 1 ? problema(403, 'SEM_AUTORIZACAO', {}, 'corr-403') : new Promise<Response>(() => undefined);
+    };
+    backend.estado.lerBase = () => problema(403, 'SEM_AUTORIZACAO', {}, 'corr-403');
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: 1, retryDelay: 0 } } });
+    render(
+      <QueryClientProvider client={cliente}>
+        <AbaEmpregados empresaId="empresa-1" nomeDaEmpresa="Padaria Aurora" somenteLeitura={false} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Seu papel não pode consultar os empregados desta empresa' })).toBeInTheDocument();
+    expect(screen.queryByText(/Não foi possível carregar/u)).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('empresa fora da carteira (403): estado próprio, sem dado', async () => {

@@ -65,10 +65,12 @@ export const AbaEmpregados = ({
   // A primeira página do histórico é a mesma consulta do aviso de tentativa aberta (em cache):
   // é ela que diz se a API deixa esta pessoa ver os empregados desta empresa.
   const historico = useHistorico(dominio, empresaId, 1);
+  // A recusa vale já na primeira resposta: enquanto o provedor tenta de novo (`retry`), `error`
+  // ainda é nulo e as outras consultas da aba chegariam ao erro genérico antes. `failureReason`
+  // carrega a recusa durante a nova tentativa; o 403 de acesso não muda tentando outra vez.
+  const falha = historico.error ?? historico.failureReason;
   const negado =
-    historico.error instanceof ErroDaApi && CODIGOS_DE_ACESSO_NEGADO.includes(historico.error.problema.code)
-      ? historico.error.problema.code
-      : null;
+    falha instanceof ErroDaApi && CODIGOS_DE_ACESSO_NEGADO.includes(falha.problema.code) ? falha.problema.code : null;
 
   if (negado !== null) {
     return (
