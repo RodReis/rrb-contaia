@@ -575,6 +575,21 @@ describe('consultas (SPEC-014 §3.5, §3.9)', () => {
     expect((await como((cli) => listarEmpregados(cli, empresaId, 1, 10), c.usuarios.fora)).total).toBe(0);
   });
 
+  it('a busca só casa o CPF quando o termo tem forma de CPF (dígitos, ponto e traço)', async () => {
+    const empresaId = await novaEmpresa();
+    await empregadoComoAdmin(empresaId, CPF_A, '1', { nome: 'Ana' });
+    await empregadoComoAdmin(empresaId, CPF_C, 'X_9', { nome: 'Carla' });
+
+    const nomes = async (busca: string) =>
+      (await como((cli) => listarEmpregados(cli, empresaId, 1, 10, busca))).itens.map((e) => e.nome);
+    // "X_9" tem um dígito que aparece no CPF da Ana: não é termo de CPF, então só a matrícula casa.
+    expect(CPF_A).toContain('9');
+    expect(await nomes('X_9')).toEqual(['Carla']);
+    expect(await nomes('Ana 9')).toEqual([]);
+    expect(await nomes(`${CPF_A.slice(0, 3)}.${CPF_A.slice(3, 6)}`)).toEqual(['Ana']);
+    expect(await nomes(CPF_A.slice(-4))).toEqual(['Ana']);
+  });
+
   it('rejeições paginadas, relatório completo em ordem de linha e histórico no contrato', async () => {
     const empresaId = await novaEmpresa();
     const previa = await prepararPrevia(empresaId, [rejeitada(3, '3'), valida(1, CPF_A, '1'), rejeitada(2, null)]);

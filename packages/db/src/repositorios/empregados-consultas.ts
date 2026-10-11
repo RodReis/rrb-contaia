@@ -51,8 +51,8 @@ export const contarEmpregadosConfirmados = async (cliente: PoolClient, empresaId
 
 /**
  * Base da empresa em consulta (ativos e arquivados, com a marca), por nome, no contrato
- * compartilhado. Busca literal (sem curinga do usuário) em nome ou matrícula; se o termo tem
- * dígitos, também no CPF por esses dígitos (aceita o CPF com máscara).
+ * compartilhado. Busca literal (sem curinga do usuário) em nome ou matrícula; se o termo tem forma
+ * de CPF (só dígitos, ponto e traço), também no CPF por esses dígitos (aceita o CPF com máscara).
  */
 export const listarEmpregados = async (
   cliente: PoolClient,
@@ -64,7 +64,8 @@ export const listarEmpregados = async (
   const recorte = paginacao(pagina, porPagina);
   const aparada = busca?.trim() ?? '';
   const termo = aparada === '' ? null : padraoDeBusca(aparada);
-  const digitos = aparada.replace(/\D/gu, '');
+  // Só termo com forma de CPF (dígitos, ponto, traço) busca no CPF: "Ana 9" não casa todo CPF com 9.
+  const digitos = /^[\d.-]+$/u.test(aparada) ? aparada.replace(/\D/gu, '') : '';
   const termoDoCpf = digitos === '' ? null : `%${digitos}%`;
   const filtro = `empresa_id = $1 and ($2::text is null
     or nome ilike $2 escape '\\' or matricula ilike $2 escape '\\' or cpf like $3::text)`;
