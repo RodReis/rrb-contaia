@@ -10,5 +10,6 @@ export { inspecionarPlanilha, type Inspecao } from './inspecionar.ts';
 export { lerPlanilhaIsolada, type OpcoesDoIsolamento } from './isolado.ts';
 export { lerAba } from './ler-aba.ts';
 export { LIMITES } from './limites.ts';
+export { gerarModelo } from './modelos.ts';
 export type { OperacaoDePlanilha } from './protocolo.ts';
 export { detectarFormato } from './sniff.ts';
