@@ -12,7 +12,7 @@
  */
 import { pipeline } from 'node:stream/promises';
 
-import { CODIGOS_DE_ERRO, ErroDeDominio, MODELO_CSV } from '@contaia/domain';
+import { MODELO_CSV } from '@contaia/domain';
 import { LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES } from '@contaia/shared';
 import {
   Body,
@@ -20,9 +20,7 @@ import {
   Get,
   Header,
   HttpCode,
-  Injectable,
   Param,
-  PayloadTooLargeException,
   Post,
   Query,
   Req,
@@ -30,83 +28,32 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
-  type CallHandler,
-  type ExecutionContext,
-  type NestInterceptor,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import type { Observable } from 'rxjs';
 
 import { ExigePermissao, GuardDeAcao } from '../auth/acao.guard';
-import { autorDa, tenantDa } from '../auth/contexto-da-sessao';
 import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
-import { nomeSeguro } from '../comum/nome-seguro';
-import { obterCorrelationId } from '../comum/problema';
 import { analisar } from '../escritorio/escritorio.dto';
+import {
+  CSV_UTF8,
+  InterceptorDoArquivoDeImportacao,
+  MARCA_DE_ORDEM,
+  comoAnexo as comoAnexoDeImportacao,
+  contextoDa,
+  exigirArquivo,
+  type ArquivoMultipart,
+} from '../importacao/http';
 import { analisarEnvio, confirmacaoSchema, consultaDoPlanoSchema, idDaTentativa, paginaSchema } from './plano-contas.dto';
-import { PlanoContasService, type ContextoDaImportacao } from './plano-contas.service';
+import { PlanoContasService } from './plano-contas.service';
 
-type ArquivoMultipart = Readonly<{ originalname: string; mimetype: string; buffer: Buffer }>;
-
-const CSV_UTF8 = 'text/csv; charset=utf-8';
 const NOME_DO_MODELO = 'modelo-plano-de-contas.csv';
-/** BOM UTF-8: sem ele o Excel pt-BR abre o arquivo como Windows-1252 e estraga os acentos. */
-const MARCA_DE_ORDEM = String.fromCharCode(0xfeff);
 
-const contextoDa = (requisicao: RequisicaoAutenticada): ContextoDaImportacao => ({
-  tenantId: tenantDa(requisicao),
-  usuarioId: autorDa(requisicao).usuarioId,
-  correlationId: obterCorrelationId(requisicao),
-});
-
-/**
- * Cabeçalho de download: nome saneado (vem do usuário), sem inferência de tipo pelo navegador e
- * sem cache (`no-store`: plano, relatório e original de um cliente não ficam no navegador nem em
- * proxy intermediário; o proxy do web repassa este cabeçalho).
- */
+/** Cabeçalho de download (ver `importacao/http.ts`), com o nome padrão do plano. */
 export const comoAnexo = (resposta: Response, tipo: string, nome: string): Response =>
-  resposta
-    .status(200)
-    .setHeader('Content-Type', tipo)
-    .setHeader('Content-Disposition', `attachment; filename="${nomeSeguro(nome, 'plano-de-contas.csv')}"`)
-    .setHeader('X-Content-Type-Options', 'nosniff')
-    .setHeader('Cache-Control', 'no-store');
+  comoAnexoDeImportacao(resposta, tipo, nome, 'plano-de-contas.csv');
 
-const MultipartDoPlano = FileInterceptor('arquivo', {
-  // O multer corta o upload no limite, antes de o processo carregar o excedente; o caso de uso
-  // refaz a conferência de tamanho, que é a fronteira real.
-  limits: { fileSize: LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES, files: 1, fields: 2, fieldSize: 16 * 1024 },
-});
-
-/** O corte do multer sai como `ARQUIVO_ACIMA_DO_LIMITE` (413), o mesmo código do caso de uso. */
-@Injectable()
-export class InterceptorDoArquivoDoPlano implements NestInterceptor {
-  private readonly multipart: NestInterceptor = new MultipartDoPlano();
-
-  async intercept(contexto: ExecutionContext, proximo: CallHandler): Promise<Observable<unknown>> {
-    try {
-      return await this.multipart.intercept(contexto, proximo);
-    } catch (erro) {
-      if (erro instanceof PayloadTooLargeException) {
-        throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE, 'Arquivo acima do limite de 10 MB.');
-      }
-
-      throw erro;
-    }
-  }
-}
-
-const exigirArquivo = (arquivo: ArquivoMultipart | undefined) => {
-  if (arquivo === undefined) {
-    throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO, 'Nenhum arquivo foi enviado.', [
-      { campo: 'arquivo', codigo: CODIGOS_DE_ERRO.ARQUIVO_INVALIDO },
-    ]);
-  }
-
-  return { buffer: arquivo.buffer, nome: arquivo.originalname, mimetype: arquivo.mimetype };
-};
+export const InterceptorDoArquivoDoPlano = InterceptorDoArquivoDeImportacao(LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES);
 
 @Controller('empresas/:empresaId/plano-contas')
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
