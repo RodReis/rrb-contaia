@@ -1,5 +1,7 @@
 import {
   CODIGOS_DE_DIAGNOSTICO_DE_PLANILHA,
+  LIMITE_DE_TEXTO_DA_INSPECAO,
+  LIMITE_DO_ROTULO_DA_COLUNA,
   ehLetraDeColuna,
   type AbaDaPlanilha,
   type CelulaDaTabela,
@@ -113,14 +115,15 @@ export const IdentificacaoDaAbaSchema = z.strictObject({
 
 export const ColunaDaPlanilhaSchema = z.strictObject({
   letra: LetraDeColunaSchema,
-  nome: z.string().max(1000).nullable(),
-  rotulo: z.string().min(1).max(1100),
+  // Os limites vêm do domínio, que trunca com as mesmas constantes (`rotulosDasColunas`, `amostraDaAba`).
+  nome: z.string().max(LIMITE_DE_TEXTO_DA_INSPECAO).nullable(),
+  rotulo: z.string().min(1).max(LIMITE_DO_ROTULO_DA_COLUNA),
 });
 
 export const LinhaDeAmostraSchema = z.strictObject({
   numero: posicao,
   oculta: z.boolean(),
-  celulas: z.record(LetraDeColunaSchema, z.string().max(1000)),
+  celulas: z.record(LetraDeColunaSchema, z.string().max(LIMITE_DE_TEXTO_DA_INSPECAO)),
 });
 
 /**

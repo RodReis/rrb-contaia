@@ -22,11 +22,16 @@ export const normalizarLinhasDeEmpregados = (
   rejeicoesEstruturais?: ReadonlyMap<number, RejeicaoEstruturalDeCelula>,
 ): readonly LinhaBrutaDeEmpregado[] => {
   const indices = indicesDasColunasDe(CAMPOS_DE_EMPREGADO, cabecalho, mapeamento);
-  const campoDaLetra = new Map(CAMPOS_DE_EMPREGADO.map((campo) => [mapeamento[campo].trim(), campo] as const));
+  // Só planilha precisa do mapa letra -> campo; o caminho do CSV não o constrói.
+  const campoDaLetra =
+    rejeicoesEstruturais === undefined
+      ? undefined
+      : new Map(CAMPOS_DE_EMPREGADO.map((campo) => [mapeamento[campo].trim(), campo] as const));
 
   return registros.map((registro) => {
     const celula = (campo: CampoDeEmpregado): string => (registro.celulas[indices[campo]] ?? '').trim();
-    const rejeicaoEstrutural = rejeicaoEstruturalDaLinha(rejeicoesEstruturais, registro.numeroDaLinha, campoDaLetra);
+    const rejeicaoEstrutural =
+      campoDaLetra === undefined ? undefined : rejeicaoEstruturalDaLinha(rejeicoesEstruturais, registro.numeroDaLinha, campoDaLetra);
     return {
       numeroDaLinha: registro.numeroDaLinha,
       cpf: celula('cpf'),

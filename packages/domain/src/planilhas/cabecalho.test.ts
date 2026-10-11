@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { amostraDaAba, cabecalhoEstaMesclado, resumoDaAba, rotulosDasColunas, sugerirLinhaDeCabecalho } from './cabecalho.js';
+import { LIMITE_DE_TEXTO_DA_INSPECAO, LIMITE_DO_ROTULO_DA_COLUNA } from './texto.js';
 import type { CelulaDaTabela, LeituraDaAba, LinhaDaTabela } from './tipos.js';
 
 type Entrada = string | Partial<CelulaDaTabela>;
@@ -172,5 +173,46 @@ describe('amostraDaAba', () => {
       { numero: 7, oculta: false, celulas: { A: 'sétima' } },
     ]);
     expect(amostraDaAba(aba, 2).map((l) => l.numero)).toEqual([2, 3]);
+  });
+});
+
+describe('textos longos (uma célula do Excel chega a 32.767 caracteres)', () => {
+  const LONGO = 32_767;
+  const emojiNaFronteira = `${'a'.repeat(LIMITE_DE_TEXTO_DA_INSPECAO - 2)}${'😀'.repeat(10)}`;
+
+  it('rotulosDasColunas trunca nome e rótulo no limite e mantém a letra sempre presente', () => {
+    const aba = leitura([linha(1, { A: 'x'.repeat(LONGO), B: emojiNaFronteira, AB: 'curto' })]);
+
+    const rotulos = rotulosDasColunas(aba, 1);
+    const a = rotulos[0]!;
+    const b = rotulos[1]!;
+
+    expect(a.nome!.length).toBeLessThanOrEqual(LIMITE_DE_TEXTO_DA_INSPECAO);
+    expect(a.nome!.endsWith('…')).toBe(true);
+    expect(a.rotulo.startsWith('Coluna A — ')).toBe(true);
+    expect(a.rotulo.length).toBeLessThanOrEqual(LIMITE_DO_ROTULO_DA_COLUNA);
+    expect(b.rotulo.startsWith('Coluna B — ')).toBe(true);
+    expect(b.nome!.length).toBeLessThanOrEqual(LIMITE_DE_TEXTO_DA_INSPECAO);
+    expect(b.nome).not.toMatch(/[\ud800-\udbff]…$/u); // nunca um par partido antes das reticências
+    expect(rotulos.at(-1)).toEqual({ letra: 'AB', nome: 'curto', rotulo: 'Coluna AB — curto' });
+  });
+
+  it('dois cabeçalhos longos idênticos seguem distintos pela letra', () => {
+    const aba = leitura([linha(1, { A: 'y'.repeat(LONGO), B: 'y'.repeat(LONGO) })]);
+
+    const [a, b] = rotulosDasColunas(aba, 1);
+
+    expect(a!.rotulo).not.toBe(b!.rotulo);
+  });
+
+  it('amostraDaAba trunca cada célula no limite', () => {
+    const aba = leitura([linha(1, { A: 'z'.repeat(LONGO), B: emojiNaFronteira, C: 'curto' })]);
+
+    const [primeira] = amostraDaAba(aba);
+
+    expect(primeira!.celulas.A!.length).toBeLessThanOrEqual(LIMITE_DE_TEXTO_DA_INSPECAO);
+    expect(primeira!.celulas.A!.endsWith('…')).toBe(true);
+    expect(primeira!.celulas.B!.length).toBeLessThanOrEqual(LIMITE_DE_TEXTO_DA_INSPECAO);
+    expect(primeira!.celulas.C).toBe('curto');
   });
 });

@@ -419,6 +419,7 @@ export {
   type ResumoDaAba,
 } from './planilhas/cabecalho.js';
 export { tabelaParaRegistros } from './planilhas/tabela-para-registros.js';
+export { LIMITE_DE_TEXTO_DA_INSPECAO, LIMITE_DO_ROTULO_DA_COLUNA, truncarTexto } from './planilhas/texto.js';
 export {
   CODIGOS_DE_REJEICAO_ESTRUTURAL,
   MENSAGEM_DA_REJEICAO_ESTRUTURAL,

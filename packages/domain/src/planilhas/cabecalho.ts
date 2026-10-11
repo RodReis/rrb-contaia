@@ -4,6 +4,7 @@
  */
 import { colunaParaLetra, letraParaColuna } from './colunas.js';
 import { areaDaMescla } from './intervalos.js';
+import { LIMITE_DE_TEXTO_DA_INSPECAO, truncarTexto } from './texto.js';
 import type { CelulaDaTabela, LeituraDaAba, LinhaDaTabela, RotuloDaColuna } from './tipos.js';
 
 /** Fórmula conta como conteúdo mesmo com resultado em branco: a célula não está vazia. */
@@ -24,13 +25,14 @@ export const sugerirLinhaDeCabecalho = (leitura: LeituraDaAba): number | null =>
 
 const nomeDaCelula = (celula: CelulaDaTabela | undefined): string | null => {
   const nome = celula?.valorExibido.trim() ?? '';
-  return nome === '' ? null : nome;
+  return nome === '' ? null : truncarTexto(nome, LIMITE_DE_TEXTO_DA_INSPECAO);
 };
 
 /**
  * Colunas da linha de cabeçalho, de A até a última preenchida. O rótulo sempre leva a letra, o que
  * basta para distinguir nomes repetidos (inclusive só na caixa) e colunas sem nome. Linha
- * inexistente ou em branco não tem colunas.
+ * inexistente ou em branco não tem colunas. Nome longo é truncado (`truncarTexto`); a letra fica
+ * antes do nome, então o rótulo continua inequívoco e cabe em `LIMITE_DO_ROTULO_DA_COLUNA`.
  */
 export const rotulosDasColunas = (leitura: LeituraDaAba, linhaCabecalho: number): readonly RotuloDaColuna[] => {
   const linha = leitura.linhas.find((candidata) => candidata.numero === linhaCabecalho);
@@ -89,7 +91,7 @@ export const resumoDaAba = (leitura: LeituraDaAba, linhaCabecalho: number): Resu
 export interface LinhaDeAmostra {
   readonly numero: number;
   readonly oculta: boolean;
-  /** Só as células preenchidas, em valor exibido. */
+  /** Só as células preenchidas, em valor exibido (truncado em `LIMITE_DE_TEXTO_DA_INSPECAO`). */
   readonly celulas: Readonly<Record<string, string>>;
 }
 
@@ -105,6 +107,6 @@ export const amostraDaAba = (leitura: LeituraDaAba, limite = 30): readonly Linha
       celulas: Object.fromEntries(
         Object.entries(linha.celulas)
           .filter(([, celula]) => celula.valorExibido.trim() !== '')
-          .map(([letra, celula]) => [letra, celula.valorExibido]),
+          .map(([letra, celula]) => [letra, truncarTexto(celula.valorExibido, LIMITE_DE_TEXTO_DA_INSPECAO)]),
       ),
     }));

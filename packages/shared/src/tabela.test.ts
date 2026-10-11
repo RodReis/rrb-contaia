@@ -1,5 +1,9 @@
 import {
   CODIGOS_DE_ERRO,
+  LIMITE_DE_TEXTO_DA_INSPECAO,
+  LIMITE_DO_ROTULO_DA_COLUNA,
+  amostraDaAba,
+  rotulosDasColunas,
   CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO as CODIGOS_DO_DOMINIO_DE_EMPREGADO,
   type LeituraDaAba as LeituraDoDominio,
 } from '@contaia/domain';
@@ -295,5 +299,54 @@ describe('exportações da raiz do shared', () => {
     ]) {
       expect(raiz, nome).toHaveProperty(nome);
     }
+  });
+});
+
+describe('inspeção com textos de 32.767 caracteres (limite de uma célula do Excel)', () => {
+  const longo = `${'a'.repeat(LIMITE_DE_TEXTO_DA_INSPECAO - 2)}${'😀'.repeat(20)}${'b'.repeat(32_000)}`;
+  const celulaTexto = (valorExibido: string) => ({ valorExibido, tipoNativo: 'texto' as const, formula: false, mesclada: false });
+  const aba = {
+    formato: 'XLSX' as const,
+    aba: { nome: 'Plano', posicao: 1, utilizavel: true },
+    linhas: [
+      { numero: 1, oculta: false, celulas: { A: celulaTexto(longo), B: celulaTexto('x'.repeat(32_767)), C: celulaTexto('Nome') } },
+      { numero: 2, oculta: false, celulas: { A: celulaTexto(longo), C: celulaTexto('curto') } },
+    ],
+    mesclas: [],
+    totalDeLinhasOcultas: 0,
+  };
+
+  it('colunas e amostra gerados pelo domínio sempre passam no schema estrito', () => {
+    const inspecao = {
+      formato: 'XLSX',
+      abas: [aba.aba],
+      abaSelecionada: { nome: 'Plano', posicao: 1 },
+      linhaCabecalhoSugerida: 1,
+      linhaCabecalho: 1,
+      colunas: rotulosDasColunas(aba, 1),
+      amostra: amostraDaAba(aba),
+      linhasIgnoradasAntesDoCabecalho: 0,
+      linhasOcultas: 0,
+      cabecalhoMesclado: false,
+      diagnosticos: [],
+    };
+
+    expect(InspecaoDePlanilhaSchema.safeParse(inspecao).success).toBe(true);
+    expect(inspecao.colunas.map((c) => c.rotulo.slice(0, 11))).toEqual(['Coluna A — ', 'Coluna B — ', 'Coluna C — ']);
+  });
+
+  it('o schema deriva seus limites das constantes do domínio', () => {
+    const base = {
+      formato: 'XLSX', abas: [], abaSelecionada: null, linhaCabecalhoSugerida: null, linhaCabecalho: null, colunas: [],
+      amostra: [], linhasIgnoradasAntesDoCabecalho: 0, linhasOcultas: 0, cabecalhoMesclado: false, diagnosticos: [],
+    };
+    const coluna = (nome: string, rotulo: string) => ({ ...base, colunas: [{ letra: 'A', nome, rotulo }] });
+    const amostra = (texto: string) => ({ ...base, amostra: [{ numero: 1, oculta: false, celulas: { A: texto } }] });
+
+    expect(InspecaoDePlanilhaSchema.safeParse(coluna('n'.repeat(LIMITE_DE_TEXTO_DA_INSPECAO), 'r'.repeat(LIMITE_DO_ROTULO_DA_COLUNA))).success).toBe(true);
+    expect(InspecaoDePlanilhaSchema.safeParse(coluna('n'.repeat(LIMITE_DE_TEXTO_DA_INSPECAO + 1), 'r')).success).toBe(false);
+    expect(InspecaoDePlanilhaSchema.safeParse(coluna('n', 'r'.repeat(LIMITE_DO_ROTULO_DA_COLUNA + 1))).success).toBe(false);
+    expect(InspecaoDePlanilhaSchema.safeParse(amostra('a'.repeat(LIMITE_DE_TEXTO_DA_INSPECAO))).success).toBe(true);
+    expect(InspecaoDePlanilhaSchema.safeParse(amostra('a'.repeat(LIMITE_DE_TEXTO_DA_INSPECAO + 1))).success).toBe(false);
   });
 });
