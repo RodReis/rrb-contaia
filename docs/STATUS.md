@@ -19,7 +19,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Contratos de engenharia | escritos: arquitetura, domínio, frontend, git, PR, CI, teste, revisão, auditoria |
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
-| Fatias/SPECs | F1/SPEC-001 a F85/SPEC-085 aprovadas |
+| Fatias/SPECs | F1/SPEC-001 a F86/SPEC-086 aprovadas |
 | Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa), #4 F3 (manutenção da empresa e Histórico de Informações), #5 F4 (documentos da empresa), #6 F5 (Central de Pendências cadastrais), #7 F6 (Notificações de pendências) #9 F7 (Gestão de usuários e papéis padrão), #10 F8 (Papéis personalizados e permissões), #11 F9 (Carteira do colaborador e isolamento por empresa) e, em PR, #15 F13 (Importação do plano de contas por CSV), #16 F14 (Importação de empregados por CSV) e #17 F15 (Importação de planilhas XLSX/ODS) |
 
 ---
@@ -130,8 +130,9 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-2 | F83 | SPEC-083 | PRD §§3, 5.3, 7.1, 12, 14, 15 e 16 | Aging de contas a pagar e a receber | #115 | `proplan:backlog` |
 | MVP-2 | F84 | SPEC-084 | PRD §§3, 5.3, 7.1, 12, 14, 15 e 16 | Projeção de fluxo de caixa 30/60/90 dias | [#116](https://github.com/RodReis/rrb-contaia/issues/116) | `proplan:backlog` |
 | MVP-2 | F85 | SPEC-085 | PRD §§3, 5.3, 7.2, 12, 14, 15 e 16 | Open Finance por empresa via agregador, com Sicoob inicial | [#117](https://github.com/RodReis/rrb-contaia/issues/117) | `proplan:backlog` |
+| MVP-2 | F86 | SPEC-086 | PRD §§3, 5.3, 6, 7.4, 7.5, 9.1, 10.4, 12, 13, 14, 15, 16 e Anexo C | Conciliação bancária assistida multi-critério | Issue pendente: GitHub recusou criação (403) | aprovada pelo PI; issue/vínculo pendentes |
 
-Próximo número livre: **F86 / SPEC-086**.
+Próximo número livre: **F87 / SPEC-087**.
 
 ---
 
@@ -140,7 +141,7 @@ Próximo número livre: **F86 / SPEC-086**.
 | Fase | Entregas | Situação |
 |---|---|---|
 | **[MVP-1](prd/mvp/MVP-1-fundacao-captura-e-controle.md)** | base operacional de RF-01 · RF-02 (captura DF-e, NSU, ciência automática, classificação e inbox) · motor tributário base · agenda mínima · RF-06 (dashboard com semáforo) · Agentes Captura e Compliance inicial | #1 `[INFRA]` concluída; #2–#7, F1/SPEC-001 a F6/SPEC-006, `proplan:finalizado`; #9 F7/SPEC-007 `proplan:done` (aguarda aceite do PI); #10 F8/SPEC-008 `proplan:done` (aguarda aceite do PI); #11 F9/SPEC-009 `proplan:done` (aguarda aceite do PI); F10/SPEC-010 a F25/SPEC-025 em backlog; demais fatias pendentes |
-| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F85/SPEC-085 aprovadas; demais fatias pendentes |
+| **[MVP-2](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md)** | RF-03 completo · RF-04 · malha preventiva · Agentes Classificador, Conciliador e Compliance completo | F26/SPEC-026 a F86/SPEC-086 aprovadas; issue da F86 pendente por permissão GitHub; demais fatias pendentes |
 | **[MVP-3](prd/mvp/MVP-3-dp-portal-e-comunicacao.md)** | RF-05 (DP/eSocial) · portal white-label · canal ativo · Copiloto · Coletor | macroescopo aprovado; fatias pendentes |
 | **[MVP-4](prd/mvp/MVP-4-administracao-e-evolucao.md)** | RF-08 completo · IBS/CBS completo · API pública · Marketplace · colaboração multiagente · preparação para certificações | macroescopo aprovado; API e Marketplace têm decisões pendentes |
 | **Produção** | hospedagem, KMS/HSM, região, storage, backup/restore, observabilidade, migração, rollback e piloto real | somente após o MVP-4 |
