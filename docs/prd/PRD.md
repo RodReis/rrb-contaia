@@ -231,8 +231,8 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 - [ ] **Iniciação de Pagamentos (ITP):** o sistema gera a guia, monta o agendamento na conta do cliente e dispara notificação no app do banco dele apenas para validação biométrica.
 
 ### 7.3 Pix
-- [ ] Emissão de cobrança via PSP/BaaS parceiro.
-- [ ] Webhook de baixa automática.
+- [ ] Emissão de cobrança via PSP/BaaS parceiro; F87/SPEC-087 entrega pelo Sicoob cobrança imediata e cobrança com vencimento vinculadas a parcelas a receber da F68.
+- [ ] Webhook confirmado baixa automaticamente e de forma idempotente na F68; recebimento parcial baixa somente o valor recebido, e excedente fica como exceção sem distribuição ou devolução automática.
 
 ### 7.4 Conciliação
 - [ ] Casamento de extrato × lançamentos × documentos fiscais, com fila de aprovação humana.
