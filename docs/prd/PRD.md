@@ -228,7 +228,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 ### 7.2 Open Finance Brasil
 - [ ] Importação de extratos e saldos de contas correntes, com o consentimento do cliente.
 - [ ] Recebimento por **webhooks**, em lugar de importação D+1.
-- [ ] **Iniciação de Pagamentos (ITP):** o sistema gera a guia, monta o agendamento na conta do cliente e dispara notificação no app do banco dele apenas para validação biométrica.
+- [ ] **Iniciação de Pagamentos (ITP):** F88/SPEC-088 inicia Pix imediato ou agendado para guias DAS e FGTS já emitidas, vinculadas a parcelas F68, via agregador Open Finance com Sicoob inicial e cobertura ITP comprovada; o titular/representante autoriza cada pagamento no ambiente bancário, e confirmação válida gera proposta revisável de baixa F68. Emissão de guia, baixa automática e produção antes do MVP-4 ficam fora.
 
 ### 7.3 Pix
 - [ ] Emissão de cobrança via PSP/BaaS parceiro; F87/SPEC-087 entrega pelo Sicoob cobrança imediata e cobrança com vencimento vinculadas a parcelas a receber da F68.
@@ -587,7 +587,7 @@ Toda integração governamental é validada contra os ambientes oficiais de test
 | Integração | Uso |
 |---|---|
 | Open Finance Brasil | Extratos, saldos e conciliação, por webhooks |
-| Open Finance — ITP | Agendamento do Pix de DAS e FGTS na conta do cliente, com aprovação biométrica no app do banco |
+| Open Finance — ITP | F88/SPEC-088 inicia Pix imediato ou agendado para DAS e FGTS com guia existente e parcela F68 aberta; autorização no banco e proposta revisável após confirmação |
 | Pix via BaaS/PSP | Cobrança e baixa automática |
 | CNAB 240/400 | Boletos e folha |
 
