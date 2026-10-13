@@ -23,7 +23,11 @@ import { obterCorrelationId } from '../comum/problema';
 import { analisar } from '../escritorio/escritorio.dto';
 import { TaxRulesService } from './tax-rules.service';
 
-const idDaRegraSchema = z.object({ id: z.uuid() });
+// Mesmo regex dos demais DTOs: `app.uuid_v7()` grava a variante no byte errado e `z.uuid()` recusa
+// ~3/4 dos ids que o próprio banco gera.
+const idDaRegraSchema = z.object({
+  id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu),
+});
 
 const ator = (requisicao: RequisicaoDoCatalogo): AtorDoCatalogo => {
   if (requisicao.atorDoCatalogo === undefined) {

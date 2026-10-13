@@ -214,6 +214,17 @@ describe('GET /tax-rules/:id', () => {
     expect(servico.get).toHaveBeenCalledWith({ id: USUARIO, tipo: 'ESCRITORIO' }, REGRA, CORRELACAO);
   });
 
+  it('aceita o id que app.uuid_v7() gera, com variante fora de 8/9/a/b (~3/4 dos ids do sistema)', async () => {
+    const idDoBanco = '01a1350b-039e-769f-f683-e599c8b7667f';
+
+    await http().get(`/tax-rules/${idDoBanco}`).set(como('contador')).expect(200);
+    await http().post(`/tax-rules/${idDoBanco}/publish`).set(como('super')).send({ expectedVersion: 1 }).expect(200);
+    await http().post(`/tax-rules/${idDoBanco}/archive`).set(como('super')).send({ expectedVersion: 2 }).expect(200);
+    await http().put(`/tax-rules/${idDoBanco}`).set(como('super')).send({ expectedVersion: 1, ...edicao }).expect(200);
+
+    expect(servico.get).toHaveBeenCalledWith({ id: USUARIO, tipo: 'ESCRITORIO' }, idDoBanco, CORRELACAO);
+  });
+
   it('identificador malformado → 422 sem chamar o caso de uso', async () => {
     await http().get('/tax-rules/nao-e-uuid').set(como('contador')).expect(422);
 
