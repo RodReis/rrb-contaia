@@ -59,6 +59,8 @@ import { PlanoContasService } from './plano-contas/plano-contas.service';
 import { GuardDoCatalogoTributario } from './auth/catalogo-tributario.guard';
 import { TaxRulesController } from './tax-rules/tax-rules.controller';
 import { TaxRulesService } from './tax-rules/tax-rules.service';
+import { TaxSimulationsController } from './tax-simulations/tax-simulations.controller';
+import { TaxSimulationsService } from './tax-simulations/tax-simulations.service';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -92,6 +94,7 @@ import { TaxRulesService } from './tax-rules/tax-rules.service';
     PapeisController,
     ConvitesController,
     TaxRulesController,
+    TaxSimulationsController,
   ],
   providers: [
     PoolDoBanco,
@@ -122,6 +125,7 @@ import { TaxRulesService } from './tax-rules/tax-rules.service';
     GuardDeLimiteDeTentativas,
     ConsultaDeCnpjNaCnpja,
     TaxRulesService,
+    TaxSimulationsService,
     GuardDoCatalogoTributario,
     GuardDeSessao,
     GuardDeCadastro,

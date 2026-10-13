@@ -43,6 +43,7 @@ import {
 import { HistoricoDeUsuariosController } from '../usuarios/historico-de-usuarios.controller';
 import { UsuariosController } from '../usuarios/usuarios.controller';
 import { TaxRulesController } from '../tax-rules/tax-rules.controller';
+import { TaxSimulationsController } from '../tax-simulations/tax-simulations.controller';
 import { ACAO_EXIGIDA, GuardDeAcao } from './acao.guard';
 import { GuardDoCatalogoTributario, NIVEL_DO_CATALOGO } from './catalogo-tributario.guard';
 import { GuardDeSessao } from './sessao.guard';
@@ -71,7 +72,7 @@ const PUBLICOS = new Set(['HealthController', 'ConvitesController']);
 const INTERNOS = new Set([CofreInternoController.name]);
 // Catálogo tributário global (SPEC-016 §3.7): o super_admin da plataforma não é usuário de escritório,
 // então estes controllers trocam sessão + cadastro + ação por UM guard que decide as duas identidades.
-const DO_CATALOGO = new Set([TaxRulesController.name]);
+const DO_CATALOGO = new Set([TaxRulesController.name, TaxSimulationsController.name]);
 
 describe('cobertura de ações nas rotas autenticadas', () => {
   it('só os controllers públicos conhecidos dispensam GuardDeSessao', () => {
@@ -86,7 +87,7 @@ describe('cobertura de ações nas rotas autenticadas', () => {
   it('controller do catálogo usa o guard do catálogo, e só ele, e toda rota declara o nível', () => {
     const doCatalogo = controllersDoModulo().filter((controller) => DO_CATALOGO.has(controller.name));
 
-    expect(doCatalogo.map((controller) => controller.name)).toEqual(['TaxRulesController']);
+    expect(doCatalogo.map((controller) => controller.name).sort()).toEqual(['TaxRulesController', 'TaxSimulationsController']);
     for (const controller of doCatalogo) {
       expect(guardsDe(controller)).toEqual([GuardDoCatalogoTributario]);
 
@@ -103,7 +104,7 @@ describe('cobertura de ações nas rotas autenticadas', () => {
       .filter((controller) => guardsDe(controller).includes(GuardDoCatalogoTributario))
       .map((controller) => controller.name);
 
-    expect(usam).toEqual([...DO_CATALOGO]);
+    expect([...usam].sort()).toEqual([...DO_CATALOGO].sort());
   });
 
   it('controller interno sem sessão exige o guard de serviço, e só ele', () => {

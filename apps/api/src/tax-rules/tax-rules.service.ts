@@ -6,8 +6,8 @@
  */
 import { Injectable } from '@nestjs/common';
 
-import { comContexto, taxRules, type TaxRuleActor, type TaxRuleVersionRecord } from '@contaia/db';
-import { CODIGOS_DE_ERRO, ErroDeDominio, contextoDeServico } from '@contaia/domain';
+import { taxRules, type TaxRuleActor, type TaxRuleVersionRecord } from '@contaia/db';
+import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import type {
   CreateTaxRule,
   ListTaxRulesQuery,
@@ -20,8 +20,7 @@ import type { PoolClient } from 'pg';
 
 import { PoolDoBanco } from '../banco/pool.provider';
 import type { AtorDoCatalogo } from '../auth/catalogo-tributario.guard';
-
-const IDENTIDADE_DO_CATALOGO = 'api-catalogo-tributario';
+import { noCatalogoTributario } from './catalogo-contexto';
 
 export const paraDto = (registro: TaxRuleVersionRecord): TaxRuleVersionDto => ({
   id: registro.id,
@@ -55,15 +54,7 @@ export class TaxRulesService {
   constructor(private readonly pool: PoolDoBanco) {}
 
   private noCatalogo<T>(correlationId: string, executar: (cliente: PoolClient) => Promise<T>): Promise<T> {
-    return comContexto(
-      this.pool.instancia,
-      contextoDeServico({
-        identidadeTecnica: IDENTIDADE_DO_CATALOGO,
-        finalidade: 'CATALOGO_TRIBUTARIO',
-        correlationId,
-      }),
-      executar,
-    );
+    return noCatalogoTributario(this.pool.instancia, correlationId, executar);
   }
 
   private comando(ator: AtorDoCatalogo, correlationId: string): TaxRuleActor {
