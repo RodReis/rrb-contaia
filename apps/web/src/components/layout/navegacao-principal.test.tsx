@@ -124,6 +124,28 @@ describe('NavegacaoPrincipal', () => {
     );
   });
 
+  it('o Motor tributário aparece só para quem consulta o módulo fiscal, e leva à rota do motor (SPEC-016 §3.7)', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['contador'], ['empresas.cadastro.consultar', 'fiscal.motor_tributario.consultar']),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(links()).toContain('Motor tributário'));
+    expect(screen.getByRole('link', { name: 'Motor tributário' })).toHaveAttribute('href', '/fiscal/motor-tributario');
+  });
+
+  it('só simular, sem consultar, não oferece o Motor tributário (a tela exige a consulta)', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['contador'], ['empresas.cadastro.consultar', 'fiscal.motor_tributario.simular']),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await waitFor(() => expect(links()).toEqual(['Empresas', 'Minha carteira']));
+  });
+
   it('sem a chave de consulta do cofre, o item não é oferecido', async () => {
     vi.mocked(fetch).mockResolvedValue(
       sessao(['contador'], ['empresas.cadastro.consultar', 'certificados.cofre.criar']),

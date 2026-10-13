@@ -115,6 +115,28 @@ const MENSAGENS: Readonly<Record<string, string>> = {
   // Importação de planilhas XLSX/ODS (SPEC-015 §3.10): as frases fixas do contrato, que já dizem o
   // que corrigir no arquivo ou na seleção. Só a da planilha sem aba utilizável ganha o "o que fazer".
   ...MENSAGEM_DO_ERRO_DE_PLANILHA,
+  // Motor tributário base versionado (SPEC-016 §6.3). Fixtures de teste: nada aqui orienta fiscalmente.
+  [CODIGOS_DE_ERRO.TAX_RULE_NOT_FOUND]: 'Esta versão de regra não existe mais ou não está disponível para você.',
+  [CODIGOS_DE_ERRO.TAX_RULE_IMMUTABLE]:
+    'Esta versão não aceita essa ação no estado atual. Versão publicada não é alterada: crie um novo rascunho para corrigir.',
+  [CODIGOS_DE_ERRO.TAX_RULE_OVERLAPPING_VALIDITY]:
+    'Já existe versão publicada com vigência sobreposta para esta regra. Ajuste as datas ou arquive a versão anterior antes de publicar.',
+  [CODIGOS_DE_ERRO.TAX_RULE_VERSION_CONFLICT]:
+    'Outra pessoa alterou esta versão enquanto você editava. Recarregue para ver a versão atual; o que você digitou continua na tela.',
+  [CODIGOS_DE_ERRO.TAX_RULE_NOT_APPLICABLE]:
+    'Nenhuma regra publicada vigora para esta combinação de tributo, regime, operação e data do fato. Peça ao administrador da plataforma para publicar uma versão.',
+  [CODIGOS_DE_ERRO.TAX_RULE_AMBIGUOUS]:
+    'Há mais de uma regra publicada para esta combinação e data, o que é uma inconsistência do catálogo. Avise o administrador da plataforma com o código de correlação.',
+  [CODIGOS_DE_ERRO.TAX_SIMULATION_INVALID_INPUT]:
+    'Os dados da simulação são inválidos. Confira a data do fato, a base e o que o complemento informa.',
+  [CODIGOS_DE_ERRO.NFE_XML_INVALID]:
+    'Não foi possível ler este arquivo como XML de NF-e. Ele pode estar corrompido, ser grande demais ou conter declarações não aceitas (DTD e entidades).',
+  [CODIGOS_DE_ERRO.NFE_LAYOUT_UNSUPPORTED]:
+    'Este documento não é uma NF-e do leiaute aceito (NF-e 4.00, modelo 55, NT 2025.002 v1.50). CT-e, NFS-e, NFC-e e eventos ficam fora da simulação.',
+  [CODIGOS_DE_ERRO.NFE_REQUIRED_DATA_MISSING]:
+    'A NF-e não traz um dado mínimo para a simulação (data de emissão, itens ou valor do produto).',
+  [CODIGOS_DE_ERRO.PLATFORM_ADMIN_REQUIRED]:
+    'Somente o administrador da plataforma cria, edita, publica ou arquiva regras do catálogo tributário.',
   PLANILHA_SEM_ABA_UTILIZAVEL:
     'A planilha não tem nenhuma aba com dados utilizáveis. Confira se os dados estão numa aba com cabeçalho e linhas preenchidas e envie de novo.',
   FALHA_DE_REDE: 'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',

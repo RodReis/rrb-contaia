@@ -64,8 +64,10 @@ export class TaxRulesService {
   async list(ator: AtorDoCatalogo, consulta: ListTaxRulesQuery, correlationId: string): Promise<TaxRulePageDto> {
     const { page, pageSize, status, ...filtros } = consulta;
 
-    if (naoEhAdministracao(ator) && status !== undefined && status !== 'PUBLISHED') {
-      return { items: [], total: 0, page, pageSize };
+    const canAdminister = !naoEhAdministracao(ator);
+
+    if (!canAdminister && status !== undefined && status !== 'PUBLISHED') {
+      return { items: [], total: 0, page, pageSize, canAdminister };
     }
 
     const pagina = await this.noCatalogo(correlationId, (cliente) =>
@@ -77,7 +79,7 @@ export class TaxRulesService {
       }),
     );
 
-    return { items: pagina.items.map(paraDto), total: pagina.total, page, pageSize };
+    return { items: pagina.items.map(paraDto), total: pagina.total, page, pageSize, canAdminister };
   }
 
   async get(ator: AtorDoCatalogo, id: string, correlationId: string): Promise<TaxRuleVersionDto> {

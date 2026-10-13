@@ -113,6 +113,18 @@ Select com mais de ~10 opções vira `Combobox` com busca. Seletor de empresa **
 
 `Form` do shadcn com `react-hook-form` + `zod`. Validação declarada em schema, nunca espalhada em handler.
 
+### 1.7 CampoDeValor (moeda e percentual) 🆕
+
+`apps/web/src/components/ui/campo-de-valor.tsx` (SPEC-016/F16)
+
+Campo controlado para dinheiro (`R$`, centavos inteiros) e percentual (`%`, centésimos de ponto percentual: 10000 = 100%). Exibe com máscara pt-BR (`12,34`), alinha à direita em `code-sm`/tabular e entrega ao estado o **número inteiro**, nunca float nem string mascarada (§1.3). Vazio vira `null`. Sufixo/prefixo é decoração: não entra no valor.
+
+### 1.8 ZonaDeXml 🆕
+
+`apps/web/src/features/motor-tributario/zona-de-xml.tsx` (SPEC-016/F16)
+
+Zona de envio de um único XML (clique, teclado ou arrastar). Valida extensão e limite de tamanho antes de enviar, mostra nome e tamanho, oferece "Trocar" e "Remover" e declara que o arquivo não é gravado. O arquivo vive só em memória na tela.
+
 ---
 
 ## 2. Navegação e shell

@@ -134,6 +134,9 @@ describe('visibilidade por identidade (SPEC-016 §3.7)', () => {
 
     expect(doEscritorio.items.map((item) => item.id)).toEqual([publicada.id]);
     expect(doEscritorio.total).toBe(1);
+    // A tela só oferece criar, editar, publicar e arquivar a quem a API aceitaria.
+    expect(doEscritorio.canAdminister).toBe(false);
+    expect(daPlataforma.canAdminister).toBe(true);
     expect(daPlataforma.items.map((item) => item.id)).toEqual([publicada.id, rascunho.id]);
     expect(daPlataforma.total).toBe(2);
   });
@@ -144,7 +147,7 @@ describe('visibilidade por identidade (SPEC-016 §3.7)', () => {
 
     const resposta = await servico.list(escritorio, { ...regra, status: 'DRAFT', page: 1, pageSize: 25 }, 'corr-vis-0011');
 
-    expect(resposta).toEqual({ items: [], total: 0, page: 1, pageSize: 25 });
+    expect(resposta).toEqual({ items: [], total: 0, page: 1, pageSize: 25, canAdminister: false });
   });
 
   it('obter rascunho ou arquivada pelo escritório responde TAX_RULE_NOT_FOUND, como inexistente', async () => {

@@ -211,6 +211,11 @@ export type TaxRulePageDto = Readonly<{
   total: number;
   page: number;
   pageSize: number;
+  /**
+   * Só o administrador da plataforma cria, edita, publica e arquiva (SPEC-016 §3.7). A tela usa
+   * isto para não oferecer ação que a API recusaria; a decisão continua sendo da API.
+   */
+  canAdminister: boolean;
 }>;
 
 /** Resultado de qualquer simulação: a regra escolhida e a memória de cálculo reproduzível. */
