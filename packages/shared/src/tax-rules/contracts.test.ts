@@ -5,8 +5,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CreateTaxRuleSchema,
+  LIMITE_DA_NFE_BYTES,
   ListTaxRulesQuerySchema,
   ManualTaxSimulationSchema,
+  NFE_RTC_LAYOUT,
+  NfeComplementSchema,
   TAX_OPERATION_TYPES,
   TaxRuleCommandSchema,
   UpdateTaxRuleSchema,
@@ -151,5 +154,34 @@ describe('ManualTaxSimulationSchema', () => {
     ['fórmula enviada pelo navegador', { formula: 'base*0.18' }],
   ])('recusa %s', (_nome, override) => {
     expect(ManualTaxSimulationSchema.safeParse({ ...manual, ...override }).success).toBe(false);
+  });
+});
+
+describe('NfeComplementSchema (SPEC-016 §3.6)', () => {
+  it('aceita só o complemento de simulação: operação, regime e bases por item', () => {
+    expect(NfeComplementSchema.parse({ operationType: 'VENDA_MERCADORIA' })).toEqual({ operationType: 'VENDA_MERCADORIA' });
+    expect(
+      NfeComplementSchema.parse({ operationType: 'VENDA_MERCADORIA', regime: 'LUCRO_REAL', itemBases: { '1': 25_000, '990': 0 } }),
+    ).toEqual({ operationType: 'VENDA_MERCADORIA', regime: 'LUCRO_REAL', itemBases: { '1': 25_000, '990': 0 } });
+  });
+
+  it.each([
+    ['sem operação (o XML nunca a traz)', {}],
+    ['operação fora do catálogo', { operationType: 'LIVRE' }],
+    ['regime inválido', { operationType: 'VENDA_MERCADORIA', regime: 'MEI' }],
+    ['item zero', { operationType: 'VENDA_MERCADORIA', itemBases: { '0': 1 } }],
+    ['item acima de 990', { operationType: 'VENDA_MERCADORIA', itemBases: { '1000': 1 } }],
+    ['item não numérico', { operationType: 'VENDA_MERCADORIA', itemBases: { x: 1 } }],
+    ['base fracionária', { operationType: 'VENDA_MERCADORIA', itemBases: { '1': 1.5 } }],
+    ['base negativa', { operationType: 'VENDA_MERCADORIA', itemBases: { '1': -1 } }],
+    ['data do fato enviada pelo navegador', { operationType: 'VENDA_MERCADORIA', factDate: '2026-06-15' }],
+    ['alíquota enviada pelo navegador', { operationType: 'VENDA_MERCADORIA', rateBasisPoints: 1 }],
+  ])('recusa %s', (_nome, corpo) => {
+    expect(NfeComplementSchema.safeParse(corpo).success).toBe(false);
+  });
+
+  it('fixa o leiaute aceito e o limite do upload de forma explícita', () => {
+    expect(NFE_RTC_LAYOUT).toEqual({ nt: '2025.002', ntVersion: '1.50', nfeVersion: '4.00' });
+    expect(LIMITE_DA_NFE_BYTES).toBe(2 * 1024 * 1024);
   });
 });

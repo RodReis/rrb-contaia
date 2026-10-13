@@ -4,12 +4,15 @@
  * pelo papel `contaia_app` sob o contexto de serviço do catálogo.
  */
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { criarPool, criarPoolDaAplicacao } from '@contaia/db';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import type { CreateTaxRule, ManualTaxSimulation } from '@contaia/shared';
+import { Logger } from '@nestjs/common';
 import type { Pool } from 'pg';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import type { AtorDoCatalogo } from '../auth/catalogo-tributario.guard';
 import { TaxRulesService } from '../tax-rules/tax-rules.service';
@@ -68,6 +71,143 @@ const codigoDe = async (executar: () => Promise<unknown>): Promise<string | unde
   }
   return undefined;
 };
+
+/**
+ * Espião do que a simulação por NF-e faz com o documento (SPEC-016 §3.6, §8 "Contrafactual"): toda
+ * consulta ao banco (texto e parâmetros) e toda saída de log/console. O serviço não tem dependência de
+ * storage, então o único destino possível do XML, além da memória, é o banco ou um log.
+ */
+const registrarDestinos = () => {
+  const consultas: unknown[] = [];
+  const logs: unknown[] = [];
+  let conexoes = 0;
+  const espioes = (['log', 'warn', 'error', 'debug', 'verbose'] as const).flatMap((nivel) => [
+    vi.spyOn(Logger.prototype, nivel).mockImplementation((...args: unknown[]) => void logs.push(args)),
+    ...(nivel === 'log' || nivel === 'warn' || nivel === 'error' || nivel === 'debug'
+      ? [vi.spyOn(console, nivel === 'log' ? 'log' : nivel).mockImplementation((...args: unknown[]) => void logs.push(args))]
+      : []),
+  ]);
+  const espiao = new Proxy(app, {
+    get(alvo, propriedade, receptor) {
+      if (propriedade !== 'connect') {
+        return Reflect.get(alvo, propriedade, receptor) as unknown;
+      }
+
+      return async () => {
+        conexoes += 1;
+        const cliente = await alvo.connect();
+        const original = cliente.query.bind(cliente) as (...args: unknown[]) => unknown;
+        (cliente as unknown as { query: (...args: unknown[]) => unknown }).query = (...args: unknown[]) => {
+          consultas.push(args);
+
+          return original(...args);
+        };
+
+        return cliente;
+      };
+    },
+  });
+
+  return {
+    servico: new TaxSimulationsService({ instancia: espiao } as never),
+    capturado: () => JSON.stringify({ consultas, logs }),
+    conexoes: () => conexoes,
+    soltar: () => espioes.forEach((espiao) => espiao.mockRestore()),
+  };
+};
+
+const FIXTURES = join(__dirname, '..', 'nfe', 'fixtures');
+const lerXml = (nome: string): Buffer => readFileSync(join(FIXTURES, nome));
+
+describe('simulação por NF-e de teste contra o catálogo real', () => {
+  const publicarTributos = async (op: CreateTaxRule['operationType'], regime: CreateTaxRule['regime']) => {
+    const taxas = { IBS_UF: 10, IBS_MUN: 0, CBS: 90 } as const;
+    for (const taxType of ['IBS_UF', 'IBS_MUN', 'CBS'] as const) {
+      await publicar(regra(op, { taxType, regime, validUntil: null, rateBasisPoints: taxas[taxType] }));
+    }
+  };
+
+  it('calcula por item e total com as regras publicadas e compara com o declarado', async () => {
+    const op = operacaoUnica();
+    await publicarTributos(op, 'SIMPLES_NACIONAL');
+
+    const resposta = await simulacoes.simulateNfe(escritorio, lerXml('nfe-rtc-valida.xml'), { operationType: op }, 'corr-nfe-0001');
+
+    expect(resposta.complementsRequired).toEqual([]);
+    expect(resposta.result?.totals).toEqual({
+      calculated: { ibsUfCents: 20, ibsMunCents: 0, ibsCents: 20, cbsCents: 184 },
+      ibs: { declaredCents: 20, calculatedCents: 20, differenceCents: 0, diverges: false },
+      cbs: { declaredCents: 189, calculatedCents: 184, differenceCents: -5, diverges: true },
+    });
+    expect(resposta.result?.items.map((item) => item.taxes.map((linha) => linha.simulation.memory.resultCents))).toEqual([
+      [10, 0, 90],
+      [0, 0, 4],
+      [10, 0, 90],
+    ]);
+  });
+
+  it('XML, chave de acesso e conteúdo fiscal bruto não vão ao banco nem aos logs', async () => {
+    const op = operacaoUnica();
+    await publicarTributos(op, 'SIMPLES_NACIONAL');
+    const { servico, capturado, soltar } = registrarDestinos();
+
+    try {
+      await servico.simulateNfe(escritorio, lerXml('nfe-rtc-valida.xml'), { operationType: op }, 'corr-nfe-0010');
+      await servico.simulateNfe(escritorio, lerXml('nfe-rtc-valida.xml'), null, 'corr-nfe-0011');
+      await codigoDe(() => servico.simulateNfe(escritorio, lerXml('xxe-entidade-externa.xml'), { operationType: op }, 'corr-nfe-0012'));
+    } finally {
+      soltar();
+    }
+
+    const visto = capturado();
+    expect(visto.length).toBeGreaterThan(2);
+    for (const sensivel of ['NFe0000', 'EMITENTE', 'ITEM DE TESTE', '<infNFe', 'portalfiscal', '00000000000000', '/etc/passwd', 'VENDA FIXTURE']) {
+      expect(visto).not.toContain(sensivel);
+    }
+  });
+
+  it('XML recusado não abre transação alguma: o parse vem antes do banco', async () => {
+    const { servico, conexoes, soltar } = registrarDestinos();
+
+    try {
+      for (const nome of ['xxe-entidade-externa.xml', 'com-doctype.xml', 'cte-nao-suportado.xml']) {
+        await codigoDe(() => servico.simulateNfe(escritorio, lerXml(nome), { operationType: operacaoUnica() }, 'corr-nfe-0020'));
+      }
+    } finally {
+      soltar();
+    }
+
+    expect(conexoes()).toBe(0);
+  });
+
+  it('o buffer do arquivo é zerado ao final, com sucesso ou com recusa', async () => {
+    const op = operacaoUnica();
+    await publicarTributos(op, 'SIMPLES_NACIONAL');
+    const aceito = lerXml('nfe-rtc-valida.xml');
+    const recusado = lerXml('xxe-entidade-externa.xml');
+
+    await simulacoes.simulateNfe(escritorio, aceito, { operationType: op }, 'corr-nfe-0030');
+    await codigoDe(() => simulacoes.simulateNfe(escritorio, recusado, { operationType: op }, 'corr-nfe-0031'));
+
+    expect(aceito.every((byte) => byte === 0)).toBe(true);
+    expect(recusado.every((byte) => byte === 0)).toBe(true);
+  });
+
+  it('NF-e sem IBS/CBS e sem complemento devolve só a análise, sem tocar nas regras', async () => {
+    const { servico, capturado, soltar } = registrarDestinos();
+    let resposta;
+
+    try {
+      resposta = await servico.simulateNfe(escritorio, lerXml('nfe-sem-ibscbs.xml'), null, 'corr-nfe-0040');
+    } finally {
+      soltar();
+    }
+
+    expect(resposta.result).toBeNull();
+    expect(resposta.complementsRequired.map((pendencia) => pendencia.field)).toEqual(['operationType', 'regime', 'itemBases.1', 'itemBases.2']);
+    expect(capturado()).not.toContain('tax_rule_find_applicable');
+  });
+});
 
 describe('simulação manual contra o catálogo real', () => {
   it('seleciona a versão vigente na data do fato e devolve regra, vigência, fixture e memória', async () => {

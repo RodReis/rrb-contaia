@@ -32,7 +32,7 @@ const entrada = {
 
 const resultado = { rule: { id: ID(3), versionNumber: 1 }, memory: { resultCents: 1_800, rounding: 'HALF_UP' } };
 
-const servico = { simulateManual: vi.fn() };
+const servico = { simulateManual: vi.fn(), simulateNfe: vi.fn() };
 
 const escritorio = (papel: PapelPadrao): SessaoDoCatalogo => ({
   tipo: 'ESCRITORIO',
@@ -79,9 +79,13 @@ afterAll(async () => {
   await app.close();
 });
 
+const respostaDaNfe = { extraction: { issueDate: '2026-06-15' }, complementsRequired: [], result: null };
+
 beforeEach(() => {
   servico.simulateManual.mockReset();
   servico.simulateManual.mockResolvedValue(resultado);
+  servico.simulateNfe.mockReset();
+  servico.simulateNfe.mockResolvedValue(respostaDaNfe);
 });
 
 const como = (papel: string) => ({ authorization: `Bearer ${papel}`, 'x-correlation-id': CORRELACAO });
@@ -145,6 +149,88 @@ describe('POST /tax-simulations/manual', () => {
     servico.simulateManual.mockRejectedValue(new ErroDeDominio(codigo, 'falha'));
 
     const resposta = await simular('contador', entrada).expect(status);
+
+    expect(resposta.headers['content-type']).toMatch(/application\/problem\+json/u);
+    expect(resposta.body).toMatchObject({ status, code: codigo, correlationId: CORRELACAO });
+  });
+});
+
+describe('POST /tax-simulations/nfe (multipart, em memória)', () => {
+  const XML = Buffer.from('<NFe xmlns="http://www.portalfiscal.inf.br/nfe"/>');
+  const COMPLEMENTO = { operationType: 'VENDA_MERCADORIA', regime: 'LUCRO_REAL', itemBases: { '1': 25_000 } };
+  const enviar = (papel: string) => request(app.getHttpServer()).post('/tax-simulations/nfe').set(como(papel));
+
+  it('lê o arquivo e o complemento; ator e correlação saem da sessão e do cabeçalho', async () => {
+    const resposta = await enviar('contador')
+      .attach('arquivo', XML, { filename: 'nfe.xml', contentType: 'application/xml' })
+      .field('complemento', JSON.stringify(COMPLEMENTO))
+      .expect(200);
+
+    expect(resposta.body).toEqual(respostaDaNfe);
+    expect(servico.simulateNfe).toHaveBeenCalledWith({ id: USUARIO, tipo: 'ESCRITORIO' }, XML, COMPLEMENTO, CORRELACAO);
+  });
+
+  it('sem complemento é só análise: o caso de uso recebe complemento nulo', async () => {
+    await enviar('auditor_readonly').attach('arquivo', XML, { filename: 'nfe.xml', contentType: 'application/xml' }).expect(200);
+
+    expect(servico.simulateNfe).toHaveBeenCalledWith({ id: USUARIO, tipo: 'ESCRITORIO' }, XML, null, CORRELACAO);
+  });
+
+  it('o super_admin também simula', async () => {
+    await enviar('super').attach('arquivo', XML, { filename: 'nfe.xml' }).expect(200);
+
+    expect(servico.simulateNfe).toHaveBeenCalledWith({ id: SUPER_ADMIN, tipo: 'SUPER_ADMIN' }, XML, null, CORRELACAO);
+  });
+
+  it('o auxiliar não tem acesso e o arquivo nem chega ao caso de uso', async () => {
+    const resposta = await enviar('auxiliar').attach('arquivo', XML, { filename: 'nfe.xml' }).expect(403);
+
+    expect(resposta.body.code).toBe(CODIGOS_DE_ERRO.SEM_AUTORIZACAO);
+    expect(servico.simulateNfe).not.toHaveBeenCalled();
+  });
+
+  it('sem token responde 401 sem processar o upload', async () => {
+    await request(app.getHttpServer()).post('/tax-simulations/nfe').attach('arquivo', XML, { filename: 'nfe.xml' }).expect(401);
+
+    expect(servico.simulateNfe).not.toHaveBeenCalled();
+  });
+
+  it('sem arquivo → 422 NFE_XML_INVALID', async () => {
+    const resposta = await enviar('contador').field('complemento', JSON.stringify(COMPLEMENTO)).expect(422);
+
+    expect(resposta.body).toMatchObject({ status: 422, code: CODIGOS_DE_ERRO.NFE_XML_INVALID, correlationId: CORRELACAO });
+    expect(servico.simulateNfe).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['JSON malformado', '{operationType:'],
+    ['lista no lugar de objeto', JSON.stringify(['VENDA_MERCADORIA'])],
+    ['campo fora do contrato', JSON.stringify({ ...COMPLEMENTO, rateBasisPoints: 1 })],
+    ['operação fora do catálogo', JSON.stringify({ operationType: 'LIVRE' })],
+    ['base fracionária', JSON.stringify({ ...COMPLEMENTO, itemBases: { '1': 1.5 } })],
+  ])('complemento inválido (%s) → 422 sem chamar o caso de uso', async (_nome, complemento) => {
+    await enviar('contador').attach('arquivo', XML, { filename: 'nfe.xml' }).field('complemento', complemento).expect(422);
+
+    expect(servico.simulateNfe).not.toHaveBeenCalled();
+  });
+
+  it('arquivo acima do limite → 413, cortado antes de carregar o excedente', async () => {
+    const grande = Buffer.alloc(2 * 1024 * 1024 + 1, 0x20);
+    const resposta = await enviar('contador').attach('arquivo', grande, { filename: 'nfe.xml' }).expect(413);
+
+    expect(resposta.body).toMatchObject({ status: 413, code: CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE });
+    expect(servico.simulateNfe).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [CODIGOS_DE_ERRO.NFE_XML_INVALID, 422],
+    [CODIGOS_DE_ERRO.NFE_LAYOUT_UNSUPPORTED, 422],
+    [CODIGOS_DE_ERRO.NFE_REQUIRED_DATA_MISSING, 422],
+    [CODIGOS_DE_ERRO.TAX_RULE_NOT_APPLICABLE, 422],
+  ])('%s → %i em problem+json, nunca 500', async (codigo, status) => {
+    servico.simulateNfe.mockRejectedValue(new ErroDeDominio(codigo, 'falha'));
+
+    const resposta = await enviar('contador').attach('arquivo', XML, { filename: 'nfe.xml' }).expect(status);
 
     expect(resposta.headers['content-type']).toMatch(/application\/problem\+json/u);
     expect(resposta.body).toMatchObject({ status, code: codigo, correlationId: CORRELACAO });
