@@ -378,6 +378,29 @@ export {
 export { lerDataCivil, type DataCivil } from './datas/data-civil.js';
 
 export {
+  evaluateTaxRule,
+  selectApplicableRule,
+  type ExactFraction,
+  type TaxCalculationMemory,
+  type TaxEvaluationInput,
+  type TaxRuleCriteria,
+} from './tax-rules/evaluate-tax-rule.js';
+export {
+  FULL_BASIS_POINTS,
+  TAX_REGIMES,
+  TAX_RULE_STATUSES,
+  TAX_TYPES,
+  isBasisPoints,
+  isValidOperation,
+  type TaxRegime,
+  type TaxRule,
+  type TaxRuleIdentity,
+  type TaxRuleOperation,
+  type TaxRuleStatus,
+  type TaxType,
+} from './tax-rules/model.js';
+
+export {
   CAMPOS_DE_EMPREGADO,
   CODIGOS_DE_ERRO_DE_EMPREGADO,
   CODIGOS_DE_ERRO_DE_EMPREGADO_EM_QUALQUER_FORMATO,
