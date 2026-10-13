@@ -65,11 +65,11 @@ const LinhaDaRegra = ({
 
   return (
     <tr className="border-b border-border align-top last:border-b-0 hover:bg-accent/40">
-      <td className="min-w-[14rem] px-md py-sm text-body-md text-foreground">
+      <td className="min-w-[11rem] px-md py-sm text-body-md text-foreground">
         <span className="break-words">{rotuloDaRegra(regra)}</span>
       </td>
       <td className={`px-md py-sm ${NUMERICO}`}>v{regra.versionNumber}</td>
-      <td className="min-w-[10rem] px-md py-sm text-body-md text-foreground">{formatarVigencia(regra.validFrom, regra.validUntil)}</td>
+      <td className="min-w-[9rem] px-md py-sm text-body-md text-foreground">{formatarVigencia(regra.validFrom, regra.validUntil)}</td>
       <td className="px-md py-sm">
         <span className={NUMERICO}>{formatarCentesimosDePercentual(regra.rateBasisPoints)}</span>
         {regra.baseReductionBasisPoints === null ? null : (
@@ -82,7 +82,7 @@ const LinhaDaRegra = ({
         <StatusBadge tom={estado.tom} rotulo={estado.rotulo} />
       </td>
       <td className="sticky right-0 bg-card px-md py-sm text-right shadow-[-1px_0_0_var(--border)]">
-        <div className="flex flex-nowrap justify-end gap-xs">
+        <div className="flex flex-col items-end gap-xs desktop:flex-row desktop:flex-nowrap desktop:justify-end">
           <AbrirRegra regra={regra} podeEditar={podeAdministrar && rascunho} aoAbrir={aoAbrir} />
           {podeAdministrar && rascunho ? <PublicarRegra regra={regra} /> : null}
           {podeAdministrar && regra.status === 'PUBLISHED' ? <ArquivarRegra regra={regra} /> : null}
@@ -234,7 +234,7 @@ export const CatalogoDeRegras = () => {
           ) : (
             <div className={isPlaceholderData ? 'opacity-60 transition-opacity duration-fast' : undefined}>
               <div className="overflow-x-auto rounded-lg border border-border bg-card">
-                <table className="w-full min-w-[52rem] border-collapse text-left">
+                <table className="w-full min-w-[44rem] border-collapse text-left">
                   <caption className="sr-only">Regras tributárias do catálogo, com versão, vigência, alíquota e estado</caption>
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
