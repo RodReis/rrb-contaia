@@ -480,6 +480,37 @@ describe('proteção em nível de banco, inclusive contra o superusuário das mi
     await expect(admin.query('delete from app.tax_rule_version where id = $1', [draft.id])).rejects.toThrow(/TAX_RULE_IMMUTABLE/u);
   });
 
+  it('a identidade da regra não muda nem some: as versões publicadas dependem dela', async () => {
+    const published = await publishedVersion();
+
+    await expect(admin.query(`update app.tax_rule set tax_type = 'CBS' where id = $1`, [published.taxRuleId])).rejects.toThrow(
+      /restrict|rejeitad|TAX_RULE_IMMUTABLE/iu,
+    );
+    await expect(admin.query('delete from app.tax_rule where id = $1', [published.taxRuleId])).rejects.toThrow(
+      /restrict|rejeitad|TAX_RULE_IMMUTABLE|violates foreign key/iu,
+    );
+  });
+
+  it('versão nasce sempre como rascunho: INSERT direto já publicado não passa pela auditoria', async () => {
+    const published = await publishedVersion();
+
+    await expect(
+      admin.query(
+        `insert into app.tax_rule_version
+           (tax_rule_id, version_number, status, valid_from, valid_until, rate_basis_points, source, fixture_note,
+            created_by, created_at, published_by, published_at)
+         values ($1, 99, 'PUBLISHED', '2090-01-01', '2090-12-31', 1, 'x', '', $2, now(), $2, now())`,
+        [published.taxRuleId, published.createdBy],
+      ),
+    ).rejects.toThrow(/TAX_RULE_IMMUTABLE/u);
+  });
+
+  it('TRUNCATE do catálogo e da auditoria é recusado', async () => {
+    for (const tabela of ['tax_rule_audit_event', 'tax_rule_version', 'tax_rule']) {
+      await expect(admin.query(`truncate app.${tabela} cascade`)).rejects.toThrow(/TAX_RULE_IMMUTABLE/u);
+    }
+  });
+
   it('a auditoria é append-only: UPDATE e DELETE são recusados', async () => {
     const published = await publishedVersion();
 

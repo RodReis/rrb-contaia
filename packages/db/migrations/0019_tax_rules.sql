@@ -39,6 +39,8 @@
 -- DROP TABLE app.tax_rule;
 -- DROP FUNCTION app.proteger_tax_rule_version();
 -- DROP TYPE app.tax_rule_version_row;
+-- DROP FUNCTION app.exigir_rascunho_na_criacao();
+-- DROP FUNCTION app.rejeitar_truncate_do_catalogo();
 -- ROLLBACK:FIM
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;
@@ -175,6 +177,47 @@ $$;
 CREATE TRIGGER tax_rule_version_protegida
   BEFORE UPDATE OR DELETE ON app.tax_rule_version
   FOR EACH ROW EXECUTE FUNCTION app.proteger_tax_rule_version();
+
+-- A identidade da regra (tributo + regime + operacao) tambem e imutavel e permanente: as versoes
+-- publicadas dependem dela, e trocar o tributo de uma identidade reinterpretaria o historico inteiro
+-- sem evento de auditoria. Reaproveita a funcao append-only do historico.
+CREATE TRIGGER tax_rule_protegida
+  BEFORE UPDATE OR DELETE ON app.tax_rule
+  FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
+
+-- Toda versao nasce como rascunho: so a funcao de publicacao (e a auditoria dela) leva a PUBLISHED.
+-- Sem isto, um INSERT direto publicaria regra sem evento de auditoria.
+CREATE OR REPLACE FUNCTION app.exigir_rascunho_na_criacao() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.status <> 'DRAFT' THEN
+    RAISE EXCEPTION 'TAX_RULE_IMMUTABLE: versao nasce como rascunho'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER tax_rule_version_nasce_rascunho
+  BEFORE INSERT ON app.tax_rule_version
+  FOR EACH ROW EXECUTE FUNCTION app.exigir_rascunho_na_criacao();
+
+-- TRUNCATE nao dispara gatilho de linha: sem este, esvaziaria catalogo e auditoria de uma vez.
+CREATE OR REPLACE FUNCTION app.rejeitar_truncate_do_catalogo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'TAX_RULE_IMMUTABLE: o catalogo tributario e a auditoria nao sao esvaziados'
+    USING ERRCODE = 'restrict_violation';
+END;
+$$;
+
+CREATE TRIGGER tax_rule_sem_truncate BEFORE TRUNCATE ON app.tax_rule
+  FOR EACH STATEMENT EXECUTE FUNCTION app.rejeitar_truncate_do_catalogo();
+CREATE TRIGGER tax_rule_version_sem_truncate BEFORE TRUNCATE ON app.tax_rule_version
+  FOR EACH STATEMENT EXECUTE FUNCTION app.rejeitar_truncate_do_catalogo();
+CREATE TRIGGER tax_rule_audit_event_sem_truncate BEFORE TRUNCATE ON app.tax_rule_audit_event
+  FOR EACH STATEMENT EXECUTE FUNCTION app.rejeitar_truncate_do_catalogo();
 
 -- 3. Contexto de servico do catalogo -------------------------------------------------------------
 

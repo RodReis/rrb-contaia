@@ -48,6 +48,9 @@ const papeisDoRealm = (payload: JWTPayload): readonly string[] => {
   return Array.isArray(papeis) ? papeis.filter((papel): papel is string => typeof papel === 'string') : [];
 };
 
+/** Cliente OIDC do navegador, o único a quem o papel de plataforma é reconhecido. */
+const clienteDaPlataforma = (): string => process.env['KEYCLOAK_CLIENT_ID'] ?? 'contaia-web';
+
 /** O `iss` que os tokens carregam: a origem que o NAVEGADOR usa para falar com o Keycloak. */
 const emissor = (): string =>
   process.env['KEYCLOAK_ISSUER_URL'] ?? 'http://127.0.0.1:18080/realms/contaia';
@@ -95,7 +98,9 @@ export class SessaoService {
   async resolverParaCatalogo(token: string): Promise<SessaoDoCatalogo> {
     const payload = await this.verificarToken(token);
 
-    if (papeisDoRealm(payload).includes(PAPEL_DA_PLATAFORMA)) {
+    // O papel só vale em token emitido para o cliente web: um token de outro cliente do realm (ex.:
+    // `admin-cli`) com o papel mapeado não administra a plataforma.
+    if (papeisDoRealm(payload).includes(PAPEL_DA_PLATAFORMA) && payload['azp'] === clienteDaPlataforma()) {
       const sub = typeof payload.sub === 'string' ? payload.sub : '';
 
       if (sub.length === 0) {

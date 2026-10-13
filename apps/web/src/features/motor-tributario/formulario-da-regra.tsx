@@ -21,6 +21,7 @@ import { CampoControlado } from '@/components/ui/campo-controlado';
 import { CampoDeValor } from '@/components/ui/campo-de-valor';
 import { Select } from '@/components/ui/select';
 import { ErroDaApi } from '@/lib/http';
+import { formatarCentesimosDePercentual } from '@/lib/moeda';
 import { ResumoDeErros } from '../escritorio/resumo-de-erros';
 import { ArquivarRegra, PublicarRegra } from './acoes-da-regra';
 import {
@@ -28,6 +29,7 @@ import {
   OPCOES_DE_REGIME,
   OPCOES_DE_TRIBUTO,
   formatarInstante,
+  formatarVigencia,
 } from './apresentacao';
 import { ErroDoMotor } from './erro-do-motor';
 import { focarPrimeiroCampoInvalido } from './foco';
@@ -140,7 +142,7 @@ export const FormularioDaRegra = ({
   const criar = useCriarRegra();
   const editar = useEditarRegra();
   const [versaoEsperada, definirVersaoEsperada] = useState(regra?.lockVersion ?? 1);
-  const [recarregada, definirRecarregada] = useState(false);
+  const [recarregada, definirRecarregada] = useState<TaxRuleVersionDto | null>(null);
   const referenciaDoFormulario = useRef<HTMLFormElement>(null);
   const emEnvio = useRef(false);
 
@@ -230,7 +232,7 @@ export const FormularioDaRegra = ({
 
     if (atual !== undefined) {
       definirVersaoEsperada(atual.lockVersion);
-      definirRecarregada(true);
+      definirRecarregada(atual);
       salvar.reset();
     }
   };
@@ -383,10 +385,25 @@ export const FormularioDaRegra = ({
           }
         />
       )}
-      {recarregada && erroDoPainel === null ? (
-        <p role="status" className="rounded-md bg-info p-sm text-body-sm text-info-foreground">
-          A versão atual foi carregada. O que você digitou foi mantido: confira e salve de novo.
-        </p>
+      {recarregada !== null && erroDoPainel === null ? (
+        <div role="status" className="flex flex-col gap-xs rounded-md bg-info p-sm text-body-sm text-info-foreground">
+          <p>
+            A versão atual foi carregada. O que você digitou foi mantido; compare com os valores abaixo, que a outra pessoa salvou,
+            antes de salvar de novo: salvar substitui esses valores.
+          </p>
+          <dl aria-label="Valores atuais no servidor" role="group" className="grid grid-cols-[auto_1fr] gap-x-md gap-y-xs">
+            <dt>Vigência</dt>
+            <dd className={NUMERICO}>{formatarVigencia(recarregada.validFrom, recarregada.validUntil)}</dd>
+            <dt>Alíquota</dt>
+            <dd className={NUMERICO}>{formatarCentesimosDePercentual(recarregada.rateBasisPoints)}</dd>
+            <dt>Redução de base</dt>
+            <dd className={NUMERICO}>
+              {recarregada.baseReductionBasisPoints === null ? 'Sem redução' : formatarCentesimosDePercentual(recarregada.baseReductionBasisPoints)}
+            </dd>
+            <dt>Fonte</dt>
+            <dd className="break-words">{recarregada.source}</dd>
+          </dl>
+        </div>
       ) : null}
 
       {somenteLeitura ? (

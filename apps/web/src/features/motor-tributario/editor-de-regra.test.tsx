@@ -197,6 +197,9 @@ describe('EditorDeRegra — rascunho existente', () => {
     expect(await screen.findByText(/versão atual foi carregada/iu)).toBeInTheDocument();
     // O que foi digitado continua (formatado ao sair do campo), não o 19,00 que o servidor tem agora.
     expect(screen.getByLabelText(/Alíquota/u)).toHaveValue('22,00');
+    // O lock otimista só vale se a pessoa VÊ o que a outra salvou antes de sobrescrever.
+    const atuais = screen.getByRole('group', { name: 'Valores atuais no servidor' });
+    expect(within(atuais).getByText('19,00%')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Salvar rascunho' }));
     await waitFor(() => expect(chamadas.filter((c) => c.metodo === 'PUT')).toHaveLength(2));

@@ -125,3 +125,78 @@ describe('SessaoService.resolver', () => {
     expect(resolverIdentidadeMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Decisão de acesso crítica (SPEC-016 §3.7): o papel de plataforma só vale vindo do papel de REALM
+ * do token verificado, emitido para o cliente web. Nenhuma outra origem de claim o concede.
+ */
+describe('SessaoService.resolverParaCatalogo', () => {
+  const comPayload = (payload: Record<string, unknown>): void => {
+    jwtVerifyMock.mockResolvedValue({ payload: { sub: 'sub-9', email: 'root@x.com', azp: 'contaia-web', ...payload } });
+  };
+
+  beforeEach(() => {
+    jwtVerifyMock.mockReset();
+    resolverIdentidadeMock.mockReset();
+    resolverIdentidadeMock.mockResolvedValue(null);
+  });
+
+  it('papel de realm super_admin vira sessão de plataforma, sem consultar usuário no banco', async () => {
+    comPayload({ realm_access: { roles: ['offline_access', 'super_admin'] } });
+
+    await expect(servico().resolverParaCatalogo('token')).resolves.toEqual({
+      tipo: 'PLATAFORMA',
+      sub: 'sub-9',
+      email: 'root@x.com',
+    });
+    expect(resolverIdentidadeMock).not.toHaveBeenCalled();
+  });
+
+  it('super_admin só em resource_access (papel de cliente) NÃO concede plataforma: segue o escritório e cai em 401', async () => {
+    comPayload({ resource_access: { 'contaia-web': { roles: ['super_admin'] } } });
+
+    await expect(servico().resolverParaCatalogo('token')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(resolverIdentidadeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['realm_access ausente', {}],
+    ['realm_access como texto', { realm_access: 'super_admin' }],
+    ['roles como texto', { realm_access: { roles: 'super_admin' } }],
+    ['roles com item que não é texto', { realm_access: { roles: [{ nome: 'super_admin' }, 1] } }],
+    ['realm_access nulo', { realm_access: null }],
+  ])('claim malformada (%s) não concede papel algum', async (_nome, extra) => {
+    comPayload(extra);
+
+    await expect(servico().resolverParaCatalogo('token')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(resolverIdentidadeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('papel de plataforma sem sub é recusado', async () => {
+    comPayload({ sub: '', realm_access: { roles: ['super_admin'] } });
+
+    await expect(servico().resolverParaCatalogo('token')).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('token de outro cliente do realm (azp diferente) não vira plataforma, mesmo com o papel de realm', async () => {
+    comPayload({ azp: 'admin-cli', realm_access: { roles: ['super_admin'] } });
+
+    await expect(servico().resolverParaCatalogo('token')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(resolverIdentidadeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('usuário de escritório segue a resolução normal', async () => {
+    comPayload({});
+    resolverIdentidadeMock.mockResolvedValue({
+      usuarioId: 'u1',
+      tenantId: 't1',
+      papeis: ['contador'],
+      permissoesPersonalizadas: [],
+      statusDoTenant: 'ATIVO',
+    });
+
+    const sessao = await servico().resolverParaCatalogo('token');
+
+    expect(sessao).toMatchObject({ tipo: 'ESCRITORIO', sessao: { papeis: ['contador'] } });
+  });
+});
