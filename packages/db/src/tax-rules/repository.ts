@@ -55,12 +55,13 @@ export type TaxRuleVersionRecord = TaxRuleContent &
     archivedAt: Date | null;
   }>;
 
+/** Filtro ausente ou `undefined` não restringe: o repositório o envia como `null`. */
 export type TaxRuleListFilters = Readonly<{
-  taxType?: TaxType;
-  regime?: TaxRegime;
-  operationType?: string;
-  status?: TaxRuleStatus;
-  validOn?: DataCivil;
+  taxType?: TaxType | undefined;
+  regime?: TaxRegime | undefined;
+  operationType?: string | undefined;
+  status?: TaxRuleStatus | undefined;
+  validOn?: DataCivil | undefined;
   limit: number;
   offset: number;
 }>;

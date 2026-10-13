@@ -56,6 +56,9 @@ import { PendenciasService } from './pendencias/pendencias.service';
 import { PlanoContasDaEmpresaController } from './plano-contas/plano-contas.controller';
 import { PROVEDORES_DA_FILA_DO_PLANO } from './plano-contas/plano-contas.fila';
 import { PlanoContasService } from './plano-contas/plano-contas.service';
+import { GuardDoCatalogoTributario } from './auth/catalogo-tributario.guard';
+import { TaxRulesController } from './tax-rules/tax-rules.controller';
+import { TaxRulesService } from './tax-rules/tax-rules.service';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -88,6 +91,7 @@ import { PlanoContasService } from './plano-contas/plano-contas.service';
     CarteirasController,
     PapeisController,
     ConvitesController,
+    TaxRulesController,
   ],
   providers: [
     PoolDoBanco,
@@ -117,6 +121,8 @@ import { PlanoContasService } from './plano-contas/plano-contas.service';
     { provide: LimitadorDeTentativas, useValue: new LimitadorDeTentativas(10, 60_000) },
     GuardDeLimiteDeTentativas,
     ConsultaDeCnpjNaCnpja,
+    TaxRulesService,
+    GuardDoCatalogoTributario,
     GuardDeSessao,
     GuardDeCadastro,
     GuardDeAcao,

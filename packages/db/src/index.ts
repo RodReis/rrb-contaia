@@ -391,3 +391,14 @@ export {
   listarLinhasParaRelatorioDeEmpregados,
   listarRejeicoesDeEmpregados,
 } from './repositorios/empregados-consultas.js';
+
+// Catálogo tributário global (SPEC-016): nomes genéricos (`list`, `publish`), por isso em namespace.
+export * as taxRules from './tax-rules/repository.js';
+export type {
+  TaxRuleActor,
+  TaxRuleContent,
+  TaxRuleCriteria,
+  TaxRuleEdit,
+  TaxRuleListFilters,
+  TaxRuleVersionRecord,
+} from './tax-rules/repository.js';

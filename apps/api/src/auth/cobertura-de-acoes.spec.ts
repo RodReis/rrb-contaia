@@ -42,7 +42,9 @@ import {
 } from '../pendencias/pendencias.controller';
 import { HistoricoDeUsuariosController } from '../usuarios/historico-de-usuarios.controller';
 import { UsuariosController } from '../usuarios/usuarios.controller';
+import { TaxRulesController } from '../tax-rules/tax-rules.controller';
 import { ACAO_EXIGIDA, GuardDeAcao } from './acao.guard';
+import { GuardDoCatalogoTributario, NIVEL_DO_CATALOGO } from './catalogo-tributario.guard';
 import { GuardDeSessao } from './sessao.guard';
 
 type Classe = new (...argumentos: never[]) => object;
@@ -67,15 +69,41 @@ const manipuladoresDe = (controller: Classe): ReadonlyArray<readonly [string, Me
 const PUBLICOS = new Set(['HealthController', 'ConvitesController']);
 // Rotas internas (cofre → API): sem sessão de usuário, mas SÓ com o Bearer de serviço. Falha fechado.
 const INTERNOS = new Set([CofreInternoController.name]);
+// Catálogo tributário global (SPEC-016 §3.7): o super_admin da plataforma não é usuário de escritório,
+// então estes controllers trocam sessão + cadastro + ação por UM guard que decide as duas identidades.
+const DO_CATALOGO = new Set([TaxRulesController.name]);
 
 describe('cobertura de ações nas rotas autenticadas', () => {
   it('só os controllers públicos conhecidos dispensam GuardDeSessao', () => {
     const semSessao = controllersDoModulo()
       .filter((controller) => !guardsDe(controller).includes(GuardDeSessao))
       .map((controller) => controller.name)
-      .filter((nome) => !PUBLICOS.has(nome) && !INTERNOS.has(nome));
+      .filter((nome) => !PUBLICOS.has(nome) && !INTERNOS.has(nome) && !DO_CATALOGO.has(nome));
 
     expect(semSessao).toEqual([]);
+  });
+
+  it('controller do catálogo usa o guard do catálogo, e só ele, e toda rota declara o nível', () => {
+    const doCatalogo = controllersDoModulo().filter((controller) => DO_CATALOGO.has(controller.name));
+
+    expect(doCatalogo.map((controller) => controller.name)).toEqual(['TaxRulesController']);
+    for (const controller of doCatalogo) {
+      expect(guardsDe(controller)).toEqual([GuardDoCatalogoTributario]);
+
+      const semNivel = manipuladoresDe(controller)
+        .filter(([, manipulador]) => Reflect.getMetadata(NIVEL_DO_CATALOGO, manipulador) === undefined)
+        .map(([nome]) => `${controller.name}.${nome}`);
+
+      expect(semNivel).toEqual([]);
+    }
+  });
+
+  it('só os controllers do catálogo usam o guard do catálogo', () => {
+    const usam = controllersDoModulo()
+      .filter((controller) => guardsDe(controller).includes(GuardDoCatalogoTributario))
+      .map((controller) => controller.name);
+
+    expect(usam).toEqual([...DO_CATALOGO]);
   });
 
   it('controller interno sem sessão exige o guard de serviço, e só ele', () => {

@@ -162,6 +162,26 @@ export type {
   ComandoValidarImportacao,
 } from './plano-contas.js';
 
+export {
+  CreateTaxRuleSchema,
+  ListTaxRulesQuerySchema,
+  ManualTaxSimulationSchema,
+  TAX_OPERATION_TYPES,
+  TaxRuleCommandSchema,
+  UpdateTaxRuleSchema,
+} from './tax-rules/contracts.js';
+export type {
+  CreateTaxRule,
+  ListTaxRulesQuery,
+  ManualTaxSimulation,
+  TaxOperationType,
+  TaxRuleCommand,
+  TaxRulePageDto,
+  TaxRuleVersionDto,
+  TaxSimulationResultDto,
+  UpdateTaxRule,
+} from './tax-rules/contracts.js';
+
 export { lerCsv } from './plano-contas-csv.js';
 export type { CsvLido } from './plano-contas-csv.js';
 

@@ -24,6 +24,30 @@ export type SessaoDaRequisicao = IdentidadeResolvida &
     permissoes: readonly ChaveDePermissao[];
   }>;
 
+/**
+ * Papel de realm da plataforma (SPEC-016 §3.7), pré-configurado no Keycloak local. Quem o tem não
+ * pertence a escritório algum: não há linha em `app.usuario` e a sessão não carrega tenant.
+ */
+export const PAPEL_DA_PLATAFORMA = 'super_admin';
+
+/** Sessão do catálogo tributário: administrador da plataforma OU usuário de escritório. */
+export type SessaoDoCatalogo =
+  | Readonly<{ tipo: 'PLATAFORMA'; sub: string; email: string }>
+  | Readonly<{ tipo: 'ESCRITORIO'; sessao: SessaoDaRequisicao }>;
+
+/** Papéis de realm do token JÁ VERIFICADO; claim ausente ou malformada não concede papel algum. */
+const papeisDoRealm = (payload: JWTPayload): readonly string[] => {
+  const acesso: unknown = payload['realm_access'];
+
+  if (typeof acesso !== 'object' || acesso === null) {
+    return [];
+  }
+
+  const papeis: unknown = (acesso as { roles?: unknown }).roles;
+
+  return Array.isArray(papeis) ? papeis.filter((papel): papel is string => typeof papel === 'string') : [];
+};
+
 /** O `iss` que os tokens carregam: a origem que o NAVEGADOR usa para falar com o Keycloak. */
 const emissor = (): string =>
   process.env['KEYCLOAK_ISSUER_URL'] ?? 'http://127.0.0.1:18080/realms/contaia';
@@ -61,7 +85,30 @@ export class SessaoService {
   /** Resolve a sessão a partir do token. Token válido de usuário desconhecido
    *  no produto não cria sessão: identidade não é autorização. */
   async resolver(token: string): Promise<SessaoDaRequisicao> {
+    return this.resolverDoPayload(await this.verificarToken(token));
+  }
+
+  /**
+   * Catálogo tributário: o papel de plataforma vem do token verificado e dispensa o cadastro de
+   * usuário; qualquer outra identidade segue a resolução normal de escritório.
+   */
+  async resolverParaCatalogo(token: string): Promise<SessaoDoCatalogo> {
     const payload = await this.verificarToken(token);
+
+    if (papeisDoRealm(payload).includes(PAPEL_DA_PLATAFORMA)) {
+      const sub = typeof payload.sub === 'string' ? payload.sub : '';
+
+      if (sub.length === 0) {
+        throw new UnauthorizedException('Sessão inválida ou expirada.');
+      }
+
+      return { tipo: 'PLATAFORMA', sub, email: typeof payload['email'] === 'string' ? payload['email'] : '' };
+    }
+
+    return { tipo: 'ESCRITORIO', sessao: await this.resolverDoPayload(payload) };
+  }
+
+  private async resolverDoPayload(payload: JWTPayload): Promise<SessaoDaRequisicao> {
     const sub = typeof payload.sub === 'string' ? payload.sub : '';
 
     if (sub.length === 0) {
