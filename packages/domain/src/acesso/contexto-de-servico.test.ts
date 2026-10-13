@@ -19,8 +19,25 @@ const recusado = (acao: () => unknown): void => {
 };
 
 describe('contexto de serviço (SPEC-012 §3.10: monitor global sem tenant)', () => {
-  it('a única finalidade de serviço é o monitoramento do Signer', () => {
-    expect([...FINALIDADES_DE_SERVICO]).toEqual(['MONITORAMENTO_DO_SIGNER']);
+  it('as finalidades de serviço são o monitoramento do Signer e o catálogo tributário (SPEC-016)', () => {
+    expect([...FINALIDADES_DE_SERVICO]).toEqual(['MONITORAMENTO_DO_SIGNER', 'CATALOGO_TRIBUTARIO']);
+  });
+
+  it('o catálogo tributário global nasce sem tenant, empresa nem usuário', () => {
+    const contexto = contextoDeServico({
+      identidadeTecnica: 'api-catalogo-tributario',
+      finalidade: 'CATALOGO_TRIBUTARIO',
+      correlationId: 'req-0001',
+    });
+
+    expect(parametrosDeSessao(contexto)).toMatchObject({
+      'app.tenant_id': '',
+      'app.origem': 'SERVICO',
+      'app.usuario_id': '',
+      'app.empresa_id': '',
+      'app.finalidade': 'CATALOGO_TRIBUTARIO',
+      'app.identidade_tecnica': 'api-catalogo-tributario',
+    });
   });
 
   it('nasce com identidade, finalidade e correlationId — e sem tenant, empresa nem usuário', () => {

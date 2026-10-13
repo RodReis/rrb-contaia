@@ -244,6 +244,28 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     appendOnly: true,
   },
   {
+    tabela: 'app.tax_rule',
+    classe: 'global',
+    origem: 'F16 / SPEC-016',
+    justificativa:
+      'Identidade da regra do catálogo tributário (SPEC-016 §3.7): o catálogo é da plataforma, sem tenant nem empresa. A aplicação só o alcança pelas funções SECURITY DEFINER app.tax_rule_*, sob o contexto de serviço CATALOGO_TRIBUTARIO.',
+  },
+  {
+    tabela: 'app.tax_rule_version',
+    classe: 'global',
+    origem: 'F16 / SPEC-016',
+    justificativa:
+      'Versões publicadas do catálogo tributário global (SPEC-016 §3.1–3.3): sem dado de tenant, imutáveis depois de publicadas. A aplicação só as alcança pelas funções SECURITY DEFINER app.tax_rule_*, sob o contexto de serviço CATALOGO_TRIBUTARIO.',
+  },
+  {
+    tabela: 'app.tax_rule_audit_event',
+    classe: 'global',
+    origem: 'F16 / SPEC-016',
+    justificativa:
+      'Auditoria append-only do catálogo tributário global (SPEC-016 §3.8, I-6): sem dado de tenant. A aplicação só a alcança pelas funções SECURITY DEFINER app.tax_rule_*, sob o contexto de serviço CATALOGO_TRIBUTARIO.',
+    appendOnly: true,
+  },
+  {
     tabela: 'public.__migrations',
     classe: 'global',
     origem: 'INFRA / #8',
