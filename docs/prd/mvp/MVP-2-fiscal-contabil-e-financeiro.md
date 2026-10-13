@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F89/SPEC-089 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F90/SPEC-090 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -81,11 +81,12 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F87 / SPEC-087:** cobrança Pix via Sicoob para parcelas F68, imediata e com vencimento; webhook confirmado gera baixa F68 automática e idempotente; pagamento parcial baixa apenas o valor recebido, e excedente é exceção sem rateio ou devolução automática.
 - [ ] **F88 / SPEC-088:** iniciação Pix imediata ou agendada de guias DAS/FGTS existentes vinculadas a parcela F68 publicada e em aberto, por agregador da F85 com Sicoob inicial e cobertura ITP comprovada; autorização de cada pagamento no banco; confirmação válida gera proposta revisável de baixa, sem emissão de guia, baixa automática ou produção antes do MVP-4.
 - [ ] **F89 / SPEC-089:** Pix Automático para cobranças recorrentes vinculadas a parcelas F68 existentes e abertas; Sicoob inicial sob cobertura comprovada; cada cobrança usa o valor exato da parcela e bloqueia excedente ao limite autorizado até nova autorização; liquidação confirmada baixa automaticamente de forma idempotente; falhas não têm retry automático; ciclo inclui acompanhamento, pausa e cancelamento.
+- [ ] **F90 / SPEC-090:** integração financeiro-contábil de títulos F68 publicados, cada baixa e respectivas reversões por rascunhos F40 sujeitos à revisão humana; origens DF-e/apuração já tratadas pela F41 têm o reconhecimento vinculado, sem duplicação; eventos históricos entram de forma idempotente, e falta de conta ou competência fechada gera pendência.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
 - [ ] Plano de contas e centros de custo operacionais — F39/SPEC-039 entrega o catálogo; F40/SPEC-040 o consome manualmente e F41/SPEC-041 aplica rateio percentual em rascunhos automáticos.
-- [ ] Motor de partidas dobradas — F40/SPEC-040 entrega o núcleo manual; F41/SPEC-041 acrescenta geração determinística por DF-e e apurações aprovadas; demais origens permanecem em fatias próprias.
+- [ ] Motor de partidas dobradas — F40/SPEC-040 entrega o núcleo manual; F41/SPEC-041 acrescenta geração determinística por DF-e e apurações aprovadas; F90/SPEC-090 integra títulos e baixas F68 sem duplicar reconhecimento existente; demais origens permanecem em fatias próprias.
 - [ ] Razão contábil e fechamento de competência — F42/SPEC-042 entrega razão e balancete; F43/SPEC-043 entrega fechamento e reabertura mensal por empresa; F44/SPEC-044 estabelece o saldo anterior conhecido por abertura aprovada; F48/SPEC-048 formaliza Diário e Razão sobre competências fechadas.
 - [ ] Estorno, cancelamento controlado e reabertura auditada — F40/SPEC-040 entrega cancelamento e estorno; F43/SPEC-043 aplica os bloqueios do período fechado e a reabertura auditada.
 - [ ] Escrituração dos livros fiscais — F51/SPEC-051 entrega entradas, saídas, apurações, fechamento e reabertura fiscal no recorte aprovado; F54/SPEC-054 entrega estoque, inventário físico e Bloco H; F55/SPEC-055 entrega Bloco K de saldos e simplificado; F56/SPEC-056 adiciona produção própria e consumo; F57/SPEC-057 adiciona desmontagem e movimentação interna; F58/SPEC-058 adiciona industrialização efetuada por terceiros; F59/SPEC-059 adiciona reprocessamento e reparo, inclusive correções das próprias origens; F60/SPEC-060 corrige apontamentos de desmontagem e movimentação interna; F61/SPEC-061 adiciona produção conjunta própria e F62/SPEC-062 adiciona produção conjunta efetuada por terceiros no leiaute completo.
@@ -103,6 +104,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] ITP — F88/SPEC-088 inicia Pix de DAS/FGTS com guia existente; autorização final no banco e proposta revisável após confirmação.
 - [ ] Cobrança Pix — F87/SPEC-087 entrega cobrança Sicoob imediata e com vencimento vinculada à F68, com confirmação por webhook e baixa automática idempotente; pagamentos parciais baixam somente o recebido e excedentes ficam como exceção.
 - [ ] Pix Automático — F89/SPEC-089 entrega cobrança recorrente vinculada à F68, com autorização do pagador e limite por cobrança; valor usa a parcela exata e liquidação confirmada baixa automaticamente; pausa, cancelamento e revogação bloqueiam novas instruções.
+- [ ] Integração financeiro-contábil — F90/SPEC-090 gera rascunhos revisáveis F40 para títulos e baixas F68, vincula reconhecimento F41 quando a origem é comum e trata reversões e histórico sem duplicidade; folha e demais origens seguem em fatias próprias.
 - [ ] Conciliação determinística multi-critério — F86/SPEC-086 entrega matching assistido de transações F85 com candidatos F68/documentais, revisão de empate e exceções e proposta revisável, sem baixa automática ou contabilização.
 - [ ] Classificação contábil assistida por embeddings e histórico.
 - [ ] Agente Classificador integrado ao fluxo de classificação.

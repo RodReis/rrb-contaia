@@ -224,6 +224,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 - [ ] Aging de contas a pagar e a receber.
 - [ ] Fluxo de caixa projetado por empresa e consolidado por escritório (30/60/90 dias).
 - [ ] DRE gerencial, alimentado pelo razão contábil.
+- [ ] F90/SPEC-090 integra títulos F68 publicados, baixas e reversões à contabilidade por rascunhos F40 com revisão humana; vincula reconhecimento já gerado pela F41 para DF-e/apurações sem duplicá-lo, processa histórico de modo idempotente e exige conta contábil explícita quando a contrapartida não for inequívoca.
 
 ### 7.2 Open Finance Brasil
 - [ ] Importação de extratos e saldos de contas correntes, com o consentimento do cliente.
