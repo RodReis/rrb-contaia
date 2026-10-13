@@ -182,14 +182,20 @@ export const vincular = async (pool: Pool, tenantId: string, usuarioId: string, 
 
 // -- Navegação -----------------------------------------------------------------------------------
 
-export const entrarComo = async (page: Page, pessoa: Pick<Pessoa, 'usuario' | 'senha'>): Promise<void> => {
-  await page.goto('/api/auth/entrar?destino=%2Fempresas');
+export const entrarComo = async (
+  page: Page,
+  pessoa: Pick<Pessoa, 'usuario' | 'senha'>,
+  destino = '/empresas',
+): Promise<void> => {
+  const chegada = new RegExp(destino.replaceAll('/', '\\/'), 'u');
+
+  await page.goto(`/api/auth/entrar?destino=${encodeURIComponent(destino)}`);
 
   const campo = page.getByRole('textbox', { name: 'Username or email' });
 
   await Promise.race([
     campo.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined),
-    page.waitForURL(/\/empresas/u, { timeout: 15_000 }).catch(() => undefined),
+    page.waitForURL(chegada, { timeout: 15_000 }).catch(() => undefined),
   ]);
 
   if (await campo.isVisible().catch(() => false)) {
@@ -198,5 +204,5 @@ export const entrarComo = async (page: Page, pessoa: Pick<Pessoa, 'usuario' | 's
     await page.getByRole('button', { name: 'Sign In' }).click();
   }
 
-  await page.waitForURL(/\/empresas/u);
+  await page.waitForURL(chegada);
 };
