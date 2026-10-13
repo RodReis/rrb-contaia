@@ -1,6 +1,6 @@
 # MVP-2 — Fiscal, contábil e financeiro
 
-> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F88/SPEC-088 aprovadas
+> **Estado:** macroescopo aprovado pelo PI em 17/09/2026 · F26/SPEC-026 a F89/SPEC-089 aprovadas
 > **Base:** PRD v3.1 §§6, 7, 10.3, 10.4 e 10.5
 > **Dependência:** MVP-1 finalizado
 > **Ambiente:** Docker local, sem produção; qualquer dado real necessário está previamente autorizado no ambiente local ([ADR-012](../../adr/ADR-012-ambiente-local-ate-ultimo-mvp.md))
@@ -80,6 +80,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] **F86 / SPEC-086:** conciliação bancária assistida um para um entre transações F85 e candidatos financeiros/documentais da mesma empresa, com score determinístico do Anexo C, match automático somente em `≥ 0,90` com candidato único no topo, sugestão de `0,60` a `< 0,90`, exceção abaixo de `0,60`, empates para revisão e proposta revisável de baixa F68 sem baixa automática; LLM somente auxilia o revisor.
 - [ ] **F87 / SPEC-087:** cobrança Pix via Sicoob para parcelas F68, imediata e com vencimento; webhook confirmado gera baixa F68 automática e idempotente; pagamento parcial baixa apenas o valor recebido, e excedente é exceção sem rateio ou devolução automática.
 - [ ] **F88 / SPEC-088:** iniciação Pix imediata ou agendada de guias DAS/FGTS existentes vinculadas a parcela F68 publicada e em aberto, por agregador da F85 com Sicoob inicial e cobertura ITP comprovada; autorização de cada pagamento no banco; confirmação válida gera proposta revisável de baixa, sem emissão de guia, baixa automática ou produção antes do MVP-4.
+- [ ] **F89 / SPEC-089:** Pix Automático para cobranças recorrentes vinculadas a parcelas F68 existentes e abertas; Sicoob inicial sob cobertura comprovada; cada cobrança usa o valor exato da parcela e bloqueia excedente ao limite autorizado até nova autorização; liquidação confirmada baixa automaticamente de forma idempotente; falhas não têm retry automático; ciclo inclui acompanhamento, pausa e cancelamento.
 - [ ] Expansão das regras tributárias por regime, UF, operação, exceção e vigência até completar a cobertura necessária para apuração.
 - [ ] Apuração determinística de ICMS, PIS, COFINS e IBS/CBS.
 - [ ] Geração de DAS, DARF, GPS e FGTS-REINF.
@@ -101,6 +102,7 @@ Cada capacidade será decomposta em fatias verticais Curto/Médio antes da reser
 - [ ] Open Finance — F85/SPEC-085 entrega a conexão por empresa, consentimento, extratos, saldos e webhooks; ITP permanece em capacidade própria.
 - [ ] ITP — F88/SPEC-088 inicia Pix de DAS/FGTS com guia existente; autorização final no banco e proposta revisável após confirmação.
 - [ ] Cobrança Pix — F87/SPEC-087 entrega cobrança Sicoob imediata e com vencimento vinculada à F68, com confirmação por webhook e baixa automática idempotente; pagamentos parciais baixam somente o recebido e excedentes ficam como exceção.
+- [ ] Pix Automático — F89/SPEC-089 entrega cobrança recorrente vinculada à F68, com autorização do pagador e limite por cobrança; valor usa a parcela exata e liquidação confirmada baixa automaticamente; pausa, cancelamento e revogação bloqueiam novas instruções.
 - [ ] Conciliação determinística multi-critério — F86/SPEC-086 entrega matching assistido de transações F85 com candidatos F68/documentais, revisão de empate e exceções e proposta revisável, sem baixa automática ou contabilização.
 - [ ] Classificação contábil assistida por embeddings e histórico.
 - [ ] Agente Classificador integrado ao fluxo de classificação.

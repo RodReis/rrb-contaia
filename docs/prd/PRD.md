@@ -233,6 +233,7 @@ A única exceção é o caminho de impersonation do super-admin, que usa role de
 ### 7.3 Pix
 - [ ] Emissão de cobrança via PSP/BaaS parceiro; F87/SPEC-087 entrega pelo Sicoob cobrança imediata e cobrança com vencimento vinculadas a parcelas a receber da F68.
 - [ ] Webhook confirmado baixa automaticamente e de forma idempotente na F68; recebimento parcial baixa somente o valor recebido, e excedente fica como exceção sem distribuição ou devolução automática.
+- [ ] F89/SPEC-089 oferece Pix Automático para parcelas F68 existentes, cobrando o valor exato da parcela; se superar o limite autorizado, exige nova autorização. Sicoob inicial e baixa automática idempotente por liquidação confirmada; falha não dispara retry automático.
 
 ### 7.4 Conciliação
 - [ ] Casamento de extrato × lançamentos × documentos fiscais, com fila de aprovação humana.
@@ -588,7 +589,7 @@ Toda integração governamental é validada contra os ambientes oficiais de test
 |---|---|
 | Open Finance Brasil | Extratos, saldos e conciliação, por webhooks |
 | Open Finance — ITP | F88/SPEC-088 inicia Pix imediato ou agendado para DAS e FGTS com guia existente e parcela F68 aberta; autorização no banco e proposta revisável após confirmação |
-| Pix via BaaS/PSP | Cobrança e baixa automática |
+| Pix via BaaS/PSP | F87 cobrança imediata/com vencimento e F89 Pix Automático recorrente, vinculados à F68 com baixa automática idempotente |
 | CNAB 240/400 | Boletos e folha |
 
 ### 13.3 Mensageria
