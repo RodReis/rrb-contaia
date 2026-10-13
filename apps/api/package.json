@@ -21,6 +21,7 @@
     "@nestjs/common": "11.2.5",
     "@nestjs/core": "11.2.5",
     "@nestjs/platform-express": "11.2.5",
+    "@xmldom/xmldom": "0.8.15",
     "bullmq": "6.3.11",
     "ioredis": "5.11.1",
     "jose": "^6.2.12",

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE NFe [
+  <!ENTITY marca "FIXTURE">
+]>
+<NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+  <infNFe versao="4.00" Id="NFe00000000000000000000550010000000030000000030">
+    <ide><mod>55</mod><dhEmi>2026-06-15T10:30:00-03:00</dhEmi></ide>
+    <emit><CRT>1</CRT></emit>
+    <det nItem="1"><prod><xProd>&marca;</xProd><vProd>1.00</vProd></prod></det>
+  </infNFe>
+</NFe>

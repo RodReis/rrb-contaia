@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- FIXTURE SINTETICA DE TESTE NAO OFICIAL (SPEC-016): nao representa documento fiscal real. -->
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe versao="4.00" Id="NFe00000000000000000000550010000000010000000010">
+      <ide>
+        <cUF>35</cUF>
+        <natOp>VENDA FIXTURE NAO OFICIAL</natOp>
+        <mod>55</mod>
+        <serie>1</serie>
+        <nNF>1</nNF>
+        <dhEmi>2026-06-15T10:30:00-03:00</dhEmi>
+        <tpNF>1</tpNF>
+      </ide>
+      <emit>
+        <CNPJ>00000000000000</CNPJ>
+        <xNome>EMITENTE DE TESTE NAO OFICIAL</xNome>
+        <CRT>1</CRT>
+      </emit>
+      <det nItem="1">
+        <prod>
+          <cProd>1</cProd>
+          <xProd>ITEM DE TESTE 1</xProd>
+          <NCM>00000000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>100.00</vUnCom>
+          <vProd>100.00</vProd>
+        </prod>
+        <imposto>
+          <IBSCBS>
+            <CST>000</CST>
+            <cClassTrib>000001</cClassTrib>
+            <gIBSCBS>
+              <vBC>100.00</vBC>
+              <gIBSUF><pIBSUF>0.1000</pIBSUF><vIBSUF>0.10</vIBSUF></gIBSUF>
+              <gIBSMun><pIBSMun>0.0000</pIBSMun><vIBSMun>0.00</vIBSMun></gIBSMun>
+              <vIBS>0.10</vIBS>
+              <gCBS><pCBS>0.9000</pCBS><vCBS>0.90</vCBS></gCBS>
+            </gIBSCBS>
+          </IBSCBS>
+        </imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>2</cProd>
+          <xProd>ITEM DE TESTE 2</xProd>
+          <NCM>00000000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>4.20</vUnCom>
+          <vProd>4.20</vProd>
+        </prod>
+        <imposto>
+          <IBSCBS>
+            <CST>000</CST>
+            <cClassTrib>000001</cClassTrib>
+            <gIBSCBS>
+              <vBC>4.20</vBC>
+              <gIBSUF><pIBSUF>0.1000</pIBSUF><vIBSUF>0.00</vIBSUF></gIBSUF>
+              <gIBSMun><pIBSMun>0.0000</pIBSMun><vIBSMun>0.00</vIBSMun></gIBSMun>
+              <vIBS>0.00</vIBS>
+              <gCBS><pCBS>0.9000</pCBS><vCBS>0.04</vCBS></gCBS>
+            </gIBSCBS>
+          </IBSCBS>
+        </imposto>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>3</cProd>
+          <xProd>ITEM DE TESTE 3 (valor declarado diverge)</xProd>
+          <NCM>00000000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>100.00</vUnCom>
+          <vProd>100.00</vProd>
+        </prod>
+        <imposto>
+          <IBSCBS>
+            <CST>000</CST>
+            <cClassTrib>000001</cClassTrib>
+            <gIBSCBS>
+              <vBC>100.00</vBC>
+              <gIBSUF><pIBSUF>0.1000</pIBSUF><vIBSUF>0.10</vIBSUF></gIBSUF>
+              <gIBSMun><pIBSMun>0.0000</pIBSMun><vIBSMun>0.00</vIBSMun></gIBSMun>
+              <vIBS>0.10</vIBS>
+              <gCBS><pCBS>0.9500</pCBS><vCBS>0.95</vCBS></gCBS>
+            </gIBSCBS>
+          </IBSCBS>
+        </imposto>
+      </det>
+      <total>
+        <IBSCBSTot>
+          <vBCIBSCBS>204.20</vBCIBSCBS>
+          <gIBS><vIBS>0.20</vIBS></gIBS>
+          <gCBS><vCBS>1.89</vCBS></gCBS>
+        </IBSCBSTot>
+      </total>
+    </infNFe>
+  </NFe>
+</nfeProc>

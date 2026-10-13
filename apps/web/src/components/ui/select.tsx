@@ -77,6 +77,7 @@ export const Select = ({
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'focus-visible:ring-offset-2 focus-visible:ring-offset-background',
             'disabled:opacity-50 data-[placeholder]:text-muted-foreground',
+            'text-left whitespace-nowrap [&>span]:min-w-0 [&>span]:truncate',
             temErro ? 'border-destructive' : 'border-input',
           )}
         >

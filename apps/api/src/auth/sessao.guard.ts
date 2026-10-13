@@ -26,7 +26,7 @@ export const PERMITE_CADASTRO_INCOMPLETO = 'permiteCadastroIncompleto';
 export const PermiteCadastroIncompleto = (): ClassDecorator & MethodDecorator =>
   SetMetadata(PERMITE_CADASTRO_INCOMPLETO, true);
 
-const extrairToken = (requisicao: Request): string => {
+export const extrairToken = (requisicao: Request): string => {
   const cabecalho = requisicao.header('authorization') ?? '';
   const [esquema, token] = cabecalho.split(' ');
 

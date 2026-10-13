@@ -27,6 +27,7 @@ export const ROTULO_DA_ACAO = {
   importar: 'Importar',
   confirmar_importacao: 'Confirmar importação',
   baixar_relatorio: 'Baixar relatório',
+  simular: 'Simular',
 } as const;
 
 export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
@@ -114,6 +115,15 @@ export const CATALOGO = [
       // SPEC-012: estado, histórico e teste manual do Signer. `Testar` só dispara o diagnóstico
       // do próprio Signer — ninguém assina XML pela interface.
       { id: 'signer', rotulo: 'Signer (mTLS de teste)', acoes: ['consultar', 'testar'] },
+    ],
+  },
+  {
+    // SPEC-016 §3.7: consultar regras publicadas e simular. Criar, editar, publicar e arquivar o
+    // catálogo é do `super_admin` da plataforma (papel de realm), nunca de papel de escritório.
+    id: 'fiscal',
+    rotulo: 'Motor tributário',
+    funcionalidades: [
+      { id: 'motor_tributario', rotulo: 'Regras publicadas e simulador', acoes: ['consultar', 'simular'] },
     ],
   },
   {

@@ -54,6 +54,8 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...chavesDoModulo('certificados'),
+    // SPEC-016 §3.7: contador consulta as regras publicadas e simula.
+    ...chavesDoModulo('fiscal'),
     'historico.global.consultar',
   ],
   // Consulta o cofre mas não muta (SPEC-011 §3.2); sem histórico de certificados.
@@ -73,6 +75,8 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...consultas('pendencias'),
     ...consultas('notificacoes'),
     ...consultas('certificados'),
+    // SPEC-016 §3.7: o auditor consulta e simula (simular não grava nada).
+    ...chavesDoModulo('fiscal'),
     'historico.global.consultar',
     'usuarios.usuarios_e_papeis.consultar',
   ],

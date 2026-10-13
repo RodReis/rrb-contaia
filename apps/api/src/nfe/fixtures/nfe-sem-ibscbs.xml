@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- FIXTURE SINTETICA DE TESTE NAO OFICIAL (SPEC-016): NF-e sem os grupos IBS/CBS e com regime normal (CRT 3). -->
+<NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+  <infNFe versao="4.00" Id="NFe00000000000000000000550010000000020000000020">
+    <ide>
+      <mod>55</mod>
+      <serie>1</serie>
+      <nNF>2</nNF>
+      <dhEmi>2026-06-15T09:00:00-03:00</dhEmi>
+    </ide>
+    <emit>
+      <CNPJ>00000000000000</CNPJ>
+      <xNome>EMITENTE DE TESTE NAO OFICIAL</xNome>
+      <CRT>3</CRT>
+    </emit>
+    <det nItem="1">
+      <prod>
+        <cProd>1</cProd>
+        <xProd>ITEM SEM IBS CBS</xProd>
+        <vProd>250.00</vProd>
+      </prod>
+      <imposto>
+        <ICMS><ICMS00><orig>0</orig><CST>00</CST><vBC>250.00</vBC><pICMS>18.0000</pICMS><vICMS>45.00</vICMS></ICMS00></ICMS>
+      </imposto>
+    </det>
+    <det nItem="2">
+      <prod>
+        <cProd>2</cProd>
+        <xProd>OUTRO ITEM SEM IBS CBS</xProd>
+        <vProd>10.00</vProd>
+      </prod>
+      <imposto/>
+    </det>
+  </infNFe>
+</NFe>

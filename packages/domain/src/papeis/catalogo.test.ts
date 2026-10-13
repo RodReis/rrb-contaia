@@ -56,6 +56,10 @@ const ESPERADO = [
   // SPEC-012: painel do Signer dentro do Cofre; só o teste manual muta (diagnóstico, nunca assinatura).
   'certificados.signer.consultar',
   'certificados.signer.testar',
+  // SPEC-016 §3.7: consultar regras publicadas e simular; a edição do catálogo é do super-admin da
+  // plataforma (papel de realm), fora desta matriz.
+  'fiscal.motor_tributario.consultar',
+  'fiscal.motor_tributario.simular',
   'historico.global.consultar',
 ];
 

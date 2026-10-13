@@ -33,8 +33,12 @@ export const FINALIDADES_TECNICAS = ['PROCESSAMENTO_DE_EMPRESA'] as const;
  * Finalidade de serviço: trabalho global, sem tenant nem empresa (SPEC-012 §3.10 — o monitor do
  * Signer é um só para todos os escritórios). Não abre nenhuma tabela de tenant: só as funções
  * `SECURITY DEFINER` estreitas que checam `app.contexto_de_servico()` a aceitam.
+ *
+ * `CATALOGO_TRIBUTARIO` (SPEC-016): o catálogo de regras é global, sem tenant. A API autoriza o
+ * ator (super-admin ou papel de escritório) e só então abre este contexto, que alcança apenas as
+ * funções `app.tax_rule_*`.
  */
-export const FINALIDADES_DE_SERVICO = ['MONITORAMENTO_DO_SIGNER'] as const;
+export const FINALIDADES_DE_SERVICO = ['MONITORAMENTO_DO_SIGNER', 'CATALOGO_TRIBUTARIO'] as const;
 
 export type FinalidadeDeServico = (typeof FINALIDADES_DE_SERVICO)[number];
 

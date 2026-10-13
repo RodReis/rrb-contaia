@@ -72,6 +72,10 @@ const CERTIFICADOS_TODAS = [
   'certificados.signer.testar',
 ];
 
+// SPEC-016 §3.7: admin_escritorio, contador e auditor_readonly consultam as regras publicadas e
+// simulam; o auxiliar e os demais papéis não recebem acesso por padrão.
+const FISCAL = ['fiscal.motor_tributario.consultar', 'fiscal.motor_tributario.simular'];
+
 // Matriz da SPEC-007 §3.1 lida em chaves, escrita à mão: o teste não lê a constante de produção.
 const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
   admin_escritorio: [
@@ -90,6 +94,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...CERTIFICADOS_TODAS,
+    ...FISCAL,
     'historico.global.consultar',
   ],
   // SPEC-011 §3.2: o auxiliar consulta o cofre e não muta; sem histórico de certificados.
@@ -114,6 +119,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'certificados.historico.consultar',
     // SPEC-012: o auditor lê o painel do Signer e não testa.
     'certificados.signer.consultar',
+    ...FISCAL,
     'historico.global.consultar',
     'usuarios.usuarios_e_papeis.consultar',
   ],
@@ -134,6 +140,16 @@ describe('papéis padrão em chaves do catálogo', () => {
     expect(concedidas('admin_escritorio')).toHaveLength(2);
     expect(concedidas('auditor_readonly')).toEqual(['usuarios.usuarios_e_papeis.consultar']);
     expect(concedidas('contador')).toEqual([]);
+    expect(concedidas('auxiliar')).toEqual([]);
+  });
+
+  it('motor tributário (SPEC-016 §3.7): admin, contador e auditor consultam e simulam; auxiliar nada', () => {
+    const concedidas = (papel: PapelPadrao): string[] =>
+      permissoesDoPapelPadrao(papel).filter((chave) => chave.startsWith('fiscal.'));
+
+    expect(ordenadas(concedidas('admin_escritorio'))).toEqual(ordenadas(FISCAL));
+    expect(ordenadas(concedidas('contador'))).toEqual(ordenadas(FISCAL));
+    expect(ordenadas(concedidas('auditor_readonly'))).toEqual(ordenadas(FISCAL));
     expect(concedidas('auxiliar')).toEqual([]);
   });
 

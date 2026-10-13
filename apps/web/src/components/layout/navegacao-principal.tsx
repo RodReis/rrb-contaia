@@ -14,6 +14,7 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { CONSULTA_DO_COFRE, concede } from '@/features/cofre/permissoes';
+import { CONSULTA_DO_MOTOR } from '@/features/motor-tributario/permissoes';
 import { useSessao } from '@/features/usuarios/queries';
 
 type ItemDoMenu = Readonly<{
@@ -37,6 +38,9 @@ const ITENS: readonly ItemDoMenu[] = [
   { href: '/carteira', rotulo: 'Minha carteira', consultas: [] },
   // Cofre local de certificados A1 (SPEC-011): quem consulta o catálogo `certificados.cofre`.
   { href: '/configuracoes/cofre', rotulo: 'Cofre de certificados', consultas: [CONSULTA_DO_COFRE] },
+  // Motor tributário (SPEC-016): quem consulta as regras publicadas. O super-admin da plataforma não
+  // tem sessão de escritório e abre a rota direto; a API decide cada comando.
+  { href: '/fiscal/motor-tributario', rotulo: 'Motor tributário', consultas: [CONSULTA_DO_MOTOR] },
   {
     href: '/configuracoes/usuarios',
     rotulo: 'Usuários e permissões',

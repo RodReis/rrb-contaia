@@ -138,6 +138,23 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   [CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO]: HttpStatus.UNPROCESSABLE_ENTITY,
   // CSV ilegível ou fora do formato (SPEC-013 §7): rejeição do arquivo antes do staging.
   [CODIGOS_DE_ERRO.ARQUIVO_INVALIDO]: HttpStatus.UNPROCESSABLE_ENTITY,
+  // SPEC-016 §6.3 e §7. O catálogo é global: a versão inexistente é 404. Edição de publicada,
+  // sobreposição de vigência e versão otimista desatualizada são conflito de estado (409): a
+  // requisição está bem formada e o recurso é que não a aceita. Sem regra vigente, entrada de
+  // simulação inválida e XML recusado são regra de negócio (422, nunca 500). Duas regras vigentes
+  // é erro de integridade do catálogo (500): nunca se resolve por precedência. Só o administrador
+  // da plataforma altera o catálogo (403).
+  [CODIGOS_DE_ERRO.TAX_RULE_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.TAX_RULE_IMMUTABLE]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.TAX_RULE_OVERLAPPING_VALIDITY]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.TAX_RULE_VERSION_CONFLICT]: HttpStatus.CONFLICT,
+  [CODIGOS_DE_ERRO.TAX_RULE_NOT_APPLICABLE]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.TAX_RULE_AMBIGUOUS]: HttpStatus.INTERNAL_SERVER_ERROR,
+  [CODIGOS_DE_ERRO.TAX_SIMULATION_INVALID_INPUT]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.NFE_XML_INVALID]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.NFE_LAYOUT_UNSUPPORTED]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.NFE_REQUIRED_DATA_MISSING]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [CODIGOS_DE_ERRO.PLATFORM_ADMIN_REQUIRED]: HttpStatus.FORBIDDEN,
   // SPEC-015 §7. Arquivo/estrutura da planilha recusados são regra de negócio (422), inclusive a
   // aba inexistente: ela é uma posição DENTRO do arquivo enviado, não um recurso da rota (404 aqui
   // se confundiria com o isolamento de tenant). Aba ou cabeçalho que faltam no envio são pedido

@@ -113,6 +113,24 @@
       "realmRoles": [
         "admin_escritorio"
       ]
+    },
+    {
+      "username": "super.admin",
+      "email": "super.admin@plataforma.contaia.local",
+      "firstName": "Administrador",
+      "lastName": "da Plataforma",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "super_admin_local_123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "super_admin"
+      ]
     }
   ]
 }

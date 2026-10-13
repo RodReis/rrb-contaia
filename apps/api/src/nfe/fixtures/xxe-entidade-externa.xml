@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- FIXTURE SINTETICA DE TESTE NAO OFICIAL (SPEC-016): tentativa de entidade externa (XXE); deve ser recusada antes do parse. -->
+<!DOCTYPE NFe [
+  <!ENTITY externa SYSTEM "file:///etc/passwd">
+]>
+<NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+  <infNFe versao="4.00" Id="NFe00000000000000000000550010000000040000000040">
+    <ide><mod>55</mod><dhEmi>2026-06-15T10:30:00-03:00</dhEmi></ide>
+    <emit><CRT>1</CRT></emit>
+    <det nItem="1"><prod><xProd>&externa;</xProd><vProd>1.00</vProd></prod></det>
+  </infNFe>
+</NFe>
