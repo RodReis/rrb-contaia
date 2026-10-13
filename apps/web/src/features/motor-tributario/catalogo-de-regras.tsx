@@ -109,25 +109,25 @@ export const CatalogoDeRegras = () => {
     <div className="grid gap-md tablet:grid-cols-2 desktop:grid-cols-5">
       <Select
         rotulo="Tributo"
-        opcoes={comTodos('Todos os tributos', OPCOES_DE_TRIBUTO)}
+        opcoes={comTodos('Todos', OPCOES_DE_TRIBUTO)}
         valor={filtro.taxType ?? TODOS}
         onValorChange={(valor) => definir('tributo', valor)}
       />
       <Select
         rotulo="Regime"
-        opcoes={comTodos('Todos os regimes', OPCOES_DE_REGIME)}
+        opcoes={comTodos('Todos', OPCOES_DE_REGIME)}
         valor={filtro.regime ?? TODOS}
         onValorChange={(valor) => definir('regime', valor)}
       />
       <Select
         rotulo="Operação"
-        opcoes={comTodos('Todas as operações', OPCOES_DE_OPERACAO)}
+        opcoes={comTodos('Todas', OPCOES_DE_OPERACAO)}
         valor={filtro.operationType ?? TODOS}
         onValorChange={(valor) => definir('operacao', valor)}
       />
       <Select
         rotulo="Estado"
-        opcoes={comTodos('Todos os estados', OPCOES_DE_ESTADO)}
+        opcoes={comTodos('Todos', OPCOES_DE_ESTADO)}
         valor={filtro.status ?? TODOS}
         onValorChange={(valor) => definir('estado', valor)}
       />

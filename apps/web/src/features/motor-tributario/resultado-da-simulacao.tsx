@@ -49,11 +49,8 @@ export const ResultadoDaSimulacao = ({ resultado }: { resultado: TaxSimulationRe
   return (
     <section aria-labelledby="titulo-da-memoria" className="flex flex-col gap-md rounded-lg border border-border bg-card p-md">
       <header className="flex flex-col gap-xs">
-        <p className="flex items-center gap-xs text-label-sm uppercase text-muted-foreground">
-          <ShieldCheck className="size-icon-sm" aria-hidden="true" />
-          Cálculo determinístico, sem LLM
-        </p>
-        <h3 id="titulo-da-memoria" className="text-headline-sm text-foreground">
+        <h3 id="titulo-da-memoria" className="flex items-center gap-xs text-headline-sm text-foreground">
+          <ShieldCheck className="size-icon-md shrink-0 text-muted-foreground" aria-hidden="true" />
           Memória de cálculo determinística
         </h3>
       </header>
