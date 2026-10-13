@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-11
+updated: 2026-10-13
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -9,6 +9,11 @@ updated: 2026-10-11
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-088][F88] Iniciação Pix de DAS e FGTS via Open Finance (#119)
+- [MVP2][SPEC-087][F87] Cobrança Pix Sicoob e baixa idempotente (#118)
+- [MVP2][SPEC-085][F85] Open Finance por empresa via agregador (#117)
+- [MVP2][SPEC-084][F84] Projeção de fluxo de caixa 30/60/90 dias (#116)
+- [MVP2][SPEC-083][F83] Aging de contas a pagar e a receber (#115)
 - [MVP2][SPEC-082][F82] Validação de folha BB com pagamentos divididos por contrato (#103)
 - [MVP2][SPEC-081][F81] Validação de folha BB em arquivo com empresas e competências mistas (#102)
 - [MVP2][SPEC-080][F80] Validação de folha BB com modalidades de conta no mesmo lote (#94)
@@ -78,7 +83,6 @@ updated: 2026-10-11
 - [MVP1][SPEC-019][F19] Ciência da Emissão automática (#21)
 - [MVP1][SPEC-018][F18] Parse e persistência de XML, hash e IBS/CBS (#20)
 - [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19)
-- [MVP1][SPEC-016][F16] Motor tributário base versionado (#18)
 
 ### Sem épico
 
@@ -104,6 +108,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-016][F16] Motor tributário base versionado (#18, finalizado em: 2026-10-13)
 - [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17, finalizado em: 2026-10-11)
 - [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16, finalizado em: 2026-10-11)
 - [MVP1][SPEC-013][F13] Importação do plano de contas por CSV (#15, finalizado em: 2026-10-09)
