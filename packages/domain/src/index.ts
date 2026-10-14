@@ -323,6 +323,21 @@ export { ESTADOS_DA_FINALIDADE, estadoDaFinalidade, piorEstado } from './signer/
 export { LIMITE_DE_DESATUALIZACAO_MS, estadoDoServico } from './signer/servico.js';
 export type { EntradaDoEstadoDoServico, EstadoDoServicoSigner } from './signer/servico.js';
 export type { EstadoDaFinalidade } from './signer/estado.js';
+export { DFE_CAPTURE_STATES, DFE_DOCUMENT_KINDS } from './dfe-capture/model.js';
+export type {
+  DfeBatchItem,
+  DfeCaptureErrorCode,
+  DfeCaptureFailureKind,
+  DfeCaptureState,
+  DfeDocumentKind,
+} from './dfe-capture/model.js';
+export {
+  classifyCaptureFailure,
+  decideCaptureEligibility,
+  evaluateBatch,
+  nextAllowedAt,
+} from './dfe-capture/policy.js';
+export type { CaptureEligibility } from './dfe-capture/policy.js';
 export {
   LIMITE_DE_FALHAS_PARA_INCIDENTE,
   MONITOR_INICIAL,

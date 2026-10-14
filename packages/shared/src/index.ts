@@ -121,6 +121,22 @@ export type {
   RespostaDeHistorico,
   ResultadoDoTesteManual,
 } from './signer.js';
+export {
+  DFE_CAPTURE_DLQ,
+  DFE_CAPTURE_JOB,
+  DFE_CAPTURE_JOB_OPTIONS,
+  DFE_CAPTURE_QUEUE,
+  DfeCaptureCommandSchema,
+  DfeDistributionCommandSchema,
+  DfeDistributionItemSchema,
+  DfeDistributionResponseSchema,
+} from './dfe-capture.js';
+export type {
+  DfeCaptureCommand,
+  DfeCaptureSummary,
+  DfeDistributionCommand,
+  DfeDistributionResponse,
+} from './dfe-capture.js';
 
 export {
   criarPaginaDeRejeicoesSchema,
