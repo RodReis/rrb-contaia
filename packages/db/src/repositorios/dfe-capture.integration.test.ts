@@ -137,9 +137,10 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
       tenantId: c.tenantA, empresaId: co.id, stagingId, cnpj: co.cnpj, nsu: '1', correlationId,
       originalKey: `${c.tenantA}/${co.id}/fiscal-original/${'a'.repeat(64)}.xml`, parserVersion: 'f18-test',
       parsed: { id: randomUUID(), especie: 'NFE_55', chaveAcesso: '00000000000000000000550010000000010000000010',
-        hashSha256: 'a'.repeat(64), tamanho: 20, versaoLayout: '4.00', modelo: '55', emitidoEm: '2026-06-15',
-        emitente: co.cnpj, destinatario: null, total: '1.00', ibsCbsPendente: false,
-        itens: [{ tipo: 'ITEM', codigo: '1', descricao: 'Item de teste', quantidade: '1.0000', unidade: 'UN', valor: '1.00', ibs: null, cbs: null }] },
+        hashSha256: 'a'.repeat(64), tamanho: 20, versaoLayout: '4.00', modelo: '55', protocolo: null, protocoloRecebidoEm: null,
+        referencias: [], partes: [], emitidoEm: '2026-06-15', emitente: co.cnpj, destinatario: null, total: '1.00', ibsCbsPendente: false,
+        baseIbsCbs: null, totalIbs: null, totalCbs: null,
+        itens: [{ tipo: 'ITEM', codigo: '1', descricao: 'Item de teste', quantidade: '1.0000', unidade: 'UN', valor: '1.00', ibs: null, cbs: null }], tributos: [] },
     }));
     const registra = (tipo: string, codigo: string) => tech(co.id, `${correlationId}-${tipo}`, (client) => registrarEventoDocumentoFiscal(client, {
       tenantId: c.tenantA, empresaId: co.id, documentId: document.id, stagingId, tipo, codigo,
