@@ -56,3 +56,19 @@ export const obterUrlDaAplicacao = (): string => {
 
 export const criarPoolDaAplicacao = (url: string = obterUrlDaAplicacao()): Pool =>
   tratarQuedaDeConexaoOciosa(new Pool({ connectionString: url, max: 10 }));
+
+/** Papel exclusivo da descoberta DF-e: so EXECUTE na funcao de candidatos. */
+export const obterUrlDoAgendadorDfe = (): string => {
+  const explicita = process.env['DATABASE_DFE_SCHEDULER_URL'];
+  if (explicita) return explicita;
+  if (process.env['NODE_ENV'] === 'production') {
+    throw new Error('DATABASE_DFE_SCHEDULER_URL obrigatoria para o agendador DF-e.');
+  }
+  const url = new URL(obterUrlDoBanco());
+  url.username = 'contaia_dfe_scheduler';
+  url.password = 'contaia_dfe_scheduler_local';
+  return url.toString();
+};
+
+export const criarPoolDoAgendadorDfe = (url: string = obterUrlDoAgendadorDfe()): Pool =>
+  tratarQuedaDeConexaoOciosa(new Pool({ connectionString: url, max: 2 }));

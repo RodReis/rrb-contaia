@@ -87,12 +87,25 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | 9 | [#10](https://github.com/RodReis/rrb-contaia/issues/10) `[MVP1][SPEC-008][F8]` Papéis personalizados e permissões | F8 / SPEC-008 | em revisão | #98 | catálogo controlado por chave, papel por snapshot de um padrão, matriz por módulo/funcionalidade/ação, aplicação na próxima requisição, arquivamento e reativação com revisão, auditoria append-only |
 | 10 | [#16](https://github.com/RodReis/rrb-contaia/issues/16) `[MVP1][SPEC-014][F14]` Importação de empregados por CSV | F14 / SPEC-014 | em revisão | — | pipeline da F13 extraído para módulo genérico (banco, API, workers, web); chave CPF + matrícula, duplicata rejeita todas as ocorrências, arquivado não reativa, aba Empregados em consulta, etapa opcional no onboarding, aviso ao iniciador e aos administradores com a empresa na carteira |
 | 11 | [#17](https://github.com/RodReis/rrb-contaia/issues/17) `[MVP1][SPEC-015][F15]` Importação de planilhas XLSX/ODS | F15 / SPEC-015 | em revisão | — | leitor próprio em processo filho (`@contaia/planilhas`); aba e linha de cabeçalho escolhidas, mapeamento por letra, fórmula/mescla em coluna mapeada rejeitam só a linha, linha oculta contada; modelos CSV/XLSX/ODS; equivalência com o CSV nos dois domínios |
+| 12 | [#19](https://github.com/RodReis/rrb-contaia/issues/19) `[MVP1][SPEC-017][F17]` Captura DF-e por NSU | F17 / SPEC-017 | em implementação | — | estado/cursor, staging opaco, Signer mTLS, fila e scheduler por elegibilidade; DLQ, reprocessamento autenticado, consulta e métricas operacionais. Pendentes: jornada E2E e provas visuais nos dois temas/viewports |
 
 ---
 
 ## 3. Passos por card
 
 Detalhamento operacional de cada card em execução. Passo concluído fica marcado, com o PR que o entregou.
+
+### Card #19 — `[MVP1][SPEC-017][F17]` Captura DF-e por NSU
+
+- [x] Estado por tenant/empresa/CNPJ, controle monotônico do NSU, CAS, staging bruto opaco e avanço do cursor na mesma transação.
+- [x] Captura manual e automática pelo mesmo worker/Signer mTLS; lotes limitados a 50, deduplicação por NSU/chave e intervalo compartilhado por tenant/órgão de 60 s além do `tempoMedio` por CNPJ.
+- [x] Scheduler com papel de descoberta somente executável, função de saída mínima e revalidação sob RLS por empresa; consulta de admin limitada à captura e ao próprio tenant.
+- [x] Retry exponencial com jitter, bloqueio 656 isolado, trilha append-only e alerta deduplicado com resolução; reprocessamento da DLQ preserva execução/chave/origem e registra o ator.
+- [x] API para status/histórico, métricas operacionais dos últimos 30 dias e UI para consulta, paginação e reprocessamento administrativo.
+- [x] Validação local focada: 22 testes de domínio, 1 de contrato compartilhado, 4 de UI, 4 do guard de API e 22 do Signer; typecheck em oito pacotes. PostgreSQL limpo: migrações 0000–0028 aplicadas, matriz RLS 5/5 e integração F17 7/7. Correções incluíram ordem do `REVOKE` em 0023 e qualificação do `pgcrypto` para UUIDv7 sob `search_path` fechado.
+- [ ] E2E da empresa com A1 de teste até o dublê mTLS, com repetição idempotente e avanço do cursor; prova de falha parcial sem avanço.
+- [ ] Capturas e axe nos estados relevantes, CLARO/ESCURO em 768/1024/1440, revisão visual contra o protótipo e passe final `impeccable`.
+- [ ] Relatório `test-results/SPEC-017/`, autorrevisão do diff e validação do CI na PR.
 
 ### Card #1 — `[INFRA]` Bootstrap local do MVP-1 (PR #2)
 

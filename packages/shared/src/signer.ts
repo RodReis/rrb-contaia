@@ -50,6 +50,28 @@ export type ComandoAssinar = z.infer<typeof ComandoAssinarSchema>;
 export const ComandoExecutarMtlsSchema = z.strictObject({ ...contextoDaOperacao, xml });
 export type ComandoExecutarMtls = z.infer<typeof ComandoExecutarMtlsSchema>;
 
+export const ComandoDistribuicaoDfeSchema = z.strictObject({
+  tenantId: identificador,
+  empresaId: identificador,
+  cnpj: z.string().regex(/^\d{14}$/u),
+  ultNSU: z.string().regex(/^\d{1,15}$/u),
+  limite: z.literal(50),
+  chaveIdempotente: chaveTextual,
+  correlationId: chaveTextual,
+  usuarioOriginadorId: identificador.optional(),
+});
+export type ComandoDistribuicaoDfe = z.infer<typeof ComandoDistribuicaoDfeSchema>;
+
+export type RespostaDistribuicaoDfe = Readonly<{
+  tipo: 'LOTE' | 'SEM_NOVOS' | 'CONSUMO_INDEVIDO';
+  codigoResposta: string;
+  ultNSU: string;
+  maxNSU: string;
+  tempoMedioMs: number;
+  itens: readonly Readonly<{ nsu: string; chaveAcesso: string | null; especie: 'NFE_55' | 'CTE'; conteudoBruto: string; disponibilizadoEm: string | null }>[];
+  disponivelNovamenteEm: string | null;
+}>;
+
 /** O diagnóstico usa o XML de teste do próprio Signer e não recebe conteúdo. */
 export const ORIGENS_DO_DIAGNOSTICO = ['AUTOMATICO', 'MANUAL'] as const;
 export type OrigemDoDiagnostico = (typeof ORIGENS_DO_DIAGNOSTICO)[number];

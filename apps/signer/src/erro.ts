@@ -5,6 +5,7 @@ type CodigoDaApi = 'SIGNER_TESTE_EM_ANDAMENTO';
 
 export type CodigoDoSigner =
   | Exclude<Extract<CodigoDeErro, `SIGNER_${string}`>, CodigoDaApi>
+  | 'DFE_CONSUMO_INDEVIDO'
   | 'ROTA_NAO_ENCONTRADA'
   | 'REQUISICAO_INVALIDA';
 
@@ -26,6 +27,7 @@ export const STATUS_POR_CODIGO: Readonly<Record<CodigoDoSigner, number>> = {
   SIGNER_IDEMPOTENCIA_CONFLITO: 409,
   SIGNER_OPERACAO_EM_ANDAMENTO: 409,
   SIGNER_INDISPONIVEL: 503,
+  DFE_CONSUMO_INDEVIDO: 409,
   ROTA_NAO_ENCONTRADA: 404,
   REQUISICAO_INVALIDA: 400,
 };

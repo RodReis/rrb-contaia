@@ -68,6 +68,7 @@ const clienteDesligado = (): ClienteDoSigner => ({
   saude: indisponivel,
   assinar: indisponivel,
   executarMtls: indisponivel,
+  distribuirDfe: indisponivel,
   diagnosticar: indisponivel,
   estados: indisponivel,
   historico: indisponivel,

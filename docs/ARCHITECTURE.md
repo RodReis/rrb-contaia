@@ -122,7 +122,9 @@ SET LOCAL app.empresa_id = '<uuid>';
 ```
 
 - As políticas de RLS leem esse contexto. **Consulta sem contexto não retorna nada** — nunca retorna tudo.
-- O papel da aplicação **não** tem `BYPASSRLS`. A única exceção é o caminho de impersonation do super-admin, com **role de serviço dedicada e auditada** (PRD §3).
+- O papel da aplicação **não** tem `BYPASSRLS`. O caminho de impersonation do super-admin usa **role de serviço dedicada e auditada** (PRD §3).
+- O agendador DF-e (SPEC-017) descobre candidatos por uma função `SECURITY DEFINER` de saída mínima. Seu papel de login só pode executá-la; não lê tabelas. O dono da função é um papel `NOLOGIN` com `BYPASSRLS`, limitado por `GRANT` às tabelas da descoberta. Cada candidato volta à transação normal com contexto de tenant e empresa antes de qualquer reserva, leitura operacional ou chamada ao Signer. A função não aceita tenant/empresa arbitrários e nunca retorna segredo nem conteúdo fiscal.
+- A consulta DF-e mantém a carteira como recorte de `contador` e `auxiliar`. A exceção de `admin_escritorio` da SPEC-017 é limitada às tabelas e aos leitores `SECURITY DEFINER` da captura, que confirmam o papel ativo e empresa ativa no mesmo tenant; não amplia a RLS geral nem o acesso a `app.empresa`.
 - **Anti-drift no schema:** teste que falha se existir tabela transacional sem `tenant_id`/`empresa_id`, sem índice ou sem RLS habilitada ([`TESTING.md`](TESTING.md) §3.1).
 - Migrations em SQL versionado, aplicadas em passo próprio antes do deploy ([`CI-PR.md`](CI-PR.md) §6).
 
@@ -133,7 +135,7 @@ SET LOCAL app.empresa_id = '<uuid>';
 | Transacional (documento, lançamento, evento, tarefa HITL) | PostgreSQL | conforme PRD §12 |
 | XML original de documento fiscal | S3 (object storage) + hash no banco | **≥ 5 anos** (PRD §12) |
 | Embeddings de classificação | **pgvector no mesmo PostgreSQL** ([ADR-010](adr/ADR-010-vector-db.md)) — herda a RLS | enquanto o cliente existir |
-| Cache, fila, rate limit | Redis | efêmero |
+| Cache e fila de jobs | Redis | efêmero; o intervalo global de chamadas DF-e é reservado em PostgreSQL append-only para sobreviver a reinícios |
 | Certificado A1, senha, credencial de órgão | Cofre (Vault/KMS) — acessível **só pelo Signer** | rotação auditada |
 | Envelope de execução do agente — metadados, decisão, score, custo e hashes | PostgreSQL (append-only) | permanente; correção e descarte são novos eventos |
 | Payload de agente — prompt, contexto, entrada e resposta integrais | armazenamento separado, append-only durante a retenção | 12 meses, depois anonimização ou descarte auditado; o envelope e os hashes permanecem |

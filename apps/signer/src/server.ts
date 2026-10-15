@@ -13,6 +13,7 @@ import type { TLSSocket } from 'node:tls';
 import {
   ComandoAssinarSchema,
   ComandoDiagnosticarSchema,
+  ComandoDistribuicaoDfeSchema,
   ComandoExecutarMtlsSchema,
   ConsultaEstadosSchema,
   ConsultaHistoricoSchema,
@@ -63,6 +64,13 @@ const ROTAS: readonly Rota[] = [
     operacao: 'executar-mtls',
     schema: ComandoExecutarMtlsSchema,
     executar: (s, id, entrada) => s.executarMtls(id, entrada),
+  },
+  {
+    metodo: 'POST',
+    caminho: '/v1/distribuicao-dfe',
+    operacao: 'distribuicao-dfe',
+    schema: ComandoDistribuicaoDfeSchema,
+    executar: (s, id, entrada) => s.distribuirDfe(id, entrada),
   },
   {
     metodo: 'POST',
@@ -129,6 +137,9 @@ const consultaDe = (url: URL): Record<string, unknown> => {
 
   if (typeof consulta['pagina'] === 'string') {
     consulta['pagina'] = Number(consulta['pagina']);
+  }
+  if (typeof consulta['limite'] === 'string') {
+    consulta['limite'] = Number(consulta['limite']);
   }
   // Lote de empresas: lista separada por vírgula; vazio vira lista vazia e o contrato recusa.
   if (typeof consulta['empresaIds'] === 'string') {

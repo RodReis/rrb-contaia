@@ -346,6 +346,78 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
         [e.tenantId, e.empresaId],
       ),
   },
+  'app.dfe_capture_state': {
+    inserir: (banco, e) => unico(banco,
+      `insert into app.dfe_capture_state (tenant_id, empresa_id, cnpj)
+       values ($1,$2,$3) returning id`, [e.tenantId, e.empresaId, `9${String(proximo()).padStart(13, '0')}`]),
+    colunaDeAtualizacao: 'versao',
+  },
+  'app.dfe_capture_run': {
+    preparar: async (admin, e) => {
+      const cnpj = `8${String(proximo()).padStart(13, '0')}`;
+      return { cnpj, stateId: await unico(admin,
+        `insert into app.dfe_capture_state (tenant_id, empresa_id, cnpj)
+         values ($1,$2,$3) returning id`, [e.tenantId, e.empresaId, cnpj]) };
+    },
+    inserir: (banco, e, refs) => unico(banco,
+      `insert into app.dfe_capture_run
+         (tenant_id, empresa_id, estado_id, cnpj, origem, chave_idempotente, correlation_id, ult_nsu_entrada)
+       values ($1,$2,$3,$4,'MANUAL',$5,'matriz-rls','0') returning id`,
+      [e.tenantId, e.empresaId, refs['stateId'], refs['cnpj'], `idemp-${proximo()}-${e.sufixo}`]),
+    colunaDeAtualizacao: 'tentativa',
+  },
+  'app.dfe_capture_staging': {
+    preparar: async (admin, e) => {
+      const cnpj = `7${String(proximo()).padStart(13, '0')}`;
+      const stateId = await unico(admin,
+        `insert into app.dfe_capture_state (tenant_id, empresa_id, cnpj) values ($1,$2,$3) returning id`,
+        [e.tenantId, e.empresaId, cnpj]);
+      const runId = await unico(admin,
+        `insert into app.dfe_capture_run (tenant_id, empresa_id, estado_id, cnpj, origem, chave_idempotente, correlation_id, ult_nsu_entrada)
+         values ($1,$2,$3,$4,'MANUAL',$5,'matriz-rls','0') returning id`,
+        [e.tenantId, e.empresaId, stateId, cnpj, `idemp-${proximo()}-${e.sufixo}`]);
+      return { runId, cnpj };
+    },
+    inserir: (banco, e, refs) => unico(banco,
+      `insert into app.dfe_capture_staging (tenant_id, empresa_id, run_id, cnpj, nsu, especie, conteudo_bruto, capturado_em, correlation_id)
+       values ($1,$2,$3,$4,$5,'NFE_55',decode('3c78','hex'),now(),'matriz-rls') returning id`,
+      [e.tenantId, e.empresaId, refs['runId'], refs['cnpj'], String(proximo())]),
+  },
+  'app.dfe_capture_event': {
+    preparar: async (admin, e) => {
+      const cnpj = `6${String(proximo()).padStart(13, '0')}`;
+      const stateId = await unico(admin,
+        `insert into app.dfe_capture_state (tenant_id, empresa_id, cnpj) values ($1,$2,$3) returning id`,
+        [e.tenantId, e.empresaId, cnpj]);
+      const runId = await unico(admin,
+        `insert into app.dfe_capture_run (tenant_id, empresa_id, estado_id, cnpj, origem, chave_idempotente, correlation_id, ult_nsu_entrada)
+         values ($1,$2,$3,$4,'MANUAL',$5,'matriz-rls','0') returning id`,
+        [e.tenantId, e.empresaId, stateId, cnpj, `idemp-${proximo()}-${e.sufixo}`]);
+      return { runId, cnpj };
+    },
+    inserir: (banco, e, refs) => unico(banco,
+      `insert into app.dfe_capture_event (tenant_id, empresa_id, run_id, cnpj, tipo, tentativa, correlation_id, ocorrido_em)
+       values ($1,$2,$3,$4,'QUEUED',0,'matriz-rls',now()) returning id`,
+      [e.tenantId, e.empresaId, refs['runId'], refs['cnpj']]),
+  },
+  'app.dfe_capture_alert_event': {
+    preparar: async (admin, e) => {
+      const cnpj = `5${String(proximo()).padStart(13, '0')}`;
+      const stateId = await unico(admin,
+        `insert into app.dfe_capture_state (tenant_id, empresa_id, cnpj) values ($1,$2,$3) returning id`,
+        [e.tenantId, e.empresaId, cnpj]);
+      const runId = await unico(admin,
+        `insert into app.dfe_capture_run (tenant_id, empresa_id, estado_id, cnpj, origem, chave_idempotente, correlation_id, ult_nsu_entrada)
+         values ($1,$2,$3,$4,'MANUAL',$5,'matriz-rls','0') returning id`,
+        [e.tenantId, e.empresaId, stateId, cnpj, `idemp-${proximo()}-${e.sufixo}`]);
+      return { runId, cnpj };
+    },
+    inserir: (banco, e, refs) => unico(banco,
+      `insert into app.dfe_capture_alert_event
+         (tenant_id, empresa_id, run_id, cnpj, tipo, causa, codigo, correlation_id, ocorrido_em)
+       values ($1,$2,$3,$4,'OPENED','DLQ','DFE_PROVIDER_UNAVAILABLE','matriz-rls',now()) returning id`,
+      [e.tenantId, e.empresaId, refs['runId'], refs['cnpj']]),
+  },
   'app.signer_notificacao': {
     inserir: (banco, e) =>
       unico(

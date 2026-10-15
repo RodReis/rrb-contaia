@@ -13,23 +13,32 @@
  * exceção é o administrador diante de empresa ARQUIVADA, que ele alcança sem vínculo
  * para poder reativá-la (o arquivamento encerra os vínculos de todos).
  */
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 import { CarteiraService } from '../carteira/carteira.service';
 import { autorDa, tenantDa } from './contexto-da-sessao';
 import type { RequisicaoAutenticada } from './sessao.guard';
 
+const DFE_ADMIN_TENANT_SCOPE = 'dfeAdminTenantScope';
+export const DfeAdminTenantScope = (): ClassDecorator & MethodDecorator => SetMetadata(DFE_ADMIN_TENANT_SCOPE, true);
+
 @Injectable()
 export class GuardDeEscopoDeEmpresa implements CanActivate {
-  constructor(private readonly carteira: CarteiraService) {}
+  constructor(private readonly carteira: CarteiraService, private readonly reflector: Reflector) {}
 
   async canActivate(contexto: ExecutionContext): Promise<boolean> {
     const requisicao = contexto.switchToHttp().getRequest<RequisicaoAutenticada>();
-    const empresaId = requisicao.params['empresaId'];
+    const empresaId = requisicao.params['empresaId'] ?? requisicao.params['companyId'];
 
     if (empresaId === undefined) {
       return true;
     }
+
+    const adminTenantScope = this.reflector.getAllAndOverride<boolean>(DFE_ADMIN_TENANT_SCOPE, [
+      contexto.getHandler(), contexto.getClass(),
+    ]);
+    if (adminTenantScope && (requisicao.sessao?.papeis ?? []).includes('admin_escritorio')) return true;
 
     await this.carteira.exigirAcessoAEmpresa(
       tenantDa(requisicao),

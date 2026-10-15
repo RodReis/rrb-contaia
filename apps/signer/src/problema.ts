@@ -24,6 +24,7 @@ const TITULOS: Readonly<Record<CodigoDoSigner, string>> = {
   SIGNER_IDEMPOTENCIA_CONFLITO: 'A chave idempotente já foi usada com outro conteúdo ou contexto.',
   SIGNER_OPERACAO_EM_ANDAMENTO: 'A operação com esta chave ainda está em andamento.',
   SIGNER_INDISPONIVEL: 'O Signer não conseguiu concluir a operação.',
+  DFE_CONSUMO_INDEVIDO: 'O provedor bloqueou temporariamente a distribuição deste CNPJ.',
   ROTA_NAO_ENCONTRADA: 'Rota inexistente.',
   REQUISICAO_INVALIDA: 'A requisição está malformada.',
 };

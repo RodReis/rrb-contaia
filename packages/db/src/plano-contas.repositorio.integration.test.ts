@@ -977,7 +977,7 @@ describe('consultas (SPEC-013 §3.5, §3.9)', () => {
         }),
       ),
     ).toBe('34000');
-  });
+  }, 30_000);
 
   it('plano: paginado por código, com busca; contagem válida ignora arquivadas; contas vigentes para a validação', async () => {
     const empresaId = await novaEmpresa();

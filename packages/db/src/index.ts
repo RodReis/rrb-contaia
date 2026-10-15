@@ -2,7 +2,9 @@ export {
   criarDb,
   criarPool,
   criarPoolDaAplicacao,
+  criarPoolDoAgendadorDfe,
   obterUrlDaAplicacao,
+  obterUrlDoAgendadorDfe,
   obterUrlDoBanco,
 } from './client.js';
 export { aplicarMigrations, listarMigrations } from './migrate.js';
@@ -307,6 +309,25 @@ export type {
   PaginaDaTrilhaDoSigner,
   UltimoEventoDaFinalidade,
 } from './repositorios/signer-consultas.js';
+export {
+  commitDfeBatch,
+  createOrReuseDfeCaptureRun,
+  ensureDfeCaptureState,
+  getDfeCaptureMetrics,
+  getDfeCaptureCompany,
+  hasDfeCaptureCertificate,
+  getDfeCaptureState,
+  listDfeCaptureRuns,
+  marcarDfeCaptureEmExecucao,
+  prepararReprocessamentoDfeCapture,
+  registrarFalhaDfeCapture,
+  reservarJanelaDfeTenant,
+} from './repositorios/dfe-capture.js';
+export type {
+  CommitDfeBatchInput,
+  DfeCaptureRun,
+  DfeCaptureStateRecord,
+} from './repositorios/dfe-capture.js';
 
 export {
   aplicarLinhas as aplicarLinhasNoPlano,
