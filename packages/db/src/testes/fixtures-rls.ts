@@ -748,6 +748,12 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,numero,descricao)
        values($1,$2,$3,1,'Fixture') returning id`, [e.tenantId,e.empresaId,r['documentId']]),
   },
+  'app.fiscal_document_tax': {
+    preparar: prepararDocumentoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,escopo,codigo,valor)
+       values($1,$2,$3,'DOCUMENTO','IBS',0.10) returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+  },
   'app.fiscal_document_reference': {
     preparar: prepararDocumentoFiscal,
     inserir: (banco,e,r) => unico(banco,

@@ -140,6 +140,7 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.fiscal_document_party', classe: 'empresa', origem: 'F18 / SPEC-018', appendOnly: true },
   { tabela: 'app.fiscal_document_origin', classe: 'empresa', origem: 'F18 / SPEC-018', appendOnly: true },
   { tabela: 'app.fiscal_document_item', classe: 'empresa', origem: 'F18 / SPEC-018', appendOnly: true },
+  { tabela: 'app.fiscal_document_tax', classe: 'empresa', origem: 'F18 / SPEC-018', appendOnly: true },
   { tabela: 'app.fiscal_document_reference', classe: 'empresa', origem: 'F18 / SPEC-018', appendOnly: true },
   { tabela: 'app.fiscal_document_event', classe: 'empresa', origem: 'F18 / SPEC-018', appendOnly: true },
   { tabela: 'app.fiscal_document_outbox', classe: 'empresa', origem: 'F18 / SPEC-018' },

@@ -11,6 +11,7 @@ export type RegistroFiscalPersistido = Readonly<{
   destinatario: string | null; total: string | null; ibsCbsPendente: boolean;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
   itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
+  tributos: readonly Readonly<{ escopo: 'DOCUMENTO' | 'ITEM'; numeroItem: number | null; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS'; baseCalculo: string | null; aliquota: string | null; valor: string | null; situacao: string | null; classificacao: string | null }>[];
 }>;
 
 const estadoFiscalApresentado = (alias: string) => `case
@@ -60,14 +61,15 @@ export const obterDocumentoFiscal = async (client: PoolClient, empresaId: string
   );
   if (!document.rows[0]) return null;
   const { estado_apresentado, ...documentData } = document.rows[0];
-  const [items,origins,events,references,parties] = await Promise.all([
+  const [items,origins,events,references,parties,taxes] = await Promise.all([
     client.query(`select numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 order by numero`, [documentId]),
     client.query(`select staging_id,cnpj,nsu,correlation_id,capturado_em from app.fiscal_document_origin where document_id=$1 order by capturado_em`, [documentId]),
     client.query(`select tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ocorrido_em from app.fiscal_document_event where document_id=$1 order by ocorrido_em desc limit 30`, [documentId]),
     client.query(`select tipo,chave from app.fiscal_document_reference where document_id=$1 order by tipo,chave`, [documentId]),
     client.query(`select papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais from app.fiscal_document_party where document_id=$1 order by papel`, [documentId]),
+    client.query(`select escopo,numero_item,codigo,base_calculo,aliquota,valor,situacao,classificacao from app.fiscal_document_tax where document_id=$1 order by escopo,numero_item nulls first,codigo`, [documentId]),
   ]);
-  return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows, referencias: references.rows, partes: parties.rows };
+  return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows, referencias: references.rows, partes: parties.rows, tributos: taxes.rows };
 };
 
 export const persistirDocumentoFiscal = async (client: PoolClient, input: Readonly<{
@@ -116,6 +118,13 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
         `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs)
          values($1,$2,$3,$4,$5,$6,$7,$8::numeric,$9,$10::numeric,$11::numeric,$12::numeric)`,
         [input.tenantId,input.empresaId,id,index+1,item.tipo,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs],
+      );
+    }
+    for (const tax of input.parsed.tributos) {
+      await client.query(
+        `insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,escopo,numero_item,codigo,base_calculo,aliquota,valor,situacao,classificacao)
+         values($1,$2,$3,$4,$5,$6,$7::numeric,$8::numeric,$9::numeric,$10,$11) on conflict do nothing`,
+        [input.tenantId,input.empresaId,id,tax.escopo,tax.numeroItem,tax.codigo,tax.baseCalculo,tax.aliquota,tax.valor,tax.situacao,tax.classificacao],
       );
     }
     for (const reference of input.parsed.referencias) {

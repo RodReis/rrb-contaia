@@ -68,6 +68,7 @@ describe('PainelDeDocumentosFiscais', () => {
       base_ibs_cbs: '10.00', total_ibs: '0.01', total_cbs: '0.09',
       protocolo: '135260000000001', referencias: [{ tipo: 'NF-e', chave: 'chave referenciada' }],
       partes: [{ papel: 'EMITENTE', identificador: '12345678000190', nome: 'Emitente de teste', inscricao_estadual: null, logradouro: 'Rua A', numero: '10', complemento: null, bairro: 'Centro', codigo_municipio: '3550308', municipio: 'São Paulo', uf: 'SP', cep: '01000000', codigo_pais: '1058', pais: 'Brasil' }],
+      tributos: [{ escopo: 'DOCUMENTO', numero_item: null, codigo: 'IBS', base_calculo: '10.00', aliquota: null, valor: '0.01', situacao: null, classificacao: '000001' }],
       origens: [{ nsu: '101', capturado_em: '2026-06-15T13:00:00.000Z' }], eventos: [],
     });
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -80,11 +81,12 @@ describe('PainelDeDocumentosFiscais', () => {
     await screen.findByText('Emitente de teste');
     fireEvent.click(screen.getByRole('button', { name: 'Abrir detalhes' }));
 
-    expect(await screen.findByText('Itens e tributos presentes')).toBeTruthy();
+    expect(await screen.findByText('Itens e componentes')).toBeTruthy();
     expect(screen.getByText('Destinatário de teste')).toBeTruthy();
     expect(screen.getByText('135260000000001')).toBeTruthy();
     expect(screen.getByText('NF-e: chave referenciada')).toBeTruthy();
     expect(screen.getByText('Partes e localização declarada')).toBeTruthy();
+    expect(screen.getByText('Tributos normalizados')).toBeTruthy();
     expect(screen.getByText('Rua A, 10, Centro, São Paulo, SP, 01000000')).toBeTruthy();
     expect(screen.getAllByText('R$ 0,01', { exact: true }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Copiar chave de acesso' })).toBeTruthy();

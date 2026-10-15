@@ -107,6 +107,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Separar identificador fiscal, nome e localização declarada de emitente/destinatário, com RLS e append-only.
 - [x] Rejeitar namespace/modelo/versão diferentes do layout 4.00 e exigir blocos fiscais mínimos para NF-e/CT-e.
 - [x] Persistir e exibir base e totalizadores IBS/CBS do documento, mantendo extração por item para NF-e.
+- [x] Normalizar base, alíquota, valor e situação presentes para ICMS, ICMS-ST, IPI, II, PIS, COFINS, IBS e CBS, por item e documento quando o XML oferece o grupo.
 - [x] Persistir componentes de frete do CT-e separados das medidas de carga, sem repetir o total do serviço.
 - [ ] Confirmar migration 0029 e fluxo completo no PostgreSQL/MinIO isolados; cobrir idempotência, conflito, RLS, retry e DLQ.
 - [ ] Validar recuperação do outbox com Redis indisponível e retorno, incluindo publicação repetida/idempotência.

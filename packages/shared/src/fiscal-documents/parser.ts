@@ -9,11 +9,16 @@ export type ParteFiscalParseada = Readonly<{
   codigoMunicipio: string | null; municipio: string | null; uf: string | null; cep: string | null;
   codigoPais: string | null; pais: string | null;
 }>;
+export type TributoFiscalParseado = Readonly<{
+  escopo: 'DOCUMENTO' | 'ITEM'; numeroItem: number | null; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS';
+  baseCalculo: string | null; aliquota: string | null; valor: string | null; situacao: string | null; classificacao: string | null;
+}>;
 export type DocumentoFiscalParseado = Readonly<{
   especie: EspecieFiscal; modelo: string; versaoLayout: string; chaveAcesso: string;
   protocolo: string | null;
   referencias: readonly Readonly<{ tipo: string; chave: string }>[];
   partes: readonly ParteFiscalParseada[];
+  tributos: readonly TributoFiscalParseado[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
   total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
@@ -30,6 +35,39 @@ const texto = (element: XmlContainer | null, path: string, namespace: string): s
 const existe = (element: XmlContainer | null, path: string, namespace: string): boolean =>
   Boolean(element?.getElementsByTagNameNS(namespace, path).length);
 function erro(codigo: FalhaParseFiscal): never { throw new Error(codigo); }
+
+const extrairTributosDeGrupo = (scope: XmlContainer, namespace: string, escopo: TributoFiscalParseado['escopo'], numeroItem: number | null): TributoFiscalParseado[] => {
+  const resultado: TributoFiscalParseado[] = [];
+  const adicionar = (tributo: TributoFiscalParseado) => {
+    if (tributo.baseCalculo !== null || tributo.aliquota !== null || tributo.valor !== null || tributo.situacao !== null || tributo.classificacao !== null) resultado.push(tributo);
+  };
+  const grupos: readonly Readonly<{ xml: string; codigo: 'ICMS' | 'IPI' | 'II' | 'PIS' | 'COFINS'; valor: string; base: string; aliquota: string }>[] = [
+    { xml: 'ICMS', codigo: 'ICMS', valor: 'vICMS', base: 'vBC', aliquota: 'pICMS' },
+    { xml: 'IPI', codigo: 'IPI', valor: 'vIPI', base: 'vBC', aliquota: 'pIPI' },
+    { xml: 'II', codigo: 'II', valor: 'vII', base: 'vBC', aliquota: 'pII' },
+    { xml: 'PIS', codigo: 'PIS', valor: 'vPIS', base: 'vBC', aliquota: 'pPIS' },
+    { xml: 'COFINS', codigo: 'COFINS', valor: 'vCOFINS', base: 'vBC', aliquota: 'pCOFINS' },
+  ];
+  for (const group of grupos) {
+    const node = scope.getElementsByTagNameNS(namespace, group.xml)[0] as Element | undefined;
+    if (!node) continue;
+    adicionar({ escopo, numeroItem, codigo: group.codigo, baseCalculo: texto(node, group.base, namespace), aliquota: texto(node, group.aliquota, namespace), valor: texto(node, group.valor, namespace), situacao: texto(node, 'CST', namespace) ?? texto(node, 'CSOSN', namespace), classificacao: null });
+    const valorSt = texto(node, 'vICMSST', namespace);
+    if (group.codigo === 'ICMS' && valorSt !== null) adicionar({ escopo, numeroItem, codigo: 'ICMS_ST', baseCalculo: texto(node, 'vBCST', namespace), aliquota: texto(node, 'pICMSST', namespace), valor: valorSt, situacao: texto(node, 'CST', namespace) ?? texto(node, 'CSOSN', namespace), classificacao: null });
+  }
+  const ibscbs = scope.getElementsByTagNameNS(namespace, 'IBSCBS')[0] as Element | undefined;
+  const ibscbsGroup = ibscbs?.getElementsByTagNameNS(namespace, 'gIBSCBS')[0] as Element | undefined;
+  if (ibscbs && ibscbsGroup) {
+    const baseCalculo = texto(ibscbsGroup, 'vBC', namespace);
+    const situacao = texto(ibscbs, 'CST', namespace);
+    const classificacao = texto(ibscbs, 'cClassTrib', namespace);
+    const ibs = (ibscbsGroup.getElementsByTagNameNS(namespace, 'gIBS')[0] as Element | undefined) ?? ibscbsGroup;
+    const cbs = ibscbsGroup.getElementsByTagNameNS(namespace, 'gCBS')[0] as Element | undefined;
+    if (ibs) adicionar({ escopo, numeroItem, codigo: 'IBS', baseCalculo, aliquota: null, valor: texto(ibs, 'vIBS', namespace), situacao, classificacao });
+    if (cbs) adicionar({ escopo, numeroItem, codigo: 'CBS', baseCalculo, aliquota: texto(cbs, 'pCBS', namespace), valor: texto(cbs, 'vCBS', namespace), situacao, classificacao });
+  }
+  return resultado;
+};
 
 export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: EspecieFiscal, dataEmissao: string | null = null): DocumentoFiscalParseado => {
   if (bytes.byteLength === 0) erro('FISCAL_XML_INVALID');
@@ -87,6 +125,33 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     }));
     items.unshift(...components);
   }
+  const tributos: TributoFiscalParseado[] = [];
+  if (nfe) {
+    itemNodes.forEach((node, index) => {
+      const item = node as Element;
+      const tax = item.getElementsByTagNameNS(namespaceEsperado, 'imposto')[0] as Element | undefined;
+      if (tax) tributos.push(...extrairTributosDeGrupo(tax as unknown as XmlContainer, namespaceEsperado, 'ITEM', index + 1));
+    });
+    const totals = document.getElementsByTagNameNS(namespaceEsperado, 'ICMSTot')[0] as Element | undefined;
+    const totaisBasicos: readonly Readonly<{ codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS'; base: string | null; valor: string | null }>[] = totals ? [
+      { codigo: 'ICMS', base: texto(totals, 'vBC', namespaceEsperado), valor: texto(totals, 'vICMS', namespaceEsperado) },
+      { codigo: 'ICMS_ST', base: texto(totals, 'vBCST', namespaceEsperado), valor: texto(totals, 'vST', namespaceEsperado) },
+      { codigo: 'IPI', base: null, valor: texto(totals, 'vIPI', namespaceEsperado) },
+      { codigo: 'II', base: null, valor: texto(totals, 'vII', namespaceEsperado) },
+      { codigo: 'PIS', base: null, valor: texto(totals, 'vPIS', namespaceEsperado) },
+      { codigo: 'COFINS', base: null, valor: texto(totals, 'vCOFINS', namespaceEsperado) },
+    ] : [];
+    for (const total of totaisBasicos) if (total.base !== null || total.valor !== null) tributos.push({ escopo: 'DOCUMENTO', numeroItem: null, codigo: total.codigo, baseCalculo: total.base, aliquota: null, valor: total.valor, situacao: null, classificacao: null });
+    const ibsTotals = document.getElementsByTagNameNS(namespaceEsperado, 'IBSCBSTot')[0] as Element | undefined;
+    const ibsGroup = ibsTotals?.getElementsByTagNameNS(namespaceEsperado, 'gIBS')[0] as Element | undefined;
+    const cbsGroup = ibsTotals?.getElementsByTagNameNS(namespaceEsperado, 'gCBS')[0] as Element | undefined;
+    const baseIbs = texto(ibsTotals ?? null, 'vBCIBSCBS', namespaceEsperado);
+    if (ibsGroup) tributos.push({ escopo: 'DOCUMENTO', numeroItem: null, codigo: 'IBS', baseCalculo: baseIbs, aliquota: null, valor: texto(ibsGroup, 'vIBS', namespaceEsperado), situacao: null, classificacao: null });
+    if (cbsGroup) tributos.push({ escopo: 'DOCUMENTO', numeroItem: null, codigo: 'CBS', baseCalculo: baseIbs, aliquota: texto(cbsGroup, 'pCBS', namespaceEsperado), valor: texto(cbsGroup, 'vCBS', namespaceEsperado), situacao: null, classificacao: null });
+  } else {
+    const tax = document.getElementsByTagNameNS(namespaceEsperado, 'imp')[0] as Element | undefined;
+    if (tax) tributos.push(...extrairTributosDeGrupo(tax as unknown as XmlContainer, namespaceEsperado, 'DOCUMENTO', null));
+  }
   const ibsCbsPendente = Boolean(emission && emission.slice(0, 10) >= '2026-08-03' &&
     (nfe ? items.some((item) => item.ibs === null || item.cbs === null) || texto(document, 'IBSCBSTot', namespaceEsperado) === null
       : texto(document, 'gIBSCBS', namespaceEsperado) === null));
@@ -117,7 +182,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     }];
   });
   return {
-    especie, modelo: model!, versaoLayout,
+    especie, modelo: model!, versaoLayout, tributos,
     chaveAcesso: key, emitidoEm: emission,
     protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado), referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),

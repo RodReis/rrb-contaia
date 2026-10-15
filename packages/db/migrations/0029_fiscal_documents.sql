@@ -98,6 +98,20 @@ CREATE TABLE app.fiscal_document_item (
 );
 CREATE INDEX fiscal_document_item_document_idx ON app.fiscal_document_item(document_id);
 
+CREATE TABLE app.fiscal_document_tax (
+  id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
+  document_id uuid NOT NULL, escopo text NOT NULL CHECK(escopo IN ('DOCUMENTO','ITEM')), numero_item integer,
+  codigo text NOT NULL CHECK(codigo IN ('ICMS','ICMS_ST','IPI','II','PIS','COFINS','IBS','CBS')),
+  base_calculo numeric(30,10), aliquota numeric(20,10), valor numeric(30,10), situacao text, classificacao text,
+  CONSTRAINT fiscal_document_tax_document FOREIGN KEY(document_id,empresa_id,tenant_id) REFERENCES app.fiscal_document(id,empresa_id,tenant_id),
+  CONSTRAINT fiscal_document_tax_item FOREIGN KEY(document_id,numero_item) REFERENCES app.fiscal_document_item(document_id,numero),
+  CONSTRAINT fiscal_document_tax_scope CHECK((escopo='ITEM' AND numero_item IS NOT NULL) OR (escopo='DOCUMENTO' AND numero_item IS NULL)),
+  CONSTRAINT fiscal_document_tax_company FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id)
+);
+CREATE UNIQUE INDEX fiscal_document_tax_identity_idx ON app.fiscal_document_tax(document_id,escopo,coalesce(numero_item,0),codigo);
+CREATE INDEX fiscal_document_tax_document_idx ON app.fiscal_document_tax(document_id);
+CREATE TRIGGER fiscal_document_tax_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_tax FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
+
 CREATE TABLE app.fiscal_document_reference (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
   document_id uuid NOT NULL, tipo text NOT NULL, chave text NOT NULL,
@@ -123,7 +137,7 @@ CREATE TRIGGER fiscal_document_origin_append_only BEFORE UPDATE OR DELETE ON app
 CREATE TRIGGER fiscal_document_item_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_item FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 
 DO $$ DECLARE alvo text; BEGIN
-  FOREACH alvo IN ARRAY ARRAY['fiscal_document','fiscal_document_party','fiscal_document_origin','fiscal_document_item','fiscal_document_reference','fiscal_document_event'] LOOP
+  FOREACH alvo IN ARRAY ARRAY['fiscal_document','fiscal_document_party','fiscal_document_origin','fiscal_document_item','fiscal_document_tax','fiscal_document_reference','fiscal_document_event'] LOOP
     EXECUTE format('ALTER TABLE app.%I ENABLE ROW LEVEL SECURITY',alvo);
     EXECUTE format('ALTER TABLE app.%I FORCE ROW LEVEL SECURITY',alvo);
     EXECUTE format('CREATE POLICY %I ON app.%I FOR SELECT USING (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id))',alvo||'_select',alvo);
@@ -133,6 +147,6 @@ DO $$ DECLARE alvo text; BEGIN
     END IF;
   END LOOP;
 END $$;
-GRANT SELECT,INSERT ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_reference,app.fiscal_document_event TO contaia_app;
-REVOKE UPDATE,DELETE ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_reference,app.fiscal_document_event FROM contaia_app;
+GRANT SELECT,INSERT ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_tax,app.fiscal_document_reference,app.fiscal_document_event TO contaia_app;
+REVOKE UPDATE,DELETE ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_tax,app.fiscal_document_reference,app.fiscal_document_event FROM contaia_app;
 GRANT UPDATE(estado,modelo,versao_layout,protocolo,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,atualizado_em) ON app.fiscal_document TO contaia_app;

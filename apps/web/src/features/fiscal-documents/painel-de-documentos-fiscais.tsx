@@ -291,22 +291,37 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                 </p>
                               </section>
                               <section>
-                                <h4 className="font-display text-title-sm text-foreground">Itens e tributos presentes</h4>
+                                <h4 className="font-display text-title-sm text-foreground">Itens e componentes</h4>
                                 {detalhe.data.itens.length ? (
                                   <div className="mt-sm overflow-x-auto">
-                                    <table className="w-full min-w-[440px] text-body-sm">
-                                      <thead className="text-label-sm text-muted-foreground"><tr><th scope="col" className="py-xs text-left">Item</th><th scope="col" className="py-xs text-right">Valor</th><th scope="col" className="py-xs text-right">IBS</th><th scope="col" className="py-xs text-right">CBS</th></tr></thead>
+                                    <table className="w-full min-w-[320px] text-body-sm">
+                                      <thead className="text-label-sm text-muted-foreground"><tr><th scope="col" className="py-xs text-left">Descrição</th><th scope="col" className="py-xs text-right">Valor</th></tr></thead>
                                       <tbody>{detalhe.data.itens.map((line, index) => (
                                         <tr key={index} className="border-t border-border/60">
                                           <td className="max-w-48 py-xs pr-sm"><span className="block truncate text-foreground">{String(line['descricao'] ?? 'Item sem descrição')}</span><span className="text-label-sm text-muted-foreground">{line['tipo'] === 'COMPONENTE' ? 'Componente do frete' : line['tipo'] === 'MEDIDA_CARGA' ? 'Medida da carga' : String(line['codigo'] ?? '—')}</span></td>
                                           <td className="py-xs text-right tabular-nums">{moedaFiscal(typeof line['valor'] === 'string' ? line['valor'] : null)}</td>
-                                          <td className="py-xs text-right tabular-nums">{moedaFiscal(typeof line['ibs'] === 'string' ? line['ibs'] : null)}</td>
-                                          <td className="py-xs text-right tabular-nums">{moedaFiscal(typeof line['cbs'] === 'string' ? line['cbs'] : null)}</td>
                                         </tr>
                                       ))}</tbody>
                                     </table>
                                   </div>
                                 ) : <p className="mt-sm text-body-sm text-muted-foreground">Sem itens estruturados neste layout.</p>}
+                                {detalhe.data.tributos.length ? (
+                                  <div className="mt-md overflow-x-auto">
+                                    <h5 className="mb-xs text-label-sm text-muted-foreground">Tributos normalizados</h5>
+                                    <table className="w-full min-w-[520px] text-body-sm">
+                                      <thead className="text-label-sm text-muted-foreground"><tr><th scope="col" className="py-xs text-left">Escopo</th><th scope="col" className="py-xs text-left">Tributo</th><th scope="col" className="py-xs text-right">Base</th><th scope="col" className="py-xs text-right">Alíquota</th><th scope="col" className="py-xs text-right">Valor</th></tr></thead>
+                                      <tbody>{detalhe.data.tributos.map((tributo, index) => (
+                                        <tr key={`${tributo.escopo}-${tributo.numero_item ?? 'doc'}-${tributo.codigo}-${index}`} className="border-t border-border/60">
+                                          <td className="py-xs text-muted-foreground">{tributo.escopo === 'ITEM' ? `Item ${tributo.numero_item}` : 'Documento'}</td>
+                                          <td className="py-xs font-medium text-foreground">{tributo.codigo}{tributo.situacao ? ` · ${tributo.situacao}` : ''}</td>
+                                          <td className="py-xs text-right tabular-nums">{moedaFiscal(tributo.base_calculo)}</td>
+                                          <td className="py-xs text-right tabular-nums">{tributo.aliquota ? `${tributo.aliquota}%` : '—'}</td>
+                                          <td className="py-xs text-right tabular-nums">{moedaFiscal(tributo.valor)}</td>
+                                        </tr>
+                                      ))}</tbody>
+                                    </table>
+                                  </div>
+                                ) : null}
                               </section>
                             </div>
                           ) : null}
