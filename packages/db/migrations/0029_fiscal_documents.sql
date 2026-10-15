@@ -53,7 +53,8 @@ CREATE TABLE app.fiscal_document (
   original_key text NOT NULL, tamanho_bytes bigint NOT NULL CHECK (tamanho_bytes > 0),
   media_type text NOT NULL DEFAULT 'application/xml', modelo text NOT NULL,
   versao_layout text NOT NULL, protocolo text, emitido_em date, emitente text, destinatario text,
-  total numeric(30,10), estado text NOT NULL CHECK (estado IN ('PROCESSADO','PENDENTE_LAYOUT','PENDENTE_IBS_CBS','XML_INVALIDO','CONFLITO','FALHA')),
+  total numeric(30,10), base_ibs_cbs numeric(30,10), total_ibs numeric(30,10), total_cbs numeric(30,10),
+  estado text NOT NULL CHECK (estado IN ('PROCESSADO','PENDENTE_LAYOUT','PENDENTE_IBS_CBS','XML_INVALIDO','CONFLITO','FALHA')),
   parser_version text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now(), atualizado_em timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT fiscal_document_empresa_tenant FOREIGN KEY (empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
   CONSTRAINT fiscal_document_primary_staging FOREIGN KEY(primary_staging_id,empresa_id,tenant_id) REFERENCES app.dfe_capture_staging(id,empresa_id,tenant_id),
@@ -134,4 +135,4 @@ DO $$ DECLARE alvo text; BEGIN
 END $$;
 GRANT SELECT,INSERT ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_reference,app.fiscal_document_event TO contaia_app;
 REVOKE UPDATE,DELETE ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_reference,app.fiscal_document_event FROM contaia_app;
-GRANT UPDATE(estado,modelo,versao_layout,protocolo,emitido_em,emitente,destinatario,total,atualizado_em) ON app.fiscal_document TO contaia_app;
+GRANT UPDATE(estado,modelo,versao_layout,protocolo,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,atualizado_em) ON app.fiscal_document TO contaia_app;

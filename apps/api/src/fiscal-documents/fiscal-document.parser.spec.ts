@@ -16,6 +16,7 @@ describe('parser fiscal SPEC-018', () => {
     expect(result.chaveAcesso).toBe('00000000000000000000550010000000010000000010');
     expect(result.itens).toHaveLength(3);
     expect(result.partes[0]).toMatchObject({ papel: 'EMITENTE', identificador: '00000000000000', nome: 'EMITENTE DE TESTE NAO OFICIAL' });
+    expect(result).toMatchObject({ baseIbsCbs: '204.20', totalIbs: '0.20', totalCbs: '1.89' });
     expect(result.protocolo).toBeNull();
     expect(result.referencias).toEqual([]);
     expect(result.hashSha256).toBe(createHash('sha256').update(bytes).digest('hex'));
@@ -37,6 +38,7 @@ describe('parser fiscal SPEC-018', () => {
     expect(result.modelo).toBe('57');
     expect(result.chaveAcesso).toBe('00000000000000000000570010000000010000000010');
     expect(result.total).toBe('128.95');
+    expect(result).toMatchObject({ baseIbsCbs: '100.00', totalIbs: '0.10', totalCbs: '0.90' });
     expect(result.protocolo).toBe('135260000000001');
     expect(result.referencias).toContainEqual({ tipo: 'NFE_VINCULADA_CTE', chave: '00000000000000000000550010000000010000000010' });
     expect(result.itens).toHaveLength(1);

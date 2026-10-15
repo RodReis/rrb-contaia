@@ -15,6 +15,7 @@ export type DocumentoFiscalParseado = Readonly<{
   referencias: readonly Readonly<{ tipo: string; chave: string }>[];
   partes: readonly ParteFiscalParseada[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
+  baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
   total: string | null; itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
 }>;
@@ -79,7 +80,11 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     };
   });
   const ibsCbsPendente = Boolean(emission && emission.slice(0, 10) >= '2026-08-03' &&
-    (nfe ? items.some((item) => item.ibs === null || item.cbs === null) : texto(document, 'vIBS', namespaceEsperado) === null || texto(document, 'vCBS', namespaceEsperado) === null));
+    (nfe ? items.some((item) => item.ibs === null || item.cbs === null) || texto(document, 'IBSCBSTot', namespaceEsperado) === null
+      : texto(document, 'gIBSCBS', namespaceEsperado) === null));
+  const ibsCbsTotalNode = document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'IBSCBSTot' : 'gIBSCBS')[0] as Element | undefined;
+  const ibsTotalNode = ibsCbsTotalNode?.getElementsByTagNameNS(namespaceEsperado, 'gIBS')[0] as Element | undefined;
+  const cbsTotalNode = ibsCbsTotalNode?.getElementsByTagNameNS(namespaceEsperado, 'gCBS')[0] as Element | undefined;
   const emitenteNode = document.getElementsByTagNameNS(namespaceEsperado, 'emit')[0];
   const destinatarioNode = document.getElementsByTagNameNS(namespaceEsperado, 'dest')[0];
   const protocolNode = document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'protNFe' : 'protCTe')[0];
@@ -109,6 +114,8 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado), referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),
     destinatario: texto(destinatarioNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'CPF', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'xNome', namespaceEsperado),
+    baseIbsCbs: texto(ibsCbsTotalNode ?? null, nfe ? 'vBCIBSCBS' : 'vBC', namespaceEsperado),
+    totalIbs: texto(ibsTotalNode ?? null, 'vIBS', namespaceEsperado), totalCbs: texto(cbsTotalNode ?? null, 'vCBS', namespaceEsperado),
     total: texto(document, nfe ? 'vNF' : 'vTPrest', namespaceEsperado), itens: items, ibsCbsPendente,
     tamanho: bytes.byteLength,
   };

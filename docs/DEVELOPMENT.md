@@ -106,9 +106,10 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Persistir protocolo e referências de documentos NF-e/CT-e e exibi-los no detalhe.
 - [x] Separar identificador fiscal, nome e localização declarada de emitente/destinatário, com RLS e append-only.
 - [x] Rejeitar namespace/modelo/versão diferentes do layout 4.00 e exigir blocos fiscais mínimos para NF-e/CT-e.
+- [x] Persistir e exibir base e totalizadores IBS/CBS do documento, mantendo extração por item para NF-e.
 - [ ] Confirmar migration 0029 e fluxo completo no PostgreSQL/MinIO isolados; cobrir idempotência, conflito, RLS, retry e DLQ.
 - [ ] Validar recuperação do outbox com Redis indisponível e retorno, incluindo publicação repetida/idempotência.
-- [ ] Completar normalização de NF-e/CT-e conforme SPEC-018, incluindo XSD oficial versionado, totais, grupos tributários e IBS/CBS totalizadores. A validação atual cobre versão 4.00 e estrutura mínima, não substitui XSD.
+- [ ] Completar normalização de NF-e/CT-e conforme SPEC-018, incluindo XSD oficial versionado, demais totais e grupos tributários. A validação atual cobre versão 4.00 e estrutura mínima, não substitui XSD.
 - [ ] Cobrir tela nos temas CLARO/ESCURO e 768/1024/1440 px, E2E e axe; executar revisão visual e passe `impeccable`.
 - [ ] Atualizar relatório por SPEC, autorrevisar diff, abrir PR com `refs #20` e acompanhar CI verde.
 

@@ -248,6 +248,9 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                   <dt className="text-muted-foreground">Protocolo</dt><dd className="text-foreground">{detalhe.data.protocolo ?? '—'}</dd>
                                   <dt className="text-muted-foreground">Tamanho original</dt><dd className="tabular-nums text-foreground">{new Intl.NumberFormat('pt-BR').format(detalhe.data.tamanho_bytes)} bytes</dd>
                                   <dt className="text-muted-foreground">IBS/CBS</dt><dd className="text-foreground">{detalhe.data.estado === 'PENDENTE_IBS_CBS' ? 'Dados ausentes ou incompletos' : 'Valores extraídos do XML'}</dd>
+                                  <dt className="text-muted-foreground">Base IBS/CBS</dt><dd className="tabular-nums text-foreground">{moedaFiscal(detalhe.data.base_ibs_cbs)}</dd>
+                                  <dt className="text-muted-foreground">Total IBS</dt><dd className="tabular-nums text-foreground">{moedaFiscal(detalhe.data.total_ibs)}</dd>
+                                  <dt className="text-muted-foreground">Total CBS</dt><dd className="tabular-nums text-foreground">{moedaFiscal(detalhe.data.total_cbs)}</dd>
                                 </dl>
                                 {detalhe.data.referencias.length ? (
                                   <div className="mt-sm">
