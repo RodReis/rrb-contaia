@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 
 export type RegistroFiscalPersistido = Readonly<{
   id: string; especie: 'NFE_55' | 'CTE'; chaveAcesso: string; hashSha256: string; tamanho: number;
-  versaoLayout: string; modelo: string; emitidoEm: string | null; emitente: string | null;
+  versaoLayout: string; modelo: string; protocolo: string | null; referencias: readonly Readonly<{ tipo: string; chave: string }>[];
+  emitidoEm: string | null; emitente: string | null;
   destinatario: string | null; total: string | null; ibsCbsPendente: boolean;
   itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
 }>;
@@ -55,12 +56,13 @@ export const obterDocumentoFiscal = async (client: PoolClient, empresaId: string
   );
   if (!document.rows[0]) return null;
   const { estado_apresentado, ...documentData } = document.rows[0];
-  const [items,origins,events] = await Promise.all([
+  const [items,origins,events,references] = await Promise.all([
     client.query(`select numero,codigo,descricao,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 order by numero`, [documentId]),
     client.query(`select staging_id,cnpj,nsu,correlation_id,capturado_em from app.fiscal_document_origin where document_id=$1 order by capturado_em`, [documentId]),
     client.query(`select tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ocorrido_em from app.fiscal_document_event where document_id=$1 order by ocorrido_em desc limit 30`, [documentId]),
+    client.query(`select tipo,chave from app.fiscal_document_reference where document_id=$1 order by tipo,chave`, [documentId]),
   ]);
-  return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows };
+  return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows, referencias: references.rows };
 };
 
 export const persistirDocumentoFiscal = async (client: PoolClient, input: Readonly<{
@@ -93,14 +95,14 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   const precisaNormalizar = !existing || ['FALHA','XML_INVALIDO','PENDENTE_LAYOUT'].includes(existing.estado);
   if (!existing) {
     await client.query(
-      `insert into app.fiscal_document(id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,emitido_em,emitente,destinatario,total,estado,parser_version)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::date,$13,$14,$15::numeric,$16,$17)`,
-      [id,input.tenantId,input.empresaId,input.stagingId,input.parsed.especie,input.parsed.chaveAcesso,input.parsed.hashSha256,input.originalKey,input.parsed.tamanho,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,state,input.parserVersion],
+      `insert into app.fiscal_document(id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,protocolo,emitido_em,emitente,destinatario,total,estado,parser_version)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::date,$14,$15,$16::numeric,$17,$18)`,
+      [id,input.tenantId,input.empresaId,input.stagingId,input.parsed.especie,input.parsed.chaveAcesso,input.parsed.hashSha256,input.originalKey,input.parsed.tamanho,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,state,input.parserVersion],
     );
   } else if (precisaNormalizar) {
     await client.query(
-      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,emitido_em=$4::date,emitente=$5,destinatario=$6,total=$7::numeric,atualizado_em=now() where id=$8`,
-      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,id],
+      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,protocolo=$4,emitido_em=$5::date,emitente=$6,destinatario=$7,total=$8::numeric,atualizado_em=now() where id=$9`,
+      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,id],
     );
   }
   if (precisaNormalizar) {
@@ -109,6 +111,12 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
         `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,numero,codigo,descricao,quantidade,unidade,valor,ibs,cbs)
          values($1,$2,$3,$4,$5,$6,$7::numeric,$8,$9::numeric,$10::numeric,$11::numeric)`,
         [input.tenantId,input.empresaId,id,index+1,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs],
+      );
+    }
+    for (const reference of input.parsed.referencias) {
+      await client.query(
+        `insert into app.fiscal_document_reference(tenant_id,empresa_id,document_id,tipo,chave) values($1,$2,$3,$4,$5) on conflict(document_id,tipo,chave) do nothing`,
+        [input.tenantId,input.empresaId,id,reference.tipo,reference.chave],
       );
     }
   }

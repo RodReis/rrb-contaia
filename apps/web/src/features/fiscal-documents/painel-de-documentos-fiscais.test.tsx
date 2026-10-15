@@ -65,6 +65,7 @@ describe('PainelDeDocumentosFiscais', () => {
       id: '123e4567-e89b-12d3-a456-426614174000', especie: 'NFE_55', chave_acesso: '0'.repeat(40) + '0010', hash_sha256: 'a'.repeat(64),
       tamanho_bytes: 1200, estado: 'PROCESSADO', emitido_em: '2026-06-15', emitente: 'Emitente de teste', destinatario: 'Destinatário de teste',
       total: '10.00', itens: [{ numero: 1, codigo: 'A1', descricao: 'Item', valor: '10.00', ibs: '0.01', cbs: '0.09' }],
+      protocolo: '135260000000001', referencias: [{ tipo: 'NF-e', chave: 'chave referenciada' }],
       origens: [{ nsu: '101', capturado_em: '2026-06-15T13:00:00.000Z' }], eventos: [],
     });
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -79,6 +80,8 @@ describe('PainelDeDocumentosFiscais', () => {
 
     expect(await screen.findByText('Itens e tributos presentes')).toBeTruthy();
     expect(screen.getByText('Destinatário de teste')).toBeTruthy();
+    expect(screen.getByText('135260000000001')).toBeTruthy();
+    expect(screen.getByText('NF-e: chave referenciada')).toBeTruthy();
     expect(screen.getByText('R$ 0,01', { exact: true })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Copiar chave de acesso' })).toBeTruthy();
     cliente.clear();

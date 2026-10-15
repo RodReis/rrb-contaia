@@ -5,6 +5,8 @@ export type EspecieFiscal = 'NFE_55' | 'CTE';
 export type FalhaParseFiscal = 'FISCAL_XML_INVALID' | 'FISCAL_XML_UNSAFE' | 'FISCAL_XML_TOO_LARGE' | 'FISCAL_LAYOUT_UNSUPPORTED' | 'FISCAL_DOCUMENT_TYPE_MISMATCH' | 'FISCAL_DOCUMENT_IDENTITY_INVALID' | 'FISCAL_IBS_CBS_INCOMPLETE';
 export type DocumentoFiscalParseado = Readonly<{
   especie: EspecieFiscal; modelo: string; versaoLayout: string; chaveAcesso: string;
+  protocolo: string | null;
+  referencias: readonly Readonly<{ tipo: string; chave: string }>[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   total: string | null; itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
@@ -66,9 +68,16 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     (nfe ? items.some((item) => item.ibs === null || item.cbs === null) : texto(document, 'vIBS', namespaceEsperado) === null || texto(document, 'vCBS', namespaceEsperado) === null));
   const emitenteNode = document.getElementsByTagNameNS(namespaceEsperado, 'emit')[0];
   const destinatarioNode = document.getElementsByTagNameNS(namespaceEsperado, 'dest')[0];
+  const protocolNode = document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'protNFe' : 'protCTe')[0];
+  const referenceNodes = Array.from(document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'NFref' : 'infNFe'));
+  const referencias = referenceNodes.flatMap((node) => {
+    const chave = texto(node as unknown as XmlContainer, nfe ? 'refNFe' : 'chave', namespaceEsperado);
+    return chave ? [{ tipo: nfe ? 'NFE' : 'NFE_VINCULADA_CTE', chave }] : [];
+  });
   return {
     especie, modelo: model!, versaoLayout: info.getAttribute('versao') ?? document.documentElement.getAttribute('versao') ?? 'desconhecida',
     chaveAcesso: key, emitidoEm: emission,
+    protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado), referencias,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),
     destinatario: texto(destinatarioNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'CPF', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'xNome', namespaceEsperado),
     total: texto(document, nfe ? 'vNF' : 'vTPrest', namespaceEsperado), itens: items, ibsCbsPendente,

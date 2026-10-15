@@ -245,9 +245,20 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                   </dd>
                                   <dt className="text-muted-foreground">Destinatário</dt><dd className="text-foreground">{detalhe.data.destinatario ?? '—'}</dd>
                                   <dt className="text-muted-foreground">Layout</dt><dd className="text-foreground">{item.versao_layout ?? '—'}</dd>
+                                  <dt className="text-muted-foreground">Protocolo</dt><dd className="text-foreground">{detalhe.data.protocolo ?? '—'}</dd>
                                   <dt className="text-muted-foreground">Tamanho original</dt><dd className="tabular-nums text-foreground">{new Intl.NumberFormat('pt-BR').format(detalhe.data.tamanho_bytes)} bytes</dd>
                                   <dt className="text-muted-foreground">IBS/CBS</dt><dd className="text-foreground">{detalhe.data.estado === 'PENDENTE_IBS_CBS' ? 'Dados ausentes ou incompletos' : 'Valores extraídos do XML'}</dd>
                                 </dl>
+                                {detalhe.data.referencias.length ? (
+                                  <div className="mt-sm">
+                                    <h5 className="text-label-sm text-muted-foreground">Documentos referenciados</h5>
+                                    <ul className="mt-xs space-y-1 text-body-sm text-foreground">
+                                      {detalhe.data.referencias.map((referencia) => (
+                                        <li key={`${referencia.tipo}-${referencia.chave}`} className="break-all">{referencia.tipo}: {referencia.chave}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : null}
                                 {detalhe.data.estado === 'PENDENTE_IBS_CBS' ? (
                                   <p className="mt-sm flex items-start gap-xs rounded-md border border-warning/40 bg-warning/10 p-sm text-body-sm text-foreground">
                                     <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
