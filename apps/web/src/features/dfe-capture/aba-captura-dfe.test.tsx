@@ -46,7 +46,11 @@ describe('aba de captura DF-e', () => {
   });
 
   it('explica bloqueio 656 sem depender apenas da cor', async () => {
-    vi.mocked(obterEstadoDaCapturaDfe).mockResolvedValue({ ...estado, state: 'BLOCKED_656', blockedUntil: '2026-10-15T12:00:00.000Z' });
+    vi.mocked(obterEstadoDaCapturaDfe).mockResolvedValue({
+      ...estado,
+      state: 'BLOCKED_656',
+      blockedUntil: new Date(Date.now() + 60_000).toISOString(),
+    });
     render(<AbaCapturaDfe empresaId="empresa-1" somenteLeitura={false} podeReprocessar={false} />, { wrapper: Envolvido });
 
     expect((await screen.findByRole('status')).textContent).toMatch(/não há antecipação manual/u);
