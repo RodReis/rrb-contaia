@@ -57,6 +57,16 @@ describe('aba de captura DF-e', () => {
     expect(screen.getByRole('button', { name: 'Consultar agora' }).hasAttribute('disabled')).toBe(true);
   });
 
+  it('não exibe data de época nem intervalo fictício quando a captura está desabilitada', async () => {
+    vi.mocked(obterEstadoDaCapturaDfe).mockResolvedValue({ ...estado, state: 'DISABLED', code: 'DFE_CERTIFICATE_UNAVAILABLE', nextAllowedAt: '1969-12-31T00:00:00.000Z', averageTimeMs: 0 });
+    render(<AbaCapturaDfe empresaId="empresa-1" somenteLeitura={false} podeReprocessar={false} />, { wrapper: Envolvido });
+
+    expect(await screen.findByText('Disponível após cadastrar certificado A1 vigente')).toBeInTheDocument();
+    expect(screen.getByText('Intervalo médio').parentElement?.parentElement).toHaveTextContent('—');
+    expect(screen.queryByText(/1969/u)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Abrir cofre de certificados' })).toBeInTheDocument();
+  });
+
   it('mostra reprocessamento da DLQ somente para admin_escritorio', async () => {
     vi.mocked(obterHistoricoDaCapturaDfe).mockResolvedValue({ pagina: 1, itens: [{ id: 'run-1', estado: 'DEAD', origem: 'MANUAL', iniciado_em: null, quantidade_recebida: 0, codigo: 'DFE_PROVIDER_UNAVAILABLE' }] });
     vi.mocked(reprocessarCapturaDfe).mockResolvedValue({ runId: 'run-1', status: 'QUEUED' });
