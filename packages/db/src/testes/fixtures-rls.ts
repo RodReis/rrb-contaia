@@ -51,6 +51,30 @@ const unico = async (banco: Consultavel, sql: string, parametros: unknown[]): Pr
   return linha.id;
 };
 
+const prepararStagingFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const cnpj = String(proximo()).padStart(14, '0').slice(-14);
+  const stateId = await unico(admin,
+    `insert into app.dfe_capture_state(tenant_id,empresa_id,cnpj) values($1,$2,$3) returning id`, [e.tenantId,e.empresaId,cnpj]);
+  const runId = await unico(admin,
+    `insert into app.dfe_capture_run(tenant_id,empresa_id,estado_id,cnpj,origem,chave_idempotente,correlation_id,ult_nsu_entrada)
+     values($1,$2,$3,$4,'MANUAL',$5,'fiscal-rls-fixture','0') returning id`,
+    [e.tenantId,e.empresaId,stateId,cnpj,`fiscal-fixture-${proximo()}-${e.sufixo}`]);
+  const stagingId = await unico(admin,
+    `insert into app.dfe_capture_staging(tenant_id,empresa_id,run_id,cnpj,nsu,especie,conteudo_bruto,capturado_em,correlation_id)
+     values($1,$2,$3,$4,'1','NFE_55',decode('3c78','hex'),now(),'fiscal-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,runId,cnpj]);
+  return { stagingId, cnpj };
+};
+
+const prepararDocumentoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const staging = await prepararStagingFiscal(admin,e);
+  const documentId = await unico(admin,
+    `insert into app.fiscal_document(tenant_id,empresa_id,primary_staging_id,especie,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,estado,parser_version)
+     values($1,$2,$3,'NFE_55',repeat('a',64),$4,3,'55','4.00','PROCESSADO','fixture') returning id`,
+    [e.tenantId,e.empresaId,staging['stagingId'],`fiscal/${e.sufixo}/${proximo()}.xml`]);
+  return { ...staging, documentId };
+};
+
 const exigencia = (admin: Consultavel, escopo: Escopo): Promise<string> =>
   unico(
     admin,
@@ -689,5 +713,40 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
         [e.tenantId, e.autorId, r['eventoId']],
       ),
     colunaDeAtualizacao: 'lida',
+  },
+  'app.fiscal_document_outbox': {
+    preparar: prepararStagingFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_outbox(staging_id,tenant_id,empresa_id) values($1,$2,$3) returning staging_id as id`,
+      [r['stagingId'],e.tenantId,e.empresaId]),
+    colunaDeAtualizacao: 'tentativas',
+  },
+  'app.fiscal_document': {
+    preparar: prepararStagingFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document(tenant_id,empresa_id,primary_staging_id,especie,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,estado,parser_version)
+       values($1,$2,$3,'NFE_55',repeat('b',64),$4,3,'55','4.00','PROCESSADO','fixture') returning id`,
+      [e.tenantId,e.empresaId,r['stagingId'],`fiscal/${e.sufixo}/${proximo()}.xml`]),
+    colunaDeAtualizacao: 'estado',
+  },
+  'app.fiscal_document_origin': {
+    preparar: prepararDocumentoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_origin(tenant_id,empresa_id,document_id,staging_id,cnpj,nsu,correlation_id,capturado_em)
+       values($1,$2,$3,$4,$5,'1','fiscal-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,r['documentId'],r['stagingId'],r['cnpj']]),
+  },
+  'app.fiscal_document_item': {
+    preparar: prepararDocumentoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,numero,descricao)
+       values($1,$2,$3,1,'Fixture') returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+  },
+  'app.fiscal_document_event': {
+    preparar: prepararDocumentoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,staging_id,tipo,parser_version,correlation_id)
+       values($1,$2,$3,$4,'PROCESSADO','fixture','fiscal-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['documentId'],r['stagingId']]),
   },
 };

@@ -281,3 +281,5 @@ export type {
   LinhaDaTabela,
   TipoNativoDeCelula,
 } from './tabela.js';
+export { FISCAL_DOCUMENTS_QUEUE, FISCAL_DOCUMENTS_DLQ, FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from './fiscal-documents.js';
+export type { FiscalDocumentCommand } from './fiscal-documents.js';

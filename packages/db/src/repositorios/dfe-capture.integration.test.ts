@@ -107,6 +107,9 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
     expect(committed).toEqual({ created: 1, deduplicated: 0 });
     const { rows } = await admin.query<{ ult_nsu: string; estado: string; conteudo: string }>(`select s.ult_nsu,r.estado,convert_from(d.conteudo_bruto,'UTF8') conteudo from app.dfe_capture_state s join app.dfe_capture_run r on r.estado_id=s.id join app.dfe_capture_staging d on d.run_id=r.id where s.empresa_id=$1`, [co.id]);
     expect(rows[0]).toEqual({ ult_nsu: '1', estado: 'SUCCEEDED', conteudo: '<opaque>not parsed</opaque>' });
+    const outbox = await admin.query<{ estado: string; tentativas: number }>(
+      `select o.estado,o.tentativas from app.fiscal_document_outbox o join app.dfe_capture_staging s on s.id=o.staging_id where s.empresa_id=$1`, [co.id]);
+    expect(outbox.rows).toEqual([{ estado: 'PENDENTE', tentativas: 0 }]);
     const replay = await tech(co.id, 'capture-batch-replay', async (client) => {
       const state = await ensureDfeCaptureState(client, { tenantId: c.tenantA, companyId: co.id, cnpj: co.cnpj });
       return createOrReuseDfeCaptureRun(client, { state, origin: 'MANUAL', originatingUserId: c.usuarios.naCarteira, idempotencyKey, correlationId: 'capture-batch-replay', occurredAt: new Date(now.getTime() + 1) });

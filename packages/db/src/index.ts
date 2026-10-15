@@ -415,6 +415,8 @@ export {
 
 // Catálogo tributário global (SPEC-016): nomes genéricos (`list`, `publish`), por isso em namespace.
 export * as taxRules from './tax-rules/repository.js';
+export { listarDocumentosFiscais, obterDocumentoFiscal, persistirDocumentoFiscal, persistirFalhaDocumentoFiscal, registrarEventoDocumentoFiscal } from './repositorios/fiscal-documents.js';
+export type { RegistroFiscalPersistido } from './repositorios/fiscal-documents.js';
 export type {
   TaxRuleActor,
   TaxRuleContent,

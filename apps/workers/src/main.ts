@@ -8,6 +8,7 @@ import { iniciarConsumidores } from './consumidores.js';
 import { verificarSaude } from './monitor.js';
 import { iniciarConsumidorDeEmpregados } from './empregados/consumidor.js';
 import { iniciarConsumidorDfeCapture } from './dfe-capture.js';
+import { iniciarConsumidorDeDocumentosFiscais } from './fiscal-documents.js';
 import { criarLeitorDoArmazenamento } from './importacao/leitura-s3.js';
 import { iniciarConsumidorDoPlanoDeContas } from './plano-contas/consumidor.js';
 import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
@@ -17,6 +18,7 @@ type Fechar = () => Promise<void>;
 const config = lerConfig(process.env);
 const conexao = conexaoDoRedis(config.redisUrl);
 const pool = criarPoolDaAplicacao();
+const schedulerPool = config.signer !== null || config.armazenamento !== null ? criarPoolDoAgendadorDfe() : null;
 const agora = (): Date => new Date();
 
 const iniciarSigner = async (signer: ConfigDoSigner): Promise<Fechar> => {
@@ -64,21 +66,23 @@ if (config.signer !== null) {
   const caPem = readFileSync(config.signer.arquivoDaCaInterna, 'utf8');
   const signer = criarClienteDoSigner({ host: config.signer.signer.host, porta: config.signer.signer.porta,
     servername: config.signer.signer.servername, certificadoPem, chavePem, caPem });
-  const schedulerPool = criarPoolDoAgendadorDfe();
-  const captura = await iniciarConsumidorDfeCapture({ pool, schedulerPool, conexao, signer, agora });
-  fechamentos.push(async () => { await captura.fechar(); await schedulerPool.end(); });
+  const captura = await iniciarConsumidorDfeCapture({ pool, schedulerPool: schedulerPool!, conexao, signer, agora });
+  fechamentos.push(async () => { await captura.fechar(); });
   ativos.push('captura DF-e');
 }
 if (config.armazenamento !== null) {
+  const fiscalDocuments = await iniciarConsumidorDeDocumentosFiscais({ pool, schedulerPool: schedulerPool!, conexao, storage: config.armazenamento });
+  fechamentos.push(async () => { await fiscalDocuments.fechar(); });
+  ativos.push('documentos fiscais F18');
   fechamentos.push(await iniciarImportacoes(config.armazenamento));
   ativos.push('plano de contas', 'empregados');
 }
-
 const server = criarServidorDeSaude('workers');
 
 await escutar(server, config.portaDeSaude);
 encerrarComGraca(server, async () => {
   await Promise.all(fechamentos.map((fechar) => fechar()));
+  await schedulerPool?.end();
   await pool.end();
 });
 

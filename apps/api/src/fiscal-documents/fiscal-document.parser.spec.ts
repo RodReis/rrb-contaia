@@ -1,0 +1,59 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { describe, expect, it } from 'vitest';
+import { ehDocumentoFiscalElegivel } from '@contaia/shared/fiscal-document-parser';
+import { parsearDocumentoFiscal } from './fiscal-document.parser';
+
+const fixture = (name: string) => readFileSync(resolve(__dirname, `../nfe/fixtures/${name}`));
+
+describe('parser fiscal SPEC-018', () => {
+  it('normaliza NF-e modelo 55 e calcula hash sobre os bytes originais', async () => {
+    const bytes = fixture('nfe-rtc-valida.xml');
+    const result = parsearDocumentoFiscal(bytes, 'NFE_55');
+    expect(result.especie).toBe('NFE_55');
+    expect(result.modelo).toBe('55');
+    expect(result.chaveAcesso).toBe('00000000000000000000550010000000010000000010');
+    expect(result.itens).toHaveLength(3);
+    expect(result.hashSha256).toBe(createHash('sha256').update(bytes).digest('hex'));
+    expect(result.ibsCbsPendente).toBe(false);
+  });
+
+  it('normaliza o envelope CT-e sem duplicar o valor total do frete por medida de carga', () => {
+    const result = parsearDocumentoFiscal(fixture('cte-nao-suportado.xml'),'CTE');
+    expect(result.especie).toBe('CTE');
+    expect(result.modelo).toBe('57');
+    expect(result.chaveAcesso).toBe('00000000000000000000570010000000010000000010');
+  });
+
+  it('rejeita DTD e XXE antes de construir o DOM', () => {
+    const bytes = Buffer.from('<!DOCTYPE a [<!ENTITY x SYSTEM "file:///etc/passwd">]><a>&x;</a>');
+    expect(() => parsearDocumentoFiscal(bytes, 'NFE_55')).toThrow('FISCAL_XML_UNSAFE');
+  });
+
+  it('separa XML malformado, layout desconhecido e espécie divergente', () => {
+    expect(() => parsearDocumentoFiscal(Buffer.from('<a>'), 'NFE_55')).toThrow('FISCAL_XML_INVALID');
+    expect(() => parsearDocumentoFiscal(Buffer.from('<x/>'), 'NFE_55')).toThrow('FISCAL_LAYOUT_UNSUPPORTED');
+    expect(() => parsearDocumentoFiscal(Buffer.from('<cteProc/>'), 'NFE_55')).toThrow('FISCAL_DOCUMENT_TYPE_MISMATCH');
+  });
+
+  it('mantém resumos e eventos fora da fila F18', () => {
+    expect(ehDocumentoFiscalElegivel(Buffer.from('<resNFe/>'),'NFE_55')).toBe(false);
+    expect(ehDocumentoFiscalElegivel(Buffer.from('<procEventoNFe/>'),'NFE_55')).toBe(false);
+    expect(ehDocumentoFiscalElegivel(Buffer.from('<resCTe/>'),'CTE')).toBe(false);
+    expect(ehDocumentoFiscalElegivel(Buffer.from('<nfeProc/>'),'NFE_55')).toBe(true);
+    expect(ehDocumentoFiscalElegivel(Buffer.from('<cteProc/>'),'CTE')).toBe(true);
+  });
+
+  it('marca IBS/CBS incompleto só a partir da data de emissão de 03/08/2026', () => {
+    const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(/<vIBS>[^<]*<\/vIBS>|<vCBS>[^<]*<\/vCBS>/gu,'');
+    const anterior = parsearDocumentoFiscal(Buffer.from(source),'NFE_55');
+    const vigente = parsearDocumentoFiscal(Buffer.from(source.replace('2026-06-15','2026-08-03')),'NFE_55');
+    expect(anterior.ibsCbsPendente).toBe(false);
+    expect(vigente.ibsCbsPendente).toBe(true);
+  });
+
+  it('rejeita o XML acima do limite antes de decodificá-lo', () => {
+    expect(() => parsearDocumentoFiscal(Buffer.alloc(10 * 1024 * 1024 + 1),'NFE_55')).toThrow('FISCAL_XML_TOO_LARGE');
+  });
+});

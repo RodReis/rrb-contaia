@@ -245,7 +245,7 @@ export const commitDfeBatch = async (client: PoolClient, input: CommitDfeBatchIn
         throw new Error('DFE_CAPTURE_CONFLICT');
       }
     }
-    const result = await client.query(
+    const result = await client.query<{ id: string }>(
       `insert into app.dfe_capture_staging
          (tenant_id, empresa_id, run_id, cnpj, nsu, chave_acesso, especie, conteudo_bruto,
           disponibilizado_em, capturado_em, correlation_id)
@@ -261,6 +261,13 @@ export const commitDfeBatch = async (client: PoolClient, input: CommitDfeBatchIn
       throw error;
     });
     if (result.rowCount === 1) {
+      const stagingId = result.rows[0]?.id;
+      if (!stagingId) throw new Error('DFE_CAPTURE_STAGING_ID_MISSING');
+      await client.query(
+        `insert into app.fiscal_document_outbox(staging_id,tenant_id,empresa_id)
+         values($1,$2,$3) on conflict(staging_id) do nothing`,
+        [stagingId,input.state.tenantId,input.state.companyId],
+      );
       created += 1;
       continue;
     }
