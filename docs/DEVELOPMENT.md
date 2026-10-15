@@ -88,7 +88,7 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | 10 | [#16](https://github.com/RodReis/rrb-contaia/issues/16) `[MVP1][SPEC-014][F14]` Importação de empregados por CSV | F14 / SPEC-014 | em revisão | — | pipeline da F13 extraído para módulo genérico (banco, API, workers, web); chave CPF + matrícula, duplicata rejeita todas as ocorrências, arquivado não reativa, aba Empregados em consulta, etapa opcional no onboarding, aviso ao iniciador e aos administradores com a empresa na carteira |
 | 11 | [#17](https://github.com/RodReis/rrb-contaia/issues/17) `[MVP1][SPEC-015][F15]` Importação de planilhas XLSX/ODS | F15 / SPEC-015 | em revisão | — | leitor próprio em processo filho (`@contaia/planilhas`); aba e linha de cabeçalho escolhidas, mapeamento por letra, fórmula/mescla em coluna mapeada rejeitam só a linha, linha oculta contada; modelos CSV/XLSX/ODS; equivalência com o CSV nos dois domínios |
 | 12 | [#19](https://github.com/RodReis/rrb-contaia/issues/19) `[MVP1][SPEC-017][F17]` Captura DF-e por NSU | F17 / SPEC-017 | em implementação | — | estado/cursor, staging opaco, Signer mTLS, fila e scheduler por elegibilidade; DLQ, reprocessamento autenticado, consulta e métricas operacionais. Pendentes: jornada E2E e provas visuais nos dois temas/viewports |
-| 13 | [#20](https://github.com/RodReis/rrb-contaia/issues/20) `[MVP1][SPEC-018][F18]` Parse e persistência de XML, hash e IBS/CBS | F18 / SPEC-018 | em implementação | — | parser seguro inicial, outbox transacional staging → fila F18, storage original, hash, persistência/RLS, API e painel. Pendentes: migration/integração em PostgreSQL, cobertura de layouts CT-e/NF-e, provas de UI/E2E e CI |
+| 13 | [#20](https://github.com/RodReis/rrb-contaia/issues/20) `[MVP1][SPEC-018][F18]` Parse e persistência de XML, hash e IBS/CBS | F18 / SPEC-018 | em implementação | — | parser seguro inicial, outbox transacional staging → fila F18, storage original, hash, persistência/RLS, API e painel; protocolo, referências e partes/endereço declarados normalizados. Pendentes: migration/integração em PostgreSQL, cobertura de layouts CT-e/NF-e, provas de UI/E2E e CI |
 
 ---
 
@@ -103,6 +103,8 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Parser XML com limite de tamanho, rejeição de DTD/XXE, hash SHA-256 dos bytes e testes focados.
 - [x] Modelo inicial com documentos, itens, origens e eventos sob RLS; APIs de consulta, integridade, original e reprocessamento.
 - [x] Painel técnico com filtros, detalhes, integridade, download e reprocessamento.
+- [x] Persistir protocolo e referências de documentos NF-e/CT-e e exibi-los no detalhe.
+- [x] Separar identificador fiscal, nome e localização declarada de emitente/destinatário, com RLS e append-only.
 - [ ] Confirmar migration 0029 e fluxo completo no PostgreSQL/MinIO isolados; cobrir idempotência, conflito, RLS, retry e DLQ.
 - [ ] Validar recuperação do outbox com Redis indisponível e retorno, incluindo publicação repetida/idempotência.
 - [ ] Completar normalização de NF-e/CT-e conforme SPEC-018, incluindo layouts versionados, totais, tributos, IBS/CBS e metadados fiscais.
