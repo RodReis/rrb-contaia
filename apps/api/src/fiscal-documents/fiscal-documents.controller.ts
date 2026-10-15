@@ -12,6 +12,9 @@ import { paginaSchema } from '../empregados/empregados.dto';
 import { FiscalDocumentsService } from './fiscal-documents.service';
 
 const uuid = z.string().uuid();
+const consultaFiscalSchema = paginaSchema.extend({
+  estado: z.enum(['PENDENTE','PROCESSANDO','PROCESSADO','PENDENTE_LAYOUT','PENDENTE_IBS_CBS','XML_INVALIDO','CONFLITO','FALHA']).optional(),
+});
 
 @Controller('companies/:companyId/fiscal-documents')
 @DfeAdminTenantScope()
@@ -22,8 +25,8 @@ export class FiscalDocumentsController {
   @Get()
   @ExigePermissao('empresas.cadastro.consultar')
   listar(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Query() query: unknown) {
-    const page = analisar(paginaSchema, query).pagina;
-    return this.service.listar(tenantDa(request), autorDa(request).usuarioId, companyId, obterCorrelationId(request), page);
+    const consulta = analisar(consultaFiscalSchema, query);
+    return this.service.listar(tenantDa(request), autorDa(request).usuarioId, companyId, obterCorrelationId(request), consulta.pagina, consulta.estado ?? null);
   }
 
   @Get(':documentId')

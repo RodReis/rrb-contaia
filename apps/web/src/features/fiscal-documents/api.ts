@@ -1,30 +1,45 @@
 import { ler } from '../importacao/api';
 import { requisitar } from '@/lib/http';
+import { z } from 'zod';
 
-export type DocumentoFiscal = Readonly<{
-  id: string; especie: 'NFE_55' | 'CTE'; chave_acesso: string | null; hash_sha256: string;
-  emitido_em: string | null; emitente: string | null; destinatario: string | null; total: string | null;
-  estado: 'PROCESSADO' | 'PENDENTE_LAYOUT' | 'PENDENTE_IBS_CBS' | 'XML_INVALIDO' | 'CONFLITO' | 'FALHA';
-  versao_layout: string; criado_em: string; nsu: string | null; capturado_em: string | null; origens: number;
-}>;
-export type DocumentoFiscalDetalhe = Readonly<{
-  id: string; especie: 'NFE_55' | 'CTE'; chave_acesso: string | null; hash_sha256: string; tamanho_bytes: number;
-  estado: DocumentoFiscal['estado']; emitido_em: string | null; emitente: string | null; destinatario: string | null;
-  total: string | null; itens: readonly Readonly<Record<string, string | number | null>>[];
-  origens: readonly Readonly<{ nsu: string; capturado_em: string }>[];
-  eventos: readonly Readonly<{ tipo: string; codigo: string | null; ocorrido_em: string }>[];
-}>;
+const EstadoDocumentoFiscalSchema = z.enum([
+  'PENDENTE', 'PROCESSANDO', 'PROCESSADO', 'PENDENTE_LAYOUT', 'PENDENTE_IBS_CBS', 'XML_INVALIDO', 'CONFLITO', 'FALHA',
+]);
+const DocumentoFiscalSchema = z.object({
+  id: z.string().uuid(), especie: z.enum(['NFE_55', 'CTE']), chave_acesso: z.string().nullable(), hash_sha256: z.string().nullable(),
+  emitido_em: z.string().nullable(), emitente: z.string().nullable(), destinatario: z.string().nullable(), total: z.string().nullable(),
+  estado: EstadoDocumentoFiscalSchema, versao_layout: z.string().nullable(), criado_em: z.string(), nsu: z.string().nullable(),
+  capturado_em: z.string().nullable(), atividade_em: z.string().nullable(), origens: z.number().int().nonnegative(),
+});
+export type DocumentoFiscal = z.infer<typeof DocumentoFiscalSchema>;
+const ItemFiscalSchema = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
+const DocumentoFiscalDetalheSchema = z.object({
+  id: z.string().uuid(), especie: z.enum(['NFE_55', 'CTE']), chave_acesso: z.string().nullable(), hash_sha256: z.string(), tamanho_bytes: z.number().int().nonnegative(),
+  estado: EstadoDocumentoFiscalSchema.exclude(['PENDENTE', 'PROCESSANDO']), emitido_em: z.string().nullable(), emitente: z.string().nullable(), destinatario: z.string().nullable(),
+  total: z.string().nullable(), itens: z.array(ItemFiscalSchema),
+  origens: z.array(z.object({ nsu: z.string(), capturado_em: z.string() })),
+  eventos: z.array(z.object({ tipo: z.string(), codigo: z.string().nullable(), ocorrido_em: z.string() })),
+});
+export type DocumentoFiscalDetalhe = z.infer<typeof DocumentoFiscalDetalheSchema>;
+const ListaDeDocumentosFiscaisSchema = z.object({ pagina: z.number().int().positive(), temProximaPagina: z.boolean(), itens: z.array(DocumentoFiscalSchema) });
+const IntegridadeFiscalSchema = z.object({ documentId: z.string().uuid(), estado: z.literal('INTEGRO'), verificadoEm: z.string() });
+const ReprocessamentoFiscalSchema = z.object({ documentId: z.string().uuid(), status: z.literal('QUEUED') });
 
-export const listarDocumentosFiscais = async (empresaId: string, pagina: number) =>
-  await ler(`/companies/${empresaId}/fiscal-documents?pagina=${pagina}`) as Readonly<{ pagina: number; itens: readonly DocumentoFiscal[] }>;
+export const listarDocumentosFiscais = async (empresaId: string, pagina: number, estado: string) => {
+  const consulta = new URLSearchParams({ pagina: String(pagina) });
+  if (estado !== 'TODOS') consulta.set('estado', estado);
+  return ListaDeDocumentosFiscaisSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents?${consulta.toString()}`));
+};
 export const obterDocumentoFiscal = async (empresaId: string, documentId: string) =>
-  await ler(`/companies/${empresaId}/fiscal-documents/${documentId}`) as DocumentoFiscalDetalhe;
-export const verificarIntegridadeFiscal = (empresaId: string, documentId: string) => requisitar<{ documentId: string; estado: 'INTEGRO'; verificadoEm: string }>(
-  `/companies/${empresaId}/fiscal-documents/${documentId}/integrity-checks`, { method: 'POST', body: JSON.stringify({}) },
-);
-export const reprocessarDocumentoFiscal = (empresaId: string, documentId: string) => requisitar<{ documentId: string; status: 'QUEUED' }>(
-  `/companies/${empresaId}/fiscal-documents/${documentId}/reprocessing`, { method: 'POST', body: JSON.stringify({}) },
-);
+  DocumentoFiscalDetalheSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/${documentId}`));
+export const verificarIntegridadeFiscal = async (empresaId: string, documentId: string) =>
+  IntegridadeFiscalSchema.parse(await requisitar<unknown>(
+    `/companies/${empresaId}/fiscal-documents/${documentId}/integrity-checks`, { method: 'POST', body: JSON.stringify({}) },
+  ));
+export const reprocessarDocumentoFiscal = async (empresaId: string, documentId: string) =>
+  ReprocessamentoFiscalSchema.parse(await requisitar<unknown>(
+    `/companies/${empresaId}/fiscal-documents/${documentId}/reprocessing`, { method: 'POST', body: JSON.stringify({}) },
+  ));
 export const baixarOriginalFiscal = async (empresaId: string, documentId: string) => {
   const response = await fetch(`/api/proxy/companies/${empresaId}/fiscal-documents/${documentId}/original`, { credentials: 'include' });
   if (!response.ok) throw new Error('Não foi possível baixar o XML original.');

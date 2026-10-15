@@ -10,19 +10,23 @@ import { StorageService } from '../comum/storage.service';
 import { FISCAL_DOCUMENTS_API_QUEUE } from './fiscal-documents.queue';
 
 const versaoParser = 'f18-1.0.0';
-const chaveMascarada = (value: string | null) => value ? `${'•'.repeat(36)}${value.slice(-8)}` : null;
+const chaveMascarada = (value: string | null) => value ? `${value.slice(0, 4)}…${value.slice(-4)}` : null;
 
 @Injectable()
 export class FiscalDocumentsService {
   constructor(private readonly pool: PoolDoBanco, private readonly storage: StorageService,
     @Inject(FISCAL_DOCUMENTS_API_QUEUE) private readonly queue: Queue | null) {}
 
-  async listar(tenantId: string, userId: string, companyId: string, correlationId: string, page: number) {
+  async listar(tenantId: string, userId: string, companyId: string, correlationId: string, page: number, state: string | null = null) {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
       const company = await getDfeCaptureCompany(client, companyId);
       if (!company || company.tenantId !== tenantId) throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada.');
-      const rows = await listarDocumentosFiscais(client, companyId, page);
-      return { pagina: page, itens: rows.map((row) => ({ ...row, chave_acesso: chaveMascarada(row.chave_acesso) })) };
+      const rows = await listarDocumentosFiscais(client, companyId, page, state);
+      return {
+        pagina: page,
+        temProximaPagina: rows.length > 20,
+        itens: rows.slice(0, 20).map((row) => ({ ...row, chave_acesso: chaveMascarada(row.chave_acesso) })),
+      };
     });
   }
 
@@ -36,9 +40,9 @@ export class FiscalDocumentsService {
       if (!company || company.tenantId !== tenantId) throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada.');
       const record = await this.detalhe(client, companyId, documentId);
       if (!record) throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL, 'Documento fiscal não encontrado.');
-      const publicRecord = { ...record } as Record<string, unknown>;
+      const publicRecord = { ...record, tamanho_bytes: Number(record.tamanho_bytes) } as Record<string, unknown>;
       delete publicRecord['original_key'];
-      return { ...publicRecord, chave_acesso: chaveMascarada(record.chave_acesso) };
+      return publicRecord;
     });
   }
 

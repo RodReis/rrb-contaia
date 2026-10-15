@@ -8,30 +8,47 @@ export type RegistroFiscalPersistido = Readonly<{
   itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
 }>;
 
-export const listarDocumentosFiscais = async (client: PoolClient, empresaId: string, page: number, pageSize = 20) => {
+export const listarDocumentosFiscais = async (client: PoolClient, empresaId: string, page: number, estado: string | null = null, pageSize = 20) => {
   const { rows } = await client.query(
-    `select d.id,d.especie,d.chave_acesso,d.hash_sha256,d.emitido_em,d.emitente,d.destinatario,d.total,
-            case when exists(select 1 from app.fiscal_document_event e where e.document_id=d.id and e.tipo='CONFLITO') then 'CONFLITO' else d.estado end estado,
-            d.versao_layout,d.criado_em,o.nsu,o.capturado_em,
-            (select count(*)::int from app.fiscal_document_origin oo where oo.document_id=d.id) origens
-       from app.fiscal_document d left join lateral (
-         select nsu,capturado_em from app.fiscal_document_origin x where x.document_id=d.id order by capturado_em desc limit 1
-       ) o on true
-      where d.empresa_id=$1 order by d.emitido_em desc nulls last,d.criado_em desc,d.id
-      limit $2 offset $3`, [empresaId,pageSize,(page-1)*pageSize],
+    `with documentos as (
+       select d.id,d.especie,d.chave_acesso,d.hash_sha256,d.emitido_em,d.emitente,d.destinatario,d.total,
+              case when exists(select 1 from app.fiscal_document_event e where e.document_id=d.id and e.tipo='CONFLITO') then 'CONFLITO' else d.estado end estado,
+              d.versao_layout,d.criado_em,o.nsu,o.capturado_em,
+              coalesce((select max(e.ocorrido_em) from app.fiscal_document_event e where e.document_id=d.id),o.capturado_em) atividade_em,
+              (select count(*)::int from app.fiscal_document_origin oo where oo.document_id=d.id) origens
+         from app.fiscal_document d left join lateral (
+           select nsu,capturado_em from app.fiscal_document_origin x where x.document_id=d.id order by capturado_em desc limit 1
+         ) o on true
+        where d.empresa_id=$1
+       union all
+       select s.id,s.especie,s.chave_acesso,null::text,null::date,null::text,null::text,null::numeric,
+              case when o.estado='PENDENTE' then 'PENDENTE' else 'PROCESSANDO' end,
+              null::text,s.capturado_em,s.nsu,s.capturado_em,coalesce(o.publicado_em,s.capturado_em),1::int
+         from app.fiscal_document_outbox o join app.dfe_capture_staging s on s.id=o.staging_id and s.empresa_id=o.empresa_id
+        where s.empresa_id=$1 and o.estado in ('PENDENTE','PUBLICADO')
+          and not exists(select 1 from app.fiscal_document_origin x where x.staging_id=s.id)
+     )
+     select * from documentos
+      where $2::text is null or estado=$2
+      order by emitido_em desc nulls last,capturado_em desc,id
+      limit $3 offset $4`, [empresaId,estado,pageSize + 1,(page-1)*pageSize],
   );
   return rows;
 };
 
 export const obterDocumentoFiscal = async (client: PoolClient, empresaId: string, documentId: string) => {
-  const document = await client.query(`select * from app.fiscal_document where empresa_id=$1 and id=$2`, [empresaId,documentId]);
+  const document = await client.query(
+    `select d.*,case when exists(select 1 from app.fiscal_document_event e where e.document_id=d.id and e.tipo='CONFLITO') then 'CONFLITO' else d.estado end estado_apresentado
+       from app.fiscal_document d where d.empresa_id=$1 and d.id=$2`, [empresaId,documentId],
+  );
   if (!document.rows[0]) return null;
+  const { estado_apresentado, ...documentData } = document.rows[0];
   const [items,origins,events] = await Promise.all([
     client.query(`select numero,codigo,descricao,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 order by numero`, [documentId]),
     client.query(`select staging_id,cnpj,nsu,correlation_id,capturado_em from app.fiscal_document_origin where document_id=$1 order by capturado_em`, [documentId]),
     client.query(`select tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ocorrido_em from app.fiscal_document_event where document_id=$1 order by ocorrido_em desc limit 30`, [documentId]),
   ]);
-  return { ...document.rows[0], itens: items.rows, origens: origins.rows, eventos: events.rows };
+  return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows };
 };
 
 export const persistirDocumentoFiscal = async (client: PoolClient, input: Readonly<{
