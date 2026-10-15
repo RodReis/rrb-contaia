@@ -125,6 +125,7 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
       const state = await ensureDfeCaptureState(client, { tenantId: c.tenantA, companyId: co.id, cnpj: co.cnpj });
       const run = await createOrReuseDfeCaptureRun(client, { state, origin: 'MANUAL', originatingUserId: c.usuarios.naCarteira,
         idempotencyKey: `fiscal-state-${randomUUID()}`, correlationId, occurredAt: now });
+      await marcarDfeCaptureEmExecucao(client, run.id, state, now);
       await commitDfeBatch(client, { state: { ...state, state: 'CAPTURING', version: state.version + 1 }, runId: run.id,
         returnedLastNsu: '1', maxNsu: '1', averageTimeMs: 60_000, nextAllowedAt: new Date(now.getTime() + 60_000), capturedAt: now,
         attempt: 1, correlationId, items: [{ nsu: '1', accessKey: null, kind: 'NFE_55', rawContent: '<opaque>fiscal</opaque>' }] });
@@ -170,6 +171,7 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
       const state = await ensureDfeCaptureState(client, { tenantId: c.tenantA, companyId: co.id, cnpj: co.cnpj });
       const run = await createOrReuseDfeCaptureRun(client, { state, origin: 'MANUAL', originatingUserId: c.usuarios.naCarteira,
         idempotencyKey: `fiscal-parser-${randomUUID()}`, correlationId, occurredAt: now });
+      await marcarDfeCaptureEmExecucao(client, run.id, state, now);
       await commitDfeBatch(client, { state: { ...state, state: 'CAPTURING', version: state.version + 1 }, runId: run.id,
         returnedLastNsu: '1', maxNsu: '1', averageTimeMs: 60_000, nextAllowedAt: new Date(now.getTime() + 60_000), capturedAt: now,
         attempt: 1, correlationId, items: [{ nsu: '1', accessKey: null, kind: 'NFE_55', rawContent: '<opaque>versioned</opaque>' }] });
