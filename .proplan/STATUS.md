@@ -93,10 +93,9 @@ updated: 2026-10-15
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
-- [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23)
 - [MVP1][SPEC-020][F20] Classificação de risco e proposta de manifestação (#22)
+- [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23)
 - [MVP1][SPEC-019][F19] Ciência da Emissão automática (#21)
-- [MVP1][SPEC-018][F18] Parse e persistência de XML, hash e IBS/CBS (#20)
 
 ## Em Andamento
 
@@ -110,6 +109,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-018][F18] Parse e persistência de XML, hash e IBS/CBS (#20, finalizado em: 2026-10-15)
 - [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19, finalizado em: 2026-10-15)
 - [MVP1][SPEC-016][F16] Motor tributário base versionado (#18, finalizado em: 2026-10-13)
 - [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17, finalizado em: 2026-10-11)
