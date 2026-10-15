@@ -102,7 +102,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Scheduler com papel de descoberta somente executável, função de saída mínima e revalidação sob RLS por empresa; consulta de admin limitada à captura e ao próprio tenant.
 - [x] Retry exponencial com jitter, bloqueio 656 isolado, trilha append-only e alerta deduplicado com resolução; reprocessamento da DLQ preserva execução/chave/origem e registra o ator.
 - [x] API para status/histórico, métricas operacionais dos últimos 30 dias e UI para consulta, paginação e reprocessamento administrativo.
-- [x] Validação local focada: 22 testes de domínio, 1 teste de contrato compartilhado, 4 testes de UI e 4 testes do guard de API; Signer 22/22 com loopback autorizado. Oito typechecks e lint direcionado passaram; integração PostgreSQL precisa ser repetida após corrigir a identidade da reserva tenant/órgão.
+- [x] Validação local focada: 22 testes de domínio, 1 de contrato compartilhado, 4 de UI, 4 do guard de API e 22 do Signer; typecheck em oito pacotes. PostgreSQL limpo: migrações 0000–0028 aplicadas, matriz RLS 5/5 e integração F17 7/7. Correções incluíram ordem do `REVOKE` em 0023 e qualificação do `pgcrypto` para UUIDv7 sob `search_path` fechado.
 - [ ] E2E da empresa com A1 de teste até o dublê mTLS, com repetição idempotente e avanço do cursor; prova de falha parcial sem avanço.
 - [ ] Capturas e axe nos estados relevantes, CLARO/ESCURO em 768/1024/1440, revisão visual contra o protótipo e passe final `impeccable`.
 - [ ] Relatório `test-results/SPEC-017/`, autorrevisão do diff e validação do CI na PR.

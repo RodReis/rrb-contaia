@@ -18,8 +18,6 @@ REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA app
   FROM contaia_dfe_scheduler_owner, contaia_dfe_scheduler;
 REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA app
   FROM contaia_dfe_scheduler_owner, contaia_dfe_scheduler;
-REVOKE ALL ON FUNCTION app.dfe_capture_empresas_elegiveis(integer) FROM PUBLIC;
-
 GRANT USAGE ON SCHEMA app TO contaia_dfe_scheduler, contaia_dfe_scheduler_owner;
 GRANT SELECT ON app.empresa, app.empresa_certificado, app.dfe_capture_state,
   app.dfe_capture_run TO contaia_dfe_scheduler_owner;
