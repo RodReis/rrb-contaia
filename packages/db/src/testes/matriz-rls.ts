@@ -361,11 +361,13 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       const escopoArquivada: Escopo = { ...escopoA1, empresaId: c.empresaA3Arquivada };
       const referenciasArquivada = await (fixture.preparar?.(admin, escopoArquivada) ??
         Promise.resolve({}));
+      const referenciasDaTentativaArquivada = await (fixture.preparar?.(admin, escopoArquivada) ??
+        Promise.resolve({}));
       const linhaArquivada = await fixture.inserir(admin, escopoArquivada, referenciasArquivada);
       await leitura('administrador alcança filha de empresa arquivada', humano(u.admin), 'visivel', linhaArquivada);
       await leitura('colaborador comum não alcança filha de empresa arquivada', humano(u.fora), 'invisivel', linhaArquivada);
-      await insercao('administrador grava em empresa arquivada', humano(u.admin), 'inserido', escopoArquivada, referenciasArquivada);
-      await insercao('colaborador comum não grava em empresa arquivada', humano(u.fora), 'rejeitado_por_rls', escopoArquivada, referenciasArquivada);
+      await insercao('administrador grava em empresa arquivada', humano(u.admin), 'inserido', escopoArquivada, referenciasDaTentativaArquivada);
+      await insercao('colaborador comum não grava em empresa arquivada', humano(u.fora), 'rejeitado_por_rls', escopoArquivada, referenciasDaTentativaArquivada);
 
       const actor = (usuario: string, finalidade: FinalidadeHumana = 'COMUM', tenant = c.tenantA) => humano(usuario, finalidade, tenant);
       await leitura('na carteira (controle positivo)', actor(u.naCarteira), 'visivel');
