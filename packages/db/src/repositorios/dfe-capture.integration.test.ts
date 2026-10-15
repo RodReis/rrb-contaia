@@ -6,7 +6,7 @@ import { criarPool, criarPoolDaAplicacao, criarPoolDoAgendadorDfe } from '../cli
 import { comContexto } from '../contexto.js';
 import { limparCenario, montarCenario, type Cenario } from '../testes/cenario-rls.js';
 import { commitDfeBatch, createOrReuseDfeCaptureRun, ensureDfeCaptureState, getDfeCaptureCompany, marcarDfeCaptureEmExecucao, prepararReprocessamentoDfeCapture, registrarFalhaDfeCapture, reservarJanelaDfeTenant } from './dfe-capture.js';
-import { listarDocumentosFiscais, persistirDocumentoFiscal, registrarEventoDocumentoFiscal } from './fiscal-documents.js';
+import { listarDocumentosFiscais, persistirDocumentoFiscal, persistirFalhaDocumentoFiscal, registrarEventoDocumentoFiscal } from './fiscal-documents.js';
 
 const admin = criarPool();
 const app = criarPoolDaAplicacao();
@@ -144,7 +144,12 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
       tenantId: c.tenantA, empresaId: co.id, documentId: document.id, stagingId, tipo, codigo,
       parserVersion: 'f18-test', hashSha256: 'a'.repeat(64), correlationId: `${correlationId}-${tipo}`,
     }));
-    await registra('XML_INVALIDO', 'FISCAL_XML_INVALID');
+    await tech(co.id, `${correlationId}-failure`, (client) => persistirFalhaDocumentoFiscal(client, {
+      tenantId: c.tenantA, empresaId: co.id, stagingId, especie: 'NFE_55', chaveAcesso: null,
+      hashSha256: 'a'.repeat(64), tamanho: 20,
+      originalKey: `${c.tenantA}/${co.id}/fiscal-original/${'a'.repeat(64)}.xml`, parserVersion: 'f18-test',
+      correlationId: `${correlationId}-failure`, codigo: 'FISCAL_XML_INVALID', estado: 'XML_INVALIDO',
+    }));
     const invalido = await tech(co.id, `${correlationId}-list-invalid`, (client) => listarDocumentosFiscais(client, co.id, 1, 'XML_INVALIDO'));
     expect(invalido[0]).toMatchObject({ id: document.id, estado: 'XML_INVALIDO' });
 
