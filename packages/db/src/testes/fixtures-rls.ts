@@ -732,8 +732,8 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.fiscal_document_party': {
     preparar: prepararDocumentoFiscal,
     inserir: (banco,e,r) => unico(banco,
-      `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,papel,nome)
-       values($1,$2,$3,'EMITENTE','Fixture') returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+      `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,parser_version,papel,nome)
+       values($1,$2,$3,'fixture','EMITENTE','Fixture') returning id`, [e.tenantId,e.empresaId,r['documentId']]),
   },
   'app.fiscal_document_origin': {
     preparar: prepararDocumentoFiscal,
@@ -745,20 +745,20 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.fiscal_document_item': {
     preparar: prepararDocumentoFiscal,
     inserir: (banco,e,r) => unico(banco,
-      `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,numero,descricao)
-       values($1,$2,$3,1,'Fixture') returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+      `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,descricao)
+       values($1,$2,$3,'fixture',1,'Fixture') returning id`, [e.tenantId,e.empresaId,r['documentId']]),
   },
   'app.fiscal_document_tax': {
     preparar: prepararDocumentoFiscal,
     inserir: (banco,e,r) => unico(banco,
-      `insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,escopo,codigo,valor)
-       values($1,$2,$3,'DOCUMENTO','IBS',0.10) returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+      `insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,parser_version,escopo,codigo,valor)
+       values($1,$2,$3,'fixture','DOCUMENTO','IBS',0.10) returning id`, [e.tenantId,e.empresaId,r['documentId']]),
   },
   'app.fiscal_document_reference': {
     preparar: prepararDocumentoFiscal,
     inserir: (banco,e,r) => unico(banco,
-      `insert into app.fiscal_document_reference(tenant_id,empresa_id,document_id,tipo,chave)
-       values($1,$2,$3,'NFE',repeat('1',44)) returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+      `insert into app.fiscal_document_reference(tenant_id,empresa_id,document_id,parser_version,tipo,chave)
+       values($1,$2,$3,'fixture','NFE',repeat('1',44)) returning id`, [e.tenantId,e.empresaId,r['documentId']]),
   },
   'app.fiscal_document_event': {
     preparar: prepararDocumentoFiscal,

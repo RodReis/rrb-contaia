@@ -17,11 +17,11 @@ export type RegistroFiscalPersistido = Readonly<{
 const estadoFiscalApresentado = (alias: string) => `case
   when exists(select 1 from app.fiscal_document_event e where e.document_id=${alias}.id and e.tipo='CONFLITO') then 'CONFLITO'
   else coalesce((
-    select case when e.tipo='REUTILIZADO' then e.codigo else e.tipo end
+    select case when e.tipo in ('REUTILIZADO','REPROCESSADO') then e.codigo else e.tipo end
       from app.fiscal_document_event e
      where e.document_id=${alias}.id
        and (e.tipo in ('PROCESSADO','PENDENTE_IBS_CBS','PENDENTE_LAYOUT','XML_INVALIDO','FALHA')
-         or (e.tipo='REUTILIZADO' and e.codigo in ('PROCESSADO','PENDENTE_IBS_CBS','PENDENTE_LAYOUT','XML_INVALIDO','FALHA')))
+         or (e.tipo in ('REUTILIZADO','REPROCESSADO') and e.codigo in ('PROCESSADO','PENDENTE_IBS_CBS','PENDENTE_LAYOUT','XML_INVALIDO','FALHA')))
      order by e.ocorrido_em desc,e.id desc limit 1
   ),${alias}.estado)
 end`;
@@ -62,12 +62,12 @@ export const obterDocumentoFiscal = async (client: PoolClient, empresaId: string
   if (!document.rows[0]) return null;
   const { estado_apresentado, ...documentData } = document.rows[0];
   const [items,origins,events,references,parties,taxes] = await Promise.all([
-    client.query(`select numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 order by numero`, [documentId]),
+    client.query(`select numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 and parser_version=$2 order by numero`, [documentId,documentData.parser_version]),
     client.query(`select staging_id,cnpj,nsu,correlation_id,capturado_em from app.fiscal_document_origin where document_id=$1 order by capturado_em`, [documentId]),
     client.query(`select tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ocorrido_em from app.fiscal_document_event where document_id=$1 order by ocorrido_em desc limit 30`, [documentId]),
-    client.query(`select tipo,chave from app.fiscal_document_reference where document_id=$1 order by tipo,chave`, [documentId]),
-    client.query(`select papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais from app.fiscal_document_party where document_id=$1 order by papel`, [documentId]),
-    client.query(`select escopo,numero_item,codigo,base_calculo,aliquota,valor,situacao,classificacao from app.fiscal_document_tax where document_id=$1 order by escopo,numero_item nulls first,codigo`, [documentId]),
+    client.query(`select tipo,chave from app.fiscal_document_reference where document_id=$1 and parser_version=$2 order by tipo,chave`, [documentId,documentData.parser_version]),
+    client.query(`select papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais from app.fiscal_document_party where document_id=$1 and parser_version=$2 order by papel`, [documentId,documentData.parser_version]),
+    client.query(`select escopo,numero_item,codigo,base_calculo,aliquota,valor,situacao,classificacao from app.fiscal_document_tax where document_id=$1 and parser_version=$2 order by escopo,numero_item nulls first,codigo`, [documentId,documentData.parser_version]),
   ]);
   return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows, referencias: references.rows, partes: parties.rows, tributos: taxes.rows };
 };
@@ -76,11 +76,11 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   tenantId: string; empresaId: string; stagingId: string; cnpj: string; nsu: string; correlationId: string;
   originalKey: string; parserVersion: string; atorId?: string; parsed: RegistroFiscalPersistido;
 }>): Promise<Readonly<{ id: string; reused: boolean; conflict: boolean; state: string }>> => {
-  const stagedDocument = await client.query<{ id: string; hash_sha256: string; estado: string }>(
-    `select id,hash_sha256,estado from app.fiscal_document where primary_staging_id=$1`, [input.stagingId],
+  const stagedDocument = await client.query<{ id: string; hash_sha256: string; estado: string; parser_version: string }>(
+    `select id,hash_sha256,estado,parser_version from app.fiscal_document where primary_staging_id=$1`, [input.stagingId],
   );
-  const current = stagedDocument.rows[0] ? stagedDocument : await client.query<{ id: string; hash_sha256: string; estado: string }>(
-    `select id,hash_sha256,estado from app.fiscal_document where tenant_id=$1 and empresa_id=$2 and especie=$3 and chave_acesso=$4 order by criado_em limit 1`,
+  const current = stagedDocument.rows[0] ? stagedDocument : await client.query<{ id: string; hash_sha256: string; estado: string; parser_version: string }>(
+    `select id,hash_sha256,estado,parser_version from app.fiscal_document where tenant_id=$1 and empresa_id=$2 and especie=$3 and chave_acesso=$4 order by criado_em limit 1`,
     [input.tenantId,input.empresaId,input.parsed.especie,input.parsed.chaveAcesso],
   );
   const existing = current.rows[0];
@@ -99,7 +99,7 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   }
   const id = existing?.id ?? input.parsed.id;
   const state = input.parsed.ibsCbsPendente ? 'PENDENTE_IBS_CBS' : 'PROCESSADO';
-  const precisaNormalizar = !existing || ['FALHA','XML_INVALIDO','PENDENTE_LAYOUT'].includes(existing.estado);
+  const precisaNormalizar = !existing || existing.parser_version !== input.parserVersion || ['FALHA','XML_INVALIDO','PENDENTE_LAYOUT'].includes(existing.estado);
   if (!existing) {
     await client.query(
       `insert into app.fiscal_document(id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,estado,parser_version)
@@ -108,36 +108,36 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
     );
   } else if (precisaNormalizar) {
     await client.query(
-      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,protocolo=$4,protocolo_recebido_em=$5::timestamptz,emitido_em=$6::date,emitente=$7,destinatario=$8,total=$9::numeric,base_ibs_cbs=$10::numeric,total_ibs=$11::numeric,total_cbs=$12::numeric,atualizado_em=now() where id=$13`,
-      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,id],
+      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,protocolo=$4,protocolo_recebido_em=$5::timestamptz,emitido_em=$6::date,emitente=$7,destinatario=$8,total=$9::numeric,base_ibs_cbs=$10::numeric,total_ibs=$11::numeric,total_cbs=$12::numeric,parser_version=$13,atualizado_em=now() where id=$14`,
+      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,input.parserVersion,id],
     );
   }
   if (precisaNormalizar) {
     for (const [index,item] of input.parsed.itens.entries()) {
       await client.query(
-        `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs)
-         values($1,$2,$3,$4,$5,$6,$7,$8::numeric,$9,$10::numeric,$11::numeric,$12::numeric)`,
-        [input.tenantId,input.empresaId,id,index+1,item.tipo,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs],
+        `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9::numeric,$10,$11::numeric,$12::numeric,$13::numeric)`,
+        [input.tenantId,input.empresaId,id,input.parserVersion,index+1,item.tipo,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs],
       );
     }
     for (const tax of input.parsed.tributos) {
       await client.query(
-        `insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,escopo,numero_item,codigo,base_calculo,aliquota,valor,situacao,classificacao)
-         values($1,$2,$3,$4,$5,$6,$7::numeric,$8::numeric,$9::numeric,$10,$11) on conflict do nothing`,
-        [input.tenantId,input.empresaId,id,tax.escopo,tax.numeroItem,tax.codigo,tax.baseCalculo,tax.aliquota,tax.valor,tax.situacao,tax.classificacao],
+        `insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,parser_version,escopo,numero_item,codigo,base_calculo,aliquota,valor,situacao,classificacao)
+         values($1,$2,$3,$4,$5,$6,$7,$8::numeric,$9::numeric,$10::numeric,$11,$12) on conflict do nothing`,
+        [input.tenantId,input.empresaId,id,input.parserVersion,tax.escopo,tax.numeroItem,tax.codigo,tax.baseCalculo,tax.aliquota,tax.valor,tax.situacao,tax.classificacao],
       );
     }
     for (const reference of input.parsed.referencias) {
       await client.query(
-        `insert into app.fiscal_document_reference(tenant_id,empresa_id,document_id,tipo,chave) values($1,$2,$3,$4,$5) on conflict(document_id,tipo,chave) do nothing`,
-        [input.tenantId,input.empresaId,id,reference.tipo,reference.chave],
+        `insert into app.fiscal_document_reference(tenant_id,empresa_id,document_id,parser_version,tipo,chave) values($1,$2,$3,$4,$5,$6) on conflict(document_id,parser_version,tipo,chave) do nothing`,
+        [input.tenantId,input.empresaId,id,input.parserVersion,reference.tipo,reference.chave],
       );
     }
     for (const party of input.parsed.partes) {
       await client.query(
-        `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) on conflict(document_id,papel) do nothing`,
-        [input.tenantId,input.empresaId,id,party.papel,party.identificador,party.nome,party.inscricaoEstadual,party.logradouro,party.numero,party.complemento,party.bairro,party.codigoMunicipio,party.municipio,party.uf,party.cep,party.codigoPais,party.pais],
+        `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,parser_version,papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) on conflict(document_id,parser_version,papel) do nothing`,
+        [input.tenantId,input.empresaId,id,input.parserVersion,party.papel,party.identificador,party.nome,party.inscricaoEstadual,party.logradouro,party.numero,party.complemento,party.bairro,party.codigoMunicipio,party.municipio,party.uf,party.cep,party.codigoPais,party.pais],
       );
     }
   }
@@ -150,7 +150,7 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   await client.query(
     `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,staging_id,tipo,codigo,parser_version,hash_sha256,ator_id,correlation_id)
      values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-    [input.tenantId,input.empresaId,id,input.stagingId,existing?'REUTILIZADO':'PROCESSADO',state,input.parserVersion,input.parsed.hashSha256,input.atorId ?? null,input.correlationId],
+    [input.tenantId,input.empresaId,id,input.stagingId,!existing?'PROCESSADO':precisaNormalizar?'REPROCESSADO':'REUTILIZADO',state,input.parserVersion,input.parsed.hashSha256,input.atorId ?? null,input.correlationId],
   );
   return { id, reused: Boolean(existing), conflict: false, state };
 };

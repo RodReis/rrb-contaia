@@ -6,7 +6,7 @@ import { criarPool, criarPoolDaAplicacao, criarPoolDoAgendadorDfe } from '../cli
 import { comContexto } from '../contexto.js';
 import { limparCenario, montarCenario, type Cenario } from '../testes/cenario-rls.js';
 import { commitDfeBatch, createOrReuseDfeCaptureRun, ensureDfeCaptureState, getDfeCaptureCompany, marcarDfeCaptureEmExecucao, prepararReprocessamentoDfeCapture, registrarFalhaDfeCapture, reservarJanelaDfeTenant } from './dfe-capture.js';
-import { listarDocumentosFiscais, persistirDocumentoFiscal, persistirFalhaDocumentoFiscal, registrarEventoDocumentoFiscal } from './fiscal-documents.js';
+import { listarDocumentosFiscais, obterDocumentoFiscal, persistirDocumentoFiscal, persistirFalhaDocumentoFiscal, registrarEventoDocumentoFiscal } from './fiscal-documents.js';
 
 const admin = criarPool();
 const app = criarPoolDaAplicacao();
@@ -161,6 +161,51 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
     await registra('REUTILIZADO', 'PROCESSADO');
     const conflito = await tech(co.id, `${correlationId}-list-conflict`, (client) => listarDocumentosFiscais(client, co.id, 1, 'CONFLITO'));
     expect(conflito[0]).toMatchObject({ id: document.id, estado: 'CONFLITO' });
+  });
+
+  it('reprocessa a mesma chave com nova versão do parser e preserva a normalização anterior', async () => {
+    const co = await empresa();
+    const correlationId = 'fiscal-parser-version';
+    await tech(co.id, correlationId, async (client) => {
+      const state = await ensureDfeCaptureState(client, { tenantId: c.tenantA, companyId: co.id, cnpj: co.cnpj });
+      const run = await createOrReuseDfeCaptureRun(client, { state, origin: 'MANUAL', originatingUserId: c.usuarios.naCarteira,
+        idempotencyKey: `fiscal-parser-${randomUUID()}`, correlationId, occurredAt: now });
+      await commitDfeBatch(client, { state: { ...state, state: 'CAPTURING', version: state.version + 1 }, runId: run.id,
+        returnedLastNsu: '1', maxNsu: '1', averageTimeMs: 60_000, nextAllowedAt: new Date(now.getTime() + 60_000), capturedAt: now,
+        attempt: 1, correlationId, items: [{ nsu: '1', accessKey: null, kind: 'NFE_55', rawContent: '<opaque>versioned</opaque>' }] });
+    });
+    const { rows } = await admin.query<{ id: string }>(
+      `select id from app.dfe_capture_staging where empresa_id=$1 order by capturado_em desc limit 1`, [co.id]);
+    const stagingId = rows[0]!.id;
+    const chaveAcesso = '00000000000000000000550010000000010000000010';
+    const originalKey = `${c.tenantA}/${co.id}/fiscal-original/${'b'.repeat(64)}.xml`;
+    const primeiro = { id: randomUUID(), especie: 'NFE_55' as const, chaveAcesso, hashSha256: 'b'.repeat(64), tamanho: 20,
+      versaoLayout: '4.00', modelo: '55', protocolo: null, protocoloRecebidoEm: null, referencias: [{ tipo: 'NFE', chave: '1'.repeat(44) }],
+      partes: [{ papel: 'EMITENTE' as const, identificador: co.cnpj, nome: 'Emitente v1', inscricaoEstadual: null,
+        logradouro: null, numero: null, complemento: null, bairro: null, codigoMunicipio: null, municipio: null, uf: null,
+        cep: null, codigoPais: null, pais: null }], emitidoEm: '2026-06-15', emitente: co.cnpj, destinatario: null, total: '1.00',
+      ibsCbsPendente: false, baseIbsCbs: null, totalIbs: null, totalCbs: null,
+      itens: [{ tipo: 'ITEM' as const, codigo: '1', descricao: 'Item v1', quantidade: '1.0000', unidade: 'UN', valor: '1.00', ibs: null, cbs: null }],
+      tributos: [{ escopo: 'ITEM' as const, numeroItem: 1, codigo: 'ICMS' as const, baseCalculo: '1.00', aliquota: '0', valor: '0', situacao: '00', classificacao: null }] };
+    const firstResult = await tech(co.id, `${correlationId}-v1`, (client) => persistirDocumentoFiscal(client, {
+      tenantId: c.tenantA, empresaId: co.id, stagingId, cnpj: co.cnpj, nsu: '1', correlationId: `${correlationId}-v1`,
+      originalKey, parserVersion: 'f18-v1', parsed: primeiro,
+    }));
+    const secondResult = await tech(co.id, `${correlationId}-v2`, (client) => persistirDocumentoFiscal(client, {
+      tenantId: c.tenantA, empresaId: co.id, stagingId, cnpj: co.cnpj, nsu: '1', correlationId: `${correlationId}-v2`,
+      originalKey, parserVersion: 'f18-v2', parsed: { ...primeiro, id: randomUUID(), partes: [{ ...primeiro.partes[0]!, nome: 'Emitente v2' }],
+        itens: [{ ...primeiro.itens[0]!, descricao: 'Item v2' }], tributos: [{ ...primeiro.tributos[0]!, valor: '0.20' }] },
+    }));
+    expect(firstResult).toMatchObject({ reused: false, conflict: false, state: 'PROCESSADO' });
+    expect(secondResult).toMatchObject({ id: firstResult.id, reused: true, conflict: false, state: 'PROCESSADO' });
+    const detail = await tech(co.id, `${correlationId}-detail`, (client) => obterDocumentoFiscal(client, co.id, firstResult.id));
+    expect(detail).toMatchObject({ parser_version: 'f18-v2', itens: [{ descricao: 'Item v2' }], partes: [{ nome: 'Emitente v2' }], tributos: [{ valor: '0.2000000000' }] });
+    const history = await admin.query<{ parser_version: string; descricao: string }>(
+      `select parser_version,descricao from app.fiscal_document_item where document_id=$1 order by parser_version`, [firstResult.id]);
+    expect(history.rows).toEqual([{ parser_version: 'f18-v1', descricao: 'Item v1' }, { parser_version: 'f18-v2', descricao: 'Item v2' }]);
+    const events = await admin.query<{ tipo: string; parser_version: string }>(
+      `select tipo,parser_version from app.fiscal_document_event where document_id=$1 order by ocorrido_em,id`, [firstResult.id]);
+    expect(events.rows).toEqual([{ tipo: 'PROCESSADO', parser_version: 'f18-v1' }, { tipo: 'REPROCESSADO', parser_version: 'f18-v2' }]);
   });
 
   it('abre alerta uma vez e registra recuperação append-only após lote bem-sucedido', async () => {

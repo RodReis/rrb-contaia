@@ -110,6 +110,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Persistir e exibir base e totalizadores IBS/CBS do documento, mantendo extração por item para NF-e.
 - [x] Normalizar base, alíquota, valor e situação presentes para ICMS, ICMS-ST, IPI, II, PIS, COFINS, IBS e CBS, por item e documento quando o XML oferece o grupo.
 - [x] Persistir componentes de frete do CT-e separados das medidas de carga, sem repetir o total do serviço.
+- [x] Reprocessar conteúdo com nova versão do parser, manter normalizações anteriores append-only e projetar no detalhe somente a versão vigente.
 - [ ] Confirmar migration 0029 e fluxo completo no PostgreSQL/MinIO isolados; cobrir idempotência, conflito, RLS, retry e DLQ.
 - [ ] Validar recuperação do outbox com Redis indisponível e retorno, incluindo publicação repetida/idempotência.
 - [ ] Completar normalização de NF-e/CT-e conforme SPEC-018, incluindo XSD oficial versionado, demais totais e grupos tributários. A validação atual cobre versão 4.00 e estrutura mínima, não substitui XSD. Consulta oficial em 15/10/2026: NF-e pacote 010f (NT 2025.002 v1.50 + NT 2026.007 v1.00) ([Portal NF-e](https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?AspxAutoDetectCookieSupport=1&tipoConteudo=BMPFMBoln3w%3D)); CT-e NT 2026.004 v1.00 e RTC NT 2026.002 v1.01 ([Portal CT-e](https://www.cte.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=0xlG1bdBass%3D)).

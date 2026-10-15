@@ -67,12 +67,12 @@ CREATE INDEX fiscal_document_company_date_idx ON app.fiscal_document(empresa_id,
 
 CREATE TABLE app.fiscal_document_party (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
-  document_id uuid NOT NULL, papel text NOT NULL CHECK(papel IN ('EMITENTE','DESTINATARIO')),
+  document_id uuid NOT NULL, parser_version text NOT NULL, papel text NOT NULL CHECK(papel IN ('EMITENTE','DESTINATARIO')),
   identificador text, nome text, inscricao_estadual text, logradouro text, numero text, complemento text, bairro text,
   codigo_municipio text, municipio text, uf text, cep text, codigo_pais text, pais text,
   CONSTRAINT fiscal_document_party_document FOREIGN KEY(document_id,empresa_id,tenant_id) REFERENCES app.fiscal_document(id,empresa_id,tenant_id),
   CONSTRAINT fiscal_document_party_company FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
-  CONSTRAINT fiscal_document_party_unique UNIQUE(document_id,papel)
+  CONSTRAINT fiscal_document_party_unique UNIQUE(document_id,parser_version,papel)
 );
 CREATE INDEX fiscal_document_party_document_idx ON app.fiscal_document_party(document_id);
 CREATE TRIGGER fiscal_document_party_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_party FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
@@ -90,34 +90,34 @@ CREATE INDEX fiscal_document_origin_doc_idx ON app.fiscal_document_origin(docume
 
 CREATE TABLE app.fiscal_document_item (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
-  document_id uuid NOT NULL, numero integer NOT NULL CHECK(numero > 0), tipo text NOT NULL DEFAULT 'ITEM' CHECK(tipo IN ('ITEM','COMPONENTE','MEDIDA_CARGA')), codigo text, descricao text,
+  document_id uuid NOT NULL, parser_version text NOT NULL, numero integer NOT NULL CHECK(numero > 0), tipo text NOT NULL DEFAULT 'ITEM' CHECK(tipo IN ('ITEM','COMPONENTE','MEDIDA_CARGA')), codigo text, descricao text,
   quantidade numeric(30,10), unidade text, valor numeric(30,10), ibs numeric(30,10), cbs numeric(30,10),
   CONSTRAINT fiscal_document_item_document FOREIGN KEY(document_id,empresa_id,tenant_id) REFERENCES app.fiscal_document(id,empresa_id,tenant_id),
   CONSTRAINT fiscal_document_item_company FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
-  CONSTRAINT fiscal_document_item_unique UNIQUE(document_id,numero)
+  CONSTRAINT fiscal_document_item_unique UNIQUE(document_id,parser_version,numero)
 );
 CREATE INDEX fiscal_document_item_document_idx ON app.fiscal_document_item(document_id);
 
 CREATE TABLE app.fiscal_document_tax (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
-  document_id uuid NOT NULL, escopo text NOT NULL CHECK(escopo IN ('DOCUMENTO','ITEM')), numero_item integer,
+  document_id uuid NOT NULL, parser_version text NOT NULL, escopo text NOT NULL CHECK(escopo IN ('DOCUMENTO','ITEM')), numero_item integer,
   codigo text NOT NULL CHECK(codigo IN ('ICMS','ICMS_ST','IPI','II','PIS','COFINS','IBS','CBS')),
   base_calculo numeric(30,10), aliquota numeric(20,10), valor numeric(30,10), situacao text, classificacao text,
   CONSTRAINT fiscal_document_tax_document FOREIGN KEY(document_id,empresa_id,tenant_id) REFERENCES app.fiscal_document(id,empresa_id,tenant_id),
-  CONSTRAINT fiscal_document_tax_item FOREIGN KEY(document_id,numero_item) REFERENCES app.fiscal_document_item(document_id,numero),
+  CONSTRAINT fiscal_document_tax_item FOREIGN KEY(document_id,parser_version,numero_item) REFERENCES app.fiscal_document_item(document_id,parser_version,numero),
   CONSTRAINT fiscal_document_tax_scope CHECK((escopo='ITEM' AND numero_item IS NOT NULL) OR (escopo='DOCUMENTO' AND numero_item IS NULL)),
   CONSTRAINT fiscal_document_tax_company FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id)
 );
-CREATE UNIQUE INDEX fiscal_document_tax_identity_idx ON app.fiscal_document_tax(document_id,escopo,coalesce(numero_item,0),codigo);
+CREATE UNIQUE INDEX fiscal_document_tax_identity_idx ON app.fiscal_document_tax(document_id,parser_version,escopo,coalesce(numero_item,0),codigo);
 CREATE INDEX fiscal_document_tax_document_idx ON app.fiscal_document_tax(document_id);
 CREATE TRIGGER fiscal_document_tax_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_tax FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 
 CREATE TABLE app.fiscal_document_reference (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
-  document_id uuid NOT NULL, tipo text NOT NULL, chave text NOT NULL,
+  document_id uuid NOT NULL, parser_version text NOT NULL, tipo text NOT NULL, chave text NOT NULL,
   CONSTRAINT fiscal_document_reference_document FOREIGN KEY(document_id,empresa_id,tenant_id) REFERENCES app.fiscal_document(id,empresa_id,tenant_id),
   CONSTRAINT fiscal_document_reference_company FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
-  CONSTRAINT fiscal_document_reference_unique UNIQUE(document_id,tipo,chave)
+  CONSTRAINT fiscal_document_reference_unique UNIQUE(document_id,parser_version,tipo,chave)
 );
 CREATE INDEX fiscal_document_reference_document_idx ON app.fiscal_document_reference(document_id);
 CREATE TRIGGER fiscal_document_reference_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_reference FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
@@ -149,4 +149,4 @@ DO $$ DECLARE alvo text; BEGIN
 END $$;
 GRANT SELECT,INSERT ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_tax,app.fiscal_document_reference,app.fiscal_document_event TO contaia_app;
 REVOKE UPDATE,DELETE ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_tax,app.fiscal_document_reference,app.fiscal_document_event FROM contaia_app;
-GRANT UPDATE(estado,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,atualizado_em) ON app.fiscal_document TO contaia_app;
+GRANT UPDATE(estado,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,parser_version,atualizado_em) ON app.fiscal_document TO contaia_app;
