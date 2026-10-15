@@ -19,11 +19,15 @@ describe('parser fiscal SPEC-018', () => {
     expect(result.ibsCbsPendente).toBe(false);
   });
 
-  it('normaliza o envelope CT-e sem duplicar o valor total do frete por medida de carga', () => {
-    const result = parsearDocumentoFiscal(fixture('cte-nao-suportado.xml'),'CTE');
+  it('normaliza CT-e 57 sem duplicar o valor total do frete por medida de carga', () => {
+    const result = parsearDocumentoFiscal(fixture('cte-rtc-sintetico.xml'),'CTE');
     expect(result.especie).toBe('CTE');
     expect(result.modelo).toBe('57');
     expect(result.chaveAcesso).toBe('00000000000000000000570010000000010000000010');
+    expect(result.total).toBe('128.95');
+    expect(result.itens).toHaveLength(1);
+    expect(result.itens[0]).toMatchObject({ quantidade: '25.5000', unidade: '01', valor: null });
+    expect(result.ibsCbsPendente).toBe(false);
   });
 
   it('rejeita DTD e XXE antes de construir o DOM', () => {
