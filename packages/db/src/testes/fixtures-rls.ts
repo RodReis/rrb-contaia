@@ -717,7 +717,7 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.fiscal_document_outbox': {
     preparar: prepararStagingFiscal,
     inserir: (banco,e,r) => unico(banco,
-      `insert into app.fiscal_document_outbox(staging_id,tenant_id,empresa_id) values($1,$2,$3) returning staging_id as id`,
+      `insert into app.fiscal_document_outbox(staging_id,tenant_id,empresa_id) values($1,$2,$3) returning id`,
       [r['stagingId'],e.tenantId,e.empresaId]),
     colunaDeAtualizacao: 'tentativas',
   },

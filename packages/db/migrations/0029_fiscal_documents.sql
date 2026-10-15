@@ -4,7 +4,7 @@ ALTER TABLE app.dfe_capture_staging ADD CONSTRAINT dfe_capture_staging_scope_uni
 -- Publicação F17 → F18 é registrada na mesma transação que grava o staging.
 -- O scheduler só descobre escopos; o payload permanece sob RLS por empresa.
 CREATE TABLE app.fiscal_document_outbox (
-  staging_id uuid PRIMARY KEY, tenant_id uuid NOT NULL, empresa_id uuid NOT NULL,
+  id uuid PRIMARY KEY DEFAULT app.uuid_v7(), staging_id uuid NOT NULL UNIQUE, tenant_id uuid NOT NULL, empresa_id uuid NOT NULL,
   estado text NOT NULL DEFAULT 'PENDENTE' CHECK (estado IN ('PENDENTE','PUBLICADO','IGNORADO')),
   tentativas integer NOT NULL DEFAULT 0 CHECK (tentativas >= 0),
   criado_em timestamptz NOT NULL DEFAULT now(), publicado_em timestamptz,
