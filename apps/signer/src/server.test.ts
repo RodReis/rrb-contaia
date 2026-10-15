@@ -35,6 +35,7 @@ const servicos = {
   saude: vi.fn(),
   assinar: vi.fn(),
   executarMtls: vi.fn(),
+  distribuirDfe: vi.fn(),
   diagnosticar: vi.fn(),
   estados: vi.fn(),
   historico: vi.fn(),
@@ -138,6 +139,24 @@ describe('autenticação mTLS interna (SPEC-012 §3.1)', () => {
 });
 
 describe('alçada técnica por rota', () => {
+  it('somente worker chama distribuição DF-e; a API é recusada antes do serviço', async () => {
+    const comando = { tenantId: TENANT, empresaId: EMPRESA, cnpj: '12345678000195', ultNSU: '0', limite: 50, chaveIdempotente: 'captura-dfe-0001', correlationId: 'corr-dfe-0001' };
+    const negada = await chamar(credenciais.api, 'POST', '/v1/distribuicao-dfe', comando);
+    expect(negada.status).toBe(403);
+    expect(servicos.distribuirDfe).not.toHaveBeenCalled();
+    servicos.distribuirDfe.mockResolvedValue({ tipo: 'SEM_NOVOS', codigoResposta: '139', ultNSU: '0', maxNSU: '0', tempoMedioMs: 60_000, itens: [], disponivelNovamenteEm: null });
+    const autorizada = await chamar(credenciais.worker, 'POST', '/v1/distribuicao-dfe', comando);
+    expect(autorizada.status).toBe(200);
+    expect(servicos.distribuirDfe).toHaveBeenCalledOnce();
+  });
+
+  it('contrato DF-e estrito recusa lote acima de 50 e campos extras', async () => {
+    const comando = { tenantId: TENANT, empresaId: EMPRESA, cnpj: '12345678000195', ultNSU: '0', limite: 51, chaveIdempotente: 'captura-dfe-0001', correlationId: 'corr-dfe-0001' };
+    const resposta = await chamar(credenciais.worker, 'POST', '/v1/distribuicao-dfe', comando);
+    expect(resposta.status).toBe(400);
+    expect(servicos.distribuirDfe).not.toHaveBeenCalled();
+  });
+
   it('a API consulta a saúde', async () => {
     servicos.saude.mockResolvedValue({ versaoDoContrato: 'v1', estado: 'OPERACIONAL', verificadoEm: 'agora' });
 

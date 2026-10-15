@@ -81,6 +81,7 @@ export type {
   ResultadoDaConsulta,
 } from './cnpja.js';
 export {
+  ComandoDistribuicaoDfeSchema,
   ComandoAssinarSchema,
   ComandoDiagnosticarSchema,
   ComandoExecutarMtlsSchema,
@@ -95,9 +96,11 @@ export {
   VERSAO_DO_CONTRATO_DO_SIGNER,
 } from './signer.js';
 export type {
+  ComandoDistribuicaoDfe,
   ComandoAssinar,
   ComandoDiagnosticar,
   ComandoExecutarMtls,
+  RespostaDistribuicaoDfe,
   ConsultaEstados,
   ConsultaHistorico,
   EstadoDeSaudeDoSigner,
@@ -125,6 +128,10 @@ export {
   DFE_CAPTURE_DLQ,
   DFE_CAPTURE_JOB,
   DFE_CAPTURE_JOB_OPTIONS,
+  DFE_CAPTURE_REPEAT_ID,
+  DFE_CAPTURE_SCAN_INTERVAL_MS,
+  DFE_CAPTURE_TENANT_INTERVAL_MS,
+  DFE_CAPTURE_MAX_RESPONSE_BYTES,
   DFE_CAPTURE_QUEUE,
   DfeCaptureCommandSchema,
   DfeDistributionCommandSchema,

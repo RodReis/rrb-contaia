@@ -334,7 +334,27 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
 
     // -- SELECT / INSERT / UPDATE por classe ------------------------------------
 
-    if (classe === 'empresa') {
+    if (classe === 'empresa' && tabela.startsWith('app.dfe_capture_')) {
+      await leitura('carteira da empresa (controle positivo)', humano(u.naCarteira), 'visivel');
+      await leitura('fora da carteira', humano(u.fora), 'invisivel');
+      await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');
+      await leitura('sem contexto', nenhum, 'invisivel');
+      await leitura('job técnico na empresa do trabalho', tecnico(c.empresaA1), 'visivel');
+      await leitura('job técnico em outra empresa', tecnico(c.empresaA2), 'invisivel');
+      await insercao('carteira da empresa (controle positivo)', humano(u.naCarteira), 'inserido');
+      await insercao('fora da carteira', humano(u.fora), 'rejeitado_por_rls');
+      await insercao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'rejeitado_por_rls');
+      await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
+      await insercao('job técnico na empresa do trabalho', tecnico(c.empresaA1), 'inserido');
+      await insercao('job técnico em outra empresa', tecnico(c.empresaA2), 'rejeitado_por_rls');
+      await alteracao('carteira da empresa (controle positivo)', tecnico(c.empresaA1), temUpdate ? 'atualizado' : 'negado_por_privilegio');
+      await alteracao('fora da carteira', humano(u.fora), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
+      await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
+      await alteracao('sem contexto', nenhum, temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
+      await alteracao('job técnico em outra empresa', tecnico(c.empresaA2), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
+      const apagada = await tentar(app, tecnico(c.empresaA1), apagar(tabela, linhaA1));
+      registrar(tabela, classe, 'DELETE sem privilégio', 'DELETE', 'negado_por_privilegio', apagada);
+    } else if (classe === 'empresa') {
       // A exceção da F9 vale para os filhos também: o administrador sem vínculo alcança a empresa
       // ARQUIVADA (consulta e reativação gravam histórico), o colaborador comum não.
       const escopoArquivada: Escopo = { ...escopoA1, empresaId: c.empresaA3Arquivada };
@@ -346,16 +366,17 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await insercao('administrador grava em empresa arquivada', humano(u.admin), 'inserido', escopoArquivada);
       await insercao('colaborador comum não grava em empresa arquivada', humano(u.fora), 'rejeitado_por_rls', escopoArquivada);
 
-      await leitura('na carteira (controle positivo)', humano(u.naCarteira), 'visivel');
-      await leitura('na carteira de duas empresas', humano(u.duasEmpresas), 'visivel');
-      await leitura('empresa do mesmo tenant fora da carteira', humano(u.fora), 'invisivel');
-      await leitura('usuário suspenso com vínculo preservado', humano(u.suspenso), 'invisivel');
-      await leitura('carteira removida: vínculo encerrado não vale', humano(u.fora), 'invisivel');
-      await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');
-      await leitura('tenant do contexto trocado pelo de B com usuário de A', humano(u.naCarteira, 'COMUM', c.tenantB), 'invisivel');
-      await leitura('administrador sem vínculo, empresa ativa', humano(u.admin), 'invisivel');
-      await leitura('finalidade administrativa não abre dado operacional', humano(u.naCarteira, 'ADMIN_ACESSO'), 'invisivel');
-      await leitura('localização básica não abre dado operacional', humano(u.naCarteira, 'LOCALIZACAO_BASICA_EMPRESA'), 'invisivel');
+      const actor = (usuario: string, finalidade: FinalidadeHumana = 'COMUM', tenant = c.tenantA) => humano(usuario, finalidade, tenant);
+      await leitura('na carteira (controle positivo)', actor(u.naCarteira), 'visivel');
+      await leitura('na carteira de duas empresas', actor(u.duasEmpresas), 'visivel');
+      await leitura('empresa do mesmo tenant fora da carteira', actor(u.fora), 'invisivel');
+      await leitura('usuário suspenso com vínculo preservado', actor(u.suspenso), 'invisivel');
+      await leitura('carteira removida: vínculo encerrado não vale', actor(u.fora), 'invisivel');
+      await leitura('outro tenant', actor(u.deB, 'COMUM', c.tenantB), 'invisivel');
+      await leitura('tenant do contexto trocado pelo de B com usuário de A', actor(u.naCarteira, 'COMUM', c.tenantB), 'invisivel');
+      await leitura('administrador sem vínculo, empresa ativa', actor(u.admin), 'invisivel');
+      await leitura('finalidade administrativa não abre dado operacional', actor(u.naCarteira, 'ADMIN_ACESSO'), 'invisivel');
+      await leitura('localização básica não abre dado operacional', actor(u.naCarteira, 'LOCALIZACAO_BASICA_EMPRESA'), 'invisivel');
       await leitura('sem contexto', nenhum, 'invisivel');
       await leitura('job técnico na empresa do trabalho', tecnico(c.empresaA1), 'visivel');
       await leitura('job técnico em outra empresa', tecnico(c.empresaA2), 'invisivel');
@@ -374,14 +395,14 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
         'invisivel',
       );
 
-      await insercao('na carteira (controle positivo)', humano(u.naCarteira), 'inserido');
+      await insercao('na carteira (controle positivo)', actor(u.naCarteira), 'inserido');
       await insercao('criador sem vínculo na empresa que está criando', humanoCriando(u.fora, c.empresaA1), 'inserido');
       await insercao('criação de outra empresa não abre esta', humanoCriando(u.fora, c.empresaA2), 'rejeitado_por_rls');
-      await insercao('fora da carteira', humano(u.fora), 'rejeitado_por_rls');
-      await insercao('usuário suspenso', humano(u.suspenso), 'rejeitado_por_rls');
-      await insercao('outro tenant gravando no tenant A', humano(u.deB, 'COMUM', c.tenantB), 'rejeitado_por_rls');
-      await insercao('tenant do contexto B, linha do tenant A', humano(u.naCarteira, 'COMUM', c.tenantB), 'rejeitado_por_rls');
-      await insercao('finalidade administrativa', humano(u.naCarteira, 'ADMIN_ACESSO'), 'rejeitado_por_rls');
+      await insercao('fora da carteira', actor(u.fora), 'rejeitado_por_rls');
+      await insercao('usuário suspenso', actor(u.suspenso), 'rejeitado_por_rls');
+      await insercao('outro tenant gravando no tenant A', actor(u.deB, 'COMUM', c.tenantB), 'rejeitado_por_rls');
+      await insercao('tenant do contexto B, linha do tenant A', actor(u.naCarteira, 'COMUM', c.tenantB), 'rejeitado_por_rls');
+      await insercao('finalidade administrativa', actor(u.naCarteira, 'ADMIN_ACESSO'), 'rejeitado_por_rls');
       await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
       await insercao('job técnico na empresa do trabalho', tecnico(c.empresaA1), 'inserido');
       await insercao('job técnico gravando em outra empresa', tecnico(c.empresaA2), 'rejeitado_por_rls');

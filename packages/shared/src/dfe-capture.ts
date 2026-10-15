@@ -5,10 +5,14 @@ export const DFE_CAPTURE_DLQ = 'dfe-capture-dead';
 export const DFE_CAPTURE_JOB = 'capture';
 export const DFE_CAPTURE_JOB_OPTIONS = {
   attempts: 3,
-  backoff: { type: 'exponential' as const, delay: 1_000 },
+  backoff: { type: 'exponential' as const, delay: 1_000, jitter: 0.5 },
   removeOnComplete: { count: 100 },
   removeOnFail: false,
 } as const;
+export const DFE_CAPTURE_REPEAT_ID = 'dfe-capture-scheduler';
+export const DFE_CAPTURE_SCAN_INTERVAL_MS = 60_000;
+export const DFE_CAPTURE_TENANT_INTERVAL_MS = 60_000;
+export const DFE_CAPTURE_MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 
 const id = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
 const correlationId = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/u);
@@ -54,6 +58,10 @@ export const DfeDistributionResponseSchema = z.strictObject({
   retryAt: z.iso.datetime().nullable(),
   providerCode: z.string().max(32),
   items: z.array(DfeDistributionItemSchema).max(50),
+}).superRefine((value, context) => {
+  if (new TextEncoder().encode(JSON.stringify(value)).byteLength > DFE_CAPTURE_MAX_RESPONSE_BYTES) {
+    context.addIssue({ code: 'custom', message: 'Resposta de distribuição excede o limite de transporte.' });
+  }
 });
 export type DfeDistributionResponse = z.infer<typeof DfeDistributionResponseSchema>;
 

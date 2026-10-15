@@ -67,6 +67,41 @@ export const criarDuble = ({ nome, certificadoPem, chavePem, caDosClientesPem, r
   let recusasDeTls = 0;
 
   const tratar = async (requisicao, resposta) => {
+    if (requisicao.method === 'POST' && requisicao.url === '/v1/distribuicao') {
+      const chave = requisicao.headers['idempotency-key'];
+      const cnpj = cnpjDoCertificado(requisicao.socket);
+      if (typeof chave !== 'string' || cnpj === null || requisicao.headers['x-cnpj-declarado'] !== cnpj) {
+        responder(resposta, 403, { codigo: 'IDENTIDADE_INCOMPATIVEL' });
+        return;
+      }
+      const corpo = JSON.parse(await lerCorpo(requisicao));
+      if (corpo.cnpj !== cnpj || !/^\d{1,15}$/u.test(corpo.ultNSU) || !Number.isInteger(corpo.limite) || corpo.limite < 1 || corpo.limite > 50) {
+        responder(resposta, 400, { codigo: 'REQUISICAO_INVALIDA' });
+        return;
+      }
+      const existente = respostasPorChave.get(`dfe:${chave}`);
+      if (existente !== undefined) {
+        if (existente.fingerprint !== JSON.stringify(corpo)) {
+          responder(resposta, 409, { codigo: 'IDEMPOTENCIA_CONFLITO' });
+          return;
+        }
+        responder(resposta, existente.status, existente.corpo, { 'x-idempotent-replay': 'true' });
+        return;
+      }
+      const cursor = BigInt(corpo.ultNSU);
+      const temNovo = cursor === 0n;
+      const proximo = temNovo ? '000000000000001' : corpo.ultNSU;
+      const respostaLote = {
+        tipo: temNovo ? 'LOTE' : 'SEM_NOVOS', codigoResposta: temNovo ? '137' : '139',
+        ultNSU: proximo, maxNSU: proximo, tempoMedioMs: 60_000, disponivelNovamenteEm: null,
+        itens: temNovo ? [{ nsu: proximo, chaveAcesso: null, especie: 'NFE_55', conteudoBruto: '<NFe>opaco-fixture</NFe>', disponibilizadoEm: null }] : [],
+      };
+      respostasPorChave.set(`dfe:${chave}`, { status: 200, corpo: respostaLote, fingerprint: JSON.stringify(corpo) });
+      registrarEfeito({ duble: nome, cnpj, tipo: 'DISTRIBUICAO_DFE' });
+      responder(resposta, 200, respostaLote);
+      return;
+    }
+
     if (requisicao.method !== 'POST' || requisicao.url !== '/v1/recepcao') {
       responder(resposta, 404, { codigo: 'NAO_ENCONTRADO' });
       return;

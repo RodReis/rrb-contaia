@@ -9,6 +9,7 @@ export type DfeBatchItem = Readonly<{
   accessKey: string | null;
   kind: DfeDocumentKind;
   rawContent: string;
+  availableAt?: Date | null;
 }>;
 
 export type DfeCaptureErrorCode =
@@ -30,5 +31,6 @@ export type DfeCaptureFailureKind =
   | 'PROVIDER_UNAVAILABLE'
   | 'CERTIFICATE_UNAVAILABLE'
   | 'INVALID_RESPONSE'
+  | 'INVALID_BATCH'
   | 'BATCH_CONFLICT'
   | 'CONSUMO_INDEVIDO';

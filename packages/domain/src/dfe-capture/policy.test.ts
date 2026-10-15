@@ -107,7 +107,7 @@ describe('classifyCaptureFailure (SPEC-017 §3.7–§3.8)', () => {
     expect(classifyCaptureFailure({ kind, providerRetryAt: null, now: NOW })).toMatchObject({ retry: true });
   });
 
-  it.each(['CERTIFICATE_UNAVAILABLE', 'INVALID_RESPONSE', 'BATCH_CONFLICT'] as const)('classifica %s como definitiva', (kind) => {
+  it.each(['CERTIFICATE_UNAVAILABLE', 'INVALID_RESPONSE', 'INVALID_BATCH', 'BATCH_CONFLICT'] as const)('classifica %s como definitiva', (kind) => {
     expect(classifyCaptureFailure({ kind, providerRetryAt: null, now: NOW })).toMatchObject({ retry: false });
   });
 });

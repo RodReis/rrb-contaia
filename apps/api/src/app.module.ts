@@ -61,6 +61,9 @@ import { TaxRulesController } from './tax-rules/tax-rules.controller';
 import { TaxRulesService } from './tax-rules/tax-rules.service';
 import { TaxSimulationsController } from './tax-simulations/tax-simulations.controller';
 import { TaxSimulationsService } from './tax-simulations/tax-simulations.service';
+import { DfeCaptureController } from './dfe-capture/dfe-capture.controller';
+import { DfeCaptureService } from './dfe-capture/dfe-capture.service';
+import { PROVEDOR_DA_FILA_DFE_CAPTURE } from './dfe-capture/dfe-capture.queue';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -95,6 +98,7 @@ import { TaxSimulationsService } from './tax-simulations/tax-simulations.service
     ConvitesController,
     TaxRulesController,
     TaxSimulationsController,
+    DfeCaptureController,
   ],
   providers: [
     PoolDoBanco,
@@ -126,6 +130,8 @@ import { TaxSimulationsService } from './tax-simulations/tax-simulations.service
     ConsultaDeCnpjNaCnpja,
     TaxRulesService,
     TaxSimulationsService,
+    DfeCaptureService,
+    ...PROVEDOR_DA_FILA_DFE_CAPTURE,
     GuardDoCatalogoTributario,
     GuardDeSessao,
     GuardDeCadastro,

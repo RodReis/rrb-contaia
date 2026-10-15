@@ -30,6 +30,7 @@ import { AbaEmpregados } from '../empregados/aba-empregados';
 import { consultaEmpregados } from '../empregados/permissoes';
 import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
+import { AbaCapturaDfe } from '../dfe-capture/aba-captura-dfe';
 import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
 import { ADMINISTRACAO_DE_USUARIOS, pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
@@ -54,6 +55,7 @@ const ABAS = [
   { id: 'documentos', rotulo: 'Documentos' },
   { id: 'plano-contas', rotulo: 'Plano de contas' },
   { id: 'empregados', rotulo: 'Empregados' },
+  { id: 'captura-dfe', rotulo: 'Captura DF-e' },
   { id: 'colaboradores', rotulo: 'Colaboradores' },
 ] as const;
 
@@ -90,7 +92,7 @@ const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
 };
 
 /** Abas que só existem depois que a sessão diz o que o papel pode. */
-const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'empregados', 'colaboradores'];
+const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'empregados', 'captura-dfe', 'colaboradores'];
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
@@ -198,11 +200,13 @@ export const ManutencaoDaEmpresa = ({
   const consultaPlano = sessao !== undefined && concede(sessao, CONSULTA_DO_PLANO);
   // Empregados idem, com a permissão própria (SPEC-014 §3.12).
   const consultaDeEmpregados = consultaEmpregados(sessao);
+  const consultaDfe = sessao !== undefined && concede(sessao, 'empresas.cadastro.consultar');
   const abas = ABAS.filter(
     (aba) =>
       (aba.id !== 'colaboradores' || administraCarteira) &&
       (aba.id !== 'plano-contas' || consultaPlano) &&
-      (aba.id !== 'empregados' || consultaDeEmpregados),
+      (aba.id !== 'empregados' || consultaDeEmpregados) &&
+      (aba.id !== 'captura-dfe' || consultaDfe),
   );
   const aba = useAbaNaUrl(
     visao.id,
@@ -317,6 +321,12 @@ export const ManutencaoDaEmpresa = ({
           {consultaDeEmpregados ? (
             <Tabs.Content value="empregados" className="focus-visible:outline-none">
               <AbaEmpregados empresaId={visao.id} nomeDaEmpresa={nomeIdentificado} somenteLeitura={arquivada} />
+            </Tabs.Content>
+          ) : null}
+
+          {consultaDfe ? (
+            <Tabs.Content value="captura-dfe" className="focus-visible:outline-none">
+              <AbaCapturaDfe empresaId={visao.id} somenteLeitura={arquivada} podeReprocessar={sessao?.papeis.includes('admin_escritorio') ?? false} />
             </Tabs.Content>
           ) : null}
 

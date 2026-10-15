@@ -48,6 +48,7 @@ import {
   type RespostaDeEstados,
   type RespostaDeExecucaoMtls,
   type RespostaDeHistorico,
+  type RespostaDistribuicaoDfe,
 } from '@contaia/shared';
 import type { Pool, PoolClient } from 'pg';
 
@@ -55,10 +56,12 @@ import type { IdentidadeDeServico } from './alcada.js';
 import { xmlDeDiagnostico } from './diagnostico.js';
 import { ErroDoSigner, type CodigoDoSigner } from './erro.js';
 import { executarComSegredo, type DependenciasDaExecucao, type Desfecho } from './execucao.js';
-import { chaveProtegida, hashDoConteudo } from './idempotencia.js';
+import { chaveProtegida, hashDoConteudo, impressaoDigitalDoCertificado } from './idempotencia.js';
 import { criarServicosDeSaude, type ServicosDoSigner } from './servicos.js';
 import { ADAPTADORES } from './xml/adaptadores.js';
 import { prepararParaAssinar } from './xml/seguranca.js';
+import { consultarDistribuicaoDfe } from './destino.js';
+import { abrirPkcs12ParaAssinar } from './xml/pkcs12.js';
 
 export type DependenciasDoCasoDeUso = DependenciasDaExecucao &
   Readonly<{
@@ -77,7 +80,7 @@ type Pedido = Readonly<{
   usuarioOriginadorId: string | null;
   chaveIdempotente: string;
   /** O diagnóstico monta o XML só depois de conhecer o CNPJ da empresa. */
-  xml: string | ((cnpj: string) => string);
+    xml: string | ((cnpj: string) => string);
   origemDiagnostico: 'AUTOMATICO' | 'MANUAL' | null;
 }>;
 
@@ -485,6 +488,81 @@ export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDo
     },
     async executarMtls(identidade, comando) {
       return emSucesso(await executar(comandoOperacional('MTLS', identidade, comando)));
+    },
+    async distribuirDfe(identidade, comando): Promise<RespostaDistribuicaoDfe> {
+      if (identidade !== 'worker') throw new ErroDoSigner('SIGNER_ALCADA_NEGADA', 403);
+      const pedido: Pedido = {
+        tipo: 'DISTRIBUICAO_DFE', identidade, tenantId: comando.tenantId, empresaId: comando.empresaId,
+        finalidade: 'DFE_TESTE', correlationId: comando.correlationId,
+        usuarioOriginadorId: comando.usuarioOriginadorId ?? null, chaveIdempotente: comando.chaveIdempotente,
+        xml: JSON.stringify({ cnpj: comando.cnpj, ultNSU: comando.ultNSU, limite: comando.limite }), origemDiagnostico: null,
+      };
+      const chaveHmac = chaveProtegida(comando.chaveIdempotente, deps.pepper);
+      const fingerprint = hashDoConteudo(pedido.xml as string);
+      const fase = await comoSignerDaEmpresa(comando.tenantId, comando.empresaId, comando.correlationId, async (cliente) => {
+        const certificado = await buscarCertificadoParaUso(cliente, comando.empresaId);
+        const condicao = certificado === null ? null : certificadoUtilizavel(certificado, dataCivilEmSaoPaulo(deps.agora()));
+        if (certificado === null || !condicao?.ok || certificado.cnpjDaEmpresa !== comando.cnpj) {
+          throw new ErroDoSigner('SIGNER_CERTIFICADO_AUSENTE');
+        }
+        const existente = await buscarOperacaoPorChave(cliente, chaveHmac);
+        if (existente !== null) {
+          if (existente.tipo !== 'DISTRIBUICAO_DFE' || existente.hashConteudo !== fingerprint) {
+            throw new ErroDoSigner('SIGNER_IDEMPOTENCIA_CONFLITO');
+          }
+          if (existente.estado === 'EM_ANDAMENTO') throw new ErroDoSigner('SIGNER_OPERACAO_EM_ANDAMENTO');
+          if (existente.estado === 'RECUSADA') throw new ErroDoSigner('DFE_CONSUMO_INDEVIDO');
+          if (existente.estado === 'FALHA_TRANSITORIA') {
+            if (!(await reabrirOperacao(cliente, existente.id))) throw new ErroDoSigner('SIGNER_OPERACAO_EM_ANDAMENTO');
+            return { certificado, operacaoId: existente.id, inicio: deps.agora() };
+          }
+          return { certificado, operacaoId: existente.id, inicio: deps.agora(), concluida: true as const };
+        }
+        const inicio = deps.agora();
+        const operacaoId = await criarOperacao(cliente, {
+          tenantId: comando.tenantId, empresaId: comando.empresaId, finalidade: 'DFE_TESTE',
+          tipo: 'DISTRIBUICAO_DFE', chaveHmac, hashConteudo: fingerprint,
+          certificadoId: certificado.certificadoId, referenciaSegredo: certificado.referenciaSegredo,
+          identidadeTecnica: identidade, usuarioOriginadorId: comando.usuarioOriginadorId ?? null,
+          correlationId: comando.correlationId,
+        });
+        return { certificado, operacaoId, inicio };
+      });
+      const segredo = await deps.vault.ler({ tenantId: comando.tenantId, empresaId: comando.empresaId, referencia: fase.certificado.referenciaSegredo });
+      let resposta: RespostaDistribuicaoDfe;
+      try {
+        const material = abrirPkcs12ParaAssinar(segredo.pkcs12, segredo.senha);
+        if (impressaoDigitalDoCertificado(material.certificadoPem) !== fase.certificado.impressaoDigital.toLowerCase()) {
+          throw new ErroDoSigner('SIGNER_VAULT_INDISPONIVEL', 503);
+        }
+        resposta = await consultarDistribuicaoDfe({
+          destino: deps.destinos.DFE_TESTE, pfx: segredo.pkcs12, senha: segredo.senha, caPem: deps.caDosDublesPem,
+          cnpj: comando.cnpj, ultNSU: comando.ultNSU, limite: comando.limite,
+          chaveIdempotente: comando.chaveIdempotente, tempoLimiteMs: deps.tempoLimiteDoDestinoMs,
+        });
+      } catch (erro) {
+        const codigo = erro instanceof Error && ['DFE_PROVIDER_UNAVAILABLE', 'DFE_RESPONSE_INVALID'].includes(erro.message)
+          ? erro.message : erro instanceof ErroDoSigner ? erro.codigo : 'SIGNER_INDISPONIVEL';
+        await comoSignerDaEmpresa(comando.tenantId, comando.empresaId, comando.correlationId, async (cliente) => {
+          if (!(await finalizarOperacao(cliente, fase.operacaoId, { estado: 'FALHA_TRANSITORIA', codigo }))) return;
+          await registrarEventoDoSigner(cliente, evento(pedido, { resultado: 'FALHA', codigo, reutilizado: false, inicio: fase.inicio,
+            operacaoId: fase.operacaoId, referenciaSegredo: fase.certificado.referenciaSegredo, hashConteudo: fingerprint, chaveHmac }));
+        });
+        throw new ErroDoSigner(codigo as CodigoDoSigner);
+      } finally {
+        segredo.pkcs12.fill(0);
+      }
+      const sucesso = resposta.tipo !== 'CONSUMO_INDEVIDO';
+      if ('concluida' in fase) return resposta;
+      await comoSignerDaEmpresa(comando.tenantId, comando.empresaId, comando.correlationId, async (cliente) => {
+        await finalizarOperacao(cliente, fase.operacaoId, { estado: sucesso ? 'CONCLUIDA' : 'RECUSADA', codigo: sucesso ? null : 'DFE_CONSUMO_INDEVIDO' });
+        await registrarEventoDoSigner(cliente, evento(pedido, {
+          resultado: sucesso ? 'SUCESSO' : 'RECUSA', codigo: sucesso ? null : 'DFE_CONSUMO_INDEVIDO', reutilizado: false,
+          inicio: fase.inicio, operacaoId: fase.operacaoId, referenciaSegredo: fase.certificado.referenciaSegredo,
+          hashConteudo: fingerprint, chaveHmac,
+        }));
+      });
+      return resposta;
     },
     async diagnosticar(identidade, comando: ComandoDiagnosticar) {
       return emSucesso(

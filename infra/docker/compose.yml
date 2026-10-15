@@ -380,6 +380,7 @@ services:
     environment:
       WORKERS_PORT: '${WORKERS_PORT}'
       DATABASE_APP_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
+      DATABASE_DFE_SCHEDULER_URL: postgresql://contaia_dfe_scheduler:contaia_dfe_scheduler_local@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
       # A verificação de saúde é de 1 minuto (SPEC-012 §3.10). Só a prova E2E a encurta, para
       # provar incidente e recuperação em segundos: três falhas seguidas abrem o incidente.

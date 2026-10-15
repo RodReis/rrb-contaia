@@ -9,7 +9,7 @@ import { PRAZO_DE_EM_ANDAMENTO_MS } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 
 export type FinalidadeDoSigner = 'DFE_TESTE' | 'ESOCIAL_TESTE';
-export type TipoDeOperacao = 'ASSINATURA' | 'MTLS' | 'DIAGNOSTICO';
+export type TipoDeOperacao = 'ASSINATURA' | 'MTLS' | 'DIAGNOSTICO' | 'DISTRIBUICAO_DFE';
 export type EstadoDaOperacaoPersistida = 'EM_ANDAMENTO' | 'CONCLUIDA' | 'RECUSADA' | 'FALHA_TRANSITORIA';
 
 export type CertificadoParaUso = Readonly<{

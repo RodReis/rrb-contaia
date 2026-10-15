@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 
-import { criarPoolDaAplicacao } from '@contaia/db';
+import { criarPoolDaAplicacao, criarPoolDoAgendadorDfe } from '@contaia/db';
 import { conexaoDoRedis, criarClienteDoSigner } from '@contaia/signer-client';
 
 import { lerConfig, type ConfigDoArmazenamento, type ConfigDoSigner } from './config.js';
 import { iniciarConsumidores } from './consumidores.js';
 import { verificarSaude } from './monitor.js';
 import { iniciarConsumidorDeEmpregados } from './empregados/consumidor.js';
+import { iniciarConsumidorDfeCapture } from './dfe-capture.js';
 import { criarLeitorDoArmazenamento } from './importacao/leitura-s3.js';
 import { iniciarConsumidorDoPlanoDeContas } from './plano-contas/consumidor.js';
 import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
@@ -58,6 +59,15 @@ const ativos: string[] = [];
 if (config.signer !== null) {
   fechamentos.push(await iniciarSigner(config.signer));
   ativos.push('Signer');
+  const certificadoPem = readFileSync(config.signer.arquivoDoCertificado, 'utf8');
+  const chavePem = readFileSync(config.signer.arquivoDaChave, 'utf8');
+  const caPem = readFileSync(config.signer.arquivoDaCaInterna, 'utf8');
+  const signer = criarClienteDoSigner({ host: config.signer.signer.host, porta: config.signer.signer.porta,
+    servername: config.signer.signer.servername, certificadoPem, chavePem, caPem });
+  const schedulerPool = criarPoolDoAgendadorDfe();
+  const captura = await iniciarConsumidorDfeCapture({ pool, schedulerPool, conexao, signer, agora });
+  fechamentos.push(async () => { await captura.fechar(); await schedulerPool.end(); });
+  ativos.push('captura DF-e');
 }
 if (config.armazenamento !== null) {
   fechamentos.push(await iniciarImportacoes(config.armazenamento));

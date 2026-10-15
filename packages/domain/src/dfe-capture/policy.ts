@@ -121,6 +121,8 @@ export const classifyCaptureFailure = (input: FailureInput): FailureClassificati
       ? 'DFE_CERTIFICATE_UNAVAILABLE'
       : input.kind === 'INVALID_RESPONSE'
         ? 'DFE_RESPONSE_INVALID'
+        : input.kind === 'INVALID_BATCH'
+          ? 'DFE_BATCH_INVALID'
         : input.kind === 'BATCH_CONFLICT'
           ? 'DFE_CAPTURE_CONFLICT'
           : input.kind === 'SIGNER_UNAVAILABLE'
