@@ -31,6 +31,7 @@ import { consultaEmpregados } from '../empregados/permissoes';
 import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
 import { AbaCapturaDfe } from '../dfe-capture/aba-captura-dfe';
+import { PainelDeDocumentosFiscais } from '../fiscal-documents/painel-de-documentos-fiscais';
 import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
 import { ADMINISTRACAO_DE_USUARIOS, pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
@@ -327,6 +328,8 @@ export const ManutencaoDaEmpresa = ({
           {consultaDfe ? (
             <Tabs.Content value="captura-dfe" className="focus-visible:outline-none">
               <AbaCapturaDfe empresaId={visao.id} somenteLeitura={arquivada} podeReprocessar={sessao?.papeis.includes('admin_escritorio') ?? false} />
+              <PainelDeDocumentosFiscais empresaId={visao.id} somenteLeitura={arquivada}
+                podeReprocessar={sessao?.papeis.some((papel) => ['admin_escritorio','contador','auxiliar'].includes(papel)) ?? false} />
             </Tabs.Content>
           ) : null}
 

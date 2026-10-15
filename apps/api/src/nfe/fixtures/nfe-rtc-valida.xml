@@ -93,6 +93,7 @@
         </imposto>
       </det>
       <total>
+        <ICMSTot><vNF>204.20</vNF></ICMSTot>
         <IBSCBSTot>
           <vBCIBSCBS>204.20</vBCIBSCBS>
           <gIBS><vIBS>0.20</vIBS></gIBS>

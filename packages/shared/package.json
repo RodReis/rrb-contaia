@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./fiscal-document-parser": {
+      "types": "./dist/fiscal-documents/parser.d.ts",
+      "default": "./dist/fiscal-documents/parser.js"
     }
   },
   "scripts": {
@@ -20,6 +24,7 @@
   },
   "dependencies": {
     "@contaia/domain": "workspace:*",
+    "@xmldom/xmldom": "0.8.15",
     "csv-parse": "^7.0.3",
     "zod": "^4.6.5"
   },

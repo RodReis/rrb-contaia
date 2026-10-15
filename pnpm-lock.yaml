@@ -501,6 +501,9 @@ importers:
       '@contaia/domain':
         specifier: workspace:*
         version: link:../domain
+      '@xmldom/xmldom':
+        specifier: 0.8.15
+        version: 0.8.15
       csv-parse:
         specifier: ^7.0.3
         version: 7.0.3

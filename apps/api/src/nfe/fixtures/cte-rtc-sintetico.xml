@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fixture sintetica nao oficial para testar campos do CT-e 4.00 com RTC. -->
+<cteProc xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00">
+  <CTe>
+    <infCte versao="4.00" Id="CTe00000000000000000000570010000000010000000010">
+      <ide>
+        <cUF>35</cUF><cCT>00000001</cCT><CFOP>5353</CFOP><natOp>PRESTACAO DE TESTE</natOp>
+        <mod>57</mod><serie>1</serie><nCT>1</nCT><dhEmi>2026-08-03T10:30:00-03:00</dhEmi><tpCTe>0</tpCTe>
+      </ide>
+      <emit><CNPJ>00000000000000</CNPJ><IE>000000000</IE><xNome>EMITENTE CT-e TESTE</xNome></emit>
+      <rem><CNPJ>11111111111111</CNPJ><xNome>REMETENTE CT-e TESTE</xNome></rem>
+      <dest><CNPJ>22222222222222</CNPJ><xNome>DESTINATARIO CT-e TESTE</xNome></dest>
+      <vPrest><vTPrest>128.95</vTPrest><vRec>128.95</vRec><Comp><xNome>FRETE PESO</xNome><vComp>128.95</vComp></Comp></vPrest>
+      <imp>
+        <ICMS><ICMS00><CST>00</CST><vBC>100.00</vBC><pICMS>12.00</pICMS><vICMS>12.00</vICMS></ICMS00></ICMS>
+        <IBSCBS>
+          <CST>000</CST><cClassTrib>000001</cClassTrib>
+          <gIBSCBS><vBC>100.00</vBC>
+            <gIBS><gIBSUF><pIBSUF>0.1000</pIBSUF><vIBSUF>0.10</vIBSUF></gIBSUF>
+              <gIBSMun><pIBSMun>0.0000</pIBSMun><vIBSMun>0.00</vIBSMun></gIBSMun><vIBS>0.10</vIBS></gIBS>
+            <gCBS><pCBS>0.9000</pCBS><vCBS>0.90</vCBS></gCBS>
+          </gIBSCBS>
+        </IBSCBS>
+      </imp>
+      <infCarga><vCarga>100.00</vCarga><proPred>PRODUTO DE TESTE</proPred>
+        <infQ><cUnid>01</cUnid><tpMed>PESO BRUTO</tpMed><qCarga>25.5000</qCarga></infQ>
+      </infCarga>
+      <infDoc><infNFe><chave>00000000000000000000550010000000010000000010</chave></infNFe></infDoc>
+    </infCte>
+  </CTe>
+  <protCTe versao="4.00"><infProt><tpAmb>2</tpAmb><chCTe>00000000000000000000570010000000010000000010</chCTe>
+    <dhRecbto>2026-08-03T10:31:00-03:00</dhRecbto><nProt>135260000000001</nProt><cStat>100</cStat><xMotivo>Autorizado</xMotivo>
+  </infProt></protCTe>
+</cteProc>
