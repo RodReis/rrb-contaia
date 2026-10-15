@@ -3,10 +3,17 @@ import { DOMParser } from '@xmldom/xmldom';
 export const TAMANHO_MAXIMO_XML_FISCAL = 10 * 1024 * 1024;
 export type EspecieFiscal = 'NFE_55' | 'CTE';
 export type FalhaParseFiscal = 'FISCAL_XML_INVALID' | 'FISCAL_XML_UNSAFE' | 'FISCAL_XML_TOO_LARGE' | 'FISCAL_LAYOUT_UNSUPPORTED' | 'FISCAL_DOCUMENT_TYPE_MISMATCH' | 'FISCAL_DOCUMENT_IDENTITY_INVALID' | 'FISCAL_IBS_CBS_INCOMPLETE';
+export type ParteFiscalParseada = Readonly<{
+  papel: 'EMITENTE' | 'DESTINATARIO'; identificador: string | null; nome: string | null; inscricaoEstadual: string | null;
+  logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null;
+  codigoMunicipio: string | null; municipio: string | null; uf: string | null; cep: string | null;
+  codigoPais: string | null; pais: string | null;
+}>;
 export type DocumentoFiscalParseado = Readonly<{
   especie: EspecieFiscal; modelo: string; versaoLayout: string; chaveAcesso: string;
   protocolo: string | null;
   referencias: readonly Readonly<{ tipo: string; chave: string }>[];
+  partes: readonly ParteFiscalParseada[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   total: string | null; itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
@@ -74,10 +81,25 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     const chave = texto(node as unknown as XmlContainer, nfe ? 'refNFe' : 'chave', namespaceEsperado);
     return chave ? [{ tipo: nfe ? 'NFE' : 'NFE_VINCULADA_CTE', chave }] : [];
   });
+  const partes = ([['EMITENTE', emitenteNode], ['DESTINATARIO', destinatarioNode]] as const).flatMap(([papel, node]) => {
+    if (!node) return [];
+    const addressName = papel === 'EMITENTE' ? 'enderEmit' : 'enderDest';
+    const address = node.getElementsByTagNameNS(namespaceEsperado, addressName)[0] as Element | undefined;
+    return [{
+      papel,
+      identificador: texto(node, 'CNPJ', namespaceEsperado) ?? texto(node, 'CPF', namespaceEsperado),
+      nome: texto(node, 'xNome', namespaceEsperado), inscricaoEstadual: texto(node, 'IE', namespaceEsperado),
+      logradouro: texto(address ?? null, 'xLgr', namespaceEsperado), numero: texto(address ?? null, 'nro', namespaceEsperado),
+      complemento: texto(address ?? null, 'xCpl', namespaceEsperado), bairro: texto(address ?? null, 'xBairro', namespaceEsperado),
+      codigoMunicipio: texto(address ?? null, 'cMun', namespaceEsperado), municipio: texto(address ?? null, 'xMun', namespaceEsperado),
+      uf: texto(address ?? null, 'UF', namespaceEsperado), cep: texto(address ?? null, 'CEP', namespaceEsperado),
+      codigoPais: texto(address ?? null, 'cPais', namespaceEsperado), pais: texto(address ?? null, 'xPais', namespaceEsperado),
+    }];
+  });
   return {
     especie, modelo: model!, versaoLayout: info.getAttribute('versao') ?? document.documentElement.getAttribute('versao') ?? 'desconhecida',
     chaveAcesso: key, emitidoEm: emission,
-    protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado), referencias,
+    protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado), referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),
     destinatario: texto(destinatarioNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'CPF', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'xNome', namespaceEsperado),
     total: texto(document, nfe ? 'vNF' : 'vTPrest', namespaceEsperado), itens: items, ibsCbsPendente,

@@ -259,6 +259,24 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                     </ul>
                                   </div>
                                 ) : null}
+                                {detalhe.data.partes.length ? (
+                                  <section className="mt-md">
+                                    <h4 className="font-display text-title-sm text-foreground">Partes e localização declarada</h4>
+                                    <dl className="mt-xs grid grid-cols-[minmax(7rem,auto)_1fr] gap-x-sm gap-y-1 text-body-sm">
+                                      {detalhe.data.partes.map((parte) => (
+                                        <Fragment key={parte.papel}>
+                                          <dt className="text-muted-foreground">{parte.papel === 'EMITENTE' ? 'Emitente' : 'Destinatário'}</dt>
+                                          <dd className="min-w-0 break-words text-foreground">
+                                            <span className="block">{parte.nome ?? 'Nome não informado'}{parte.identificador ? ` · ${parte.identificador}` : ''}</span>
+                                            <span className="block text-label-sm text-muted-foreground">
+                                              {[parte.logradouro, parte.numero, parte.complemento, parte.bairro, parte.municipio, parte.uf, parte.cep].filter(Boolean).join(', ') || 'Endereço não informado'}
+                                            </span>
+                                          </dd>
+                                        </Fragment>
+                                      ))}
+                                    </dl>
+                                  </section>
+                                ) : null}
                                 {detalhe.data.estado === 'PENDENTE_IBS_CBS' ? (
                                   <p className="mt-sm flex items-start gap-xs rounded-md border border-warning/40 bg-warning/10 p-sm text-body-sm text-foreground">
                                     <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />

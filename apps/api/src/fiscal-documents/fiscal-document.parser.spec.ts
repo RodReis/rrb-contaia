@@ -15,10 +15,20 @@ describe('parser fiscal SPEC-018', () => {
     expect(result.modelo).toBe('55');
     expect(result.chaveAcesso).toBe('00000000000000000000550010000000010000000010');
     expect(result.itens).toHaveLength(3);
+    expect(result.partes[0]).toMatchObject({ papel: 'EMITENTE', identificador: '00000000000000', nome: 'EMITENTE DE TESTE NAO OFICIAL' });
     expect(result.protocolo).toBeNull();
     expect(result.referencias).toEqual([]);
     expect(result.hashSha256).toBe(createHash('sha256').update(bytes).digest('hex'));
     expect(result.ibsCbsPendente).toBe(false);
+  });
+
+  it('normaliza campos de endereço declarados sem inventar localização ausente', () => {
+    const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(
+      '</emit>', '<enderEmit><xLgr>Rua Teste</xLgr><nro>10</nro><xBairro>Centro</xBairro><cMun>3550308</cMun><xMun>São Paulo</xMun><UF>SP</UF><CEP>01000000</CEP></enderEmit></emit>',
+    );
+    const result = parsearDocumentoFiscal(Buffer.from(source), 'NFE_55');
+    expect(result.partes[0]).toMatchObject({ logradouro: 'Rua Teste', numero: '10', bairro: 'Centro', codigoMunicipio: '3550308', municipio: 'São Paulo', uf: 'SP', cep: '01000000' });
+    expect(result.partes[1]).toBeUndefined();
   });
 
   it('normaliza CT-e 57 sem duplicar o valor total do frete por medida de carga', () => {

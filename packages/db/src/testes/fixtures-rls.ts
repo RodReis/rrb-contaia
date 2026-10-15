@@ -729,6 +729,12 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       [e.tenantId,e.empresaId,r['stagingId'],`fiscal/${e.sufixo}/${proximo()}.xml`]),
     colunaDeAtualizacao: 'estado',
   },
+  'app.fiscal_document_party': {
+    preparar: prepararDocumentoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,papel,nome)
+       values($1,$2,$3,'EMITENTE','Fixture') returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+  },
   'app.fiscal_document_origin': {
     preparar: prepararDocumentoFiscal,
     inserir: (banco,e,r) => unico(banco,

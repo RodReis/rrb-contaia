@@ -4,6 +4,9 @@ import { randomUUID } from 'node:crypto';
 export type RegistroFiscalPersistido = Readonly<{
   id: string; especie: 'NFE_55' | 'CTE'; chaveAcesso: string; hashSha256: string; tamanho: number;
   versaoLayout: string; modelo: string; protocolo: string | null; referencias: readonly Readonly<{ tipo: string; chave: string }>[];
+  partes: readonly Readonly<{ papel: 'EMITENTE' | 'DESTINATARIO'; identificador: string | null; nome: string | null; inscricaoEstadual: string | null;
+    logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; codigoMunicipio: string | null;
+    municipio: string | null; uf: string | null; cep: string | null; codigoPais: string | null; pais: string | null }>[];
   emitidoEm: string | null; emitente: string | null;
   destinatario: string | null; total: string | null; ibsCbsPendente: boolean;
   itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
@@ -56,13 +59,14 @@ export const obterDocumentoFiscal = async (client: PoolClient, empresaId: string
   );
   if (!document.rows[0]) return null;
   const { estado_apresentado, ...documentData } = document.rows[0];
-  const [items,origins,events,references] = await Promise.all([
+  const [items,origins,events,references,parties] = await Promise.all([
     client.query(`select numero,codigo,descricao,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 order by numero`, [documentId]),
     client.query(`select staging_id,cnpj,nsu,correlation_id,capturado_em from app.fiscal_document_origin where document_id=$1 order by capturado_em`, [documentId]),
     client.query(`select tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ocorrido_em from app.fiscal_document_event where document_id=$1 order by ocorrido_em desc limit 30`, [documentId]),
     client.query(`select tipo,chave from app.fiscal_document_reference where document_id=$1 order by tipo,chave`, [documentId]),
+    client.query(`select papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais from app.fiscal_document_party where document_id=$1 order by papel`, [documentId]),
   ]);
-  return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows, referencias: references.rows };
+  return { ...documentData, estado: estado_apresentado, itens: items.rows, origens: origins.rows, eventos: events.rows, referencias: references.rows, partes: parties.rows };
 };
 
 export const persistirDocumentoFiscal = async (client: PoolClient, input: Readonly<{
@@ -117,6 +121,13 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
       await client.query(
         `insert into app.fiscal_document_reference(tenant_id,empresa_id,document_id,tipo,chave) values($1,$2,$3,$4,$5) on conflict(document_id,tipo,chave) do nothing`,
         [input.tenantId,input.empresaId,id,reference.tipo,reference.chave],
+      );
+    }
+    for (const party of input.parsed.partes) {
+      await client.query(
+        `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) on conflict(document_id,papel) do nothing`,
+        [input.tenantId,input.empresaId,id,party.papel,party.identificador,party.nome,party.inscricaoEstadual,party.logradouro,party.numero,party.complemento,party.bairro,party.codigoMunicipio,party.municipio,party.uf,party.cep,party.codigoPais,party.pais],
       );
     }
   }
