@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-13
+updated: 2026-10-15
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -9,6 +9,8 @@ updated: 2026-10-13
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-090][F90] Integração financeiro-contábil de títulos e baixas F68 (#122)
+- [MVP2][SPEC-089][F89] Pix Automático para cobrança recorrente F68 (#121)
 - [MVP2][SPEC-088][F88] Iniciação Pix de DAS e FGTS via Open Finance (#119)
 - [MVP2][SPEC-087][F87] Cobrança Pix Sicoob e baixa idempotente (#118)
 - [MVP2][SPEC-085][F85] Open Finance por empresa via agregador (#117)
@@ -78,11 +80,6 @@ updated: 2026-10-13
 - [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
 - [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25)
 - [MVP1][SPEC-022][F22] Agenda de obrigações e alertas D-3 (#24)
-- [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23)
-- [MVP1][SPEC-020][F20] Classificação de risco e proposta de manifestação (#22)
-- [MVP1][SPEC-019][F19] Ciência da Emissão automática (#21)
-- [MVP1][SPEC-018][F18] Parse e persistência de XML, hash e IBS/CBS (#20)
-- [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19)
 
 ### Sem épico
 
@@ -94,7 +91,12 @@ updated: 2026-10-13
 
 ## A Fazer
 
-_(vazio)_
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23)
+- [MVP1][SPEC-020][F20] Classificação de risco e proposta de manifestação (#22)
+- [MVP1][SPEC-019][F19] Ciência da Emissão automática (#21)
+- [MVP1][SPEC-018][F18] Parse e persistência de XML, hash e IBS/CBS (#20)
 
 ## Em Andamento
 
@@ -108,6 +110,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19, finalizado em: 2026-10-15)
 - [MVP1][SPEC-016][F16] Motor tributário base versionado (#18, finalizado em: 2026-10-13)
 - [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17, finalizado em: 2026-10-11)
 - [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16, finalizado em: 2026-10-11)
