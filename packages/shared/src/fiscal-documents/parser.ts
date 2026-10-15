@@ -16,7 +16,7 @@ export type DocumentoFiscalParseado = Readonly<{
   partes: readonly ParteFiscalParseada[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
-  total: string | null; itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
+  total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
 }>;
 
@@ -67,11 +67,12 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   if (!/^\d{44}$/.test(key)) erro('FISCAL_DOCUMENT_IDENTITY_INVALID');
   const emission = texto(document, 'dhEmi', namespaceEsperado) ?? texto(document, 'dEmi', namespaceEsperado) ?? dataEmissao;
   const itemNodes = Array.from(document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'det' : 'infQ'));
-  const items = itemNodes.map((node) => {
+  const items: DocumentoFiscalParseado['itens'][number][] = itemNodes.map((node) => {
     const content = node as Element;
     const product = nfe ? content.getElementsByTagNameNS(namespaceEsperado, 'prod')[0] : content;
     const tax = nfe ? content.getElementsByTagNameNS(namespaceEsperado, 'imposto')[0] : content;
     return {
+      tipo: nfe ? 'ITEM' as const : 'MEDIDA_CARGA' as const,
       codigo: texto(product ?? null, nfe ? 'cProd' : 'cUnid', namespaceEsperado), descricao: texto(product ?? null, nfe ? 'xProd' : 'tpMed', namespaceEsperado),
       quantidade: texto(product ?? null, nfe ? 'qCom' : 'qCarga', namespaceEsperado), unidade: texto(product ?? null, nfe ? 'uCom' : 'cUnid', namespaceEsperado),
       // CT-e informa medidas de carga por infQ, mas o valor do frete é total do documento.
@@ -79,6 +80,13 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
       ibs: texto(tax ?? null, 'vIBS', namespaceEsperado), cbs: texto(tax ?? null, 'vCBS', namespaceEsperado),
     };
   });
+  if (cte) {
+    const components = Array.from(document.getElementsByTagNameNS(namespaceEsperado, 'Comp')).map((node) => ({
+      tipo: 'COMPONENTE' as const, codigo: null, descricao: texto(node as unknown as XmlContainer, 'xNome', namespaceEsperado),
+      quantidade: null, unidade: null, valor: texto(node as unknown as XmlContainer, 'vComp', namespaceEsperado), ibs: null, cbs: null,
+    }));
+    items.unshift(...components);
+  }
   const ibsCbsPendente = Boolean(emission && emission.slice(0, 10) >= '2026-08-03' &&
     (nfe ? items.some((item) => item.ibs === null || item.cbs === null) || texto(document, 'IBSCBSTot', namespaceEsperado) === null
       : texto(document, 'gIBSCBS', namespaceEsperado) === null));

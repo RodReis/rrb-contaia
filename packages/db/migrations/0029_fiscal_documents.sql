@@ -90,7 +90,7 @@ CREATE INDEX fiscal_document_origin_doc_idx ON app.fiscal_document_origin(docume
 
 CREATE TABLE app.fiscal_document_item (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
-  document_id uuid NOT NULL, numero integer NOT NULL CHECK(numero > 0), codigo text, descricao text,
+  document_id uuid NOT NULL, numero integer NOT NULL CHECK(numero > 0), tipo text NOT NULL DEFAULT 'ITEM' CHECK(tipo IN ('ITEM','COMPONENTE','MEDIDA_CARGA')), codigo text, descricao text,
   quantidade numeric(30,10), unidade text, valor numeric(30,10), ibs numeric(30,10), cbs numeric(30,10),
   CONSTRAINT fiscal_document_item_document FOREIGN KEY(document_id,empresa_id,tenant_id) REFERENCES app.fiscal_document(id,empresa_id,tenant_id),
   CONSTRAINT fiscal_document_item_company FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),

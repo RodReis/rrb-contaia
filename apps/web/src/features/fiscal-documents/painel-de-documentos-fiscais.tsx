@@ -298,7 +298,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                       <thead className="text-label-sm text-muted-foreground"><tr><th scope="col" className="py-xs text-left">Item</th><th scope="col" className="py-xs text-right">Valor</th><th scope="col" className="py-xs text-right">IBS</th><th scope="col" className="py-xs text-right">CBS</th></tr></thead>
                                       <tbody>{detalhe.data.itens.map((line, index) => (
                                         <tr key={index} className="border-t border-border/60">
-                                          <td className="max-w-48 py-xs pr-sm"><span className="block truncate text-foreground">{String(line['descricao'] ?? 'Item sem descrição')}</span><span className="text-label-sm text-muted-foreground">{String(line['codigo'] ?? '—')}</span></td>
+                                          <td className="max-w-48 py-xs pr-sm"><span className="block truncate text-foreground">{String(line['descricao'] ?? 'Item sem descrição')}</span><span className="text-label-sm text-muted-foreground">{line['tipo'] === 'COMPONENTE' ? 'Componente do frete' : line['tipo'] === 'MEDIDA_CARGA' ? 'Medida da carga' : String(line['codigo'] ?? '—')}</span></td>
                                           <td className="py-xs text-right tabular-nums">{moedaFiscal(typeof line['valor'] === 'string' ? line['valor'] : null)}</td>
                                           <td className="py-xs text-right tabular-nums">{moedaFiscal(typeof line['ibs'] === 'string' ? line['ibs'] : null)}</td>
                                           <td className="py-xs text-right tabular-nums">{moedaFiscal(typeof line['cbs'] === 'string' ? line['cbs'] : null)}</td>

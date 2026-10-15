@@ -41,8 +41,9 @@ describe('parser fiscal SPEC-018', () => {
     expect(result).toMatchObject({ baseIbsCbs: '100.00', totalIbs: '0.10', totalCbs: '0.90' });
     expect(result.protocolo).toBe('135260000000001');
     expect(result.referencias).toContainEqual({ tipo: 'NFE_VINCULADA_CTE', chave: '00000000000000000000550010000000010000000010' });
-    expect(result.itens).toHaveLength(1);
-    expect(result.itens[0]).toMatchObject({ quantidade: '25.5000', unidade: '01', valor: null });
+    expect(result.itens).toHaveLength(2);
+    expect(result.itens[0]).toMatchObject({ tipo: 'COMPONENTE', descricao: 'FRETE PESO', valor: '128.95' });
+    expect(result.itens[1]).toMatchObject({ tipo: 'MEDIDA_CARGA', quantidade: '25.5000', unidade: '01', valor: null });
     expect(result.ibsCbsPendente).toBe(false);
   });
 
