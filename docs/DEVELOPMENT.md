@@ -104,6 +104,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Modelo inicial com documentos, itens, origens e eventos sob RLS; APIs de consulta, integridade, original e reprocessamento.
 - [x] Painel técnico com filtros, detalhes, integridade, download e reprocessamento.
 - [x] Persistir protocolo e referências de documentos NF-e/CT-e e exibi-los no detalhe.
+- [x] Preservar emissão como data civil e converter recebimento de protocolo em instante UTC validado.
 - [x] Separar identificador fiscal, nome e localização declarada de emitente/destinatário, com RLS e append-only.
 - [x] Rejeitar namespace/modelo/versão diferentes do layout 4.00 e exigir blocos fiscais mínimos para NF-e/CT-e.
 - [x] Persistir e exibir base e totalizadores IBS/CBS do documento, mantendo extração por item para NF-e.

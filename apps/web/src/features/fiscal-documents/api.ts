@@ -27,7 +27,7 @@ const DocumentoFiscalDetalheSchema = z.object({
   id: z.string().uuid(), especie: z.enum(['NFE_55', 'CTE']), chave_acesso: z.string().nullable(), hash_sha256: z.string(), tamanho_bytes: z.number().int().nonnegative(),
   estado: EstadoDocumentoFiscalSchema.exclude(['PENDENTE', 'PROCESSANDO']), emitido_em: z.string().nullable(), emitente: z.string().nullable(), destinatario: z.string().nullable(),
   total: z.string().nullable(), base_ibs_cbs: z.string().nullable(), total_ibs: z.string().nullable(), total_cbs: z.string().nullable(), itens: z.array(ItemFiscalSchema),
-  protocolo: z.string().nullable(), referencias: z.array(z.object({ tipo: z.string(), chave: z.string() })),
+  protocolo: z.string().nullable(), protocolo_recebido_em: z.string().nullable(), referencias: z.array(z.object({ tipo: z.string(), chave: z.string() })),
   partes: z.array(ParteFiscalSchema),
   tributos: z.array(TributoFiscalSchema),
   origens: z.array(z.object({ nsu: z.string(), capturado_em: z.string() })),

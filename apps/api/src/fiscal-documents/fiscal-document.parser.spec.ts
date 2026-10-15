@@ -50,6 +50,7 @@ describe('parser fiscal SPEC-018', () => {
       expect.objectContaining({ escopo: 'DOCUMENTO', codigo: 'CBS', valor: '0.90' }),
     ]));
     expect(result.protocolo).toBe('135260000000001');
+    expect(result.protocoloRecebidoEm).toBe('2026-08-03T13:31:00.000Z');
     expect(result.referencias).toContainEqual({ tipo: 'NFE_VINCULADA_CTE', chave: '00000000000000000000550010000000010000000010' });
     expect(result.itens).toHaveLength(2);
     expect(result.itens[0]).toMatchObject({ tipo: 'COMPONENTE', descricao: 'FRETE PESO', valor: '128.95' });

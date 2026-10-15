@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 export type RegistroFiscalPersistido = Readonly<{
   id: string; especie: 'NFE_55' | 'CTE'; chaveAcesso: string; hashSha256: string; tamanho: number;
-  versaoLayout: string; modelo: string; protocolo: string | null; referencias: readonly Readonly<{ tipo: string; chave: string }>[];
+  versaoLayout: string; modelo: string; protocolo: string | null; protocoloRecebidoEm: string | null; referencias: readonly Readonly<{ tipo: string; chave: string }>[];
   partes: readonly Readonly<{ papel: 'EMITENTE' | 'DESTINATARIO'; identificador: string | null; nome: string | null; inscricaoEstadual: string | null;
     logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; codigoMunicipio: string | null;
     municipio: string | null; uf: string | null; cep: string | null; codigoPais: string | null; pais: string | null }>[];
@@ -102,14 +102,14 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   const precisaNormalizar = !existing || ['FALHA','XML_INVALIDO','PENDENTE_LAYOUT'].includes(existing.estado);
   if (!existing) {
     await client.query(
-      `insert into app.fiscal_document(id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,protocolo,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,estado,parser_version)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::date,$14,$15,$16::numeric,$17::numeric,$18::numeric,$19::numeric,$20,$21)`,
-      [id,input.tenantId,input.empresaId,input.stagingId,input.parsed.especie,input.parsed.chaveAcesso,input.parsed.hashSha256,input.originalKey,input.parsed.tamanho,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,state,input.parserVersion],
+      `insert into app.fiscal_document(id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,estado,parser_version)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::timestamptz,$14::date,$15,$16,$17::numeric,$18::numeric,$19::numeric,$20::numeric,$21,$22)`,
+      [id,input.tenantId,input.empresaId,input.stagingId,input.parsed.especie,input.parsed.chaveAcesso,input.parsed.hashSha256,input.originalKey,input.parsed.tamanho,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,state,input.parserVersion],
     );
   } else if (precisaNormalizar) {
     await client.query(
-      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,protocolo=$4,emitido_em=$5::date,emitente=$6,destinatario=$7,total=$8::numeric,base_ibs_cbs=$9::numeric,total_ibs=$10::numeric,total_cbs=$11::numeric,atualizado_em=now() where id=$12`,
-      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,id],
+      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,protocolo=$4,protocolo_recebido_em=$5::timestamptz,emitido_em=$6::date,emitente=$7,destinatario=$8,total=$9::numeric,base_ibs_cbs=$10::numeric,total_ibs=$11::numeric,total_cbs=$12::numeric,atualizado_em=now() where id=$13`,
+      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.emitente,input.parsed.destinatario,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,id],
     );
   }
   if (precisaNormalizar) {

@@ -52,7 +52,7 @@ CREATE TABLE app.fiscal_document (
   hash_sha256 text NOT NULL CHECK (hash_sha256 ~ '^[0-9a-f]{64}$'),
   original_key text NOT NULL, tamanho_bytes bigint NOT NULL CHECK (tamanho_bytes > 0),
   media_type text NOT NULL DEFAULT 'application/xml', modelo text NOT NULL,
-  versao_layout text NOT NULL, protocolo text, emitido_em date, emitente text, destinatario text,
+  versao_layout text NOT NULL, protocolo text, protocolo_recebido_em timestamptz, emitido_em date, emitente text, destinatario text,
   total numeric(30,10), base_ibs_cbs numeric(30,10), total_ibs numeric(30,10), total_cbs numeric(30,10),
   estado text NOT NULL CHECK (estado IN ('PROCESSADO','PENDENTE_LAYOUT','PENDENTE_IBS_CBS','XML_INVALIDO','CONFLITO','FALHA')),
   parser_version text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now(), atualizado_em timestamptz NOT NULL DEFAULT now(),
@@ -149,4 +149,4 @@ DO $$ DECLARE alvo text; BEGIN
 END $$;
 GRANT SELECT,INSERT ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_tax,app.fiscal_document_reference,app.fiscal_document_event TO contaia_app;
 REVOKE UPDATE,DELETE ON app.fiscal_document,app.fiscal_document_party,app.fiscal_document_origin,app.fiscal_document_item,app.fiscal_document_tax,app.fiscal_document_reference,app.fiscal_document_event FROM contaia_app;
-GRANT UPDATE(estado,modelo,versao_layout,protocolo,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,atualizado_em) ON app.fiscal_document TO contaia_app;
+GRANT UPDATE(estado,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,emitente,destinatario,total,base_ibs_cbs,total_ibs,total_cbs,atualizado_em) ON app.fiscal_document TO contaia_app;

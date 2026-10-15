@@ -15,7 +15,7 @@ export type TributoFiscalParseado = Readonly<{
 }>;
 export type DocumentoFiscalParseado = Readonly<{
   especie: EspecieFiscal; modelo: string; versaoLayout: string; chaveAcesso: string;
-  protocolo: string | null;
+  protocolo: string | null; protocoloRecebidoEm: string | null;
   referencias: readonly Readonly<{ tipo: string; chave: string }>[];
   partes: readonly ParteFiscalParseada[];
   tributos: readonly TributoFiscalParseado[];
@@ -161,6 +161,8 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   const emitenteNode = document.getElementsByTagNameNS(namespaceEsperado, 'emit')[0];
   const destinatarioNode = document.getElementsByTagNameNS(namespaceEsperado, 'dest')[0];
   const protocolNode = document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'protNFe' : 'protCTe')[0];
+  const protocolReceivedAt = texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'dhRecbto', namespaceEsperado);
+  if (protocolReceivedAt && (!/(?:Z|[+-]\d{2}:\d{2})$/u.test(protocolReceivedAt) || Number.isNaN(Date.parse(protocolReceivedAt)))) erro('FISCAL_XML_INVALID');
   const referenceNodes = Array.from(document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'NFref' : 'infNFe'));
   const referencias = referenceNodes.flatMap((node) => {
     const chave = texto(node as unknown as XmlContainer, nfe ? 'refNFe' : 'chave', namespaceEsperado);
@@ -184,7 +186,8 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   return {
     especie, modelo: model!, versaoLayout, tributos,
     chaveAcesso: key, emitidoEm: emission,
-    protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado), referencias, partes,
+    protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado),
+    protocoloRecebidoEm: protocolReceivedAt ? new Date(protocolReceivedAt).toISOString() : null, referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),
     destinatario: texto(destinatarioNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'CPF', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'xNome', namespaceEsperado),
     baseIbsCbs: texto(ibsCbsTotalNode ?? null, nfe ? 'vBCIBSCBS' : 'vBC', namespaceEsperado),

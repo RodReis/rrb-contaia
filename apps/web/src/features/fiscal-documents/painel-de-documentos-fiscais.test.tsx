@@ -67,6 +67,7 @@ describe('PainelDeDocumentosFiscais', () => {
       total: '10.00', itens: [{ numero: 1, codigo: 'A1', descricao: 'Item', valor: '10.00', ibs: '0.01', cbs: '0.09' }],
       base_ibs_cbs: '10.00', total_ibs: '0.01', total_cbs: '0.09',
       protocolo: '135260000000001', referencias: [{ tipo: 'NF-e', chave: 'chave referenciada' }],
+      protocolo_recebido_em: '2026-08-03T13:31:00.000Z',
       partes: [{ papel: 'EMITENTE', identificador: '12345678000190', nome: 'Emitente de teste', inscricao_estadual: null, logradouro: 'Rua A', numero: '10', complemento: null, bairro: 'Centro', codigo_municipio: '3550308', municipio: 'São Paulo', uf: 'SP', cep: '01000000', codigo_pais: '1058', pais: 'Brasil' }],
       tributos: [{ escopo: 'DOCUMENTO', numero_item: null, codigo: 'IBS', base_calculo: '10.00', aliquota: null, valor: '0.01', situacao: null, classificacao: '000001' }],
       origens: [{ nsu: '101', capturado_em: '2026-06-15T13:00:00.000Z' }], eventos: [],
