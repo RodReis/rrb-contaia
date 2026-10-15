@@ -14,6 +14,7 @@ CREATE TABLE app.fiscal_document_outbox (
     REFERENCES app.empresa(id,tenant_id)
 );
 CREATE INDEX fiscal_document_outbox_pending_idx ON app.fiscal_document_outbox(criado_em,staging_id) WHERE estado='PENDENTE';
+CREATE INDEX fiscal_document_outbox_scope_idx ON app.fiscal_document_outbox(empresa_id,tenant_id);
 ALTER TABLE app.fiscal_document_outbox ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app.fiscal_document_outbox FORCE ROW LEVEL SECURITY;
 CREATE POLICY fiscal_document_outbox_select ON app.fiscal_document_outbox FOR SELECT
@@ -135,6 +136,25 @@ CREATE INDEX fiscal_document_event_history_idx ON app.fiscal_document_event(empr
 CREATE TRIGGER fiscal_document_event_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_event FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 CREATE TRIGGER fiscal_document_origin_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_origin FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 CREATE TRIGGER fiscal_document_item_append_only BEFORE UPDATE OR DELETE ON app.fiscal_document_item FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
+
+-- Toda tabela fiscal precisa indexar o escopo e impedir que UPDATE mova a linha
+-- entre tenant/empresa. A imutabilidade do histórico continua sendo aplicada
+-- pelas triggers append-only abaixo.
+CREATE INDEX fiscal_document_party_scope_idx ON app.fiscal_document_party(empresa_id,tenant_id);
+CREATE INDEX fiscal_document_origin_scope_idx ON app.fiscal_document_origin(empresa_id,tenant_id);
+CREATE INDEX fiscal_document_item_scope_idx ON app.fiscal_document_item(empresa_id,tenant_id);
+CREATE INDEX fiscal_document_tax_scope_idx ON app.fiscal_document_tax(empresa_id,tenant_id);
+CREATE INDEX fiscal_document_reference_scope_idx ON app.fiscal_document_reference(empresa_id,tenant_id);
+CREATE INDEX fiscal_document_event_scope_idx ON app.fiscal_document_event(empresa_id,tenant_id);
+
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document_outbox FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document_party FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document_origin FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document_item FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document_tax FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document_reference FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_document_event FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 
 DO $$ DECLARE alvo text; BEGIN
   FOREACH alvo IN ARRAY ARRAY['fiscal_document','fiscal_document_party','fiscal_document_origin','fiscal_document_item','fiscal_document_tax','fiscal_document_reference','fiscal_document_event'] LOOP
