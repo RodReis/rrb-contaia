@@ -10,10 +10,10 @@ export type DocumentoFiscalParseado = Readonly<{
   ibsCbsPendente: boolean; tamanho: number;
 }>;
 
-type XmlContainer = { getElementsByTagName(name: string): { readonly length: number; readonly [index: number]: { textContent: string | null } | undefined } };
-const texto = (element: XmlContainer | null, path: string): string | null => {
+type XmlContainer = { getElementsByTagNameNS(namespace: string, name: string): { readonly length: number; readonly [index: number]: { textContent: string | null } | undefined } };
+const texto = (element: XmlContainer | null, path: string, namespace: string): string | null => {
   if (!element) return null;
-  const found = element.getElementsByTagName(path)[0];
+  const found = element.getElementsByTagNameNS(namespace, path)[0];
   const value = found?.textContent?.trim();
   return value ? value : null;
 };
@@ -39,37 +39,39 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   if (!nfe && !cte) erro('FISCAL_LAYOUT_UNSUPPORTED');
   const especie: EspecieFiscal = nfe ? 'NFE_55' : 'CTE';
   if (especie !== especieEsperada) erro('FISCAL_DOCUMENT_TYPE_MISMATCH');
-  const info = document.getElementsByTagName(nfe ? 'infNFe' : 'infCte')[0];
+  const namespaceEsperado = nfe ? 'http://www.portalfiscal.inf.br/nfe' : 'http://www.portalfiscal.inf.br/cte';
+  if (document.documentElement.namespaceURI !== namespaceEsperado) erro('FISCAL_LAYOUT_UNSUPPORTED');
+  const info = document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'infNFe' : 'infCte')[0];
   if (!info) erro('FISCAL_LAYOUT_UNSUPPORTED');
-  const model = nfe ? texto(document, 'mod') : '57';
+  const model = nfe ? texto(document, 'mod', namespaceEsperado) : '57';
   if ((nfe && model !== '55') || (cte && model !== '57')) erro('FISCAL_LAYOUT_UNSUPPORTED');
   const rawId = info.getAttribute('Id') ?? '';
   const key = rawId.replace(/^(NFe|CTe)/, '');
   if (!/^\d{44}$/.test(key)) erro('FISCAL_DOCUMENT_IDENTITY_INVALID');
-  const emission = texto(document, 'dhEmi') ?? texto(document, 'dEmi') ?? dataEmissao;
-  const itemNodes = Array.from(document.getElementsByTagName(nfe ? 'det' : 'infQ'));
+  const emission = texto(document, 'dhEmi', namespaceEsperado) ?? texto(document, 'dEmi', namespaceEsperado) ?? dataEmissao;
+  const itemNodes = Array.from(document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'det' : 'infQ'));
   const items = itemNodes.map((node) => {
     const content = node as Element;
-    const product = nfe ? content.getElementsByTagName('prod')[0] : content;
-    const tax = nfe ? content.getElementsByTagName('imposto')[0] : content;
+    const product = nfe ? content.getElementsByTagNameNS(namespaceEsperado, 'prod')[0] : content;
+    const tax = nfe ? content.getElementsByTagNameNS(namespaceEsperado, 'imposto')[0] : content;
     return {
-      codigo: texto(product ?? null, nfe ? 'cProd' : 'cUnid'), descricao: texto(product ?? null, nfe ? 'xProd' : 'tpMed'),
-      quantidade: texto(product ?? null, nfe ? 'qCom' : 'qCarga'), unidade: texto(product ?? null, nfe ? 'uCom' : 'cUnid'),
+      codigo: texto(product ?? null, nfe ? 'cProd' : 'cUnid', namespaceEsperado), descricao: texto(product ?? null, nfe ? 'xProd' : 'tpMed', namespaceEsperado),
+      quantidade: texto(product ?? null, nfe ? 'qCom' : 'qCarga', namespaceEsperado), unidade: texto(product ?? null, nfe ? 'uCom' : 'cUnid', namespaceEsperado),
       // CT-e informa medidas de carga por infQ, mas o valor do frete é total do documento.
-      valor: nfe ? texto(product ?? null, 'vProd') : null,
-      ibs: texto(tax ?? null, 'vIBS'), cbs: texto(tax ?? null, 'vCBS'),
+      valor: nfe ? texto(product ?? null, 'vProd', namespaceEsperado) : null,
+      ibs: texto(tax ?? null, 'vIBS', namespaceEsperado), cbs: texto(tax ?? null, 'vCBS', namespaceEsperado),
     };
   });
   const ibsCbsPendente = Boolean(emission && emission.slice(0, 10) >= '2026-08-03' &&
-    (nfe ? items.some((item) => item.ibs === null || item.cbs === null) : texto(document, 'vIBS') === null || texto(document, 'vCBS') === null));
-  const emitenteNode = document.getElementsByTagName('emit')[0];
-  const destinatarioNode = document.getElementsByTagName('dest')[0];
+    (nfe ? items.some((item) => item.ibs === null || item.cbs === null) : texto(document, 'vIBS', namespaceEsperado) === null || texto(document, 'vCBS', namespaceEsperado) === null));
+  const emitenteNode = document.getElementsByTagNameNS(namespaceEsperado, 'emit')[0];
+  const destinatarioNode = document.getElementsByTagNameNS(namespaceEsperado, 'dest')[0];
   return {
     especie, modelo: model!, versaoLayout: info.getAttribute('versao') ?? document.documentElement.getAttribute('versao') ?? 'desconhecida',
     chaveAcesso: key, emitidoEm: emission,
-    emitente: texto(emitenteNode ?? null, 'CNPJ') ?? texto(emitenteNode ?? null, 'CPF') ?? texto(emitenteNode ?? null, 'xNome'),
-    destinatario: texto(destinatarioNode ?? null, 'CNPJ') ?? texto(destinatarioNode ?? null, 'CPF') ?? texto(destinatarioNode ?? null, 'xNome'),
-    total: texto(document, nfe ? 'vNF' : 'vTPrest'), itens: items, ibsCbsPendente,
+    emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),
+    destinatario: texto(destinatarioNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'CPF', namespaceEsperado) ?? texto(destinatarioNode ?? null, 'xNome', namespaceEsperado),
+    total: texto(document, nfe ? 'vNF' : 'vTPrest', namespaceEsperado), itens: items, ibsCbsPendente,
     tamanho: bytes.byteLength,
   };
 };

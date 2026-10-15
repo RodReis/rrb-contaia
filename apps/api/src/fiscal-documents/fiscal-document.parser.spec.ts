@@ -41,6 +41,21 @@ describe('parser fiscal SPEC-018', () => {
     expect(() => parsearDocumentoFiscal(Buffer.from('<cteProc/>'), 'NFE_55')).toThrow('FISCAL_DOCUMENT_TYPE_MISMATCH');
   });
 
+  it('rejeita envelope fiscal com namespace não oficial', () => {
+    const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(
+      'http://www.portalfiscal.inf.br/nfe', 'urn:namespace-nao-oficial',
+    );
+    expect(() => parsearDocumentoFiscal(Buffer.from(source), 'NFE_55')).toThrow('FISCAL_LAYOUT_UNSUPPORTED');
+  });
+
+  it('não lê campos fiscais injetados por namespace estrangeiro', () => {
+    const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(
+      '<cProd>1</cProd>', '<evil:cProd xmlns:evil="urn:namespace-nao-oficial">SPOOF</evil:cProd>',
+    );
+    const result = parsearDocumentoFiscal(Buffer.from(source), 'NFE_55');
+    expect(result.itens[0]?.codigo).toBeNull();
+  });
+
   it('mantém resumos e eventos fora da fila F18', () => {
     expect(ehDocumentoFiscalElegivel(Buffer.from('<resNFe/>'),'NFE_55')).toBe(false);
     expect(ehDocumentoFiscalElegivel(Buffer.from('<procEventoNFe/>'),'NFE_55')).toBe(false);
