@@ -1,7 +1,7 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Fragment, useState } from 'react';
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, Download, FileCheck2, RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, Download, FileCheck2, RefreshCw, ListFilter } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -143,7 +143,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
         <p className="mt-xs max-w-2xl text-body-sm text-muted-foreground">XML original preservado, dados normalizados e pendências técnicas rastreáveis. Este painel não calcula tributos.</p>
       </div>
       <div className="flex min-w-56 items-center gap-sm rounded-md border border-input bg-background px-sm">
-        <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+        <ListFilter aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         <Select rotulo="Estado do processamento" opcoes={opcoesDeEstado} valor={filtro} onValorChange={(valor) => atualizarUrl('documentosEstado', valor, true)} />
       </div>
     </header>
