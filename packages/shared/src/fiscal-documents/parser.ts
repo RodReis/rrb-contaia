@@ -26,6 +26,8 @@ const texto = (element: XmlContainer | null, path: string, namespace: string): s
   const value = found?.textContent?.trim();
   return value ? value : null;
 };
+const existe = (element: XmlContainer | null, path: string, namespace: string): boolean =>
+  Boolean(element?.getElementsByTagNameNS(namespace, path).length);
 function erro(codigo: FalhaParseFiscal): never { throw new Error(codigo); }
 
 export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: EspecieFiscal, dataEmissao: string | null = null): DocumentoFiscalParseado => {
@@ -54,6 +56,11 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   if (!info) erro('FISCAL_LAYOUT_UNSUPPORTED');
   const model = nfe ? texto(document, 'mod', namespaceEsperado) : '57';
   if ((nfe && model !== '55') || (cte && model !== '57')) erro('FISCAL_LAYOUT_UNSUPPORTED');
+  const versaoLayout = info.getAttribute('versao') ?? document.documentElement.getAttribute('versao') ?? 'desconhecida';
+  if (versaoLayout !== '4.00') erro('FISCAL_LAYOUT_UNSUPPORTED');
+  if (!existe(info as unknown as XmlContainer, 'ide', namespaceEsperado) || !existe(info as unknown as XmlContainer, 'emit', namespaceEsperado)) erro('FISCAL_LAYOUT_UNSUPPORTED');
+  if (nfe && (!document.getElementsByTagNameNS(namespaceEsperado, 'det').length || !texto(info as unknown as XmlContainer, 'vNF', namespaceEsperado))) erro('FISCAL_LAYOUT_UNSUPPORTED');
+  if (cte && (!texto(info as unknown as XmlContainer, 'vTPrest', namespaceEsperado) || !existe(info as unknown as XmlContainer, 'infCarga', namespaceEsperado))) erro('FISCAL_LAYOUT_UNSUPPORTED');
   const rawId = info.getAttribute('Id') ?? '';
   const key = rawId.replace(/^(NFe|CTe)/, '');
   if (!/^\d{44}$/.test(key)) erro('FISCAL_DOCUMENT_IDENTITY_INVALID');
@@ -97,7 +104,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     }];
   });
   return {
-    especie, modelo: model!, versaoLayout: info.getAttribute('versao') ?? document.documentElement.getAttribute('versao') ?? 'desconhecida',
+    especie, modelo: model!, versaoLayout,
     chaveAcesso: key, emitidoEm: emission,
     protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado), referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),

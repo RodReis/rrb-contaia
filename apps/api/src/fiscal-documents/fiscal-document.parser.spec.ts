@@ -62,6 +62,12 @@ describe('parser fiscal SPEC-018', () => {
     expect(() => parsearDocumentoFiscal(Buffer.from(source), 'NFE_55')).toThrow('FISCAL_LAYOUT_UNSUPPORTED');
   });
 
+  it('deixa layout fora da versão suportada como não suportado e rejeita estrutura incompleta', () => {
+    const valid = fixture('nfe-rtc-valida.xml').toString('utf8');
+    expect(() => parsearDocumentoFiscal(Buffer.from(valid.replace(/versao="4\.00"/gu, 'versao="3.10"')), 'NFE_55')).toThrow('FISCAL_LAYOUT_UNSUPPORTED');
+    expect(() => parsearDocumentoFiscal(Buffer.from(valid.replace('<ide>', '<ide-invalido>').replace('</ide>', '</ide-invalido>')), 'NFE_55')).toThrow('FISCAL_LAYOUT_UNSUPPORTED');
+  });
+
   it('não lê campos fiscais injetados por namespace estrangeiro', () => {
     const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(
       '<cProd>1</cProd>', '<evil:cProd xmlns:evil="urn:namespace-nao-oficial">SPOOF</evil:cProd>',
