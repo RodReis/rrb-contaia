@@ -144,7 +144,7 @@ Gate acima de 15 minutos sem justificativa técnica é registrado aqui, com medi
 
 | Data | PR | Duração | Caminho crítico | Causa | Ação | Resultado |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| 2026-10-15 | [#123](https://github.com/RodReis/rrb-contaia/pull/123) | 15m48s | `e2e` (14m45s) | Inicialização da composição e suíte Playwright integral do workspace | Medição registrada; manter cobertura e observar próximas execuções antes de propor otimização | `build`, `quality`, regras, banco, tela, E2E e `gate` passaram |
 
 Preenchido pelo Code na mesma PR em que o estouro ocorreu. Linha sem causa medida não conta.
 
