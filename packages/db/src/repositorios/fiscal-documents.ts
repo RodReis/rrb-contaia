@@ -8,11 +8,23 @@ export type RegistroFiscalPersistido = Readonly<{
   itens: readonly Readonly<{ codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
 }>;
 
+const estadoFiscalApresentado = (alias: string) => `case
+  when exists(select 1 from app.fiscal_document_event e where e.document_id=${alias}.id and e.tipo='CONFLITO') then 'CONFLITO'
+  else coalesce((
+    select case when e.tipo='REUTILIZADO' then e.codigo else e.tipo end
+      from app.fiscal_document_event e
+     where e.document_id=${alias}.id
+       and (e.tipo in ('PROCESSADO','PENDENTE_IBS_CBS','PENDENTE_LAYOUT','XML_INVALIDO','FALHA')
+         or (e.tipo='REUTILIZADO' and e.codigo in ('PROCESSADO','PENDENTE_IBS_CBS','PENDENTE_LAYOUT','XML_INVALIDO','FALHA')))
+     order by e.ocorrido_em desc,e.id desc limit 1
+  ),${alias}.estado)
+end`;
+
 export const listarDocumentosFiscais = async (client: PoolClient, empresaId: string, page: number, estado: string | null = null, pageSize = 20) => {
   const { rows } = await client.query(
     `with documentos as (
        select d.id,d.especie,d.chave_acesso,d.hash_sha256,d.emitido_em,d.emitente,d.destinatario,d.total,
-              case when exists(select 1 from app.fiscal_document_event e where e.document_id=d.id and e.tipo='CONFLITO') then 'CONFLITO' else d.estado end estado,
+              ${estadoFiscalApresentado('d')} estado,
               d.versao_layout,d.criado_em,o.nsu,o.capturado_em,
               coalesce((select max(e.ocorrido_em) from app.fiscal_document_event e where e.document_id=d.id),o.capturado_em) atividade_em,
               (select count(*)::int from app.fiscal_document_origin oo where oo.document_id=d.id) origens
@@ -38,7 +50,7 @@ export const listarDocumentosFiscais = async (client: PoolClient, empresaId: str
 
 export const obterDocumentoFiscal = async (client: PoolClient, empresaId: string, documentId: string) => {
   const document = await client.query(
-    `select d.*,case when exists(select 1 from app.fiscal_document_event e where e.document_id=d.id and e.tipo='CONFLITO') then 'CONFLITO' else d.estado end estado_apresentado
+    `select d.*,( ${estadoFiscalApresentado('d')} ) estado_apresentado
        from app.fiscal_document d where d.empresa_id=$1 and d.id=$2`, [empresaId,documentId],
   );
   if (!document.rows[0]) return null;
