@@ -29,6 +29,10 @@ CREATE TABLE app.fiscal_manifestation_event (
   FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id)
 );
 CREATE INDEX fiscal_manifestation_inbox_idx ON app.fiscal_manifestation(tenant_id,empresa_id,estado,criado_em DESC);
+CREATE INDEX fiscal_manifestation_outbox_tenant_idx ON app.fiscal_manifestation_outbox(tenant_id);
+CREATE INDEX fiscal_manifestation_outbox_empresa_idx ON app.fiscal_manifestation_outbox(empresa_id);
+CREATE INDEX fiscal_manifestation_event_tenant_idx ON app.fiscal_manifestation_event(tenant_id);
+CREATE INDEX fiscal_manifestation_event_empresa_idx ON app.fiscal_manifestation_event(empresa_id);
 CREATE INDEX fiscal_manifestation_outbox_pending_idx ON app.fiscal_manifestation_outbox(criado_em) WHERE estado='PENDENTE';
 CREATE INDEX fiscal_manifestation_outbox_expired_claim_idx ON app.fiscal_manifestation_outbox(claim_ate) WHERE estado='PROCESSANDO';
 CREATE OR REPLACE FUNCTION app.proteger_fiscal_manifestation_payload() RETURNS trigger LANGUAGE plpgsql AS $$
