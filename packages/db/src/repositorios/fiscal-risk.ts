@@ -8,6 +8,49 @@ export type ConfiguracaoDeRiscoFiscal = Readonly<{
 
 export type FornecedorDeRiscoInput = Readonly<{ cnpj: string; nomeExibicao: string; situacao?: 'ATIVO' | 'ARQUIVADO'; motivo: string }>;
 
+export const listarInboxManifestacoes=async(client:PoolClient,input:Readonly<{tenantId:string;empresaId:string;filtros?:Readonly<{estado?:string;tipo?:string;confianca?:string;risco?:string;prazo?:string;emitente?:string;valor?:string;busca?:string;pagina?:number;ordenacao?:string}>}>)=>{
+ const filtros=input.filtros??{};const pagina=Math.max(1,filtros.pagina??1);const where:string[]=[];const values:unknown[]=[input.tenantId,input.empresaId];const add=(sql:string,value:unknown)=>{values.push(value);where.push(sql.replace('?',`$${values.length}`));};
+ if(filtros.tipo)add('a.tipo_manifestacao=?',filtros.tipo);
+ if(filtros.confianca==='ALTA')where.push('a.faixa_confianca=\'PRONTA_PARA_REVISAO\'');else if(filtros.confianca==='MEDIA')where.push('a.faixa_confianca=\'ATENCAO\'');else if(filtros.confianca==='BAIXA')where.push('a.faixa_confianca in (\'INCONCLUSIVA\',\'ABSTER_SE\')');
+ if(filtros.risco==='ALTO')where.push("coalesce((select bool_or(r->>'severidade'='alta') from jsonb_array_elements(a.riscos) r),false)");else if(filtros.risco==='NORMAL')where.push("not coalesce((select bool_or(r->>'severidade'='alta') from jsonb_array_elements(a.riscos) r),false)");
+ if(filtros.prazo==='7')where.push('greatest(0,90-(current_date-d.emitido_em::date))<=7');else if(filtros.prazo==='30')where.push('greatest(0,90-(current_date-d.emitido_em::date))<=30');else if(filtros.prazo==='MAIS_30')where.push('greatest(0,90-(current_date-d.emitido_em::date))>30');
+ if(filtros.emitente)add('d.emitente ilike ?',`%${filtros.emitente}%`);
+ if(filtros.busca){values.push(`%${filtros.busca}%`,`%${filtros.busca}%`,`%${filtros.busca}%`);where.push(`(d.chave_acesso like $${values.length-2} or d.emitente ilike $${values.length-1} or exists(select 1 from app.fiscal_document_party pbusca where pbusca.document_id=d.id and pbusca.papel='EMITENTE' and pbusca.parser_version=d.parser_version and pbusca.identificador like $${values.length}))`);}
+ if(filtros.valor==='ATE_1000')where.push('d.total<=1000');else if(filtros.valor==='1000_10000')where.push('d.total>1000 and d.total<=10000');else if(filtros.valor==='ACIMA_10000')where.push('d.total>10000');
+ if(filtros.estado==='RESULTADO_INCERTO'||filtros.estado==='DLQ')add("exists(select 1 from app.fiscal_manifestation fm where fm.tenant_id=d.tenant_id and fm.empresa_id=d.empresa_id and fm.chave_acesso=d.chave_acesso and fm.estado=?)",filtros.estado);
+ const offset=(pagina-1)*50;values.push(offset);const offsetParam=`$${values.length}`;
+ const result=await client.query(`select d.id document_id,d.chave_acesso,d.emitido_em,d.emitente,d.total,
+   a.id analysis_id,a.tipo_manifestacao,a.confianca,a.faixa_confianca,a.riscos,a.evidencias,a.lacunas,a.justificativa proposta,
+   greatest(0,90-(current_date-d.emitido_em::date))::int dias_restantes,
+   coalesce((select bool_or(r->>'severidade'='alta')::int from jsonb_array_elements(a.riscos) r),0) risco_alto
+   from app.fiscal_document d join app.fiscal_document_party emitente on emitente.document_id=d.id and emitente.papel='EMITENTE' and emitente.parser_version=d.parser_version
+   join lateral(select a.* from app.fiscal_risk_analysis a join app.fiscal_risk_execution x on x.id=a.execution_id and x.tenant_id=a.tenant_id and x.empresa_id=a.empresa_id
+    where a.document_id=d.id and a.tenant_id=d.tenant_id and a.empresa_id=d.empresa_id and x.estado in ('CONCLUIDA','ABSTER_SE') order by a.criado_em desc,a.id desc limit 1)a on true
+   join app.empresa e on e.id=d.empresa_id and e.tenant_id=d.tenant_id
+   where d.tenant_id=$1 and d.empresa_id=$2 and d.especie='NFE_55' and d.modelo='55' and d.estado='PROCESSADO'
+    and exists(select 1 from app.fiscal_document_party destinatario where destinatario.document_id=d.id and destinatario.papel='DESTINATARIO' and destinatario.parser_version=d.parser_version and destinatario.identificador=e.cnpj) and d.emitido_em::date>=current_date-90 and not exists(select 1 from app.fiscal_document_event ev where ev.tenant_id=d.tenant_id and ev.empresa_id=d.empresa_id and ev.document_id=d.id and ev.tipo in ('CONFLITO','FALHA','XML_INVALIDO'))
+    and a.tipo_manifestacao in ('210200','210220','210240')
+    and ${filtros.estado==='RESULTADO_INCERTO'||filtros.estado==='DLQ'?'true':`not exists(select 1 from app.fiscal_manifestation m where m.tenant_id=d.tenant_id and m.empresa_id=d.empresa_id and m.chave_acesso=d.chave_acesso and m.estado not in ('REJEITADA_PELO_HUMANO','REJEITADA_SEFAZ'))`}
+    and not exists(select 1 from app.fiscal_acknowledgement ack where ack.tenant_id=d.tenant_id and ack.empresa_id=d.empresa_id and ack.chave_acesso=d.chave_acesso and ack.estado in ('JA_MANIFESTADO','CIENCIA_REGISTRADA'))
+    ${where.length?`and ${where.join(' and ')}`:''}
+   order by ${filtros.ordenacao==='RISCO'?'risco_alto desc,dias_restantes asc,d.total desc,d.chave_acesso':filtros.ordenacao==='VALOR'?'d.total desc,dias_restantes asc,risco_alto desc,d.chave_acesso':'dias_restantes asc,risco_alto desc,d.total desc,d.chave_acesso'} offset ${offsetParam} limit 50`,values);
+ return result.rows;
+};
+
+export const registrarDecisaoManifestacao=async(client:PoolClient,input:Readonly<{tenantId:string;empresaId:string;documentId:string;analysisId:string;chaveAcesso:string;tipo:string;tipoOriginal:string;justificativa:string|null;motivoTroca:string|null;aprovadorId:string;payload:unknown;payloadSha256:string;chaveIdempotente:string;correlationId:string}> )=>{
+ const locked=await client.query(`select d.id from app.fiscal_document d join app.fiscal_risk_analysis a on a.document_id=d.id and a.id=$4 and a.tenant_id=d.tenant_id and a.empresa_id=d.empresa_id join app.fiscal_risk_execution x on x.id=a.execution_id and x.tenant_id=a.tenant_id and x.empresa_id=a.empresa_id and x.estado in ('CONCLUIDA','ABSTER_SE') join app.empresa e on e.id=d.empresa_id and e.tenant_id=d.tenant_id join app.fiscal_document_party p on p.document_id=d.id and p.papel='DESTINATARIO' and p.parser_version=d.parser_version and p.identificador=e.cnpj where d.id=$3 and d.tenant_id=$1 and d.empresa_id=$2 and d.especie='NFE_55' and d.modelo='55' and d.estado='PROCESSADO' and d.chave_acesso=$5 and d.emitido_em::date>=current_date-90 and a.id=(select a2.id from app.fiscal_risk_analysis a2 where a2.tenant_id=d.tenant_id and a2.empresa_id=d.empresa_id and a2.document_id=d.id order by a2.criado_em desc,a2.id desc limit 1) and a.tipo_manifestacao in ('210200','210220','210240') and not exists(select 1 from app.fiscal_document_event ev where ev.tenant_id=d.tenant_id and ev.empresa_id=d.empresa_id and ev.document_id=d.id and ev.tipo in ('CONFLITO','FALHA','XML_INVALIDO')) and not exists(select 1 from app.fiscal_manifestation m where m.tenant_id=d.tenant_id and m.empresa_id=d.empresa_id and m.chave_acesso=d.chave_acesso and m.estado not in ('REJEITADA_PELO_HUMANO','REJEITADA_SEFAZ')) and not exists(select 1 from app.fiscal_acknowledgement ack where ack.tenant_id=d.tenant_id and ack.empresa_id=d.empresa_id and ack.chave_acesso=d.chave_acesso and ack.estado in ('JA_MANIFESTADO','CIENCIA_REGISTRADA')) for update of d`,[input.tenantId,input.empresaId,input.documentId,input.analysisId,input.chaveAcesso]);
+ if(!locked.rows[0]) throw new Error('FISCAL_MANIFESTATION_CONFLICT');
+ const result=await client.query(`insert into app.fiscal_manifestation(tenant_id,empresa_id,document_id,analysis_id,chave_acesso,tipo,estado,justificativa,motivo_troca,decisao_original,aprovador_id,payload,payload_sha256,chave_idempotente,correlation_id)
+ values($1,$2,$3,$4,$5,$6,'APROVADA',$7,$8,$9,$10,$11::jsonb,$12,$13,$14) on conflict(tenant_id,empresa_id,chave_acesso,tipo,sequencia) where estado NOT IN ('REJEITADA_PELO_HUMANO','REJEITADA_SEFAZ') do nothing returning id`,[input.tenantId,input.empresaId,input.documentId,input.analysisId,input.chaveAcesso,input.tipo,input.justificativa,input.motivoTroca,input.tipoOriginal,input.aprovadorId,JSON.stringify(input.payload),input.payloadSha256,input.chaveIdempotente,input.correlationId]);
+ let id=result.rows[0]?.id as string|undefined;let reused=false;
+ if(!id){const existing=await client.query(`select id,payload_sha256 from app.fiscal_manifestation where tenant_id=$1 and empresa_id=$2 and chave_idempotente=$3`,[input.tenantId,input.empresaId,input.chaveIdempotente]);
+  if(existing.rows[0]?.payload_sha256!==input.payloadSha256)throw new Error('FISCAL_MANIFESTATION_DUPLICATE');id=existing.rows[0]?.id as string|undefined;reused=true;}
+ if(!id)throw new Error('FISCAL_MANIFESTATION_DUPLICATE');
+ await client.query(`insert into app.fiscal_manifestation_outbox(tenant_id,empresa_id,manifestation_id) values($1,$2,$3) on conflict(manifestation_id) do nothing`,[input.tenantId,input.empresaId,id]);
+ if(!reused)await client.query(`insert into app.fiscal_manifestation_event(tenant_id,empresa_id,manifestation_id,estado,detalhe_sanitizado,correlation_id) values($1,$2,$3,'APROVADA','Aprovação humana registrada; payload fiscal selado.',$4)`,[input.tenantId,input.empresaId,id,input.correlationId]);
+ return {id,reused};
+};
+
 /** Snapshot completo por versão: nenhuma configuração publicada é editada ou apagada. */
 export const obterConfiguracaoDeRiscoFiscal = async (client: PoolClient, empresaId: string, tenantId: string) => {
   const result = await client.query<ConfiguracaoDeRiscoFiscal>(

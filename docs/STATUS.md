@@ -4,7 +4,7 @@
 > O **Índice Fatia ↔ SPEC** (§3) é **fonte única da numeração** e é mantido pelo **Cowork**. O **progresso** (§2) é mantido pelo **Code**, dentro da PR.
 > Em conflito de merge neste arquivo: **a versão da `main` vence**; o Code reaplica só o próprio progresso (`CLAUDE.md`).
 
-**Atualizado em:** 12/10/2026
+**Atualizado em:** 16/10/2026
 
 ---
 
@@ -65,7 +65,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-1 | F18 | SPEC-018 | PRD §§3, 5.3, 5.4, 6.1, 6.5, 12, 14, 15 e 16 | Parse e persistência de XML, hash e IBS/CBS | #20 | `proplan:backlog` |
 | MVP-1 | F19 | SPEC-019 | PRD §§2, 3, 5.2, 5.3, 5.4, 10.2, 12, 14, 15, 16 e 20.2 | Ciência da Emissão automática | #21 | `proplan:backlog` |
 | MVP-1 | F20 | SPEC-020 | PRD §§2, 3, 5.2, 5.4, 10.1, 10.2, 12, 14, 15, 16 e Anexo A.1 | Classificação de risco e proposta de manifestação | #22 | `proplan:backlog` |
-| MVP-1 | F21 | SPEC-021 | PRD §§2, 3, 5.2, 10.1, 10.2, 12, 13.1, 14, 15, 16, 20.2 e Anexo A.1 | Inbox, aprovação e transmissão de manifestações | #23 | `proplan:backlog` |
+| MVP-1 | F21 | SPEC-021 | PRD §§2, 3, 5.2, 10.1, 10.2, 12, 13.1, 14, 15, 16, 20.2 e Anexo A.1 | Inbox, aprovação e transmissão de manifestações | #23 | implementação concluída; provas de banco, E2E e visual pendentes |
 | MVP-1 | F22 | SPEC-022 | PRD §§6.3, 6.5, 9.1, 10.5, 15, 16 e Anexo B.1 | Agenda de obrigações e alertas D-3 | #24 | `proplan:backlog` |
 | MVP-1 | F23 | SPEC-023 | PRD §§9.1, 9.4, 15 e 16 | Dashboard multiempresa com semáforo e drill-down | #25 | `proplan:backlog` |
 | MVP-1 | F24 | SPEC-024 | PRD §§2, 3, 5.4, 10.1, 10.2, 10.5, 12, 14, 15 e 16 | Auditoria append-only e decisões dos agentes | #26 | `proplan:backlog` |

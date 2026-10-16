@@ -15,6 +15,8 @@ import {
   ComandoDiagnosticarSchema,
   ComandoDistribuicaoDfeSchema,
   ComandoCienciaDfeSchema,
+  ComandoManifestarConclusivaSchema,
+  ComandoConsultarManifestacaoConclusivaSchema,
   ComandoConsultarProcNFeSchema,
   ComandoExecutarMtlsSchema,
   ConsultaEstadosSchema,
@@ -57,6 +59,11 @@ const ROTAS: readonly Rota[] = [
     metodo: 'POST', caminho: '/v1/manifestar-ciencia', operacao: 'manifestar-ciencia',
     schema: ComandoCienciaDfeSchema, executar: (s, id, entrada) => s.manifestarCiencia(id, entrada),
   },
+  {
+    metodo: 'POST', caminho: '/v1/manifestar-conclusiva', operacao: 'manifestar-conclusiva',
+    schema: ComandoManifestarConclusivaSchema, executar: (s,id,entrada)=>s.manifestarConclusiva(id,entrada),
+  },
+  { metodo: 'POST', caminho: '/v1/consultar-manifestacao-conclusiva', operacao: 'consultar-manifestacao-conclusiva', schema: ComandoConsultarManifestacaoConclusivaSchema, executar: (s,id,entrada)=>s.consultarManifestacaoConclusiva(id,entrada) },
   {
     metodo: 'POST', caminho: '/v1/consultar-proc-nfe', operacao: 'consultar-proc-nfe',
     schema: ComandoConsultarProcNFeSchema, executar: (s, id, entrada) => s.consultarProcNFe(id, entrada),

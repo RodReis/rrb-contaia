@@ -294,3 +294,5 @@ export type { FiscalAcknowledgementCommand, ElegibilidadeDaCiencia, EstadoDaCien
 
 export { FISCAL_RISK_API_QUEUE, FISCAL_RISK_QUEUE, FISCAL_RISK_DLQ, FISCAL_RISK_JOB, FISCAL_RISK_JOB_OPTIONS, TIPOS_DE_PROPOSTA_FISCAL, SEVERIDADES_DE_RISCO_FISCAL, PropostaDeManifestacaoSchema, FiscalRiskCommandSchema } from './fiscal-risk.js';
 export type { PropostaDeManifestacao, FiscalRiskCommand } from './fiscal-risk.js';
+export { MANIFESTATION_CONCLUSIVA_QUEUE, MANIFESTATION_CONCLUSIVA_DLQ, MANIFESTATION_CONCLUSIVA_JOB, ManifestacaoConclusivaCommandSchema, ComandoManifestarConclusivaSchema, ComandoConsultarManifestacaoConclusivaSchema } from './fiscal-manifestation.js';
+export type { ManifestacaoConclusivaCommand, ComandoManifestarConclusiva, RespostaManifestacaoConclusiva, ComandoConsultarManifestacaoConclusiva, RespostaConsultaManifestacaoConclusiva } from './fiscal-manifestation.js';

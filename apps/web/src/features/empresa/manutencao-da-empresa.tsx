@@ -330,7 +330,8 @@ export const ManutencaoDaEmpresa = ({
             <Tabs.Content value="captura-dfe" className="focus-visible:outline-none">
               <AbaCapturaDfe empresaId={visao.id} somenteLeitura={arquivada} podeReprocessar={sessao?.papeis.includes('admin_escritorio') ?? false} />
               <PainelDeDocumentosFiscais empresaId={visao.id} somenteLeitura={arquivada}
-                podeReprocessar={sessao?.papeis.some((papel) => ['admin_escritorio','contador','auxiliar'].includes(papel)) ?? false} />
+                podeReprocessar={sessao?.papeis.some((papel) => ['admin_escritorio','contador','auxiliar'].includes(papel)) ?? false}
+                permitirDecisao={sessao?.papeis.some((papel)=>['admin_escritorio','contador'].includes(papel))??false} />
               <PainelDeRiscoFiscal empresaId={visao.id} somenteLeitura={arquivada}
                 podeConfigurar={sessao?.papeis.some((papel)=>['admin_escritorio','contador'].includes(papel))??false}/>
             </Tabs.Content>

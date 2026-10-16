@@ -70,6 +70,7 @@ import { PROVEDOR_DA_FILA_FISCAL } from './fiscal-documents/fiscal-documents.que
 import { FiscalRiskController } from './fiscal-risk/fiscal-risk.controller';
 import { FiscalRiskService } from './fiscal-risk/fiscal-risk.service';
 import { PROVEDOR_DA_FILA_FISCAL_RISK } from './fiscal-risk/fiscal-risk.queue';
+import { PROVEDOR_DA_FILA_DE_MANIFESTACAO } from './fiscal-risk/fiscal-manifestation.queue';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -144,6 +145,7 @@ import { PROVEDOR_DA_FILA_FISCAL_RISK } from './fiscal-risk/fiscal-risk.queue';
     ...PROVEDOR_DA_FILA_FISCAL,
     FiscalRiskService,
     ...PROVEDOR_DA_FILA_FISCAL_RISK,
+    ...PROVEDOR_DA_FILA_DE_MANIFESTACAO,
     GuardDoCatalogoTributario,
     GuardDeSessao,
     GuardDeCadastro,

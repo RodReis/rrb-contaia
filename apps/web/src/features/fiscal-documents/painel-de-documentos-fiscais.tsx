@@ -9,6 +9,7 @@ import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { Select, type OpcaoDoSelect } from '@/components/ui/select';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
+import { InboxDeManifestacoes } from './inbox-de-manifestacoes';
 import { mensagemDoCodigo } from '@/lib/mensagens';
 import { baixarOriginalFiscal, listarDocumentosFiscais, obterDocumentoFiscal, reprocessarDocumentoFiscal, verificarIntegridadeFiscal, listarCienciasDaEmissao, obterCienciaDaEmissao, retomarCienciaDaEmissao, type DocumentoFiscal, type CienciaDaEmissaoUI } from './api';
 
@@ -39,15 +40,17 @@ const moedaFiscal = (value: string | null) => {
 const rotuloCiencia:Record<CienciaDaEmissaoUI['estado'],string>={RESUMO_CAPTURADO:'Resumo capturado',CIENCIA_PENDENTE:'Aguardando Ciência',CIENCIA_EM_ENVIO:'Enviando Ciência',CIENCIA_REGISTRADA:'Ciência registrada',XML_COMPLETO_PENDENTE:'Aguardando XML completo',XML_COMPLETO_OBTIDO:'XML completo obtido',PARSEADO:'Encaminhado à F18',JA_MANIFESTADO:'Já manifestado',XML_COMPLETO_JA_DISPONIVEL:'XML já disponível',RESULTADO_INCERTO:'Resultado incerto',RETRY_AGENDADO:'Nova tentativa agendada',REJEITADO:'Rejeitado',IMPEDIDO:'Impedido',DLQ:'Fila de falhas'};
 const tomCiencia:Record<CienciaDaEmissaoUI['estado'],TomDoStatus>={RESUMO_CAPTURADO:'atencao',CIENCIA_PENDENTE:'atencao',CIENCIA_EM_ENVIO:'atencao',CIENCIA_REGISTRADA:'conforme',XML_COMPLETO_PENDENTE:'atencao',XML_COMPLETO_OBTIDO:'conforme',PARSEADO:'conforme',JA_MANIFESTADO:'atencao',XML_COMPLETO_JA_DISPONIVEL:'conforme',RESULTADO_INCERTO:'critico',RETRY_AGENDADO:'atencao',REJEITADO:'critico',IMPEDIDO:'critico',DLQ:'critico'};
 
-export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeReprocessar }: {
+export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeReprocessar, permitirDecisao }: {
   empresaId: string;
   somenteLeitura: boolean;
   podeReprocessar: boolean;
+  permitirDecisao?: boolean;
 }) => {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [cienciaSelecionada,setCienciaSelecionada]=useState<string|null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const abaAtual=searchParams.get('aba')??'captura-dfe';
   const paginaParam = Number(searchParams.get('documentosPagina') ?? '1');
   const pagina = Number.isSafeInteger(paginaParam) && paginaParam > 0 ? paginaParam : 1;
   const filtroParam = searchParams.get('documentosEstado') ?? 'TODOS';
@@ -350,6 +353,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
         </div>
       </div>
     )}
+    {abaAtual==='captura-dfe'?<InboxDeManifestacoes empresaId={empresaId} permitirDecisao={!somenteLeitura && (permitirDecisao ?? false)} />:null}
     <nav aria-label="Paginação de documentos fiscais" className="flex items-center justify-between gap-sm">
       <Button variante="contorno" disabled={pagina === 1} onClick={() => atualizarUrl('documentosPagina', String(Math.max(1, pagina - 1)))}>Página anterior</Button>
       <span aria-live="polite" className="text-body-sm text-muted-foreground">Página {pagina}</span>

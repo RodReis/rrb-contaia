@@ -54,6 +54,14 @@ const ExecucaoRiscoSchema=z.object({id:z.string().uuid(),estado:z.enum(['AGUARDA
 export const AnalisesDeRiscoSchema=z.object({documento:z.record(z.string(),z.unknown()),execucoes:z.array(ExecucaoRiscoSchema)});
 export type ExecucaoDeRiscoUI=z.infer<typeof ExecucaoRiscoSchema>;
 const ReprocessamentoDeRiscoSchema=z.object({documentId:z.string().uuid(),executionId:z.string().uuid(),status:z.literal('QUEUED')});
+const InboxManifestacaoSchema=z.object({itens:z.array(z.object({document_id:z.string().uuid(),chave_acesso:z.string(),emitente:z.string().nullable(),total:z.union([z.string(),z.number()]).nullable(),analysis_id:z.string().uuid(),tipo_manifestacao:z.enum(['210200','210220','210240']),confianca:z.union([z.string(),z.number()]),faixa_confianca:z.string(),riscos:z.array(z.unknown()),evidencias:z.array(z.unknown()),lacunas:z.array(z.unknown()),proposta:z.string(),dias_restantes:z.number().int(),risco_alto:z.number().int()})),pagina:z.number().int().optional()});
+export type ItemInboxManifestacao=z.infer<typeof InboxManifestacaoSchema>['itens'][number];
+export const listarInboxManifestacoes=async(empresaId:string,filtros:URLSearchParams)=>InboxManifestacaoSchema.parse(await ler(`/companies/${empresaId}/fiscal-manifestations/inbox?${filtros.toString()}`));
+export const decidirManifestacao=async(empresaId:string,body:Readonly<{documentId:string;analysisId:string;chaveAcesso:string;tipo:'210200'|'210220'|'210240';rejeitada:boolean;motivoTroca:string|null;categoria:string|null;nota:string|null;xJust:string|null}>)=>requisitar<unknown>(`/companies/${empresaId}/fiscal-manifestations/decisions`,{method:'POST',body:JSON.stringify(body)});
+export const aprovarLote210200=async(empresaId:string,items:readonly Readonly<{documentId:string;analysisId:string;chaveAcesso:string;tipo:'210200'}>[] )=>requisitar<unknown>(`/companies/${empresaId}/fiscal-manifestations/batch-210200`,{method:'POST',body:JSON.stringify({items})});
+const HistoricoManifestacaoSchema=z.object({itens:z.array(z.object({id:z.string().uuid(),document_id:z.string().uuid(),chave_acesso:z.string(),tipo:z.string(),estado:z.string(),aprovador_id:z.string().uuid(),criado_em:z.string(),atualizado_em:z.string(),evento_estado:z.string().nullable(),codigo:z.string().nullable(),detalhe_sanitizado:z.string().nullable(),protocolo:z.string().nullable(),ocorrido_em:z.string().nullable()}))});
+export const listarHistoricoManifestacoes=async(empresaId:string,pagina=1)=>HistoricoManifestacaoSchema.parse(await ler(`/companies/${empresaId}/fiscal-manifestations/history?pagina=${pagina}`));
+export const reconciliarManifestacao=async(empresaId:string,manifestationId:string)=>requisitar<unknown>(`/companies/${empresaId}/fiscal-manifestations/${manifestationId}/reconciliation`,{method:'POST',body:JSON.stringify({})});
 
 export type CienciaDaEmissaoUI=z.infer<typeof CienciaDaEmissaoSchema>;
 

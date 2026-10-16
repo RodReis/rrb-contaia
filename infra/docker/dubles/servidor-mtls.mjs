@@ -65,6 +65,7 @@ const cnpjDoCertificado = (socket) => {
 export const criarDuble = ({ nome, certificadoPem, chavePem, caDosClientesPem, registrarEfeito = () => {} }) => {
   const respostasPorChave = new Map();
   const cienciasPorChave = new Map();
+  const manifestacoesPorIdentidade = new Map();
   const respostaDaCienciaPorIdentidade = new Map();
   let efeitosRegistrados = 0;
   let recusasDeTls = 0;
@@ -80,37 +81,50 @@ export const criarDuble = ({ nome, certificadoPem, chavePem, caDosClientesPem, r
       const sequence = /<nSeqEvento>(\d+)<\/nSeqEvento>/u.exec(xml)?.[1] ?? null;
       const eventCnpj = /<CNPJ>(\d{14})<\/CNPJ>/u.exec(xml)?.[1] ?? null;
       if (typeof chave !== 'string' || cnpj === null || cnpjDeclarado !== cnpj || eventCnpj !== cnpj ||
-          accessKey === null || eventType !== '210210' || sequence !== '1' ||
+          accessKey === null || !['210200','210210','210220','210240'].includes(eventType) || sequence === null || !/^[1-9][0-9]?$/.test(sequence) || requisicao.headers['x-tipo-evento'] !== eventType || requisicao.headers['x-sequencia-evento'] !== sequence ||
           !xml.includes('<Signature') || !xml.includes('</Signature>')) {
         responder(resposta, 422, { tipo: 'REJEITADO', codigo: 'IDENTIDADE_OU_EVENTO_INVALIDO' });
         return;
       }
       const identidade = JSON.stringify({ cnpj, accessKey, eventType, sequence });
-      const existente = respostasPorChave.get(`ciencia:${chave}`);
+      const namespace = eventType === '210210' ? 'ciencia' : 'conclusiva';
+      const existente = respostasPorChave.get(`${namespace}:${chave}`);
       if (existente !== undefined) {
         if (existente.identidade !== identidade) { responder(resposta, 409, { codigo: 'IDEMPOTENCIA_CONFLITO' }); return; }
         responder(resposta, existente.status, existente.corpo, { 'x-idempotent-replay': 'true' });
         return;
       }
-      const anteriorDaIdentidade = respostaDaCienciaPorIdentidade.get(identidade);
+      const anteriorDaIdentidade = (eventType === '210210' ? respostaDaCienciaPorIdentidade : manifestacoesPorIdentidade).get(identidade);
       if (anteriorDaIdentidade !== undefined) {
-        const duplicidade = { ...anteriorDaIdentidade.corpo, tipo: 'DUPLICIDADE', codigo: '573' };
-        respostasPorChave.set(`ciencia:${chave}`, { status: 200, corpo: duplicidade, identidade });
+        const duplicidade = { ...(anteriorDaIdentidade.corpo ?? anteriorDaIdentidade), tipo: 'DUPLICIDADE', codigo: '573' };
+        respostasPorChave.set(`${namespace}:${chave}`, { status: 200, corpo: duplicidade, identidade });
         responder(resposta, 200, duplicidade);
         return;
       }
       const protocolo = createHash('sha256').update(`${nome}:${chave}`).digest('hex').slice(0, 16);
-      const resultado = { tipo: 'ACEITO', codigo: '135', protocolo, chaveAcesso: accessKey, cnpj, tipoEvento: '210210',
-        sequencia: 1, ambiente: 'HOMOLOGACAO', recebidoEm: new Date().toISOString() };
-      respostasPorChave.set(`ciencia:${chave}`, { status: 200, corpo: resultado, identidade });
-      respostaDaCienciaPorIdentidade.set(identidade, { status: 200, corpo: resultado, identidade });
-      cienciasPorChave.set(accessKey, cnpj);
+      const resultado = { tipo: 'ACEITO', codigo: '135', protocolo, chaveAcesso: accessKey, cnpj, tipoEvento: eventType,
+        sequencia: Number(sequence), ambiente: 'HOMOLOGACAO', recebidoEm: new Date().toISOString() };
+      respostasPorChave.set(`${namespace}:${chave}`, { status: 200, corpo: resultado, identidade });
+      if (eventType === '210210') { respostaDaCienciaPorIdentidade.set(identidade, { status: 200, corpo: resultado, identidade }); cienciasPorChave.set(accessKey, cnpj); }
+      else manifestacoesPorIdentidade.set(identidade, resultado);
       efeitosRegistrados += 1;
-      registrarEfeito({ duble: nome, cnpj, tipo: 'CIENCIA_210210', protocolo });
+      registrarEfeito({ duble: nome, cnpj, tipo: eventType, protocolo });
       responder(resposta, 200, resultado);
       return;
     }
 
+    if (requisicao.method === 'GET' && requisicao.url.startsWith('/v1/manifestacao?')) {
+      const consulta = new URL(requisicao.url, 'https://duble.local');
+      const cnpj = cnpjDoCertificado(requisicao.socket);
+      const chaveAcesso = consulta.searchParams.get('chaveAcesso');
+      const tipoEvento = consulta.searchParams.get('tipoEvento');
+      const sequencia = consulta.searchParams.get('sequencia');
+      if (!cnpj || requisicao.headers['x-cnpj-declarado'] !== cnpj || !chaveAcesso || !tipoEvento || !sequencia) { responder(resposta, 400, { codigo: 'CONSULTA_INVALIDA' }); return; }
+      const identidade = JSON.stringify({ cnpj, accessKey: chaveAcesso, eventType: tipoEvento, sequence: sequencia });
+      const encontrado = manifestacoesPorIdentidade.get(identidade) ?? respostaDaCienciaPorIdentidade.get(identidade)?.corpo ?? null;
+      responder(resposta, 200, encontrado ? { ...encontrado, tipo: 'ENCONTRADO' } : { tipo: 'NAO_ENCONTRADO', cnpj, chaveAcesso, tipoEvento, sequencia: Number(sequencia), ambiente: 'HOMOLOGACAO' });
+      return;
+    }
     if (requisicao.method === 'POST' && requisicao.url === '/v1/distribuicao-chave') {
       const chave = requisicao.headers['idempotency-key'];
       const cnpj = cnpjDoCertificado(requisicao.socket);
