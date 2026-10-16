@@ -45,6 +45,7 @@ CREATE TABLE app.fiscal_acknowledgement (
 CREATE UNIQUE INDEX fiscal_ack_identity_idx ON app.fiscal_acknowledgement(tenant_id,empresa_id,chave_acesso,tipo_evento,sequencia) WHERE chave_acesso IS NOT NULL;
 CREATE INDEX fiscal_ack_due_idx ON app.fiscal_acknowledgement(proxima_tentativa_em,criado_em) WHERE estado IN ('CIENCIA_PENDENTE','XML_COMPLETO_PENDENTE','RETRY_AGENDADO');
 CREATE INDEX fiscal_ack_company_history_idx ON app.fiscal_acknowledgement(empresa_id,criado_em DESC,id);
+CREATE INDEX fiscal_ack_tenant_idx ON app.fiscal_acknowledgement(tenant_id);
 
 CREATE TABLE app.fiscal_acknowledgement_event (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL, empresa_id uuid NOT NULL,
@@ -56,6 +57,10 @@ CREATE TABLE app.fiscal_acknowledgement_event (
   FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id)
 );
 CREATE INDEX fiscal_ack_event_history_idx ON app.fiscal_acknowledgement_event(acknowledgement_id,ocorrido_em DESC,sequencia DESC);
+CREATE INDEX fiscal_ack_event_tenant_idx ON app.fiscal_acknowledgement_event(tenant_id);
+CREATE INDEX fiscal_ack_event_company_idx ON app.fiscal_acknowledgement_event(empresa_id);
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_acknowledgement_event
+  FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER fiscal_ack_event_append_only BEFORE UPDATE OR DELETE ON app.fiscal_acknowledgement_event
   FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 
@@ -71,6 +76,10 @@ CREATE TABLE app.fiscal_acknowledgement_attempt (
   CONSTRAINT fiscal_ack_attempt_once UNIQUE(acknowledgement_id,etapa,tentativa)
 );
 CREATE INDEX fiscal_ack_attempt_history_idx ON app.fiscal_acknowledgement_attempt(acknowledgement_id,iniciada_em DESC);
+CREATE INDEX fiscal_ack_attempt_tenant_idx ON app.fiscal_acknowledgement_attempt(tenant_id);
+CREATE INDEX fiscal_ack_attempt_company_idx ON app.fiscal_acknowledgement_attempt(empresa_id);
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_acknowledgement_attempt
+  FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER fiscal_ack_attempt_append_only BEFORE UPDATE OR DELETE ON app.fiscal_acknowledgement_attempt
   FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 
@@ -84,6 +93,8 @@ CREATE TABLE app.fiscal_acknowledgement_outbox (
   FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id)
 );
 CREATE INDEX fiscal_ack_outbox_due_idx ON app.fiscal_acknowledgement_outbox(disponivel_em,criado_em) WHERE estado='PENDENTE';
+CREATE INDEX fiscal_ack_outbox_tenant_idx ON app.fiscal_acknowledgement_outbox(tenant_id);
+CREATE INDEX fiscal_ack_outbox_company_idx ON app.fiscal_acknowledgement_outbox(empresa_id);
 
 DO $$ DECLARE alvo text; BEGIN
   FOREACH alvo IN ARRAY ARRAY['fiscal_acknowledgement','fiscal_acknowledgement_event','fiscal_acknowledgement_attempt','fiscal_acknowledgement_outbox'] LOOP
