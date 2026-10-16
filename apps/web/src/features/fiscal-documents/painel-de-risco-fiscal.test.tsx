@@ -42,8 +42,9 @@ describe('painel de risco fiscal F20',()=>{
     }]});
     const user=userEvent.setup();
     render(<PainelDeRiscoFiscal empresaId={config.empresa_id} somenteLeitura={false} podeConfigurar/>,{wrapper:Envolvido});
-    await user.click(await screen.findByRole('combobox', { name: 'Documento fiscal' }));
-    await user.click(await screen.findByRole('option', { name: /Fornecedor/u }));
+    const seletorDoDocumento = await screen.findByRole('combobox', { name: 'Documento fiscal' });
+    seletorDoDocumento.focus();
+    await user.keyboard('{Enter}{ArrowDown}{Enter}');
     expect(await screen.findByText('Sem proposta conclusiva')).toBeTruthy();
     expect(screen.getByText('Confiança: 0')).toBeTruthy();
     expect(screen.getByText('"HISTORICO_INSUFICIENTE_PARA_PADRAO"')).toBeTruthy();
