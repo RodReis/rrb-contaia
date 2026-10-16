@@ -39,6 +39,8 @@ import {
   ITENS_POR_PAGINA_DO_HISTORICO,
   type ComandoAssinar,
   type ComandoCienciaDfe,
+  type ComandoManifestarConclusiva,
+  type ComandoConsultarManifestacaoConclusiva,
   type ComandoConsultarProcNFe,
   type ComandoDiagnosticar,
   type ComandoExecutarMtls,
@@ -52,6 +54,8 @@ import {
   type RespostaDeHistorico,
   type RespostaDistribuicaoDfe,
   type RespostaCienciaDfe,
+  type RespostaManifestacaoConclusiva,
+  type RespostaConsultaManifestacaoConclusiva,
   type RespostaConsultarProcNFe,
 } from '@contaia/shared';
 import type { Pool, PoolClient } from 'pg';
@@ -68,8 +72,8 @@ import { consultarDistribuicaoDfe } from './destino.js';
 import { abrirPkcs12ParaAssinar } from './xml/pkcs12.js';
 import { assinarXml } from './xml/assinar.js';
 import { verificarXmlAssinado } from './xml/verificar.js';
-import { ADAPTADOR_CIENCIA_DFE, criarXmlDaCiencia } from './dfe-ciencia.js';
-import { consultarProcNFeNoDestino, transmitirCienciaNoDestino } from './dfe-ciencia-destino.js';
+import { ADAPTADOR_CIENCIA_DFE, criarXmlDaCiencia, criarXmlDaManifestacaoConclusiva } from './dfe-ciencia.js';
+import { consultarManifestacaoConclusivaNoDestino, consultarProcNFeNoDestino, transmitirCienciaNoDestino, transmitirManifestacaoConclusivaNoDestino } from './dfe-ciencia-destino.js';
 
 export type DependenciasDoCasoDeUso = DependenciasDaExecucao &
   Readonly<{
@@ -606,6 +610,37 @@ export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDo
         evento(pedido, { resultado: resultado.tipo === 'INCERTO' ? 'FALHA' : 'SUCESSO', codigo: resultado.codigo,
           reutilizado: false, inicio, hashConteudo: hash, chaveHmac, referenciaSegredo: certificado.referenciaSegredo })));
       return resultado;
+    },
+    async manifestarConclusiva(identidade,comando:ComandoManifestarConclusiva):Promise<RespostaManifestacaoConclusiva>{
+      if(identidade!=='worker')throw new ErroDoSigner('SIGNER_ALCADA_NEGADA',403);
+      if((comando.tipoEvento==='210240'&&(!comando.xJust||comando.xJust.trim().length<15||comando.xJust.trim().length>255))||(comando.tipoEvento!=='210240'&&comando.xJust!==null))throw new ErroDoSigner('SIGNER_CONTEXTO_INVALIDO',400);
+      const pedido:Pedido={tipo:'MTLS',identidade,tenantId:comando.tenantId,empresaId:comando.empresaId,finalidade:'DFE_TESTE',correlationId:comando.correlationId,usuarioOriginadorId:comando.usuarioOriginadorId,chaveIdempotente:comando.chaveIdempotente,xml:'',origemDiagnostico:null};
+      const inicio=deps.agora();
+      const certificado=await comoSignerDaEmpresa(comando.tenantId,comando.empresaId,comando.correlationId,async(cliente)=>{
+        const atual=await buscarCertificadoParaUso(cliente,comando.empresaId);const condicao=atual===null?null:certificadoUtilizavel(atual,dataCivilEmSaoPaulo(inicio));
+        if(!atual||!condicao?.ok||atual.cnpjDaEmpresa!==comando.cnpj)throw new ErroDoSigner('SIGNER_CERTIFICADO_AUSENTE');return atual;
+      });
+      const xml=criarXmlDaManifestacaoConclusiva(comando,inicio);const segredo=await deps.vault.ler({tenantId:comando.tenantId,empresaId:comando.empresaId,referencia:certificado.referenciaSegredo});
+      const chaveHmac=chaveProtegida(comando.chaveIdempotente,deps.pepper);const hash=hashDoConteudo(xml);let resultado:RespostaManifestacaoConclusiva;
+      try{
+        const material=abrirPkcs12ParaAssinar(segredo.pkcs12,segredo.senha);if(impressaoDigitalDoCertificado(material.certificadoPem)!==certificado.impressaoDigital.toLowerCase())throw new ErroDoSigner('SIGNER_VAULT_INDISPONIVEL',503);
+        const assinado=assinarXml({xml,adaptador:ADAPTADOR_CIENCIA_DFE,chavePem:material.chavePem,certificadoPem:material.certificadoPem});
+        if(!verificarXmlAssinado({xmlAssinado:assinado,certificadoPem:material.certificadoPem,adaptador:ADAPTADOR_CIENCIA_DFE}))throw new ErroDoSigner('SIGNER_ASSINATURA_INVALIDA');
+        resultado=await transmitirManifestacaoConclusivaNoDestino({destino:{...deps.destinos.DFE_TESTE,caminho:'/v1/manifestacao'},pfx:segredo.pkcs12,senha:segredo.senha,caPem:deps.caDosDublesPem,
+          cnpj:comando.cnpj,chaveAcesso:comando.chaveAcesso,chaveIdempotente:comando.chaveIdempotente,tempoLimiteMs:deps.tempoLimiteDoDestinoMs,xml:assinado,tipoEvento:comando.tipoEvento,sequencia:comando.sequencia});
+      }finally{segredo.pkcs12.fill(0);}
+      await comoSignerDaEmpresa(comando.tenantId,comando.empresaId,comando.correlationId,(cliente)=>registrarEventoDoSigner(cliente,evento(pedido,{resultado:resultado.tipo==='INCERTO'?'FALHA':'SUCESSO',codigo:resultado.codigo,reutilizado:false,inicio,hashConteudo:hash,chaveHmac,referenciaSegredo:certificado.referenciaSegredo})));
+      return resultado;
+    },
+    async consultarManifestacaoConclusiva(identidade,comando:ComandoConsultarManifestacaoConclusiva):Promise<RespostaConsultaManifestacaoConclusiva>{
+      if(identidade!=='worker')throw new ErroDoSigner('SIGNER_ALCADA_NEGADA',403);
+      const inicio=deps.agora();
+      const certificado=await comoSignerDaEmpresa(comando.tenantId,comando.empresaId,comando.correlationId,async(cliente)=>{const atual=await buscarCertificadoParaUso(cliente,comando.empresaId);const condicao=atual===null?null:certificadoUtilizavel(atual,dataCivilEmSaoPaulo(inicio));if(!atual||!condicao?.ok||atual.cnpjDaEmpresa!==comando.cnpj)throw new ErroDoSigner('SIGNER_CERTIFICADO_AUSENTE');return atual;});
+      const segredo=await deps.vault.ler({tenantId:comando.tenantId,empresaId:comando.empresaId,referencia:certificado.referenciaSegredo});let consultado:Awaited<ReturnType<typeof consultarManifestacaoConclusivaNoDestino>>;
+      try{const material=abrirPkcs12ParaAssinar(segredo.pkcs12,segredo.senha);if(impressaoDigitalDoCertificado(material.certificadoPem)!==certificado.impressaoDigital.toLowerCase())throw new ErroDoSigner('SIGNER_VAULT_INDISPONIVEL',503);consultado=await consultarManifestacaoConclusivaNoDestino({destino:{...deps.destinos.DFE_TESTE,caminho:'/v1/manifestacao'},pfx:segredo.pkcs12,senha:segredo.senha,caPem:deps.caDosDublesPem,cnpj:comando.cnpj,chaveAcesso:comando.chaveAcesso,chaveIdempotente:comando.chaveIdempotente,tempoLimiteMs:deps.tempoLimiteDoDestinoMs,tipoEvento:comando.tipoEvento,sequencia:comando.sequencia});}finally{segredo.pkcs12.fill(0);}
+      const resposta:RespostaConsultaManifestacaoConclusiva={...consultado,chaveAcesso:comando.chaveAcesso,cnpj:comando.cnpj,tipoEvento:comando.tipoEvento,sequencia:comando.sequencia,ambiente:'HOMOLOGACAO'};
+      const pedido:Pedido={tipo:'MTLS',identidade,tenantId:comando.tenantId,empresaId:comando.empresaId,finalidade:'DFE_TESTE',correlationId:comando.correlationId,usuarioOriginadorId:comando.usuarioOriginadorId,chaveIdempotente:comando.chaveIdempotente,xml:'',origemDiagnostico:null};
+      await comoSignerDaEmpresa(comando.tenantId,comando.empresaId,comando.correlationId,(cliente)=>registrarEventoDoSigner(cliente,evento(pedido,{resultado:resposta.tipo==='INCERTO'?'FALHA':'SUCESSO',codigo:resposta.codigo,reutilizado:false,inicio,hashConteudo:'',chaveHmac:chaveProtegida(comando.chaveIdempotente,deps.pepper),referenciaSegredo:certificado.referenciaSegredo})));return resposta;
     },
     async consultarProcNFe(identidade, comando: ComandoConsultarProcNFe): Promise<RespostaConsultarProcNFe> {
       if (identidade !== 'worker') throw new ErroDoSigner('SIGNER_ALCADA_NEGADA', 403);

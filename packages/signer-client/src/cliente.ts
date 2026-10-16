@@ -15,6 +15,8 @@ import type {
   ComandoExecutarMtls,
   ComandoDistribuicaoDfe,
   ComandoCienciaDfe,
+  ComandoManifestarConclusiva,
+  ComandoConsultarManifestacaoConclusiva,
   ComandoConsultarProcNFe,
   ConsultaEstados,
   ConsultaHistorico,
@@ -25,6 +27,8 @@ import type {
   RespostaDeSaude,
   RespostaDistribuicaoDfe,
   RespostaCienciaDfe,
+  RespostaManifestacaoConclusiva,
+  RespostaConsultaManifestacaoConclusiva,
   RespostaConsultarProcNFe,
 } from '@contaia/shared';
 
@@ -174,6 +178,8 @@ export const criarClienteDoSigner = (config: ConfigDoClienteDoSigner) => {
       chamar<RespostaDistribuicaoDfe>('POST', '/v1/distribuicao-dfe', comando, comando.correlationId),
     manifestarCiencia: (comando: ComandoCienciaDfe) =>
       chamar<RespostaCienciaDfe>('POST', '/v1/manifestar-ciencia', comando, comando.correlationId),
+    manifestarConclusiva:(comando:ComandoManifestarConclusiva)=>chamar<RespostaManifestacaoConclusiva>('POST','/v1/manifestar-conclusiva',comando,comando.correlationId),
+    consultarManifestacaoConclusiva:(comando:ComandoConsultarManifestacaoConclusiva)=>chamar<RespostaConsultaManifestacaoConclusiva>('POST','/v1/consultar-manifestacao-conclusiva',comando,comando.correlationId),
     consultarProcNFe: (comando: ComandoConsultarProcNFe) =>
       chamar<RespostaConsultarProcNFe>('POST', '/v1/consultar-proc-nfe', comando, comando.correlationId),
     diagnosticar: (comando: ComandoDiagnosticar) =>

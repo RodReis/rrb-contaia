@@ -108,6 +108,15 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Preservar emissão como data civil e converter recebimento de protocolo em instante UTC validado.
 - [x] Separar identificador fiscal, nome e localização declarada de emitente/destinatário, com RLS e append-only.
 
+
+- [x] Construir inbox mestre–detalhe, filtros/ordenação/paginação na URL, decisão individual, lote parcial só de 210200 para uma empresa, histórico com protocolo, decisão/outbox, Signer mTLS e worker.
+- [x] Consultar a identidade oficial mTLS para reconciliação; estado ausente ou resposta inconclusiva permanece `RESULTADO_INCERTO` e não dispara retransmissão.
+- [x] Selar proposta original/versão, motivo de troca e chave de acesso validada pelo servidor; recuperar publicação pendente do outbox e reivindicar transmissão com atualização condicional.
+- [x] Builds, typecheck e lint do workspace; warning preexistente em `aba-de-enderecos.tsx`. Testes locais: domínio 4 F21 (866 no pacote), Signer 6, API 2 F21 (1.440 no pacote), worker 3 F21 (189 no pacote), UI 3 F21 (1.290 no pacote).
+- [ ] Executar integração de banco, integração Docker e E2E: `not_run` localmente porque `docker info` não respondeu; repetir na CI e registrar evidência por categoria.
+- [ ] Prova comparativa visual de CLARO/ESCURO em 768/1024/1440, acessibilidade por teclado/axe e estados/falha parcial conforme SPEC-021 §5 e `docs/FRONTEND.md` §20.1.
+- [x] Revisar o diff, corrigir findings e configurar relatórios da CI para `SPEC-021`; issue movida de `proplan:todo` para `proplan:doing` pela CLI do GitHub.
+- [ ] Criar PR com `refs #23` e confirmar CI verde; merge, comentário de encerramento e `proplan:done` ainda não realizados.
 ### Card #21 — `[MVP1][SPEC-019][F19]` Ciência da Emissão automática
 
 - [x] Classificar `resNFe` modelo 55 e destinatário; bloquear XML inseguro, chave/modelo/CNPJ inválidos e documentos já disponíveis.

@@ -93,6 +93,15 @@ const prepararExecucaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promi
   return { ...configuration, ...document, executionId };
 };
 
+const prepararAnaliseParaManifestacao = async (admin: Consultavel,e: Escopo): Promise<Referencias> => {
+  const execucao=await prepararExecucaoRiscoFiscal(admin,e);
+  const analysisId=await unico(admin,
+    `insert into app.fiscal_risk_analysis(tenant_id,empresa_id,execution_id,document_id,configuration_id,parser_version,classifier_version,tipo_manifestacao,confianca,faixa_confianca,justificativa,origem,versao_schema,duracao_ms,correlation_id)
+     values($1,$2,$3,$4,$5,'fixture','fixture','210200',0.9,'PRONTA_PARA_REVISAO','Fixture para manifestação RLS','ABSTENCAO','fixture',0,$6) returning id`,
+    [e.tenantId,e.empresaId,execucao['executionId'],execucao['documentId'],execucao['configurationId'],`fiscal-manifestation-${e.sufixo}-${proximo()}`]);
+  return {...execucao,analysisId};
+};
+
 const exigencia = (admin: Consultavel, escopo: Escopo): Promise<string> =>
   unico(
     admin,
@@ -882,5 +891,18 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       `insert into app.fiscal_risk_event(tenant_id,empresa_id,execution_id,estado,codigo,correlation_id)
        values($1,$2,$3,'AGUARDANDO','FISCAL_RISK_QUEUED','fiscal-risk-rls-fixture') returning id`,
       [e.tenantId,e.empresaId,r['executionId']]),
+  },
+  'app.fiscal_manifestation': {
+    preparar: prepararAnaliseParaManifestacao,
+    inserir: async (banco,e,r) => unico(banco,`insert into app.fiscal_manifestation(tenant_id,empresa_id,document_id,analysis_id,chave_acesso,tipo,estado,decisao_original,aprovador_id,payload,payload_sha256,chave_idempotente,correlation_id) values($1,$2,$3,$4,$5,'210200','APROVADA','210200',$6,'{}'::jsonb,repeat('a',64),$7,'fiscal-manifestation-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['documentId'],r['analysisId'],String(proximo()).padStart(44,'0'),e.autorId,`rls-manifestation-${e.sufixo}-${proximo()}`]),
+    colunaDeAtualizacao:'estado',atualizacao:"estado='ENFILEIRADA'",
+  },
+  'app.fiscal_manifestation_outbox': {
+    preparar: async(admin,e)=>{const execucao=await prepararAnaliseParaManifestacao(admin,e);const manifestation=await unico(admin,`insert into app.fiscal_manifestation(tenant_id,empresa_id,document_id,analysis_id,chave_acesso,tipo,estado,decisao_original,aprovador_id,payload,payload_sha256,chave_idempotente,correlation_id) values($1,$2,$3,$4,$5,'210200','APROVADA','210200',$6,'{}'::jsonb,repeat('b',64),$7,'fiscal-manifestation-rls-fixture') returning id`,[e.tenantId,e.empresaId,execucao['documentId'],execucao['analysisId'],String(proximo()).padStart(44,'0'),e.autorId,`rls-outbox-${e.sufixo}-${proximo()}`]);return{...execucao,manifestationId:manifestation};},
+    inserir:(banco,e,r)=>unico(banco,`insert into app.fiscal_manifestation_outbox(tenant_id,empresa_id,manifestation_id) values($1,$2,$3) returning id`,[e.tenantId,e.empresaId,r['manifestationId']]),colunaDeAtualizacao:'estado',atualizacao:"estado='PUBLICADO'",
+  },
+  'app.fiscal_manifestation_event': {
+    preparar: async(admin,e)=>{const execucao=await prepararAnaliseParaManifestacao(admin,e);const manifestation=await unico(admin,`insert into app.fiscal_manifestation(tenant_id,empresa_id,document_id,analysis_id,chave_acesso,tipo,estado,decisao_original,aprovador_id,payload,payload_sha256,chave_idempotente,correlation_id) values($1,$2,$3,$4,$5,'210200','APROVADA','210200',$6,'{}'::jsonb,repeat('c',64),$7,'fiscal-manifestation-rls-fixture') returning id`,[e.tenantId,e.empresaId,execucao['documentId'],execucao['analysisId'],String(proximo()).padStart(44,'0'),e.autorId,`rls-event-${e.sufixo}-${proximo()}`]);return{...execucao,manifestationId:manifestation};},
+    inserir:(banco,e,r)=>unico(banco,`insert into app.fiscal_manifestation_event(tenant_id,empresa_id,manifestation_id,estado,detalhe_sanitizado,correlation_id) values($1,$2,$3,'APROVADA','fixture','fiscal-manifestation-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['manifestationId']]),
   },
 };

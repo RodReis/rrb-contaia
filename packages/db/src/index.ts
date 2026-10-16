@@ -420,6 +420,7 @@ export type { RegistroFiscalPersistido } from './repositorios/fiscal-documents.j
 export { iniciarCienciaDaEmissao, listarCienciasPendentes, listarHistoricoDaCiencia, listarResumoCienciasDaEmissao, listarTentativasDaCiencia, obterCienciaDaEmissao, preservarXmlCompletoRecuperado, registrarResumoImpedido, registrarXmlCompletoJaDisponivel, registrarTentativaDaCiencia, retomarCienciaDaEmissao, transicionarCienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';
 export type { CienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';
 export { atualizarEstadoDeRiscoFiscal, criarExecucaoDeRiscoFiscal, finalizarTentativaDeRiscoFiscal, iniciarTentativaDeRiscoFiscal, listarHistoricoDeConfiguracoesDeRiscoFiscal, obterAnaliseDeRiscoFiscal, obterConfiguracaoDeRiscoFiscal, obterDocumentoParaRiscoFiscal, obterExecucoesDeRiscoFiscal, obterHistoricoDeComprasParaRiscoFiscal, obterOriginalDeRiscoFiscal, publicarConfiguracaoDeRiscoFiscal, registrarEventoDeRiscoFiscal } from './repositorios/fiscal-risk.js';
+export { listarInboxManifestacoes, registrarDecisaoManifestacao } from './repositorios/fiscal-risk.js';
 export type { ConfiguracaoDeRiscoFiscal, FornecedorDeRiscoInput } from './repositorios/fiscal-risk.js';
 export type {
   TaxRuleActor,

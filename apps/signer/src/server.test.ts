@@ -39,6 +39,8 @@ const servicos = {
   diagnosticar: vi.fn(),
   estados: vi.fn(),
   historico: vi.fn(),
+  manifestarConclusiva: vi.fn(),
+  consultarManifestacaoConclusiva: vi.fn(),
 } satisfies Record<keyof ServicosDoSigner, ReturnType<typeof vi.fn>>;
 
 const contexto = {

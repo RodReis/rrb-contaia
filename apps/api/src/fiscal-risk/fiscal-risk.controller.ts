@@ -93,4 +93,40 @@ export class FiscalRiskController {
     analisar(bodyVazio,body);
     return this.service.reprocessar(tenantDa(request),autorDa(request).usuarioId,analisar(uuid,companyId),analisar(uuid,documentId),obterCorrelationId(request),request.sessao?.papeis??[]);
   }
+
+  @Get('fiscal-manifestations/inbox')
+  @ExigePermissao('empresas.cadastro.consultar')
+  inbox(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Req() req:RequisicaoAutenticada & {query?:unknown}){
+    const query=z.object({estado:z.enum(['PENDENTE','RESULTADO_INCERTO','DLQ']).optional(),tipo:z.enum(['210200','210220','210240']).optional(),confianca:z.enum(['ALTA','MEDIA','BAIXA']).optional(),risco:z.enum(['ALTO','NORMAL']).optional(),prazo:z.enum(['7','30','MAIS_30']).optional(),emitente:z.string().max(100).optional(),valor:z.enum(['ATE_1000','1000_10000','ACIMA_10000']).optional(),busca:z.string().max(100).optional(),pagina:z.coerce.number().int().min(1).max(100).optional(),ordenacao:z.enum(['PRAZO','RISCO','VALOR']).optional()}).parse(req.query??{});
+    return this.service.inbox(tenantDa(request),autorDa(request).usuarioId,analisar(uuid,companyId),obterCorrelationId(request),{...(query.estado?{estado:query.estado}:{}),...(query.tipo?{tipo:query.tipo}:{}),...(query.confianca?{confianca:query.confianca}:{}),...(query.risco?{risco:query.risco}:{}),...(query.prazo?{prazo:query.prazo}:{}),...(query.emitente?{emitente:query.emitente}:{}),...(query.valor?{valor:query.valor}:{}),...(query.busca?{busca:query.busca}:{}),...(query.pagina?{pagina:query.pagina}:{}),...(query.ordenacao?{ordenacao:query.ordenacao}:{})});
+  }
+
+  @Get('fiscal-manifestations/history')
+  @ExigePermissao('empresas.cadastro.consultar')
+  historicoManifestacoes(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Req() req:RequisicaoAutenticada & {query?:unknown}){const pagina=z.object({pagina:z.coerce.number().int().min(1).max(100)}).default({pagina:1}).parse(req.query??{});return this.service.historicoManifestacoes(tenantDa(request),autorDa(request).usuarioId,analisar(uuid,companyId),obterCorrelationId(request),pagina.pagina);}
+
+  @Post('fiscal-manifestations/outbox-recovery')
+  @HttpCode(202)
+  @AcaoLivre()
+  recuperarOutbox(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Body() body:unknown){analisar(bodyVazio,body);return this.service.transmitirPendentesDeManifestacao(tenantDa(request),autorDa(request).usuarioId,analisar(uuid,companyId),obterCorrelationId(request),request.sessao?.papeis??[]);}
+
+  @Post('fiscal-manifestations/decisions')
+  @HttpCode(202)
+  @AcaoLivre()
+  decidir(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Body() body:unknown){
+    const parsed=analisar(z.strictObject({documentId:uuid,analysisId:uuid,chaveAcesso:z.string().regex(/^\d{44}$/u),tipo:z.enum(['210200','210220','210240']),
+      rejeitada:z.boolean(),motivoTroca:z.string().trim().min(3).max(500).nullable(),categoria:z.enum(['TIPO_INCORRETO','DADOS_INSUFICIENTES','EXIGE_INVESTIGACAO','DOCUMENTO_NAO_ACIONAVEL','OUTRO']).nullable(),
+      nota:z.string().trim().max(500).nullable(),xJust:z.string().max(255).nullable()}),body);
+    return this.service.decidirManifestacao(tenantDa(request),autorDa(request).usuarioId,analisar(uuid,companyId),obterCorrelationId(request),request.sessao?.papeis??[],parsed);
+  }
+
+  @Post('fiscal-manifestations/batch-210200')
+  @HttpCode(202)
+  @AcaoLivre()
+  lote(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Body() body:unknown){const parsed=analisar(z.strictObject({items:z.array(z.strictObject({documentId:uuid,analysisId:uuid,chaveAcesso:z.string().regex(/^\d{44}$/u),tipo:z.literal('210200')})).min(1).max(200)}),body);return this.service.decidirManifestacoesEmLote(tenantDa(request),autorDa(request).usuarioId,analisar(uuid,companyId),obterCorrelationId(request),request.sessao?.papeis??[],parsed.items);}
+
+  @Post('fiscal-manifestations/:manifestationId/reconciliation')
+  @HttpCode(202)
+  @AcaoLivre()
+  reconciliar(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('manifestationId') manifestationId:string,@Body() body:unknown){analisar(bodyVazio,body);return this.service.reconciliarManifestacao(tenantDa(request),autorDa(request).usuarioId,analisar(uuid,companyId),obterCorrelationId(request),request.sessao?.papeis??[],analisar(uuid,manifestationId));}
 }

@@ -3,6 +3,8 @@ import {
   type ComandoAssinar,
   type ComandoDistribuicaoDfe,
   type ComandoCienciaDfe,
+  type ComandoManifestarConclusiva,
+  type ComandoConsultarManifestacaoConclusiva,
   type ComandoConsultarProcNFe,
   type ComandoDiagnosticar,
   type ComandoExecutarMtls,
@@ -13,6 +15,8 @@ import {
   type RespostaDeSaude,
   type RespostaDistribuicaoDfe,
   type RespostaCienciaDfe,
+  type RespostaManifestacaoConclusiva,
+  type RespostaConsultaManifestacaoConclusiva,
   type RespostaConsultarProcNFe,
 } from '@contaia/shared';
 
@@ -30,6 +34,8 @@ export type ServicosDoSigner = Readonly<{
   executarMtls(identidade: IdentidadeDeServico, comando: ComandoExecutarMtls): Promise<RespostaDeExecucaoMtls>;
   distribuirDfe(identidade: IdentidadeDeServico, comando: ComandoDistribuicaoDfe): Promise<RespostaDistribuicaoDfe>;
   manifestarCiencia(identidade: IdentidadeDeServico, comando: ComandoCienciaDfe): Promise<RespostaCienciaDfe>;
+  manifestarConclusiva(identidade:IdentidadeDeServico,comando:ComandoManifestarConclusiva):Promise<RespostaManifestacaoConclusiva>;
+  consultarManifestacaoConclusiva(identidade:IdentidadeDeServico,comando:ComandoConsultarManifestacaoConclusiva):Promise<RespostaConsultaManifestacaoConclusiva>;
   consultarProcNFe(identidade: IdentidadeDeServico, comando: ComandoConsultarProcNFe): Promise<RespostaConsultarProcNFe>;
   diagnosticar(identidade: IdentidadeDeServico, comando: ComandoDiagnosticar): Promise<RespostaDeExecucaoMtls>;
   estados(identidade: IdentidadeDeServico, consulta: ConsultaEstados): Promise<unknown>;
@@ -58,6 +64,8 @@ export const criarServicosDeSaude = ({ vault, agora }: OpcoesDosServicosDeSaude)
   executarMtls: naoImplementada,
   distribuirDfe: naoImplementada,
   manifestarCiencia: naoImplementada,
+  manifestarConclusiva: naoImplementada,
+  consultarManifestacaoConclusiva: naoImplementada,
   consultarProcNFe: naoImplementada,
   diagnosticar: naoImplementada,
   estados: naoImplementada,

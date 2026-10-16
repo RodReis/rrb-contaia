@@ -1,0 +1,51 @@
+import type {Pool} from 'pg';
+import {Worker,Queue, type Job} from 'bullmq';
+import {comContexto} from '@contaia/db';
+import {contextoTecnico} from '@contaia/domain';
+import {ManifestacaoConclusivaCommandSchema,ComandoManifestarConclusivaSchema,ComandoConsultarManifestacaoConclusivaSchema,MANIFESTATION_CONCLUSIVA_QUEUE,MANIFESTATION_CONCLUSIVA_DLQ} from '@contaia/shared';
+import {criarConexaoRedis} from './redis.js';
+import type {ConexaoDoRedis,ClienteDoSigner} from '@contaia/signer-client';
+
+
+type Deps=Readonly<{pool:Pool;conexao:ConexaoDoRedis;signer:Pick<ClienteDoSigner,'manifestarConclusiva'|'consultarManifestacaoConclusiva'>;prefixo?:string;agora?:()=>Date}>;
+export const processarManifestacaoConclusiva=async(deps:Deps,input:unknown):Promise<void>=>{
+ const command=ManifestacaoConclusivaCommandSchema.parse(input);const now=deps.agora??(()=>new Date());
+ const ctx=contextoTecnico({identidadeTecnica:'worker',finalidade:'PROCESSAMENTO_DE_EMPRESA',tenantId:command.tenantId,empresaId:command.companyId,correlationId:command.correlationId});
+ const claimed=await comContexto(deps.pool,ctx,async(client)=>{
+  const result=await client.query(`update app.fiscal_manifestation_outbox o set estado='PROCESSANDO',claim_ate=$4 + interval '5 minutes',publicado_em=coalesce(publicado_em,$4) from app.fiscal_manifestation m join app.empresa e on e.id=m.empresa_id and e.tenant_id=m.tenant_id where o.manifestation_id=m.id and o.tenant_id=m.tenant_id and o.empresa_id=m.empresa_id and m.id=$1 and m.tenant_id=$2 and m.empresa_id=$3 and m.estado in ('APROVADA','ENFILEIRADA') and (o.estado in ('PENDENTE','PUBLICADO') or (o.estado='PROCESSANDO' and o.claim_ate<$4)) returning m.*,e.cnpj`,[command.manifestationId,command.tenantId,command.companyId,now()]);const item=result.rows[0];if(!item)return null;
+  await client.query(`update app.fiscal_manifestation set estado='ENFILEIRADA',atualizado_em=$4 where id=$1 and tenant_id=$2 and empresa_id=$3 and estado='APROVADA'`,[item.id,command.tenantId,command.companyId,now()]);return item;
+ });
+ if(!claimed)return;const item=claimed;
+ const signerCommand=ComandoManifestarConclusivaSchema.parse({tenantId:command.tenantId,empresaId:command.companyId,cnpj:item.cnpj,chaveAcesso:item.chave_acesso,
+  tipoEvento:item.tipo,sequencia:item.sequencia,xJust:item.justificativa,chaveIdempotente:item.chave_idempotente,correlationId:command.correlationId,usuarioOriginadorId:item.aprovador_id});
+ let response;try{response=await deps.signer.manifestarConclusiva(signerCommand);}catch{
+  await comContexto(deps.pool,ctx,async client=>{await client.query(`update app.fiscal_manifestation set estado='RESULTADO_INCERTO',atualizado_em=$4 where id=$1 and tenant_id=$2 and empresa_id=$3`,[item.id,command.tenantId,command.companyId,now()]);await client.query(`update app.fiscal_manifestation_outbox set estado='PUBLICADO',claim_ate=null,tentativas=tentativas+1 where manifestation_id=$1 and tenant_id=$2 and empresa_id=$3`,[item.id,command.tenantId,command.companyId]);});
+  await comContexto(deps.pool,ctx,client=>client.query(`insert into app.fiscal_manifestation_event(tenant_id,empresa_id,manifestation_id,estado,codigo,detalhe_sanitizado,correlation_id) values($1,$2,$3,'RESULTADO_INCERTO','FISCAL_MANIFESTATION_RESULT_UNCERTAIN','Resposta do Signer inconclusiva; reconciliação necessária antes de qualquer reenvio.',$4)`,[command.tenantId,command.companyId,item.id,command.correlationId]));return;
+ }
+ const responseValid=response.chaveAcesso===item.chave_acesso&&response.cnpj===item.cnpj&&response.tipoEvento===item.tipo&&response.sequencia===item.sequencia&&response.ambiente==='HOMOLOGACAO';const estado=responseValid?(response.tipo==='ACEITO'?'ACEITA':response.tipo==='DUPLICIDADE'&&response.protocolo?'ACEITA':response.tipo==='REJEITADO'?'REJEITADA_SEFAZ':'RESULTADO_INCERTO'):'RESULTADO_INCERTO';
+ const protocolo=estado==='ACEITA'?response.protocolo:null;
+ await comContexto(deps.pool,ctx,async(client)=>{
+  await client.query(`update app.fiscal_manifestation set estado=$1,atualizado_em=$2 where id=$3 and tenant_id=$4 and empresa_id=$5 and estado='ENFILEIRADA'`,[estado,now(),item.id,command.tenantId,command.companyId]);
+  if(estado==='ACEITA'||estado==='REJEITADA_SEFAZ')await client.query(`update app.fiscal_manifestation_outbox set estado='CONCLUIDO',claim_ate=null,tentativas=tentativas+1 where manifestation_id=$1 and tenant_id=$2 and empresa_id=$3`,[item.id,command.tenantId,command.companyId]);else await client.query(`update app.fiscal_manifestation_outbox set estado='PUBLICADO',claim_ate=null,tentativas=tentativas+1 where manifestation_id=$1 and tenant_id=$2 and empresa_id=$3`,[item.id,command.tenantId,command.companyId]);
+  await client.query(`insert into app.fiscal_manifestation_event(tenant_id,empresa_id,manifestation_id,estado,codigo,detalhe_sanitizado,protocolo,correlation_id) values($1,$2,$3,$4,$5,$6,$7,$8)`,[command.tenantId,command.companyId,item.id,estado,responseValid?response.codigo:'FISCAL_MANIFESTATION_IDENTITY_MISMATCH',estado==='RESULTADO_INCERTO'?'Resposta ainda exige reconciliação.':'Resposta oficial processada.',protocolo,command.correlationId]);
+ });
+};
+
+export const reconciliarManifestacaoConclusiva=async(deps:Deps,input:unknown):Promise<void>=>{
+ const command=ManifestacaoConclusivaCommandSchema.parse(input);const now=deps.agora??(()=>new Date());const ctx=contextoTecnico({identidadeTecnica:'worker',finalidade:'PROCESSAMENTO_DE_EMPRESA',tenantId:command.tenantId,empresaId:command.companyId,correlationId:command.correlationId});
+ const item=await comContexto(deps.pool,ctx,async client=>(await client.query(`select m.*,e.cnpj from app.fiscal_manifestation m join app.empresa e on e.id=m.empresa_id and e.tenant_id=m.tenant_id where m.id=$1 and m.tenant_id=$2 and m.empresa_id=$3 and m.estado='RESULTADO_INCERTO' for update of m skip locked`,[command.manifestationId,command.tenantId,command.companyId])).rows[0]??null);if(!item)return;
+ const query=ComandoConsultarManifestacaoConclusivaSchema.parse({tenantId:command.tenantId,empresaId:command.companyId,cnpj:item.cnpj,chaveAcesso:item.chave_acesso,tipoEvento:item.tipo,sequencia:item.sequencia,chaveIdempotente:item.chave_idempotente,correlationId:command.correlationId,usuarioOriginadorId:item.aprovador_id});let result;try{result=await deps.signer.consultarManifestacaoConclusiva(query);}catch{result={tipo:'INCERTO' as const,codigo:'FISCAL_MANIFESTATION_QUERY_UNCERTAIN',protocolo:null,chaveAcesso:item.chave_acesso,cnpj:item.cnpj,tipoEvento:item.tipo,sequencia:item.sequencia,ambiente:'HOMOLOGACAO' as const,recebidoEm:null};}
+ const identityOk=result.chaveAcesso===item.chave_acesso&&result.cnpj===item.cnpj&&result.tipoEvento===item.tipo&&result.sequencia===item.sequencia&&result.ambiente==='HOMOLOGACAO';const accepted=identityOk&&result.tipo==='ENCONTRADO'&&Boolean(result.protocolo);await comContexto(deps.pool,ctx,async client=>{const state=accepted?'ACEITA':'RESULTADO_INCERTO';await client.query(`update app.fiscal_manifestation set estado=$1,atualizado_em=$2 where id=$3 and tenant_id=$4 and empresa_id=$5 and estado='RESULTADO_INCERTO'`,[state,now(),item.id,command.tenantId,command.companyId]);if(accepted)await client.query(`update app.fiscal_manifestation_outbox set estado='CONCLUIDO' where manifestation_id=$1 and tenant_id=$2 and empresa_id=$3`,[item.id,command.tenantId,command.companyId]);await client.query(`insert into app.fiscal_manifestation_event(tenant_id,empresa_id,manifestation_id,estado,codigo,detalhe_sanitizado,protocolo,correlation_id) values($1,$2,$3,$4,$5,$6,$7,$8)`,[command.tenantId,command.companyId,item.id,state,identityOk?result.codigo:'FISCAL_MANIFESTATION_IDENTITY_MISMATCH',accepted?'Manifestação oficial reconciliada por consulta mTLS.':'Consulta sem confirmação oficial; transmissão permanece bloqueada.',accepted?result.protocolo:null,command.correlationId]);});
+};
+
+export const marcarManifestacaoEmDlq=async(deps:Deps,input:unknown):Promise<void>=>{
+ const command=ManifestacaoConclusivaCommandSchema.parse(input);const ctx=contextoTecnico({identidadeTecnica:'worker',finalidade:'PROCESSAMENTO_DE_EMPRESA',tenantId:command.tenantId,empresaId:command.companyId,correlationId:command.correlationId});
+ await comContexto(deps.pool,ctx,async client=>{const updated=await client.query(`update app.fiscal_manifestation set estado='DLQ',atualizado_em=now() where id=$1 and tenant_id=$2 and empresa_id=$3 and estado in ('APROVADA','ENFILEIRADA','FALHA_RETRY')`,[command.manifestationId,command.tenantId,command.companyId]);if(!updated.rowCount)return;await client.query(`update app.fiscal_manifestation_outbox set estado='DLQ',claim_ate=null,tentativas=tentativas+1 where manifestation_id=$1 and tenant_id=$2 and empresa_id=$3`,[command.manifestationId,command.tenantId,command.companyId]);await client.query(`insert into app.fiscal_manifestation_event(tenant_id,empresa_id,manifestation_id,estado,codigo,detalhe_sanitizado,correlation_id) values($1,$2,$3,'DLQ','FISCAL_MANIFESTATION_WORKER_FAILED','Falha técnica esgotou as tentativas da fila; requer intervenção operacional.',$4)`,[command.tenantId,command.companyId,command.manifestationId,command.correlationId]);});
+};
+
+export const iniciarConsumidorDeManifestacoesConclusivas=async(deps:Deps)=>{
+ const redis=criarConexaoRedis(deps.conexao);const common={connection:redis,...(deps.prefixo?{prefix:deps.prefixo}:{})};const dead=new Queue(MANIFESTATION_CONCLUSIVA_DLQ,common);
+ const worker=new Worker(MANIFESTATION_CONCLUSIVA_QUEUE,(job:Job<unknown>)=>job.name==='reconcile-manifestation'?reconciliarManifestacaoConclusiva(deps,job.data):processarManifestacaoConclusiva(deps,job.data),{...common,concurrency:2});
+ worker.on('failed',(job,error)=>{if(!job||job.attemptsMade<Number(job.opts.attempts??1))return;void Promise.allSettled([dead.add('dead',{command:job.data,code:'FISCAL_MANIFESTATION_WORKER_FAILED'},{jobId:`manifestation-dead-${job.id}`,removeOnFail:false}),marcarManifestacaoEmDlq(deps,job.data)]).then(results=>{if(results.some(result=>result.status==='rejected'))console.error(JSON.stringify({event:'fiscal-manifestation-dlq-persist-failed'}));});console.error(JSON.stringify({event:'fiscal-manifestation-worker-failed',name:error.name}));});
+ await worker.waitUntilReady();return{fechar:async()=>{await worker.close();await dead.close();redis.disconnect();}};
+};

@@ -10,11 +10,11 @@
 export const IDENTIDADES = ['api', 'worker', 'signer'] as const;
 export type IdentidadeDeServico = (typeof IDENTIDADES)[number];
 
-export const OPERACOES = ['saude', 'assinar', 'executar-mtls', 'distribuicao-dfe', 'manifestar-ciencia', 'consultar-proc-nfe', 'diagnosticar', 'estados', 'historico'] as const;
+export const OPERACOES = ['saude', 'assinar', 'executar-mtls', 'distribuicao-dfe', 'manifestar-ciencia', 'manifestar-conclusiva', 'consultar-manifestacao-conclusiva', 'consultar-proc-nfe', 'diagnosticar', 'estados', 'historico'] as const;
 export type Operacao = (typeof OPERACOES)[number];
 
 export const ALCADAS: Readonly<Record<IdentidadeDeServico, readonly Operacao[]>> = {
-  worker: ['saude', 'assinar', 'executar-mtls', 'distribuicao-dfe', 'manifestar-ciencia', 'consultar-proc-nfe', 'diagnosticar'],
+  worker: ['saude', 'assinar', 'executar-mtls', 'distribuicao-dfe', 'manifestar-ciencia', 'manifestar-conclusiva', 'consultar-manifestacao-conclusiva', 'consultar-proc-nfe', 'diagnosticar'],
   api: ['saude', 'estados', 'historico', 'diagnosticar'],
   signer: ['saude'],
 };
