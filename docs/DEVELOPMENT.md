@@ -590,9 +590,11 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] 210200 exige prova explícita e referenciada da realização, além de fornecedor aprovado, limite respeitado e histórico compatível; 210220/210240 exigem evidência positiva, explícita e referenciada para seus fatos.
 - [ ] Worker ainda não recebe fonte estruturada de prova de realização, não solicitação ou não realização; no estado atual, execuções elegíveis resultam em `ABSTER_SE` até existir essa fonte.
 - [ ] SPEC-020 §3.5.1 ainda descreve a regra anterior de 210200; alinhamento documental pelo Cowork pendente.
-- [ ] Suíte de regressão após a decisão do PI: `not_run`; pnpm tentou reinstalar dependências e bloqueou por diretório `node_modules` externo à worktree. Política compilada isoladamente e cenários com/sem prova exercitados diretamente em Node.
-- [ ] `test:banco`, E2E e smoke Playwright: `not_run`; Docker Engine não respondeu neste host, e `DATABASE_URL` não está configurada.
-- [ ] Provas visuais CLARO/ESCURO em 768/1024/1440, autorrevisão completa, relatório SPEC-020, PR, CI e merge.
+- [ ] `test:banco` local e smoke Playwright: `not_run`; Docker Engine não respondeu neste host, e `DATABASE_URL` não está configurada.
+- [x] CI da PR #127 no SHA `97e05845c71d431052ebcd3eef8928ecb8044fb5`: 7 jobs obrigatórios verdes; E2E 165/165.
+- [ ] Provas visuais CLARO/ESCURO em 768/1024/1440 e autorrevisão completa; CI verde não substitui esses gates visuais.
+- [ ] SPEC-020 §3.5.1 diverge da decisão do PI registrada na issue/PR; alinhamento pertence ao Cowork e bloqueia merge.
+- [ ] PR #127 permanece draft; merge depende dos gates acima.
 - [ ] Alteração remota de `proplan:todo` para `proplan:doing` bloqueada pelo 403 do GitHub connector; não contornar.
 
 ---
