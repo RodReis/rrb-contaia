@@ -11,6 +11,8 @@ vi.mock('./api',()=>({
   reprocessarAnaliseDeRiscoFiscal:vi.fn(),salvarConfiguracaoDeRiscoFiscal:vi.fn(),
 }));
 
+Object.defineProperty(HTMLElement.prototype,'scrollIntoView',{configurable:true,value:vi.fn()});
+
 const Envolvido=({children}:{children:ReactNode})=><QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}>{children}</QueryClientProvider>;
 const config={id:'00000000-0000-4000-8000-000000000001',tenant_id:'00000000-0000-4000-8000-000000000002',empresa_id:'00000000-0000-4000-8000-000000000003',versao:2,limite_centavos:'250000',motivo:'Configuração inicial aprovada.',ator_id:'00000000-0000-4000-8000-000000000004',criado_em:'2026-10-15T12:00:00.000Z',fornecedores:[]};
 
