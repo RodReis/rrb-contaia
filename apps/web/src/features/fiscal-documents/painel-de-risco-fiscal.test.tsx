@@ -49,7 +49,7 @@ describe('painel de risco fiscal F20',()=>{
     await user.keyboard('{Enter}{ArrowDown}{Enter}');
     expect(await screen.findByText('Sem proposta conclusiva')).toBeTruthy();
     expect(screen.getByText('Confiança: 0')).toBeTruthy();
-    expect(screen.getByText('"HISTORICO_INSUFICIENTE_PARA_PADRAO"')).toBeTruthy();
+    expect(screen.getByText('HISTORICO_INSUFICIENTE_PARA_PADRAO')).toBeTruthy();
     await waitFor(()=>expect(listarAnalisesDeRiscoFiscal).toHaveBeenCalled());
   });
 
