@@ -608,6 +608,17 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 
 ---
 
+### Card #24 — `[MVP1][SPEC-022][F22]` Agenda de obrigações e alertas D-3
+
+- [x] Motor puro de aplicabilidade, calendário civil, cobertura explícita, vencimento ajustado, dependências e prioridade D-3.
+- [x] Catálogo global versionado protegido por contexto de serviço e guard do `super_admin`; ocorrências, trilha e outbox permanecem isoladas por tenant/empresa.
+- [x] Geração idempotente, destinatários por carteira/admin, notificação in-app, baixa manual e reabertura auditadas.
+- [x] API, worker agendado e tela da agenda com lista/calendário, filtros na URL, detalhe e ações conforme alçada.
+- [x] Testes locais de domínio, tela, API e RLS/anti-drift focados; build e typecheck do workspace passaram.
+- [ ] `test:banco` completo e smoke visual/E2E: pendentes de recuperação do PostgreSQL local; não declarar PASS até repetir os gates.
+- [ ] Evidência visual CLARO/ESCURO em 768/1024/1440: `not_run` até captura autenticada local.
+- [ ] PR e CI remoto: em andamento.
+
 ## Referências
 
 - [`STATUS.md`](STATUS.md) · [`AUDIT.md`](AUDIT.md) · [`TESTING.md`](TESTING.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`FRONTEND.md`](FRONTEND.md)

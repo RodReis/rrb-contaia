@@ -154,7 +154,14 @@ const ITENS_DO_SINO = `
     from app.importacao_empregados_notificacao m
     join app.importacao_empregados t on t.id = m.tentativa_id and t.empresa_id = m.empresa_id
     join app.empresa e on e.id = m.empresa_id
-   where m.tenant_id = $1 and m.usuario_id = $2`;
+   where m.tenant_id = $1 and m.usuario_id = $2
+  union all
+  select n.id,n.empresa_id,coalesce(e.nome_fantasia,e.razao_social,e.cnpj),'OBRIGACAO_D3',o.id::text,
+         n.lida,n.lida_em,n.criado_em,n.sequencia,null::jsonb,null::jsonb,null::bigint,
+         null::uuid,null::text,jsonb_build_object('alertaId',a.id,'prioridade',a.prioridade,'diasRestantes',a.dias_restantes,'codigo',o.codigo,'competencia',o.competencia)
+    from app.obligation_in_app_notification n join app.obligation_alert a on a.id=n.alert_id
+    join app.obligation_occurrence o on o.id=a.occurrence_id join app.empresa e on e.id=n.empresa_id
+   where n.tenant_id=$1 and n.usuario_id=$2`;
 
 const SELECAO_DO_SINO = `select * from (${ITENS_DO_SINO}) itens`;
 
@@ -357,12 +364,19 @@ export const marcarVariasComoLidas = async (
     [ids, tenantId, usuarioId],
   );
 
+  const daObrigacao = await cliente.query(
+    `update app.obligation_in_app_notification set lida=true,lida_em=now()
+      where id=any($1) and tenant_id=$2 and usuario_id=$3 and lida=false`,
+    [ids,tenantId,usuarioId],
+  );
+
   return (
     deEmpresa.rows.length +
     (deCarteira.rowCount ?? 0) +
     (doCofre.rowCount ?? 0) +
     (doSigner.rowCount ?? 0) +
     (daImportacao.rowCount ?? 0) +
-    (daImportacaoDeEmpregados.rowCount ?? 0)
+    (daImportacaoDeEmpregados.rowCount ?? 0) +
+    (daObrigacao.rowCount ?? 0)
   );
 };

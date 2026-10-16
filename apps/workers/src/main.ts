@@ -11,6 +11,7 @@ import { iniciarConsumidorDfeCapture } from './dfe-capture.js';
 import { iniciarConsumidorDeDocumentosFiscais } from './fiscal-documents.js';
 import { iniciarConsumidorDeRiscoFiscal } from './fiscal-risk.js';
 import { iniciarConsumidorDeManifestacoesConclusivas } from './fiscal-manifestation.js';
+import { iniciarAgendadorDeObrigacoes } from './obligations.js';
 import { criarLeitorDoArmazenamento } from './importacao/leitura-s3.js';
 import { iniciarConsumidorDoPlanoDeContas } from './plano-contas/consumidor.js';
 import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
@@ -20,7 +21,7 @@ type Fechar = () => Promise<void>;
 const config = lerConfig(process.env);
 const conexao = conexaoDoRedis(config.redisUrl);
 const pool = criarPoolDaAplicacao();
-const schedulerPool = config.signer !== null || config.armazenamento !== null ? criarPoolDoAgendadorDfe() : null;
+const schedulerPool = criarPoolDoAgendadorDfe();
 const agora = (): Date => new Date();
 
 const iniciarSigner = async (signer: ConfigDoSigner): Promise<Fechar> => {
@@ -59,6 +60,9 @@ const iniciarImportacoes = async (armazenamento: ConfigDoArmazenamento): Promise
 
 const fechamentos: Fechar[] = [];
 const ativos: string[] = [];
+const obligations = iniciarAgendadorDeObrigacoes({pool,schedulerPool,conexao,agora});
+fechamentos.push(obligations.fechar);
+ativos.push('agenda de obrigações F22');
 
 if (config.signer !== null) {
   fechamentos.push(await iniciarSigner(config.signer));
@@ -94,7 +98,7 @@ const server = criarServidorDeSaude('workers');
 await escutar(server, config.portaDeSaude);
 encerrarComGraca(server, async () => {
   await Promise.all(fechamentos.map((fechar) => fechar()));
-  await schedulerPool?.end();
+  await schedulerPool.end();
   await pool.end();
 });
 

@@ -40,6 +40,11 @@ const EMPREGADOS_LEITURA: readonly ChaveDePermissao[] = [
   'empresas.empregados.baixar_relatorio',
 ];
 
+const OBRIGACOES_OPERACAO: readonly ChaveDePermissao[] = [
+  'obrigacoes.agenda.consultar', 'obrigacoes.agenda.baixar', 'obrigacoes.agenda.reabrir',
+  'obrigacoes.agenda.reprocessar',
+];
+
 const OPERACAO: readonly ChaveDePermissao[] = [
   ...chavesDoModulo('documentos'),
   ...chavesDoModulo('pendencias'),
@@ -56,6 +61,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...chavesDoModulo('certificados'),
     // SPEC-016 §3.7: contador consulta as regras publicadas e simula.
     ...chavesDoModulo('fiscal'),
+    ...OBRIGACOES_OPERACAO,
     'historico.global.consultar',
   ],
   // Consulta o cofre mas não muta (SPEC-011 §3.2); sem histórico de certificados.
@@ -63,6 +69,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...CADASTRO_DE_EMPRESAS_SEM_ARQUIVAR,
     ...PLANO_DE_CONTAS_LEITURA,
     ...OPERACAO,
+    ...OBRIGACOES_OPERACAO,
     'certificados.cofre.consultar',
   ],
   auditor_readonly: [
@@ -74,6 +81,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...consultas('documentos'),
     ...consultas('pendencias'),
     ...consultas('notificacoes'),
+    'obrigacoes.agenda.consultar',
     ...consultas('certificados'),
     // SPEC-016 §3.7: o auditor consulta e simula (simular não grava nada).
     ...chavesDoModulo('fiscal'),

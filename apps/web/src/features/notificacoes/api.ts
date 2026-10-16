@@ -23,7 +23,9 @@ export type TipoDeNotificacao =
   | 'IMPORTACAO_PLANO_CONTAS_CONCLUIDA'
   // Fim da importação de empregados (SPEC-014 §3.10): para o iniciador e os administradores
   // autorizados; mesmo `importacao` do plano de contas.
-  | 'IMPORTACAO_EMPREGADOS_CONCLUIDA';
+  | 'IMPORTACAO_EMPREGADOS_CONCLUIDA'
+  // Alerta evolutivo D-3 da agenda fiscal F22.
+  | 'OBRIGACAO_D3';
 
 export type EmpresaDoAviso = Readonly<{ id: string; nome: string; cnpj: string }>;
 

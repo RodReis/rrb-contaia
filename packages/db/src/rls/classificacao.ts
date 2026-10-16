@@ -155,6 +155,28 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.fiscal_manifestation', classe: 'empresa', origem: 'F21 / SPEC-021' },
   { tabela: 'app.fiscal_manifestation_outbox', classe: 'empresa', origem: 'F21 / SPEC-021' },
   { tabela: 'app.fiscal_manifestation_event', classe: 'empresa', origem: 'F21 / SPEC-021', appendOnly: true },
+  {
+    tabela: 'app.obligation_rule', classe: 'global', origem: 'F22 / SPEC-022',
+    justificativa: 'Catálogo versionado administrado pelo super_admin local; a aplicação acessa as versões e seus comandos apenas por funções SECURITY DEFINER sob o contexto CATALOGO_TRIBUTARIO, seguindo a F16.',
+  },
+  {
+    tabela: 'app.obligation_catalog_audit', classe: 'global', origem: 'F22 / SPEC-022', appendOnly: true,
+    justificativa: 'Auditoria append-only do catálogo global de obrigações; só as funções SECURITY DEFINER do contexto CATALOGO_TRIBUTARIO escrevem ou consultam a trilha.',
+  },
+  {
+    tabela: 'app.obligation_holiday', classe: 'global', origem: 'F22 / SPEC-022',
+    justificativa: 'Calendário versionado global; a aplicação acessa os dados apenas por funções controladas e o super_admin local registra novas versões.',
+  },
+  {
+    tabela: 'app.obligation_calendar_coverage', classe: 'global', origem: 'F22 / SPEC-022',
+    justificativa: 'Declaração versionada de cobertura temporal do calendário global; só funções SECURITY DEFINER permitem consulta e gravação administrativa.',
+  },
+  { tabela: 'app.obligation_occurrence', classe: 'empresa', origem: 'F22 / SPEC-022' },
+  { tabela: 'app.obligation_event', classe: 'empresa', origem: 'F22 / SPEC-022', appendOnly: true },
+  { tabela: 'app.obligation_alert', classe: 'empresa', origem: 'F22 / SPEC-022' },
+  { tabela: 'app.obligation_alert_recipient', classe: 'empresa', origem: 'F22 / SPEC-022' },
+  { tabela: 'app.obligation_in_app_notification', classe: 'empresa', origem: 'F22 / SPEC-022' },
+  { tabela: 'app.obligation_channel_outbox', classe: 'empresa', origem: 'F22 / SPEC-022' },
   { tabela: 'app.fiscal_risk_attempt', classe: 'empresa', origem: 'F20 / SPEC-020', appendOnly: true },
   { tabela: 'app.fiscal_risk_event', classe: 'empresa', origem: 'F20 / SPEC-020', appendOnly: true },
   { tabela: 'app.conta_contabil', classe: 'empresa', origem: 'F13 / SPEC-013' },

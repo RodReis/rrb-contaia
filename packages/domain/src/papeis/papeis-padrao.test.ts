@@ -75,6 +75,12 @@ const CERTIFICADOS_TODAS = [
 // SPEC-016 §3.7: admin_escritorio, contador e auditor_readonly consultam as regras publicadas e
 // simulam; o auxiliar e os demais papéis não recebem acesso por padrão.
 const FISCAL = ['fiscal.motor_tributario.consultar', 'fiscal.motor_tributario.simular'];
+const OBRIGACOES = [
+  'obrigacoes.agenda.consultar',
+  'obrigacoes.agenda.baixar',
+  'obrigacoes.agenda.reabrir',
+  'obrigacoes.agenda.reprocessar',
+];
 
 // Matriz da SPEC-007 §3.1 lida em chaves, escrita à mão: o teste não lê a constante de produção.
 const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
@@ -95,6 +101,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...OPERACAO,
     ...CERTIFICADOS_TODAS,
     ...FISCAL,
+    ...OBRIGACOES,
     'historico.global.consultar',
   ],
   // SPEC-011 §3.2: o auxiliar consulta o cofre e não muta; sem histórico de certificados.
@@ -104,6 +111,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.editar',
     ...PLANO_CONTAS_LEITURA,
     ...OPERACAO,
+    ...OBRIGACOES,
     'certificados.cofre.consultar',
   ],
   auditor_readonly: [
@@ -120,6 +128,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     // SPEC-012: o auditor lê o painel do Signer e não testa.
     'certificados.signer.consultar',
     ...FISCAL,
+    'obrigacoes.agenda.consultar',
     'historico.global.consultar',
     'usuarios.usuarios_e_papeis.consultar',
   ],

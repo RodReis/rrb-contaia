@@ -13,6 +13,7 @@ const RESUMO_POR_TIPO: Readonly<Record<string, string>> = {
   DOCUMENTO_REJEITADO: 'Documento rejeitado',
   DOCUMENTO_VENCIDO: 'Documento vencido',
   NOVA_EXIGENCIA: 'Nova exigência',
+  OBRIGACAO_D3: 'Obrigação próxima do vencimento',
   CARTEIRA_ALTERADA: 'Carteira atualizada',
 };
 
@@ -204,6 +205,10 @@ export const resumoDaCarteira = (notificacao: Notificacao): string => {
 export const rotaDaNotificacao = (notificacao: Notificacao): string => {
   if (ehAvisoDeCarteira(notificacao)) {
     return '/carteira';
+  }
+
+  if (notificacao.tipo === 'OBRIGACAO_D3') {
+    return `/fiscal/obrigacoes?ocorrencia=${encodeURIComponent(notificacao.chave)}`;
   }
 
   const importacao = avisoDeImportacao(notificacao);
