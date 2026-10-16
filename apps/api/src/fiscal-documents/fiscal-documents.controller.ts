@@ -29,6 +29,29 @@ export class FiscalDocumentsController {
     return this.service.listar(tenantDa(request), autorDa(request).usuarioId, companyId, obterCorrelationId(request), consulta.pagina, consulta.estado ?? null);
   }
 
+  @Get('acknowledgements')
+  @ExigePermissao('empresas.cadastro.consultar')
+  listarCiencias(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string){
+    return this.service.listarCiencias(tenantDa(request),autorDa(request).usuarioId,companyId,obterCorrelationId(request));
+  }
+
+  @Get('acknowledgements/:acknowledgementId')
+  @ExigePermissao('empresas.cadastro.consultar')
+  obterCiencia(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('acknowledgementId') id:string){
+    return this.service.obterCiencia(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,id),obterCorrelationId(request));
+  }
+
+  @Post('acknowledgements/:acknowledgementId/reprocessing')
+  @HttpCode(202)
+  @AcaoLivre()
+  retomarCiencia(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('acknowledgementId') id:string,@Body() body:unknown){
+    analisar(z.strictObject({}),body);
+    const papeis=request.sessao?.papeis??[];
+    if(!papeis.some((papel)=>(['admin_escritorio','contador','auxiliar'] as readonly string[]).includes(papel)))
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED,'Sem autorização para retomada técnica da Ciência.');
+    return this.service.retomarCiencia(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,id),obterCorrelationId(request));
+  }
+
   @Get(':documentId')
   @ExigePermissao('empresas.cadastro.consultar')
   obter(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Param('documentId') documentId: string) {

@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal } from '@contaia/db';
+import type { Queue } from 'bullmq';
+import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao } from '@contaia/db';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from '@contaia/shared';
-import type { Queue } from 'bullmq';
 import type { PoolClient } from 'pg';
 import { PoolDoBanco } from '../banco/pool.provider';
 import { StorageService } from '../comum/storage.service';
@@ -16,6 +16,34 @@ const chaveMascarada = (value: string | null) => value ? `${value.slice(0, 4)}�
 export class FiscalDocumentsService {
   constructor(private readonly pool: PoolDoBanco, private readonly storage: StorageService,
     @Inject(FISCAL_DOCUMENTS_API_QUEUE) private readonly queue: Queue | null) {}
+
+  async listarCiencias(tenantId:string,userId:string,companyId:string,correlationId:string){
+    return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);
+      if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      return {itens:await listarResumoCienciasDaEmissao(client,companyId)};
+    });
+  }
+
+  async obterCiencia(tenantId:string,userId:string,companyId:string,id:string,correlationId:string){
+    return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);
+      if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      const ciencia=await obterCienciaDaEmissao(client,companyId,id);
+      if(!ciencia)throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED,'Ciência não encontrada.');
+      const [historico,tentativas]=await Promise.all([listarHistoricoDaCiencia(client,companyId,id),listarTentativasDaCiencia(client,companyId,id)]);
+      return {ciencia,historico,tentativas};
+    });
+  }
+
+  async retomarCiencia(tenantId:string,userId:string,companyId:string,id:string,correlationId:string){
+    const item=await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);
+      if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      return retomarCienciaDaEmissao(client,{tenantId,empresaId:companyId,id,correlationId});
+    });
+    return {acknowledgementId:item.id,status:'SCHEDULED' as const};
+  }
 
   async listar(tenantId: string, userId: string, companyId: string, correlationId: string, page: number, state: string | null = null) {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {

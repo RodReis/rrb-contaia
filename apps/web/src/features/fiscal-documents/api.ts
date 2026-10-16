@@ -37,6 +37,15 @@ export type DocumentoFiscalDetalhe = z.infer<typeof DocumentoFiscalDetalheSchema
 const ListaDeDocumentosFiscaisSchema = z.object({ pagina: z.number().int().positive(), temProximaPagina: z.boolean(), itens: z.array(DocumentoFiscalSchema) });
 const IntegridadeFiscalSchema = z.object({ documentId: z.string().uuid(), estado: z.literal('INTEGRO'), verificadoEm: z.string() });
 const ReprocessamentoFiscalSchema = z.object({ documentId: z.string().uuid(), status: z.literal('QUEUED') });
+const EstadoDaCienciaSchema=z.enum(['RESUMO_CAPTURADO','CIENCIA_PENDENTE','CIENCIA_EM_ENVIO','CIENCIA_REGISTRADA','XML_COMPLETO_PENDENTE','XML_COMPLETO_OBTIDO','PARSEADO','JA_MANIFESTADO','XML_COMPLETO_JA_DISPONIVEL','RESULTADO_INCERTO','RETRY_AGENDADO','REJEITADO','IMPEDIDO','DLQ']);
+const CienciaDaEmissaoSchema=z.object({id:z.string().uuid(),staging_id:z.string().uuid(),xml_staging_id:z.string().uuid().nullable(),chave_acesso:z.string().nullable(),estado:EstadoDaCienciaSchema,
+  tentativas:z.number().int(),tentativas_ciencia:z.number().int(),tentativas_xml:z.number().int(),protocolo:z.string().nullable(),ambiente:z.string().nullable(),codigo:z.string().nullable(),motivo_sanitizado:z.string().nullable(),
+  proxima_tentativa_em:z.string().nullable(),solicitada_em:z.string(),atualizado_em:z.string(),nsu_resumo:z.string(),nsu_xml:z.string().nullable()});
+const ListaCienciasSchema=z.object({itens:z.array(CienciaDaEmissaoSchema)});
+const DetalheCienciaSchema=z.object({ciencia:CienciaDaEmissaoSchema,historico:z.array(z.record(z.string(),z.unknown())),tentativas:z.array(z.record(z.string(),z.unknown()))});
+const RetomadaCienciaSchema=z.object({acknowledgementId:z.string().uuid(),status:z.literal('SCHEDULED')});
+
+export type CienciaDaEmissaoUI=z.infer<typeof CienciaDaEmissaoSchema>;
 
 export const listarDocumentosFiscais = async (empresaId: string, pagina: number, estado: string) => {
   const consulta = new URLSearchParams({ pagina: String(pagina) });
@@ -53,6 +62,9 @@ export const reprocessarDocumentoFiscal = async (empresaId: string, documentId: 
   ReprocessamentoFiscalSchema.parse(await requisitar<unknown>(
     `/companies/${empresaId}/fiscal-documents/${documentId}/reprocessing`, { method: 'POST', body: JSON.stringify({}) },
   ));
+export const listarCienciasDaEmissao=async(empresaId:string)=>ListaCienciasSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/acknowledgements`));
+export const obterCienciaDaEmissao=async(empresaId:string,id:string)=>DetalheCienciaSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/acknowledgements/${id}`));
+export const retomarCienciaDaEmissao=async(empresaId:string,id:string)=>RetomadaCienciaSchema.parse(await requisitar<unknown>(`/companies/${empresaId}/fiscal-documents/acknowledgements/${id}/reprocessing`,{method:'POST',body:JSON.stringify({})}));
 export const baixarOriginalFiscal = async (empresaId: string, documentId: string) => {
   const response = await fetch(`/api/proxy/companies/${empresaId}/fiscal-documents/${documentId}/original`, { credentials: 'include' });
   if (!response.ok) throw new Error('Não foi possível baixar o XML original.');

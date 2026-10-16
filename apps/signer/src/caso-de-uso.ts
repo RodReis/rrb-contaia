@@ -38,6 +38,8 @@ import {
 import {
   ITENS_POR_PAGINA_DO_HISTORICO,
   type ComandoAssinar,
+  type ComandoCienciaDfe,
+  type ComandoConsultarProcNFe,
   type ComandoDiagnosticar,
   type ComandoExecutarMtls,
   type ConsultaEstados,
@@ -49,6 +51,8 @@ import {
   type RespostaDeExecucaoMtls,
   type RespostaDeHistorico,
   type RespostaDistribuicaoDfe,
+  type RespostaCienciaDfe,
+  type RespostaConsultarProcNFe,
 } from '@contaia/shared';
 import type { Pool, PoolClient } from 'pg';
 
@@ -62,6 +66,10 @@ import { ADAPTADORES } from './xml/adaptadores.js';
 import { prepararParaAssinar } from './xml/seguranca.js';
 import { consultarDistribuicaoDfe } from './destino.js';
 import { abrirPkcs12ParaAssinar } from './xml/pkcs12.js';
+import { assinarXml } from './xml/assinar.js';
+import { verificarXmlAssinado } from './xml/verificar.js';
+import { ADAPTADOR_CIENCIA_DFE, criarXmlDaCiencia } from './dfe-ciencia.js';
+import { consultarProcNFeNoDestino, transmitirCienciaNoDestino } from './dfe-ciencia-destino.js';
 
 export type DependenciasDoCasoDeUso = DependenciasDaExecucao &
   Readonly<{
@@ -562,6 +570,72 @@ export const criarServicosDoSigner = (deps: DependenciasDoCasoDeUso): ServicosDo
           hashConteudo: fingerprint, chaveHmac,
         }));
       });
+      return resposta;
+    },
+    async manifestarCiencia(identidade, comando: ComandoCienciaDfe): Promise<RespostaCienciaDfe> {
+      if (identidade !== 'worker') throw new ErroDoSigner('SIGNER_ALCADA_NEGADA', 403);
+      const pedido: Pedido = { tipo: 'MTLS', identidade, tenantId: comando.tenantId, empresaId: comando.empresaId,
+        finalidade: 'DFE_TESTE', correlationId: comando.correlationId, usuarioOriginadorId: null,
+        chaveIdempotente: comando.chaveIdempotente, xml: '', origemDiagnostico: null };
+      const inicio = deps.agora();
+      const certificado = await comoSignerDaEmpresa(comando.tenantId, comando.empresaId, comando.correlationId, async (cliente) => {
+        const atual = await buscarCertificadoParaUso(cliente, comando.empresaId);
+        const condicao = atual === null ? null : certificadoUtilizavel(atual, dataCivilEmSaoPaulo(inicio));
+        if (!atual || !condicao?.ok || atual.cnpjDaEmpresa !== comando.cnpj) throw new ErroDoSigner('SIGNER_CERTIFICADO_AUSENTE');
+        return atual;
+      });
+      const xml = criarXmlDaCiencia(comando);
+      const segredo = await deps.vault.ler({ tenantId: comando.tenantId, empresaId: comando.empresaId, referencia: certificado.referenciaSegredo });
+      let resultado: RespostaCienciaDfe;
+      const chaveHmac = chaveProtegida(comando.chaveIdempotente, deps.pepper);
+      const hash = hashDoConteudo(xml);
+      try {
+        const material = abrirPkcs12ParaAssinar(segredo.pkcs12, segredo.senha);
+        if (impressaoDigitalDoCertificado(material.certificadoPem) !== certificado.impressaoDigital.toLowerCase()) {
+          throw new ErroDoSigner('SIGNER_VAULT_INDISPONIVEL', 503);
+        }
+        const assinado = assinarXml({ xml, adaptador: ADAPTADOR_CIENCIA_DFE, chavePem: material.chavePem, certificadoPem: material.certificadoPem });
+        if (!verificarXmlAssinado({ xmlAssinado: assinado, certificadoPem: material.certificadoPem, adaptador: ADAPTADOR_CIENCIA_DFE })) {
+          throw new ErroDoSigner('SIGNER_ASSINATURA_INVALIDA');
+        }
+        resultado = await transmitirCienciaNoDestino({ destino: { ...deps.destinos.DFE_TESTE, caminho: '/v1/manifestacao' },
+          pfx: segredo.pkcs12, senha: segredo.senha, caPem: deps.caDosDublesPem, cnpj: comando.cnpj,
+          chaveAcesso: comando.chaveAcesso, chaveIdempotente: comando.chaveIdempotente, tempoLimiteMs: deps.tempoLimiteDoDestinoMs, xml: assinado });
+      } finally { segredo.pkcs12.fill(0); }
+      await comoSignerDaEmpresa(comando.tenantId, comando.empresaId, comando.correlationId, (cliente) => registrarEventoDoSigner(cliente,
+        evento(pedido, { resultado: resultado.tipo === 'INCERTO' ? 'FALHA' : 'SUCESSO', codigo: resultado.codigo,
+          reutilizado: false, inicio, hashConteudo: hash, chaveHmac, referenciaSegredo: certificado.referenciaSegredo })));
+      return resultado;
+    },
+    async consultarProcNFe(identidade, comando: ComandoConsultarProcNFe): Promise<RespostaConsultarProcNFe> {
+      if (identidade !== 'worker') throw new ErroDoSigner('SIGNER_ALCADA_NEGADA', 403);
+      const inicio = deps.agora();
+      const certificado = await comoSignerDaEmpresa(comando.tenantId, comando.empresaId, comando.correlationId, async (cliente) => {
+        const atual = await buscarCertificadoParaUso(cliente, comando.empresaId);
+        const condicao = atual === null ? null : certificadoUtilizavel(atual, dataCivilEmSaoPaulo(inicio));
+        if (!atual || !condicao?.ok || atual.cnpjDaEmpresa !== comando.cnpj) throw new ErroDoSigner('SIGNER_CERTIFICADO_AUSENTE');
+        return atual;
+      });
+      const segredo = await deps.vault.ler({ tenantId: comando.tenantId, empresaId: comando.empresaId, referencia: certificado.referenciaSegredo });
+      let resultado: Awaited<ReturnType<typeof consultarProcNFeNoDestino>>;
+      try {
+        const material = abrirPkcs12ParaAssinar(segredo.pkcs12, segredo.senha);
+        if (impressaoDigitalDoCertificado(material.certificadoPem) !== certificado.impressaoDigital.toLowerCase()) {
+          throw new ErroDoSigner('SIGNER_VAULT_INDISPONIVEL', 503);
+        }
+        resultado = await consultarProcNFeNoDestino({ destino: { ...deps.destinos.DFE_TESTE, caminho: '/v1/distribuicao-chave' },
+          pfx: segredo.pkcs12, senha: segredo.senha, caPem: deps.caDosDublesPem, cnpj: comando.cnpj,
+          chaveAcesso: comando.chaveAcesso, chaveIdempotente: comando.chaveIdempotente, tempoLimiteMs: deps.tempoLimiteDoDestinoMs });
+      } finally { segredo.pkcs12.fill(0); }
+      const resposta: RespostaConsultarProcNFe = { ...resultado, chaveAcesso: comando.chaveAcesso, cnpj: comando.cnpj,
+        recebidoEm: resultado.tipo === 'OBTIDO' ? deps.agora().toISOString() : null };
+      const pedido: Pedido = { tipo: 'DISTRIBUICAO_DFE', identidade, tenantId: comando.tenantId, empresaId: comando.empresaId,
+        finalidade: 'DFE_TESTE', correlationId: comando.correlationId, usuarioOriginadorId: null,
+        chaveIdempotente: comando.chaveIdempotente, xml: JSON.stringify({ chaveAcesso: comando.chaveAcesso }), origemDiagnostico: null };
+      await comoSignerDaEmpresa(comando.tenantId, comando.empresaId, comando.correlationId, (cliente) => registrarEventoDoSigner(cliente,
+        evento(pedido, { resultado: resultado.tipo === 'DIVERGENTE' ? 'RECUSA' : resultado.tipo === 'PENDENTE' ? 'FALHA' : 'SUCESSO',
+          codigo: resultado.codigo, reutilizado: false, inicio, hashConteudo: hashDoConteudo(pedido.xml as string),
+          chaveHmac: chaveProtegida(comando.chaveIdempotente, deps.pepper), referenciaSegredo: certificado.referenciaSegredo })));
       return resposta;
     },
     async diagnosticar(identidade, comando: ComandoDiagnosticar) {

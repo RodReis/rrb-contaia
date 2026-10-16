@@ -1,12 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DocumentoFiscal } from './api';
+import type { CienciaDaEmissaoUI, DocumentoFiscal } from './api';
 
 const navegacao = vi.hoisted(() => ({ replace: vi.fn(), parametros: 'aba=captura-dfe&documentosPagina=2&documentosEstado=CONFLITO' }));
 const api = vi.hoisted(() => ({
   listar: vi.fn(async (): Promise<{ pagina: number; temProximaPagina: boolean; itens: DocumentoFiscal[] }> => ({ pagina: 2, temProximaPagina: false, itens: [] })),
   obter: vi.fn(),
+  listarCiencias: vi.fn(async (): Promise<{ itens: CienciaDaEmissaoUI[] }> => ({ itens: [] })),
+  obterCiencia: vi.fn(),
+  retomarCiencia: vi.fn(async () => ({ acknowledgementId: '423e4567-e89b-12d3-a456-426614174000', status: 'SCHEDULED' })),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -19,6 +22,9 @@ vi.mock('./api', () => ({
   obterDocumentoFiscal: api.obter,
   reprocessarDocumentoFiscal: vi.fn(),
   verificarIntegridadeFiscal: vi.fn(),
+  listarCienciasDaEmissao: api.listarCiencias,
+  obterCienciaDaEmissao: api.obterCiencia,
+  retomarCienciaDaEmissao: api.retomarCiencia,
 }));
 
 import { PainelDeDocumentosFiscais } from './painel-de-documentos-fiscais';
@@ -28,6 +34,9 @@ describe('PainelDeDocumentosFiscais', () => {
     navegacao.replace.mockReset();
     api.listar.mockClear();
     api.obter.mockReset();
+    api.listarCiencias.mockReset().mockResolvedValue({ itens: [] });
+    api.obterCiencia.mockReset();
+    api.retomarCiencia.mockReset().mockResolvedValue({ acknowledgementId: '423e4567-e89b-12d3-a456-426614174000', status: 'SCHEDULED' });
   });
 
   it('mantém filtro e aba na URL ao voltar uma página', async () => {
@@ -91,6 +100,49 @@ describe('PainelDeDocumentosFiscais', () => {
     expect(screen.getByText('Rua A, 10, Centro, São Paulo, SP, 01000000')).toBeTruthy();
     expect(screen.getAllByText('R$ 0,01', { exact: true }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Copiar chave de acesso' })).toBeTruthy();
+    cliente.clear();
+  });
+
+  it('mostra histórico e retomada autorizada, sem ação em somente leitura', async () => {
+    api.listarCiencias.mockResolvedValue({ itens: [{
+      id: '423e4567-e89b-12d3-a456-426614174000', staging_id: '523e4567-e89b-12d3-a456-426614174000', xml_staging_id: null,
+      chave_acesso: '35240112345678000195550010000000011000000019', estado: 'DLQ', tentativas: 3, tentativas_ciencia: 3,
+      tentativas_xml: 0, protocolo: null, ambiente: null, codigo: 'FISCAL_ACK_RETRY_EXHAUSTED', motivo_sanitizado: null,
+      proxima_tentativa_em: null, solicitada_em: '2026-10-15T13:00:00.000Z', atualizado_em: '2026-10-15T13:01:00.000Z',
+      nsu_resumo: '101', nsu_xml: null,
+    }] });
+    api.obterCiencia.mockResolvedValue({ ciencia: {}, historico: [{ estado: 'DLQ', ocorrido_em: '2026-10-15T13:01:00.000Z', tentativa: 3 }], tentativas: [] });
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={cliente}>
+        <PainelDeDocumentosFiscais empresaId="empresa-1" somenteLeitura={false} podeReprocessar />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('Fila de falhas')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Histórico e detalhes' }));
+    expect(await screen.findByText('Histórico')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retomar tecnicamente' }));
+    await waitFor(() => expect(api.retomarCiencia).toHaveBeenCalledWith('empresa-1', '423e4567-e89b-12d3-a456-426614174000'));
+    cliente.clear();
+  });
+
+  it('oculta a retomada técnica em modo somente leitura, mesmo com capacidade desatualizada', async () => {
+    api.listarCiencias.mockResolvedValue({ itens: [{
+      id: '423e4567-e89b-12d3-a456-426614174000', staging_id: '523e4567-e89b-12d3-a456-426614174000', xml_staging_id: null,
+      chave_acesso: null, estado: 'DLQ', tentativas: 3, tentativas_ciencia: 3, tentativas_xml: 0, protocolo: null,
+      ambiente: null, codigo: 'FISCAL_ACK_RETRY_EXHAUSTED', motivo_sanitizado: null, proxima_tentativa_em: null,
+      solicitada_em: '2026-10-15T13:00:00.000Z', atualizado_em: '2026-10-15T13:01:00.000Z', nsu_resumo: '101', nsu_xml: null,
+    }] });
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={cliente}>
+        <PainelDeDocumentosFiscais empresaId="empresa-1" somenteLeitura podeReprocessar />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('Fila de falhas')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Retomar tecnicamente' })).toBeNull();
     cliente.clear();
   });
 });

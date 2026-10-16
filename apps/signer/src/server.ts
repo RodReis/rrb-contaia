@@ -14,6 +14,8 @@ import {
   ComandoAssinarSchema,
   ComandoDiagnosticarSchema,
   ComandoDistribuicaoDfeSchema,
+  ComandoCienciaDfeSchema,
+  ComandoConsultarProcNFeSchema,
   ComandoExecutarMtlsSchema,
   ConsultaEstadosSchema,
   ConsultaHistoricoSchema,
@@ -51,6 +53,14 @@ type Rota = Readonly<{
 
 const ROTAS: readonly Rota[] = [
   { metodo: 'GET', caminho: '/v1/saude', operacao: 'saude', schema: null, executar: (s) => s.saude() },
+  {
+    metodo: 'POST', caminho: '/v1/manifestar-ciencia', operacao: 'manifestar-ciencia',
+    schema: ComandoCienciaDfeSchema, executar: (s, id, entrada) => s.manifestarCiencia(id, entrada),
+  },
+  {
+    metodo: 'POST', caminho: '/v1/consultar-proc-nfe', operacao: 'consultar-proc-nfe',
+    schema: ComandoConsultarProcNFeSchema, executar: (s, id, entrada) => s.consultarProcNFe(id, entrada),
+  },
   {
     metodo: 'POST',
     caminho: '/v1/assinar',

@@ -72,6 +72,29 @@ export type RespostaDistribuicaoDfe = Readonly<{
   disponivelNovamenteEm: string | null;
 }>;
 
+export const ComandoCienciaDfeSchema = z.strictObject({
+  tenantId: identificador, empresaId: identificador, cnpj: z.string().regex(/^\d{14}$/u),
+  chaveAcesso: z.string().regex(/^\d{44}$/u), tipoEvento: z.literal('210210'), sequencia: z.literal(1),
+  ocorridoEm: z.iso.datetime(), chaveIdempotente: chaveTextual, correlationId: chaveTextual,
+});
+export type ComandoCienciaDfe = z.infer<typeof ComandoCienciaDfeSchema>;
+
+export type RespostaCienciaDfe = Readonly<{
+  tipo: 'ACEITO' | 'DUPLICIDADE' | 'JA_MANIFESTADO' | 'REJEITADO' | 'INCERTO';
+  codigo: string | null; protocolo: string | null; chaveAcesso: string; cnpj: string;
+  tipoEvento: '210210'; sequencia: 1; ambiente: 'HOMOLOGACAO'; recebidoEm: string | null;
+}>;
+
+export const ComandoConsultarProcNFeSchema = z.strictObject({
+  tenantId: identificador, empresaId: identificador, cnpj: z.string().regex(/^\d{14}$/u),
+  chaveAcesso: z.string().regex(/^\d{44}$/u), chaveIdempotente: chaveTextual, correlationId: chaveTextual,
+});
+export type ComandoConsultarProcNFe = z.infer<typeof ComandoConsultarProcNFeSchema>;
+export type RespostaConsultarProcNFe = Readonly<{
+  tipo: 'OBTIDO' | 'PENDENTE' | 'DIVERGENTE';
+  xmlCompleto: string | null; chaveAcesso: string; cnpj: string; codigo: string | null; recebidoEm: string | null;
+}>;
+
 /** O diagnóstico usa o XML de teste do próprio Signer e não recebe conteúdo. */
 export const ORIGENS_DO_DIAGNOSTICO = ['AUTOMATICO', 'MANUAL'] as const;
 export type OrigemDoDiagnostico = (typeof ORIGENS_DO_DIAGNOSTICO)[number];
