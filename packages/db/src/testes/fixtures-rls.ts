@@ -771,8 +771,8 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     preparar: prepararStagingFiscal,
     inserir: (banco, e, r) => unico(banco,
       `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
-       values($1,$2,$3,repeat('2',44),'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
-      [e.tenantId,e.empresaId,r['stagingId']]),
+       values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['stagingId'],String(proximo()).padStart(44,'0')]),
     colunaDeAtualizacao: 'estado',
   },
   'app.fiscal_acknowledgement_event': {
@@ -780,8 +780,8 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       const staging = await prepararStagingFiscal(admin, e);
       const acknowledgementId = await unico(admin,
         `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
-         values($1,$2,$3,repeat('3',44),'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
-        [e.tenantId,e.empresaId,staging['stagingId']]);
+         values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,staging['stagingId'],String(proximo()).padStart(44,'0')]);
       return { acknowledgementId };
     },
     inserir: (banco, e, r) => unico(banco,
@@ -794,8 +794,8 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       const staging = await prepararStagingFiscal(admin, e);
       const acknowledgementId = await unico(admin,
         `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
-         values($1,$2,$3,repeat('4',44),'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
-        [e.tenantId,e.empresaId,staging['stagingId']]);
+         values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,staging['stagingId'],String(proximo()).padStart(44,'0')]);
       return { acknowledgementId };
     },
     inserir: (banco, e, r) => unico(banco,
@@ -808,8 +808,8 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       const staging = await prepararStagingFiscal(admin, e);
       const acknowledgementId = await unico(admin,
         `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
-         values($1,$2,$3,repeat('5',44),'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
-        [e.tenantId,e.empresaId,staging['stagingId']]);
+         values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,staging['stagingId'],String(proximo()).padStart(44,'0')]);
       return { acknowledgementId };
     },
     inserir: (banco, e, r) => unico(banco,
