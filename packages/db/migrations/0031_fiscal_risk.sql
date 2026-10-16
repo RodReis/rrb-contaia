@@ -102,11 +102,11 @@ CREATE POLICY fiscal_risk_execution_update ON app.fiscal_risk_execution FOR UPDA
 
 DO $$ DECLARE alvo text; BEGIN
   FOREACH alvo IN ARRAY ARRAY['fiscal_risk_configuration','fiscal_risk_supplier','fiscal_risk_analysis','fiscal_risk_attempt','fiscal_risk_event'] LOOP
-    EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE ON app.%I FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa()',alvo||'_scope_immutable',alvo);
+    EXECUTE format('CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.%I FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa()',alvo);
     EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON app.%I FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico()',alvo||'_append_only',alvo);
   END LOOP;
 END $$;
-CREATE TRIGGER fiscal_risk_execution_scope_immutable BEFORE UPDATE ON app.fiscal_risk_execution
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.fiscal_risk_execution
   FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 
 GRANT SELECT,INSERT ON app.fiscal_risk_configuration,app.fiscal_risk_supplier,app.fiscal_risk_execution,
