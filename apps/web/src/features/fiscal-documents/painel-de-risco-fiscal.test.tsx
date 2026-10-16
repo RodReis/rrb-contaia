@@ -26,7 +26,7 @@ describe('painel de risco fiscal F20',()=>{
   it('exibe configuração versionada e não oferece ações de manifestação',async()=>{
     render(<PainelDeRiscoFiscal empresaId={config.empresa_id} somenteLeitura={false} podeConfigurar/>,{wrapper:Envolvido});
     expect(await screen.findByText('Versão 2')).toBeTruthy();
-    expect(screen.getByLabelText(/Limite por operação \(R\$\)/u)).toHaveProperty('value','2500.00');
+    expect(screen.getByLabelText(/Limite por operação/u)).toHaveProperty('value','2.500,00');
     expect(screen.queryByRole('button',{name:/aprovar|rejeitar|manifestar|transmitir/iu})).toBeNull();
   });
 
@@ -42,9 +42,32 @@ describe('painel de risco fiscal F20',()=>{
     }]});
     const user=userEvent.setup();
     render(<PainelDeRiscoFiscal empresaId={config.empresa_id} somenteLeitura={false} podeConfigurar/>,{wrapper:Envolvido});
-    await user.selectOptions(await screen.findByLabelText('Documento fiscal'),'00000000-0000-4000-8000-000000000007');
-    expect(await screen.findByText('Sem proposta conclusiva · confiança 0')).toBeTruthy();
+    await user.click(await screen.findByRole('combobox', { name: 'Documento fiscal' }));
+    await user.click(await screen.findByRole('option', { name: /Fornecedor/u }));
+    expect(await screen.findByText('Sem proposta conclusiva')).toBeTruthy();
+    expect(screen.getByText('Confiança: 0')).toBeTruthy();
     expect(screen.getByText('"HISTORICO_INSUFICIENTE_PARA_PADRAO"')).toBeTruthy();
     await waitFor(()=>expect(listarAnalisesDeRiscoFiscal).toHaveBeenCalled());
+  });
+
+  it('diferencia a ausência de NF-e processada da seleção pendente',async()=>{
+    vi.mocked(listarDocumentosFiscais).mockResolvedValue({pagina:1,temProximaPagina:false,itens:[]});
+    render(<PainelDeRiscoFiscal empresaId={config.empresa_id} somenteLeitura podeConfigurar={false}/>,{wrapper:Envolvido});
+    expect(await screen.findByText('Nenhuma NF-e processada nesta página')).toBeTruthy();
+    expect(screen.getByRole('combobox',{name:'Documento fiscal'})).toBeDisabled();
+  });
+
+  it('usa os controles de seleção e moeda do design system',async()=>{
+    render(<PainelDeRiscoFiscal empresaId={config.empresa_id} somenteLeitura={false} podeConfigurar/>,{wrapper:Envolvido});
+    expect(await screen.findByRole('combobox',{name:'Documento fiscal'})).toBeTruthy();
+    expect(screen.getByLabelText(/Limite por operação/u)).toHaveProperty('value','2.500,00');
+    expect(screen.getByRole('textbox',{name:'Localizar NF-e'})).toBeTruthy();
+  });
+
+  it('filtra a lista de NF-e e mostra vazio distinto quando não há correspondência',async()=>{
+    const user=userEvent.setup();
+    render(<PainelDeRiscoFiscal empresaId={config.empresa_id} somenteLeitura podeConfigurar={false}/>,{wrapper:Envolvido});
+    await user.type(await screen.findByRole('textbox',{name:'Localizar NF-e'}),'emitente inexistente');
+    expect(await screen.findByText('Nenhuma NF-e corresponde à busca')).toBeTruthy();
   });
 });
