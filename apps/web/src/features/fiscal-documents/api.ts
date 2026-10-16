@@ -45,6 +45,16 @@ const ListaCienciasSchema=z.object({itens:z.array(CienciaDaEmissaoSchema)});
 const DetalheCienciaSchema=z.object({ciencia:CienciaDaEmissaoSchema,historico:z.array(z.record(z.string(),z.unknown())),tentativas:z.array(z.record(z.string(),z.unknown()))});
 const RetomadaCienciaSchema=z.object({acknowledgementId:z.string().uuid(),status:z.literal('SCHEDULED')});
 
+const FornecedorAprovadoSchema=z.object({id:z.string().uuid(),cnpj:z.string(),nome_exibicao:z.string(),situacao:z.enum(['ATIVO','ARQUIVADO']),motivo:z.string(),ator_id:z.string().uuid(),criado_em:z.string()});
+const ConfiguracaoDeRiscoSchema=z.object({id:z.string().uuid(),tenant_id:z.string().uuid(),empresa_id:z.string().uuid(),versao:z.number().int(),limite_centavos:z.string(),motivo:z.string(),ator_id:z.string().uuid(),criado_em:z.string(),fornecedores:z.array(FornecedorAprovadoSchema)});
+export const ConfiguracaoDeRiscoRespostaSchema=z.object({configuracao:ConfiguracaoDeRiscoSchema.nullable(),historico:z.array(ConfiguracaoDeRiscoSchema)});
+export type ConfiguracaoDeRiscoUI=z.infer<typeof ConfiguracaoDeRiscoSchema>;
+const AnaliseRiscoSchema=z.object({id:z.string().uuid(),tipo_manifestacao:z.enum(['210200','210220','210240','ABSTER_SE']),confianca:z.union([z.string(),z.number()]),faixa_confianca:z.string(),justificativa:z.string(),riscos:z.array(z.unknown()),evidencias:z.array(z.unknown()),lacunas:z.array(z.unknown()),origem:z.string(),provedor:z.string().nullable(),modelo:z.string().nullable(),versao_prompt:z.string().nullable(),versao_schema:z.string(),fallback:z.boolean(),tokens_entrada:z.number().nullable(),tokens_saida:z.number().nullable(),custo_microusd:z.string().nullable(),duracao_ms:z.number(),analisado_em:z.string().nullable()}).passthrough();
+const ExecucaoRiscoSchema=z.object({id:z.string().uuid(),estado:z.enum(['AGUARDANDO','PROCESSANDO','CONCLUIDA','INELEGIVEL','ABSTER_SE','FALHA','DLQ']),tentativas:z.number().int(),codigo_erro:z.string().nullable(),parser_version:z.string(),classifier_version:z.string(),configuration_id:z.string().uuid(),correlation_id:z.string(),solicitado_em:z.string(),atualizado_em:z.string(),analysis_id:z.string().uuid().nullable(),tipo_manifestacao:z.enum(['210200','210220','210240','ABSTER_SE']).nullable(),confianca:z.union([z.string(),z.number()]).nullable(),faixa_confianca:z.string().nullable(),justificativa:z.string().nullable(),riscos:z.array(z.unknown()).nullable(),evidencias:z.array(z.unknown()).nullable(),lacunas:z.array(z.unknown()).nullable(),origem:z.string().nullable(),provedor:z.string().nullable(),modelo:z.string().nullable(),versao_prompt:z.string().nullable(),versao_schema:z.string().nullable(),fallback:z.boolean().nullable(),tokens_entrada:z.number().nullable(),tokens_saida:z.number().nullable(),custo_microusd:z.string().nullable(),duracao_ms:z.number().nullable(),analisado_em:z.string().nullable()});
+export const AnalisesDeRiscoSchema=z.object({documento:z.record(z.string(),z.unknown()),execucoes:z.array(ExecucaoRiscoSchema)});
+export type ExecucaoDeRiscoUI=z.infer<typeof ExecucaoRiscoSchema>;
+const ReprocessamentoDeRiscoSchema=z.object({documentId:z.string().uuid(),executionId:z.string().uuid(),status:z.literal('QUEUED')});
+
 export type CienciaDaEmissaoUI=z.infer<typeof CienciaDaEmissaoSchema>;
 
 export const listarDocumentosFiscais = async (empresaId: string, pagina: number, estado: string) => {
@@ -65,6 +75,11 @@ export const reprocessarDocumentoFiscal = async (empresaId: string, documentId: 
 export const listarCienciasDaEmissao=async(empresaId:string)=>ListaCienciasSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/acknowledgements`));
 export const obterCienciaDaEmissao=async(empresaId:string,id:string)=>DetalheCienciaSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/acknowledgements/${id}`));
 export const retomarCienciaDaEmissao=async(empresaId:string,id:string)=>RetomadaCienciaSchema.parse(await requisitar<unknown>(`/companies/${empresaId}/fiscal-documents/acknowledgements/${id}/reprocessing`,{method:'POST',body:JSON.stringify({})}));
+export const obterConfiguracaoDeRiscoFiscal=async(empresaId:string)=>ConfiguracaoDeRiscoRespostaSchema.parse(await ler(`/companies/${empresaId}/fiscal-risk-settings`));
+export const salvarConfiguracaoDeRiscoFiscal=async(empresaId:string,body:Readonly<{limite:string;motivo:string;fornecedores:readonly Readonly<{cnpj:string;nome_exibicao:string;situacao:'ATIVO'|'ARQUIVADO';motivo:string}>[]}>)=>ConfiguracaoDeRiscoRespostaSchema.parse(await requisitar<unknown>(`/companies/${empresaId}/fiscal-risk-settings`,{method:'PUT',body:JSON.stringify(body)}));
+export const listarAnalisesDeRiscoFiscal=async(empresaId:string,documentId:string)=>AnalisesDeRiscoSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/${documentId}/risk-analyses`));
+export const obterAnaliseDeRiscoFiscal=async(empresaId:string,documentId:string,analysisId:string)=>z.object({analise:AnaliseRiscoSchema}).parse(await ler(`/companies/${empresaId}/fiscal-documents/${documentId}/risk-analyses/${analysisId}`));
+export const reprocessarAnaliseDeRiscoFiscal=async(empresaId:string,documentId:string)=>ReprocessamentoDeRiscoSchema.parse(await requisitar<unknown>(`/companies/${empresaId}/fiscal-documents/${documentId}/risk-analyses/reprocessing`,{method:'POST',body:JSON.stringify({})}));
 export const baixarOriginalFiscal = async (empresaId: string, documentId: string) => {
   const response = await fetch(`/api/proxy/companies/${empresaId}/fiscal-documents/${documentId}/original`, { credentials: 'include' });
   if (!response.ok) throw new Error('Não foi possível baixar o XML original.');

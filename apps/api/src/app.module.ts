@@ -67,6 +67,9 @@ import { PROVEDOR_DA_FILA_DFE_CAPTURE } from './dfe-capture/dfe-capture.queue';
 import { FiscalDocumentsController } from './fiscal-documents/fiscal-documents.controller';
 import { FiscalDocumentsService } from './fiscal-documents/fiscal-documents.service';
 import { PROVEDOR_DA_FILA_FISCAL } from './fiscal-documents/fiscal-documents.queue';
+import { FiscalRiskController } from './fiscal-risk/fiscal-risk.controller';
+import { FiscalRiskService } from './fiscal-risk/fiscal-risk.service';
+import { PROVEDOR_DA_FILA_FISCAL_RISK } from './fiscal-risk/fiscal-risk.queue';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -103,6 +106,7 @@ import { PROVEDOR_DA_FILA_FISCAL } from './fiscal-documents/fiscal-documents.que
     TaxSimulationsController,
     DfeCaptureController,
     FiscalDocumentsController,
+    FiscalRiskController,
   ],
   providers: [
     PoolDoBanco,
@@ -138,6 +142,8 @@ import { PROVEDOR_DA_FILA_FISCAL } from './fiscal-documents/fiscal-documents.que
     ...PROVEDOR_DA_FILA_DFE_CAPTURE,
     FiscalDocumentsService,
     ...PROVEDOR_DA_FILA_FISCAL,
+    FiscalRiskService,
+    ...PROVEDOR_DA_FILA_FISCAL_RISK,
     GuardDoCatalogoTributario,
     GuardDeSessao,
     GuardDeCadastro,

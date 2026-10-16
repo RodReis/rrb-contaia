@@ -106,6 +106,14 @@ Nenhuma faixa autoriza autoaprovação ou transmissão.
 
 A F20 nunca afirma como fato que uma operação não ocorreu. Para `210240`, a justificativa da proposta lista somente sinais e lacunas; o texto formal exigido pela Sefaz, com 15 a 255 caracteres, será informado e aprovado pelo humano na F21 / SPEC-021.
 
+### 3.5.1 Matriz conservadora de proposta — decisão do PI em 16/10/2026
+
+- `210200`: propor somente quando o emitente está aprovado na configuração vigente, o valor respeita o limite por operação, existem ao menos três compras anteriores processadas do mesmo CNPJ nos 12 meses anteriores e o valor atual não supera três vezes a média dessas compras. A média é comparada em centavos sem arredondamento (`valor_atual × quantidade ≤ soma_histórica × 3`). A proposta ainda registra que o recebimento não foi verificado e não afirma que a operação ocorreu.
+- `210220`: propor somente com evidência positiva, explícita e referenciada de que a operação não foi solicitada pela empresa. A referência deve identificar fonte estruturada no formato `operacao:nao-solicitada:<id>`. Fornecedor ausente da lista, pedido não localizado, histórico vazio ou cadastro incompleto não são evidência suficiente.
+- `210240`: propor somente com evidência positiva e referenciada tanto da participação reconhecida pela empresa (`operacao:participacao-confirmada:<id>`) quanto da não realização como descrita (`operacao:nao-realizada:<id>`). Divergência de valor, ausência de recebimento registrado ou anomalia isolada não autorizam esta proposta.
+- Conflito, lacuna relevante, histórico insuficiente ou falta de fonte estruturada para os sinais negativos resulta em `ABSTER_SE`, com riscos e lacunas separados. LLM não pode criar evidência, converter ausência em fato nem superar estas condições.
+- Toda saída continua sendo proposta para revisão humana; nenhuma faixa de confiança autoriza aprovação ou transmissão.
+
 ### 3.6 Idempotência, versão e reprocessamento
 
 A identidade da análise usa tenant, empresa, documento, versão do documento e versão do classificador. Repetição ou concorrência reutiliza a mesma análise lógica.
@@ -260,6 +268,7 @@ Erros usam `application/problem+json`. Códigos estáveis mínimos:
 | `210240` | pode ser hipótese sugerida, mas a justificativa formal é humana e posterior |
 | Automação | nenhum resultado aprova ou transmite manifestação conclusiva |
 | Ambiente | Docker local; provedor real e produção ficam nos gates próprios |
+| Matriz de proposta | delegada pelo PI em 16/10/2026 e detalhada em §3.5.1; ausência de evidência não gera `210220`/`210240` |
 
 **Questões abertas:** nenhuma.
 

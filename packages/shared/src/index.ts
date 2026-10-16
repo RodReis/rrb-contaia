@@ -291,3 +291,6 @@ export { FISCAL_DOCUMENTS_QUEUE, FISCAL_DOCUMENTS_DLQ, FISCAL_DOCUMENTS_JOB, FIS
 export type { FiscalDocumentCommand } from './fiscal-documents.js';
 export { FISCAL_ACKNOWLEDGEMENT_QUEUE, FISCAL_ACKNOWLEDGEMENT_DLQ, FISCAL_ACKNOWLEDGEMENT_JOB, FISCAL_ACKNOWLEDGEMENT_JOB_OPTIONS, FiscalAcknowledgementCommandSchema, ESTADOS_DA_CIENCIA, classificarResumoParaCiencia, ehResumoNfe, proximoEstadoDaCiencia, tempoDeRetryDaCiencia } from './fiscal-acknowledgement.js';
 export type { FiscalAcknowledgementCommand, ElegibilidadeDaCiencia, EstadoDaCiencia } from './fiscal-acknowledgement.js';
+
+export { FISCAL_RISK_API_QUEUE, FISCAL_RISK_QUEUE, FISCAL_RISK_DLQ, FISCAL_RISK_JOB, FISCAL_RISK_JOB_OPTIONS, TIPOS_DE_PROPOSTA_FISCAL, SEVERIDADES_DE_RISCO_FISCAL, PropostaDeManifestacaoSchema, FiscalRiskCommandSchema } from './fiscal-risk.js';
+export type { PropostaDeManifestacao, FiscalRiskCommand } from './fiscal-risk.js';

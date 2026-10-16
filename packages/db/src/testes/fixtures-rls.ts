@@ -75,6 +75,24 @@ const prepararDocumentoFiscal = async (admin: Consultavel, e: Escopo): Promise<R
   return { ...staging, documentId };
 };
 
+const prepararConfiguracaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const configurationId = await unico(admin,
+    `insert into app.fiscal_risk_configuration(tenant_id,empresa_id,versao,limite_centavos,motivo,ator_id)
+     values($1,$2,$3,100000,'Configuração da matriz RLS',$4) returning id`,
+    [e.tenantId,e.empresaId,proximo(),e.autorId]);
+  return { configurationId };
+};
+
+const prepararExecucaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const configuration = await prepararConfiguracaoRiscoFiscal(admin,e);
+  const document = await prepararDocumentoFiscal(admin,e);
+  const executionId = await unico(admin,
+    `insert into app.fiscal_risk_execution(tenant_id,empresa_id,document_id,configuration_id,parser_version,classifier_version,estado,correlation_id,ator_id)
+     values($1,$2,$3,$4,'fixture','fixture','AGUARDANDO','fiscal-risk-rls-fixture',$5) returning id`,
+    [e.tenantId,e.empresaId,document['documentId'],configuration['configurationId'],e.autorId]);
+  return { ...configuration, ...document, executionId };
+};
+
 const exigencia = (admin: Consultavel, escopo: Escopo): Promise<string> =>
   unico(
     admin,
@@ -817,5 +835,52 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
        values($1,$2,$3) returning id`,
       [e.tenantId,e.empresaId,r['acknowledgementId']]),
     colunaDeAtualizacao: 'tentativas',
+  },
+  'app.fiscal_risk_configuration': {
+    inserir: (banco,e) => unico(banco,
+      `insert into app.fiscal_risk_configuration(tenant_id,empresa_id,versao,limite_centavos,motivo,ator_id)
+       values($1,$2,$3,100000,'Configuração da matriz RLS',$4) returning id`,
+      [e.tenantId,e.empresaId,proximo(),e.autorId]),
+  },
+  'app.fiscal_risk_supplier': {
+    preparar: prepararConfiguracaoRiscoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_risk_supplier(tenant_id,empresa_id,configuration_id,cnpj,nome_exibicao,situacao,motivo,ator_id)
+       values($1,$2,$3,$4,'Fornecedor da matriz','ATIVO','Cadastro da matriz RLS',$5) returning id`,
+      [e.tenantId,e.empresaId,r['configurationId'],`00000000000${String(proximo()).padStart(3,'0')}`,e.autorId]),
+  },
+  'app.fiscal_risk_execution': {
+    preparar: async (admin,e) => {
+      const configuration = await prepararConfiguracaoRiscoFiscal(admin,e);
+      const document = await prepararDocumentoFiscal(admin,e);
+      return { ...configuration, ...document };
+    },
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_risk_execution(tenant_id,empresa_id,document_id,configuration_id,parser_version,classifier_version,estado,correlation_id,ator_id)
+       values($1,$2,$3,$4,'fixture','fixture','AGUARDANDO','fiscal-risk-rls-fixture',$5) returning id`,
+      [e.tenantId,e.empresaId,r['documentId'],r['configurationId'],e.autorId]),
+    colunaDeAtualizacao: 'estado',
+    atualizacao: "estado = 'PROCESSANDO'",
+  },
+  'app.fiscal_risk_analysis': {
+    preparar: prepararExecucaoRiscoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_risk_analysis(tenant_id,empresa_id,execution_id,document_id,configuration_id,parser_version,classifier_version,tipo_manifestacao,confianca,faixa_confianca,justificativa,origem,versao_schema,duracao_ms,correlation_id)
+       values($1,$2,$3,$4,$5,'fixture','fixture','ABSTER_SE',0,'ABSTER_SE','Fixture da matriz RLS','ABSTENCAO','fixture',0,'fiscal-risk-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['executionId'],r['documentId'],r['configurationId']]),
+  },
+  'app.fiscal_risk_attempt': {
+    preparar: prepararExecucaoRiscoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_risk_attempt(tenant_id,empresa_id,execution_id,numero,etapa,resultado,duracao_ms,correlation_id,iniciado_em)
+       values($1,$2,$3,1,'DETERMINISTICA','SUCESSO',0,'fiscal-risk-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,r['executionId']]),
+  },
+  'app.fiscal_risk_event': {
+    preparar: prepararExecucaoRiscoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_risk_event(tenant_id,empresa_id,execution_id,estado,codigo,correlation_id)
+       values($1,$2,$3,'AGUARDANDO','FISCAL_RISK_QUEUED','fiscal-risk-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['executionId']]),
   },
 };
