@@ -116,7 +116,7 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [ ] Executar integração de banco, integração Docker e E2E: `not_run` localmente porque `docker info` não respondeu; repetir na CI e registrar evidência por categoria.
 - [ ] Prova comparativa visual de CLARO/ESCURO em 768/1024/1440, acessibilidade por teclado/axe e estados/falha parcial conforme SPEC-021 §5 e `docs/FRONTEND.md` §20.1.
 - [x] Revisar o diff, corrigir findings e configurar relatórios da CI para `SPEC-021`; issue movida de `proplan:todo` para `proplan:doing` pela CLI do GitHub.
-- [ ] Criar PR com `refs #23` e confirmar CI verde; merge, comentário de encerramento e `proplan:done` ainda não realizados.
+- [x] Abrir [PR #129](https://github.com/RodReis/rrb-contaia/pull/129) com `refs #23`; CI pendente. Merge, comentário de encerramento e `proplan:done` ainda não realizados.
 ### Card #21 — `[MVP1][SPEC-019][F19]` Ciência da Emissão automática
 
 - [x] Classificar `resNFe` modelo 55 e destinatário; bloquear XML inseguro, chave/modelo/CNPJ inválidos e documentos já disponíveis.
