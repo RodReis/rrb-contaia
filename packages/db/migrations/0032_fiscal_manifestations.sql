@@ -11,6 +11,7 @@ CREATE TABLE app.fiscal_manifestation (
   CONSTRAINT fiscal_manifestation_document FOREIGN KEY(document_id,empresa_id,tenant_id) REFERENCES app.fiscal_document(id,empresa_id,tenant_id),
   CONSTRAINT fiscal_manifestation_scope FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
   CONSTRAINT fiscal_manifestation_analysis FOREIGN KEY(analysis_id,empresa_id,tenant_id) REFERENCES app.fiscal_risk_analysis(id,empresa_id,tenant_id),
+  CONSTRAINT fiscal_manifestation_scope UNIQUE(id,empresa_id,tenant_id),
   CONSTRAINT fiscal_manifestation_justification CHECK(estado='REJEITADA_PELO_HUMANO' OR (tipo='210240' AND length(btrim(justificativa)) BETWEEN 15 AND 255) OR (tipo<>'210240' AND justificativa IS NULL))
 );
 CREATE UNIQUE INDEX fiscal_manifestation_identity_idx ON app.fiscal_manifestation(tenant_id,empresa_id,chave_acesso,tipo,sequencia) WHERE estado NOT IN ('REJEITADA_PELO_HUMANO','REJEITADA_SEFAZ');
