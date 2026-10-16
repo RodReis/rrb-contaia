@@ -10,7 +10,13 @@ const abrir = () => {
   const connection = new Redis(url, { maxRetriesPerRequest: 3 });
   const queue = new Queue(FISCAL_DOCUMENTS_QUEUE, { connection });
   queue.on('error', (error: Error) => new Logger('FilaFiscalDocuments').warn(`Fila fiscal indisponível: ${error.name}`));
-  return { queue, fechar: async () => { await queue.close(); await connection.quit().catch(() => connection.disconnect()); } };
+  return {
+    queue,
+    fechar: async () => {
+      await queue.close();
+      await connection.quit().catch(() => connection.disconnect());
+    },
+  };
 };
 let shared: ReturnType<typeof abrir> | null = null;
 const obter = () => shared ??= abrir();

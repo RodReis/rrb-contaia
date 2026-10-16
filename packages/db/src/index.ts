@@ -417,6 +417,8 @@ export {
 export * as taxRules from './tax-rules/repository.js';
 export { listarDocumentosFiscais, obterDocumentoFiscal, persistirDocumentoFiscal, persistirFalhaDocumentoFiscal, registrarEventoDocumentoFiscal } from './repositorios/fiscal-documents.js';
 export type { RegistroFiscalPersistido } from './repositorios/fiscal-documents.js';
+export { iniciarCienciaDaEmissao, listarCienciasPendentes, listarHistoricoDaCiencia, listarResumoCienciasDaEmissao, listarTentativasDaCiencia, obterCienciaDaEmissao, preservarXmlCompletoRecuperado, registrarResumoImpedido, registrarXmlCompletoJaDisponivel, registrarTentativaDaCiencia, retomarCienciaDaEmissao, transicionarCienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';
+export type { CienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';
 export type {
   TaxRuleActor,
   TaxRuleContent,

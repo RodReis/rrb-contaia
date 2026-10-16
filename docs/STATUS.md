@@ -20,7 +20,7 @@ Fase de **fundação executável**. O bootstrap local está no repositório; nen
 | Decisões | ADR-001 a ADR-012; ADR-003 substituída pela ADR-012 |
 | MVPs | macroescopos aprovados: [`MVP-1`](prd/mvp/MVP-1-fundacao-captura-e-controle.md) · [`MVP-2`](prd/mvp/MVP-2-fiscal-contabil-e-financeiro.md) · [`MVP-3`](prd/mvp/MVP-3-dp-portal-e-comunicacao.md) · [`MVP-4`](prd/mvp/MVP-4-administracao-e-evolucao.md) |
 | Fatias/SPECs | F1/SPEC-001 a F90/SPEC-090 aprovadas |
-| Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa), #4 F3 (manutenção da empresa e Histórico de Informações), #5 F4 (documentos da empresa), #6 F5 (Central de Pendências cadastrais), #7 F6 (Notificações de pendências) #9 F7 (Gestão de usuários e papéis padrão), #10 F8 (Papéis personalizados e permissões), #11 F9 (Carteira do colaborador e isolamento por empresa) e, em PR, #15 F13 (Importação do plano de contas por CSV), #16 F14 (Importação de empregados por CSV), #17 F15 (Importação de planilhas XLSX/ODS) e #18 F16 (Motor tributário base versionado) |
+| Código | #1 bootstrap local, #2 F1 (acesso e cadastro do escritório), #3 F2 (cadastro e ativação da empresa), #4 F3 (manutenção da empresa e Histórico de Informações), #5 F4 (documentos da empresa), #6 F5 (Central de Pendências cadastrais), #7 F6 (Notificações de pendências) #9 F7 (Gestão de usuários e papéis padrão), #10 F8 (Papéis personalizados e permissões), #11 F9 (Carteira do colaborador e isolamento por empresa) e, em PR, #15 F13 (Importação do plano de contas por CSV), #16 F14 (Importação de empregados por CSV), #17 F15 (Importação de planilhas XLSX/ODS), #18 F16 (Motor tributário base versionado) e #21 F19 (Ciência da Emissão automática) |
 
 ---
 

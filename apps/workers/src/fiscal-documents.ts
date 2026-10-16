@@ -8,9 +8,11 @@ import type { Pool } from 'pg';
 import type { ConexaoDoRedis } from '@contaia/signer-client';
 import { criarConexaoRedis } from './redis.js';
 import type { ConfigDoArmazenamento } from './config.js';
-import { iniciarAgendadorDeDocumentosFiscais } from './dfe-scheduler.js';
+import { iniciarAgendadorDeDocumentosFiscais, iniciarAgendadorDeCiencias } from './dfe-scheduler.js';
+import { iniciarConsumidorDeCiencias } from './fiscal-acknowledgement.js';
+import type { ClienteDoSigner } from '@contaia/signer-client';
 import { parsearDocumentoFiscal } from '@contaia/shared/fiscal-document-parser';
-import { persistirDocumentoFiscal, persistirFalhaDocumentoFiscal } from '@contaia/db';
+import { persistirDocumentoFiscal, persistirFalhaDocumentoFiscal, transicionarCienciaDaEmissao } from '@contaia/db';
 
 const versaoParser = 'f18-1.0.0';
 type Staging = Readonly<{ id: string; cnpj: string; nsu: string; chave_acesso: string | null; especie: 'NFE_55' | 'CTE'; conteudo_bruto: Buffer; capturado_em: Date }>;
@@ -22,6 +24,15 @@ const processar = async (pool: Pool, storage: ConfigDoArmazenamento, command: Fi
     return result.rows[0] ?? null;
   });
   if (!row) return;
+  if(row.chave_acesso){
+    const expected=await comContexto(pool,ctx,async(client)=>client.query<{chave_acesso:string}>(`select chave_acesso from app.fiscal_acknowledgement where xml_staging_id=$1 and empresa_id=$2`,[row.id,command.companyId]));
+    if(expected.rows[0]&&expected.rows[0].chave_acesso!==row.chave_acesso){
+      const acknowledgement = await comContexto(pool,ctx,async(client)=>client.query<{id:string}>(`select id from app.fiscal_acknowledgement where xml_staging_id=$1 and empresa_id=$2`,[row.id,command.companyId]));
+      if(acknowledgement.rows[0]) await comContexto(pool,ctx,(client)=>transicionarCienciaDaEmissao(client,{tenantId:command.tenantId,empresaId:command.companyId,
+        acknowledgementId:acknowledgement.rows[0]!.id,estado:'IMPEDIDO',codigo:'FISCAL_FULL_XML_MISMATCH',correlationId:command.correlationId}));
+      return;
+    }
+  }
   const hash = createHash('sha256').update(row.conteudo_bruto).digest('hex');
   const key = `${command.tenantId}/${command.companyId}/fiscal-original/${hash}.xml`;
   const s3 = new S3Client({ endpoint: storage.endpoint, region: storage.regiao, forcePathStyle: true, credentials: { accessKeyId: storage.usuario, secretAccessKey: storage.senha } });
@@ -58,15 +69,21 @@ const processar = async (pool: Pool, storage: ConfigDoArmazenamento, command: Fi
   } finally { s3.destroy(); }
 };
 
-export const iniciarConsumidorDeDocumentosFiscais = async (deps: Readonly<{ pool: Pool; schedulerPool: Pool; conexao: ConexaoDoRedis; storage: ConfigDoArmazenamento }>) => {
+export const iniciarConsumidorDeDocumentosFiscais = async (deps: Readonly<{ pool: Pool; schedulerPool: Pool; conexao: ConexaoDoRedis; storage: ConfigDoArmazenamento; signer?: ClienteDoSigner; prefixo?: string; }>) => {
   const redis = criarConexaoRedis(deps.conexao);
-  const queue = new Queue(FISCAL_DOCUMENTS_QUEUE, { connection: redis });
-  const dead = new Queue(FISCAL_DOCUMENTS_DLQ, { connection: redis });
+  const common = { connection: redis, ...(deps.prefixo === undefined ? {} : { prefix: deps.prefixo }) };
+  const queue = new Queue(FISCAL_DOCUMENTS_QUEUE, common);
+  const dead = new Queue(FISCAL_DOCUMENTS_DLQ, common);
   const worker = new Worker(FISCAL_DOCUMENTS_QUEUE, async (job: Job<unknown>) => {
     const command = FiscalDocumentCommandSchema.parse(job.data);
     await processar(deps.pool, deps.storage, command);
-  }, { connection: redis, concurrency: 4 });
-  const scheduler = iniciarAgendadorDeDocumentosFiscais({ pool: deps.pool, schedulerPool: deps.schedulerPool, documentQueue: queue });
+  }, { ...common, concurrency: 4 });
+  const acknowledgementQueue = deps.signer ? new Queue('fiscal-acknowledgement',common) : null;
+  const acknowledgement = deps.signer ? await iniciarConsumidorDeCiencias({ pool:deps.pool,schedulerPool:deps.schedulerPool,conexao:deps.conexao,signer:deps.signer,
+    agora:()=>new Date(),...(deps.prefixo===undefined?{}:{prefixo:deps.prefixo}) }) : null;
+  const scheduler = iniciarAgendadorDeDocumentosFiscais({ pool: deps.pool, schedulerPool: deps.schedulerPool, documentQueue: queue,
+    ...(acknowledgementQueue ? { acknowledgementQueue } : {}) });
+  const acknowledgementScheduler=acknowledgementQueue?iniciarAgendadorDeCiencias({pool:deps.pool,schedulerPool:deps.schedulerPool,acknowledgementQueue}):null;
   worker.on('failed', (job, error) => {
     if (!job || job.attemptsMade < Number(job.opts.attempts ?? 5)) return;
     const parsedCommand = FiscalDocumentCommandSchema.safeParse(job.data);
@@ -94,5 +111,5 @@ export const iniciarConsumidorDeDocumentosFiscais = async (deps: Readonly<{ pool
   });
   worker.on('error', (error) => console.error(JSON.stringify({ event: 'fiscal-documents-worker-error', name: error.name })));
   await worker.waitUntilReady();
-  return { fechar: async () => { scheduler.close(); await worker.close(); await queue.close(); await dead.close(); redis.disconnect(); } };
+  return { fechar: async () => { scheduler.close(); acknowledgementScheduler?.close(); await acknowledgement?.fechar(); await acknowledgementQueue?.close(); await worker.close(); await queue.close(); await dead.close(); redis.disconnect(); } };
 };

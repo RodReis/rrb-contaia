@@ -767,4 +767,55 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
        values($1,$2,$3,$4,'PROCESSADO','fixture','fiscal-rls-fixture') returning id`,
       [e.tenantId,e.empresaId,r['documentId'],r['stagingId']]),
   },
+  'app.fiscal_acknowledgement': {
+    preparar: prepararStagingFiscal,
+    inserir: (banco, e, r) => unico(banco,
+      `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
+       values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['stagingId'],String(proximo()).padStart(44,'0')]),
+    colunaDeAtualizacao: 'estado',
+  },
+  'app.fiscal_acknowledgement_event': {
+    preparar: async (admin, e) => {
+      const staging = await prepararStagingFiscal(admin, e);
+      const acknowledgementId = await unico(admin,
+        `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
+         values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,staging['stagingId'],String(proximo()).padStart(44,'0')]);
+      return { acknowledgementId };
+    },
+    inserir: (banco, e, r) => unico(banco,
+      `insert into app.fiscal_acknowledgement_event(tenant_id,empresa_id,acknowledgement_id,estado,tentativa,correlation_id)
+       values($1,$2,$3,'RESUMO_CAPTURADO',0,'fiscal-ack-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['acknowledgementId']]),
+  },
+  'app.fiscal_acknowledgement_attempt': {
+    preparar: async (admin, e) => {
+      const staging = await prepararStagingFiscal(admin, e);
+      const acknowledgementId = await unico(admin,
+        `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
+         values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,staging['stagingId'],String(proximo()).padStart(44,'0')]);
+      return { acknowledgementId };
+    },
+    inserir: (banco, e, r) => unico(banco,
+      `insert into app.fiscal_acknowledgement_attempt(tenant_id,empresa_id,acknowledgement_id,etapa,tentativa,resultado,correlation_id)
+       values($1,$2,$3,'CIENCIA',1,'INCERTO','fiscal-ack-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['acknowledgementId']]),
+  },
+  'app.fiscal_acknowledgement_outbox': {
+    preparar: async (admin, e) => {
+      const staging = await prepararStagingFiscal(admin, e);
+      const acknowledgementId = await unico(admin,
+        `insert into app.fiscal_acknowledgement(tenant_id,empresa_id,staging_id,chave_acesso,estado,correlation_id)
+         values($1,$2,$3,$4,'RESUMO_CAPTURADO','fiscal-ack-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,staging['stagingId'],String(proximo()).padStart(44,'0')]);
+      return { acknowledgementId };
+    },
+    inserir: (banco, e, r) => unico(banco,
+      `insert into app.fiscal_acknowledgement_outbox(tenant_id,empresa_id,acknowledgement_id)
+       values($1,$2,$3) returning id`,
+      [e.tenantId,e.empresaId,r['acknowledgementId']]),
+    colunaDeAtualizacao: 'tentativas',
+  },
 };

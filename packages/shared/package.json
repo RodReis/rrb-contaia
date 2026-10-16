@@ -14,6 +14,10 @@
     "./fiscal-document-parser": {
       "types": "./dist/fiscal-documents/parser.d.ts",
       "default": "./dist/fiscal-documents/parser.js"
+    },
+    "./fiscal-acknowledgement": {
+      "types": "./dist/fiscal-acknowledgement.d.ts",
+      "default": "./dist/fiscal-acknowledgement.js"
     }
   },
   "scripts": {

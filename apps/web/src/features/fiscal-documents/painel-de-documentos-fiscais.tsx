@@ -10,7 +10,7 @@ import { Select, type OpcaoDoSelect } from '@/components/ui/select';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { mensagemDoCodigo } from '@/lib/mensagens';
-import { baixarOriginalFiscal, listarDocumentosFiscais, obterDocumentoFiscal, reprocessarDocumentoFiscal, verificarIntegridadeFiscal, type DocumentoFiscal } from './api';
+import { baixarOriginalFiscal, listarDocumentosFiscais, obterDocumentoFiscal, reprocessarDocumentoFiscal, verificarIntegridadeFiscal, listarCienciasDaEmissao, obterCienciaDaEmissao, retomarCienciaDaEmissao, type DocumentoFiscal, type CienciaDaEmissaoUI } from './api';
 
 const rotulo: Record<DocumentoFiscal['estado'], string> = {
   PENDENTE: 'Pendente', PROCESSANDO: 'Em processamento',
@@ -36,6 +36,8 @@ const moedaFiscal = (value: string | null) => {
   const digits = integer.replace('-', '').replace(/\B(?=(\d{3})+(?!\d))/gu, '.');
   return `R$ ${negative ? '-' : ''}${digits},${fraction.padEnd(2,'0')}`;
 };
+const rotuloCiencia:Record<CienciaDaEmissaoUI['estado'],string>={RESUMO_CAPTURADO:'Resumo capturado',CIENCIA_PENDENTE:'Aguardando Ciência',CIENCIA_EM_ENVIO:'Enviando Ciência',CIENCIA_REGISTRADA:'Ciência registrada',XML_COMPLETO_PENDENTE:'Aguardando XML completo',XML_COMPLETO_OBTIDO:'XML completo obtido',PARSEADO:'Encaminhado à F18',JA_MANIFESTADO:'Já manifestado',XML_COMPLETO_JA_DISPONIVEL:'XML já disponível',RESULTADO_INCERTO:'Resultado incerto',RETRY_AGENDADO:'Nova tentativa agendada',REJEITADO:'Rejeitado',IMPEDIDO:'Impedido',DLQ:'Fila de falhas'};
+const tomCiencia:Record<CienciaDaEmissaoUI['estado'],TomDoStatus>={RESUMO_CAPTURADO:'atencao',CIENCIA_PENDENTE:'atencao',CIENCIA_EM_ENVIO:'atencao',CIENCIA_REGISTRADA:'conforme',XML_COMPLETO_PENDENTE:'atencao',XML_COMPLETO_OBTIDO:'conforme',PARSEADO:'conforme',JA_MANIFESTADO:'atencao',XML_COMPLETO_JA_DISPONIVEL:'conforme',RESULTADO_INCERTO:'critico',RETRY_AGENDADO:'atencao',REJEITADO:'critico',IMPEDIDO:'critico',DLQ:'critico'};
 
 export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeReprocessar }: {
   empresaId: string;
@@ -43,6 +45,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
   podeReprocessar: boolean;
 }) => {
   const [selecionado, setSelecionado] = useState<string | null>(null);
+  const [cienciaSelecionada,setCienciaSelecionada]=useState<string|null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const paginaParam = Number(searchParams.get('documentosPagina') ?? '1');
@@ -77,6 +80,8 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
     queryKey: ['sessao', 'eu', 'documentos-fiscais', empresaId, pagina, filtro],
     queryFn: () => listarDocumentosFiscais(empresaId, pagina, filtro),
   });
+  const ciencias=useQuery({queryKey:['sessao','eu','ciencias-emissao',empresaId],queryFn:()=>listarCienciasDaEmissao(empresaId)});
+  const detalheCiencia=useQuery({queryKey:['sessao','eu','ciencia-emissao',empresaId,cienciaSelecionada],queryFn:()=>obterCienciaDaEmissao(empresaId,cienciaSelecionada!),enabled:cienciaSelecionada!==null});
   const detalhe = useQuery({
     queryKey: ['sessao', 'eu', 'documento-fiscal', empresaId, selecionado],
     queryFn: async () => {
@@ -108,6 +113,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
         : 'Não foi possível solicitar o reprocessamento.');
     },
   });
+  const retomarCiencia=useMutation({mutationFn:(id:string)=>retomarCienciaDaEmissao(empresaId,id),onSuccess:()=>{toast.success('Retomada técnica agendada.');void queryClient.invalidateQueries({queryKey:['sessao','eu','ciencias-emissao',empresaId]});},onError:()=>toast.error('Não foi possível solicitar a retomada técnica.')});
   if (documentos.isPending) {
     return (
       <section aria-busy="true" className="mt-lg flex flex-col gap-md">
@@ -147,6 +153,13 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
         <Select rotulo="Estado do processamento" opcoes={opcoesDeEstado} valor={filtro} onValorChange={(valor) => atualizarUrl('documentosEstado', valor, true)} />
       </div>
     </header>
+    <section aria-labelledby="acknowledgements-title" className="flex flex-col gap-sm border-t border-border pt-lg">
+      <div><h4 id="acknowledgements-title" className="font-display text-title-md text-foreground">Ciência da Emissão</h4><p className="mt-xs max-w-2xl text-body-sm text-muted-foreground">Resumos de NF-e destinados à empresa, tentativas técnicas e recuperação do XML completo.</p></div>
+      {ciencias.isPending?<div aria-busy="true"><Skeleton className="h-20 w-full"/></div>:null}
+      {ciencias.isError?<ErroDeTela titulo="Não foi possível carregar Ciências" descricao="Tente novamente em instantes." acao={<Button variante="contorno" onClick={()=>void ciencias.refetch()}><RefreshCw aria-hidden="true"/>Tentar novamente</Button>}/>:null}
+      {ciencias.data?.itens.length===0?<p className="text-body-sm text-muted-foreground">Nenhum resumo aguardando manifestação automática.</p>:null}
+        {ciencias.data?.itens.length? <div className="overflow-x-auto rounded-lg border border-border bg-card"><table className="w-full min-w-[760px] text-left text-body-sm"><caption className="sr-only">Ciência automática e recuperação de NF-e</caption><thead className="bg-muted/60 text-label-sm text-muted-foreground"><tr><th scope="col" className="px-md py-sm">Estado</th><th scope="col" className="px-md py-sm">Chave de acesso</th><th scope="col" className="px-md py-sm">NSU do resumo</th><th scope="col" className="px-md py-sm">Tentativas totais</th><th scope="col" className="px-md py-sm">Protocolo e próxima ação</th></tr></thead><tbody>{ciencias.data.itens.map((item)=><Fragment key={item.id}><tr className="border-t border-border/70"><td className="px-md py-sm"><StatusBadge tom={tomCiencia[item.estado]} rotulo={rotuloCiencia[item.estado]}/><span className="mt-xs block text-label-sm text-muted-foreground">Atualizado {dataHora(item.atualizado_em)}</span></td><td className="max-w-64 break-all px-md py-sm font-mono text-label-sm">{item.chave_acesso?`${item.chave_acesso.slice(0,6)}…${item.chave_acesso.slice(-4)}`:'Identidade inválida'}</td><td className="px-md py-sm font-mono text-label-sm">{item.nsu_resumo}</td><td className="px-md py-sm tabular-nums">Ciência {item.tentativas_ciencia} · XML {item.tentativas_xml}</td><td className="px-md py-sm"><span className="block">{item.protocolo?`${item.ambiente??'Ambiente'} · ${item.protocolo}`:item.motivo_sanitizado??item.codigo??'—'}</span>{item.proxima_tentativa_em?<span className="text-label-sm text-muted-foreground">Nova tentativa {dataHora(item.proxima_tentativa_em)}</span>:null}<div className="mt-xs flex flex-wrap gap-xs"><Button variante="contorno" tamanho="compacto" onClick={()=>setCienciaSelecionada(cienciaSelecionada===item.id?null:item.id)} aria-expanded={cienciaSelecionada===item.id}>{cienciaSelecionada===item.id?'Fechar histórico':'Histórico e detalhes'}</Button>{podeReprocessar&&!somenteLeitura&&['DLQ','RESULTADO_INCERTO','RETRY_AGENDADO'].includes(item.estado)?<Button variante="contorno" tamanho="compacto" disabled={retomarCiencia.isPending} onClick={()=>retomarCiencia.mutate(item.id)}>Retomar tecnicamente</Button>:null}</div></td></tr>{cienciaSelecionada===item.id?<tr className="border-t border-border bg-muted/20"><td colSpan={5} className="p-md">{detalheCiencia.isPending?<div aria-busy="true"><Skeleton className="h-20 w-full"/></div>:null}{detalheCiencia.isError?<ErroDeTela titulo="Histórico indisponível" descricao="Tente novamente em instantes."/>:null}{detalheCiencia.data?<div className="grid gap-lg lg:grid-cols-2"><section><h5 className="font-display text-title-sm text-foreground">Histórico</h5><ol className="mt-sm space-y-xs">{detalheCiencia.data.historico.map((event,index)=><li key={`${String(event['ocorrido_em'])}-${index}`} className="border-t border-border/70 pt-xs"><span className="font-medium text-foreground">{String(event['estado']??'Estado')}</span><span className="ml-sm text-label-sm text-muted-foreground">{dataHora(String(event['ocorrido_em']??''))} · tentativa {String(event['tentativa']??'0')}</span>{event['protocolo']?<span className="ml-sm font-mono text-label-sm">{String(event['protocolo'])}</span>:null}</li>)}</ol></section><section><h5 className="font-display text-title-sm text-foreground">Tentativas</h5><ul className="mt-sm space-y-xs">{detalheCiencia.data.tentativas.map((attempt,index)=><li key={`${String(attempt['etapa'])}-${String(attempt['tentativa'])}-${index}`} className="border-t border-border/70 pt-xs">{String(attempt['etapa'])} · {String(attempt['resultado'])} · {String(attempt['codigo']??'sem código')} · {dataHora(String(attempt['finalizada_em']??''))}</li>)}</ul></section></div>:null}</td></tr>:null}</Fragment>)}</tbody></table></div>:null}
+    </section>
     {rows.length === 0 ? (
       <EmptyState
         nivel={3}

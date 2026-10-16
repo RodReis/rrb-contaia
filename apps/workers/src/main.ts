@@ -71,7 +71,9 @@ if (config.signer !== null) {
   ativos.push('captura DF-e');
 }
 if (config.armazenamento !== null) {
-  const fiscalDocuments = await iniciarConsumidorDeDocumentosFiscais({ pool, schedulerPool: schedulerPool!, conexao, storage: config.armazenamento });
+  const fiscalDocuments = await iniciarConsumidorDeDocumentosFiscais({ pool, schedulerPool: schedulerPool!, conexao, storage: config.armazenamento,
+    ...(config.signer ? { signer: criarClienteDoSigner({ host:config.signer.signer.host,porta:config.signer.signer.porta,servername:config.signer.signer.servername,
+      certificadoPem:readFileSync(config.signer.arquivoDoCertificado,'utf8'),chavePem:readFileSync(config.signer.arquivoDaChave,'utf8'),caPem:readFileSync(config.signer.arquivoDaCaInterna,'utf8') }) } : {}) });
   fechamentos.push(async () => { await fiscalDocuments.fechar(); });
   ativos.push('documentos fiscais F18');
   fechamentos.push(await iniciarImportacoes(config.armazenamento));

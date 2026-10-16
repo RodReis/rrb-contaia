@@ -81,6 +81,8 @@ export type {
   ResultadoDaConsulta,
 } from './cnpja.js';
 export {
+  ComandoCienciaDfeSchema,
+  ComandoConsultarProcNFeSchema,
   ComandoDistribuicaoDfeSchema,
   ComandoAssinarSchema,
   ComandoDiagnosticarSchema,
@@ -96,6 +98,10 @@ export {
   VERSAO_DO_CONTRATO_DO_SIGNER,
 } from './signer.js';
 export type {
+  ComandoCienciaDfe,
+  ComandoConsultarProcNFe,
+  RespostaCienciaDfe,
+  RespostaConsultarProcNFe,
   ComandoDistribuicaoDfe,
   ComandoAssinar,
   ComandoDiagnosticar,
@@ -283,3 +289,5 @@ export type {
 } from './tabela.js';
 export { FISCAL_DOCUMENTS_QUEUE, FISCAL_DOCUMENTS_DLQ, FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from './fiscal-documents.js';
 export type { FiscalDocumentCommand } from './fiscal-documents.js';
+export { FISCAL_ACKNOWLEDGEMENT_QUEUE, FISCAL_ACKNOWLEDGEMENT_DLQ, FISCAL_ACKNOWLEDGEMENT_JOB, FISCAL_ACKNOWLEDGEMENT_JOB_OPTIONS, FiscalAcknowledgementCommandSchema, ESTADOS_DA_CIENCIA, classificarResumoParaCiencia, ehResumoNfe, proximoEstadoDaCiencia, tempoDeRetryDaCiencia } from './fiscal-acknowledgement.js';
+export type { FiscalAcknowledgementCommand, ElegibilidadeDaCiencia, EstadoDaCiencia } from './fiscal-acknowledgement.js';

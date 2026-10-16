@@ -237,7 +237,7 @@ export const commitDfeBatch = async (client: PoolClient, input: CommitDfeBatchIn
     if (item.accessKey !== null) {
       const byKey = await client.query<{ nsu: string; conteudo_bruto: Buffer }>(
         `select nsu, conteudo_bruto from app.dfe_capture_staging
-          where tenant_id=$1 and empresa_id=$2 and chave_acesso=$3`,
+          where tenant_id=$1 and empresa_id=$2 and chave_acesso=$3 and origem='DISTRIBUICAO'`,
         [input.state.tenantId, input.state.companyId, item.accessKey],
       );
       const keyed = byKey.rows[0];
@@ -250,7 +250,7 @@ export const commitDfeBatch = async (client: PoolClient, input: CommitDfeBatchIn
          (tenant_id, empresa_id, run_id, cnpj, nsu, chave_acesso, especie, conteudo_bruto,
           disponibilizado_em, capturado_em, correlation_id)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-       on conflict (tenant_id, empresa_id, cnpj, nsu) do nothing
+       on conflict (tenant_id, empresa_id, cnpj, nsu) where origem='DISTRIBUICAO' do nothing
       returning id`,
       [input.state.tenantId, input.state.companyId, input.runId, input.state.cnpj, item.nsu,
         item.accessKey, item.kind, Buffer.from(item.rawContent, 'utf8'), item.availableAt ?? null, input.capturedAt, input.correlationId],
@@ -273,7 +273,7 @@ export const commitDfeBatch = async (client: PoolClient, input: CommitDfeBatchIn
     }
     const existing = await client.query<{ chave_acesso: string | null; conteudo_bruto: Buffer }>(
       `select chave_acesso, conteudo_bruto from app.dfe_capture_staging
-        where tenant_id=$1 and empresa_id=$2 and cnpj=$3 and nsu=$4`,
+        where tenant_id=$1 and empresa_id=$2 and cnpj=$3 and nsu=$4 and origem='DISTRIBUICAO'`,
       [input.state.tenantId, input.state.companyId, input.state.cnpj, item.nsu],
     );
     const row = existing.rows[0];

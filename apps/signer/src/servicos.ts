@@ -2,6 +2,8 @@ import {
   VERSAO_DO_CONTRATO_DO_SIGNER,
   type ComandoAssinar,
   type ComandoDistribuicaoDfe,
+  type ComandoCienciaDfe,
+  type ComandoConsultarProcNFe,
   type ComandoDiagnosticar,
   type ComandoExecutarMtls,
   type ConsultaEstados,
@@ -10,6 +12,8 @@ import {
   type RespostaDeExecucaoMtls,
   type RespostaDeSaude,
   type RespostaDistribuicaoDfe,
+  type RespostaCienciaDfe,
+  type RespostaConsultarProcNFe,
 } from '@contaia/shared';
 
 import type { IdentidadeDeServico } from './alcada.js';
@@ -25,6 +29,8 @@ export type ServicosDoSigner = Readonly<{
   assinar(identidade: IdentidadeDeServico, comando: ComandoAssinar): Promise<RespostaDeAssinatura>;
   executarMtls(identidade: IdentidadeDeServico, comando: ComandoExecutarMtls): Promise<RespostaDeExecucaoMtls>;
   distribuirDfe(identidade: IdentidadeDeServico, comando: ComandoDistribuicaoDfe): Promise<RespostaDistribuicaoDfe>;
+  manifestarCiencia(identidade: IdentidadeDeServico, comando: ComandoCienciaDfe): Promise<RespostaCienciaDfe>;
+  consultarProcNFe(identidade: IdentidadeDeServico, comando: ComandoConsultarProcNFe): Promise<RespostaConsultarProcNFe>;
   diagnosticar(identidade: IdentidadeDeServico, comando: ComandoDiagnosticar): Promise<RespostaDeExecucaoMtls>;
   estados(identidade: IdentidadeDeServico, consulta: ConsultaEstados): Promise<unknown>;
   historico(identidade: IdentidadeDeServico, consulta: ConsultaHistorico): Promise<unknown>;
@@ -51,6 +57,8 @@ export const criarServicosDeSaude = ({ vault, agora }: OpcoesDosServicosDeSaude)
   assinar: naoImplementada,
   executarMtls: naoImplementada,
   distribuirDfe: naoImplementada,
+  manifestarCiencia: naoImplementada,
+  consultarProcNFe: naoImplementada,
   diagnosticar: naoImplementada,
   estados: naoImplementada,
   historico: naoImplementada,

@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
+import { transicionarCienciaDaEmissao } from './fiscal-acknowledgement.js';
 
 export type RegistroFiscalPersistido = Readonly<{
   id: string; especie: 'NFE_55' | 'CTE'; chaveAcesso: string; hashSha256: string; tamanho: number;
@@ -152,6 +153,14 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
      values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
     [input.tenantId,input.empresaId,id,input.stagingId,!existing?'PROCESSADO':precisaNormalizar?'REPROCESSADO':'REUTILIZADO',state,input.parserVersion,input.parsed.hashSha256,input.atorId ?? null,input.correlationId],
   );
+  const acknowledgement = await client.query<{ id: string; tenant_id: string; empresa_id: string; estado: string }>(
+    `select id,tenant_id,empresa_id,estado from app.fiscal_acknowledgement where xml_staging_id=$1 and estado='XML_COMPLETO_OBTIDO'`,
+    [input.stagingId],
+  );
+  for (const row of acknowledgement.rows) {
+    await transicionarCienciaDaEmissao(client, { tenantId: row.tenant_id, empresaId: row.empresa_id,
+      acknowledgementId: row.id, estado: 'PARSEADO', codigo: 'FISCAL_DOCUMENT_PARSED', correlationId: input.correlationId });
+  }
   return { id, reused: Boolean(existing), conflict: false, state };
 };
 

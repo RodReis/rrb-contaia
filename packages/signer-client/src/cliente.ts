@@ -14,6 +14,8 @@ import type {
   ComandoDiagnosticar,
   ComandoExecutarMtls,
   ComandoDistribuicaoDfe,
+  ComandoCienciaDfe,
+  ComandoConsultarProcNFe,
   ConsultaEstados,
   ConsultaHistorico,
   RespostaDeAssinatura,
@@ -22,6 +24,8 @@ import type {
   RespostaDeHistorico,
   RespostaDeSaude,
   RespostaDistribuicaoDfe,
+  RespostaCienciaDfe,
+  RespostaConsultarProcNFe,
 } from '@contaia/shared';
 
 const LIMITE_DA_RESPOSTA_BYTES = 8 * 1024 * 1024;
@@ -168,6 +172,10 @@ export const criarClienteDoSigner = (config: ConfigDoClienteDoSigner) => {
       chamar<RespostaDeExecucaoMtls>('POST', '/v1/executar-mtls', comando, comando.correlationId),
     distribuirDfe: (comando: ComandoDistribuicaoDfe) =>
       chamar<RespostaDistribuicaoDfe>('POST', '/v1/distribuicao-dfe', comando, comando.correlationId),
+    manifestarCiencia: (comando: ComandoCienciaDfe) =>
+      chamar<RespostaCienciaDfe>('POST', '/v1/manifestar-ciencia', comando, comando.correlationId),
+    consultarProcNFe: (comando: ComandoConsultarProcNFe) =>
+      chamar<RespostaConsultarProcNFe>('POST', '/v1/consultar-proc-nfe', comando, comando.correlationId),
     diagnosticar: (comando: ComandoDiagnosticar) =>
       chamar<RespostaDeExecucaoMtls>('POST', '/v1/diagnosticar', comando, comando.correlationId),
     estados: (pedido: ConsultaEstados) =>
