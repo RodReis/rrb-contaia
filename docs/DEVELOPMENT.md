@@ -89,7 +89,7 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | 11 | [#17](https://github.com/RodReis/rrb-contaia/issues/17) `[MVP1][SPEC-015][F15]` Importação de planilhas XLSX/ODS | F15 / SPEC-015 | em revisão | — | leitor próprio em processo filho (`@contaia/planilhas`); aba e linha de cabeçalho escolhidas, mapeamento por letra, fórmula/mescla em coluna mapeada rejeitam só a linha, linha oculta contada; modelos CSV/XLSX/ODS; equivalência com o CSV nos dois domínios |
 | 12 | [#19](https://github.com/RodReis/rrb-contaia/issues/19) `[MVP1][SPEC-017][F17]` Captura DF-e por NSU | F17 / SPEC-017 | em implementação | — | estado/cursor, staging opaco, Signer mTLS, fila e scheduler por elegibilidade; DLQ, reprocessamento autenticado, consulta e métricas operacionais. Pendentes: jornada E2E e provas visuais nos dois temas/viewports |
 | 13 | [#20](https://github.com/RodReis/rrb-contaia/issues/20) `[MVP1][SPEC-018][F18]` Parse e persistência de XML, hash e IBS/CBS | F18 / SPEC-018 | em implementação | — | parser seguro com checks estruturais de leiaute 4.00, outbox transacional staging → fila F18, storage original, hash, persistência/RLS, API e painel; itens/componentes, protocolo, referências, partes/endereço e tributos normalizados. Pendentes: XSD oficial, migration/integração em PostgreSQL, cobertura completa de CT-e/NF-e, provas de UI/E2E e CI |
-| 14 | [#21](https://github.com/RodReis/rrb-contaia/issues/21) `[MVP1][SPEC-019][F19]` Ciência da Emissão automática | F19 / SPEC-019 | em revisão | #125 | fluxo resNFe → Ciência 210210 pelo Signer mTLS → procNFe por chave → staging/outbox F18; tentativas append-only, RLS, DLQ, retomada por ciclo, API e painel. Pendentes locais: migration/RLS em PostgreSQL, build Web, E2E e provas visuais por Docker ausente e symlink do worktree rejeitado pelo Turbopack; CI da PR em andamento |
+| 14 | [#21](https://github.com/RodReis/rrb-contaia/issues/21) `[MVP1][SPEC-019][F19]` Ciência da Emissão automática | F19 / SPEC-019 | integrada; aguarda aceite do PI | #125 | fluxo resNFe → Ciência 210210 pelo Signer mTLS → procNFe por chave → staging/outbox F18; tentativas append-only, RLS, DLQ, retomada por ciclo, API e painel. CI #203 verde em todos os gates. Prova visual comparativa em CLARO/ESCURO e viewports 768/1024/1440 permanece `not_run` localmente pelo symlink do worktree rejeitado pelo Turbopack |
 
 ---
 
@@ -116,9 +116,10 @@ Detalhamento operacional de cada card em execução. Passo concluído fica marca
 - [x] Registrar tentativas e eventos append-only, outbox retomável sob RLS, DLQ e retomada por ciclo sem apagar histórico.
 - [x] Expor lista, detalhe, histórico e retomada autorizada no painel fiscal.
 - [x] Validar lint, typecheck e testes focados; builds API/Signer/DB/shared passam.
-- [ ] Validar migration/RLS e E2E com a composição Docker; Docker Desktop ausente neste host (`not_run`).
-- [ ] Provas visuais CLARO/ESCURO em 768/1024/1440 e build Web; dependências do worktree apontam fora da raiz aceita pelo Turbopack (`not_run`).
-- [ ] CI da PR.
+- [x] Validar migration/RLS e E2E na CI #203 (PostgreSQL, matriz RLS e composição Docker); Docker Desktop ausente localmente.
+- [x] Validar build Web na CI #203.
+- [ ] Prova visual comparativa CLARO/ESCURO em 768/1024/1440: `not_run`; rota local bloqueada pelo symlink do worktree rejeitado pelo Turbopack.
+- [x] CI #203 verde em qualidade, regras, banco, tela, build, E2E e gate.
 - [x] Rejeitar namespace/modelo/versão diferentes do layout 4.00 e exigir blocos fiscais mínimos para NF-e/CT-e.
 - [x] Persistir e exibir base e totalizadores IBS/CBS do documento, mantendo extração por item para NF-e.
 - [x] Normalizar base, alíquota, valor e situação presentes para ICMS, ICMS-ST, IPI, II, PIS, COFINS, IBS e CBS, por item e documento quando o XML oferece o grupo.
