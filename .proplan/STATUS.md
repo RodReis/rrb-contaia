@@ -7,6 +7,14 @@ updated: 2026-10-16
 
 ## Backlog
 
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23)
+- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
+- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
+- [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25)
+- [MVP1][SPEC-022][F22] Agenda de obrigações e alertas D-3 (#24)
+
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
 - [MVP2][SPEC-090][F90] Integração financeiro-contábil de títulos e baixas F68 (#122)
@@ -74,13 +82,6 @@ updated: 2026-10-16
 - [MVP2][SPEC-027][F27] ICMS-ST retido em entradas de autopeças em Goiás (#29)
 - [MVP2][SPEC-026][F26] Resolução tributária de entradas NF-e em Goiás (#28)
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
-- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
-- [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25)
-- [MVP1][SPEC-022][F22] Agenda de obrigações e alertas D-3 (#24)
-
 ### Sem épico
 
 - [MVP1][SPEC-015][FIX] Seguimentos menores do leitor ODS, da auditoria e da suíte E2E (#114)
@@ -91,9 +92,7 @@ updated: 2026-10-16
 
 ## A Fazer
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23)
+_(vazio)_
 
 ## Em Andamento
 
