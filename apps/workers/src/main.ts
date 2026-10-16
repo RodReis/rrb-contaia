@@ -9,6 +9,7 @@ import { verificarSaude } from './monitor.js';
 import { iniciarConsumidorDeEmpregados } from './empregados/consumidor.js';
 import { iniciarConsumidorDfeCapture } from './dfe-capture.js';
 import { iniciarConsumidorDeDocumentosFiscais } from './fiscal-documents.js';
+import { iniciarConsumidorDeRiscoFiscal } from './fiscal-risk.js';
 import { criarLeitorDoArmazenamento } from './importacao/leitura-s3.js';
 import { iniciarConsumidorDoPlanoDeContas } from './plano-contas/consumidor.js';
 import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
@@ -79,6 +80,9 @@ if (config.armazenamento !== null) {
   fechamentos.push(await iniciarImportacoes(config.armazenamento));
   ativos.push('plano de contas', 'empregados');
 }
+const fiscalRisk = await iniciarConsumidorDeRiscoFiscal({pool,conexao});
+fechamentos.push(async()=>{await fiscalRisk.fechar();});
+ativos.push('análise fiscal F20 (abstenção segura até regra PI)');
 const server = criarServidorDeSaude('workers');
 
 await escutar(server, config.portaDeSaude);

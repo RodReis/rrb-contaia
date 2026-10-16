@@ -32,6 +32,7 @@ import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
 import { AbaCapturaDfe } from '../dfe-capture/aba-captura-dfe';
 import { PainelDeDocumentosFiscais } from '../fiscal-documents/painel-de-documentos-fiscais';
+import { PainelDeRiscoFiscal } from '../fiscal-documents/painel-de-risco-fiscal';
 import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
 import { ADMINISTRACAO_DE_USUARIOS, pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
@@ -330,6 +331,8 @@ export const ManutencaoDaEmpresa = ({
               <AbaCapturaDfe empresaId={visao.id} somenteLeitura={arquivada} podeReprocessar={sessao?.papeis.includes('admin_escritorio') ?? false} />
               <PainelDeDocumentosFiscais empresaId={visao.id} somenteLeitura={arquivada}
                 podeReprocessar={sessao?.papeis.some((papel) => ['admin_escritorio','contador','auxiliar'].includes(papel)) ?? false} />
+              <PainelDeRiscoFiscal empresaId={visao.id} somenteLeitura={arquivada}
+                podeConfigurar={sessao?.papeis.some((papel)=>['admin_escritorio','contador'].includes(papel))??false}/>
             </Tabs.Content>
           ) : null}
 

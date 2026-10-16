@@ -486,3 +486,6 @@ export type {
   RotuloDaColuna,
   TipoNativoDeCelula,
 } from './planilhas/tipos.js';
+
+export { FAIXAS_DE_CONFIANCA, classificarFaixaDeConfianca, decidirPropostaDeManifestacao, valorMonetarioParaCentavos } from './fiscal-risk/policy.js';
+export type { DecisaoDaMatrizFiscal, EntradaDaMatrizFiscal, EvidenciaConclusivaDeOperacao, FaixaDeConfianca } from './fiscal-risk/policy.js';

@@ -15,6 +15,7 @@ describe('parser fiscal SPEC-018', () => {
     expect(result.modelo).toBe('55');
     expect(result.chaveAcesso).toBe('00000000000000000000550010000000010000000010');
     expect(result.itens).toHaveLength(3);
+    expect(result.itens[0]).toMatchObject({ ncm: '00000000', cfop: '5102' });
     expect(result.partes[0]).toMatchObject({ papel: 'EMITENTE', identificador: '00000000000000', nome: 'EMITENTE DE TESTE NAO OFICIAL' });
     expect(result).toMatchObject({ baseIbsCbs: '204.20', totalIbs: '0.20', totalCbs: '1.89' });
     expect(result.tributos).toEqual(expect.arrayContaining([
@@ -85,9 +86,15 @@ describe('parser fiscal SPEC-018', () => {
   it('não lê campos fiscais injetados por namespace estrangeiro', () => {
     const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(
       '<cProd>1</cProd>', '<evil:cProd xmlns:evil="urn:namespace-nao-oficial">SPOOF</evil:cProd>',
+    ).replace(
+      '<NCM>00000000</NCM>', '<evil:NCM xmlns:evil="urn:namespace-nao-oficial">99999999</evil:NCM>',
+    ).replace(
+      '<CFOP>5102</CFOP>', '<evil:CFOP xmlns:evil="urn:namespace-nao-oficial">6102</evil:CFOP>',
     );
     const result = parsearDocumentoFiscal(Buffer.from(source), 'NFE_55');
     expect(result.itens[0]?.codigo).toBeNull();
+    expect(result.itens[0]?.ncm).toBeNull();
+    expect(result.itens[0]?.cfop).toBeNull();
   });
 
   it('mantém resumos e eventos fora da fila F18', () => {

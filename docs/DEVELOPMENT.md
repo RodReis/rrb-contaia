@@ -579,6 +579,20 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 8. Comentário de encerramento na issue (`fechar-card`) → `proplan:done`.
 9. Atualizar este documento e [`STATUS.md`](STATUS.md) **na PR**.
 
+### Card #22 — `[MVP1][SPEC-020][F20]` Classificação de risco e proposta de manifestação
+
+- [x] Configuração versionada por empresa, fornecedores aprovados/arquivados/reativados, histórico e centavos exatos.
+- [x] API sob tenant/carteira e queue idempotente; execution, análise, tentativa e eventos append-only com RLS.
+- [x] Worker confere SHA-256 do staging contra F18, reparseia XML e registra sinais e abstenção segura.
+- [x] Painel em claro/escuro via tokens, configuração, histórico, evidências, lacunas, estados e reprocessamento sem ação jurídica.
+- [x] Testes focados de domínio, schema, parser e tela; builds/tipagens locais de domínio/shared/DB/API/workers/web.
+- [x] Matriz fiscal definida pelo PI por delegação em 16/10: 210200 exige fornecedor aprovado, valor no limite, ao menos 3 compras nos últimos 12 meses e valor atual até 3x a média; 210220/210240 exigem evidência positiva, explícita e referenciada; conflito ou lacuna relevante gera abstenção.
+- [x] Ausência de fornecedor aprovado não vira 210220; ausência de prova de não realização não vira 210240; proposta 210200 registra lacuna de recebimento não verificado e sempre exige revisão humana.
+- [ ] LLM não conectado no worker atual; sem sinal estruturado e referenciado que sustente uma proposta, a execução registra `ABSTER_SE`.
+- [ ] `test:banco`, E2E e smoke Playwright: `not_run`; Docker Engine não respondeu neste host, e `DATABASE_URL` não está configurada.
+- [ ] Provas visuais CLARO/ESCURO em 768/1024/1440, autorrevisão completa, relatório SPEC-020, PR, CI e merge.
+- [ ] Alteração remota de `proplan:todo` para `proplan:doing` bloqueada pelo 403 do GitHub connector; não contornar.
+
 ---
 
 ## Referências
