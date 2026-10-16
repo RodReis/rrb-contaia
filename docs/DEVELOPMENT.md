@@ -616,7 +616,7 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] API, worker agendado e tela da agenda com lista/calendário, filtros na URL, detalhe e ações conforme alçada.
 - [x] Testes locais de domínio, tela, API e RLS/anti-drift focados; build e typecheck do workspace passaram.
 - [ ] `test:banco` completo e smoke visual/E2E local: `not_run` por indisponibilidade do PostgreSQL/Docker neste host; os gates remotos da PR são a prova de integração.
-- [x] Autorrevisão do CI: o E2E encontrou duas listas de menu exatas das SPECs 007/008 desatualizadas após a concessão da consulta da agenda aos papéis dessas jornadas; expectativas atualizadas para refletir as permissões efetivas.
+- [x] Autorrevisão do CI: o E2E encontrou listas de menu exatas das SPECs 007/008 desatualizadas após a concessão da consulta da agenda aos papéis dessas jornadas; expectativas atualizadas para refletir as permissões efetivas, inclusive depois de alterar ou reduzir outras permissões.
 - [ ] Evidência visual CLARO/ESCURO em 768/1024/1440: `not_run` até captura autenticada local.
 - [ ] PR e CI remoto: em andamento.
 
