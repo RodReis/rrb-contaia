@@ -30,8 +30,16 @@ describe('policy fiscal risk', () => {
     expect(classificarFaixaDeConfianca(confianca)).toBe('ABSTER_SE');
   });
 
-  it('sugere confirmação apenas com fornecedor aprovado, limite respeitado e três compras dentro de 3x a média', () => {
-    expect(decidirPropostaDeManifestacao({fornecedorAprovado:true,dentroDoLimite:true,valorEmCentavos:30_000n,comprasAnteriores12Meses:3,totalHistoricoEmCentavos:30_000n,conflito:false})).toMatchObject({tipo:'210200',confianca:0.85});
+  it('abstém sem prova da realização, mesmo com fornecedor aprovado, limite e histórico compatíveis', () => {
+    expect(decidirPropostaDeManifestacao({fornecedorAprovado:true,dentroDoLimite:true,valorEmCentavos:30_000n,comprasAnteriores12Meses:3,totalHistoricoEmCentavos:30_000n,conflito:false})).toMatchObject({tipo:'ABSTER_SE',lacunas:expect.arrayContaining(['EVIDENCIA_DE_REALIZACAO_NAO_VERIFICADA'])});
+  });
+
+  it('sugere confirmação só com prova referenciada da realização e contexto compatível', () => {
+    expect(decidirPropostaDeManifestacao({fornecedorAprovado:true,dentroDoLimite:true,valorEmCentavos:30_000n,comprasAnteriores12Meses:3,totalHistoricoEmCentavos:30_000n,evidenciaConclusiva:{tipo:'OPERACAO_REALIZADA',referencias:['operacao:realizada-confirmada:recebimento-123']},conflito:false})).toMatchObject({tipo:'210200',confianca:0.85});
+  });
+
+  it('abstém se a prova de realização não tiver referência estruturada verificável', () => {
+    expect(decidirPropostaDeManifestacao({fornecedorAprovado:true,dentroDoLimite:true,valorEmCentavos:30_000n,comprasAnteriores12Meses:3,totalHistoricoEmCentavos:30_000n,evidenciaConclusiva:{tipo:'OPERACAO_REALIZADA',referencias:['recebimento-123']},conflito:false})).toMatchObject({tipo:'ABSTER_SE',lacunas:expect.arrayContaining(['EVIDENCIA_CONCLUSIVA_SEM_REFERENCIA'])});
   });
 
   it('abstém quando fornecedor aprovado está ausente; ausência não vira desconhecimento', () => {

@@ -586,9 +586,11 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Worker confere SHA-256 do staging contra F18, reparseia XML e registra sinais e abstenção segura.
 - [x] Painel em claro/escuro via tokens, configuração, histórico, evidências, lacunas, estados e reprocessamento sem ação jurídica.
 - [x] Testes focados de domínio, schema, parser e tela; builds/tipagens locais de domínio/shared/DB/API/workers/web.
-- [x] Matriz fiscal definida pelo PI por delegação em 16/10: 210200 exige fornecedor aprovado, valor no limite, ao menos 3 compras nos últimos 12 meses e valor atual até 3x a média; 210220/210240 exigem evidência positiva, explícita e referenciada; conflito ou lacuna relevante gera abstenção.
-- [x] Ausência de fornecedor aprovado não vira 210220; ausência de prova de não realização não vira 210240; proposta 210200 registra lacuna de recebimento não verificado e sempre exige revisão humana.
-- [ ] LLM não conectado no worker atual; sem sinal estruturado e referenciado que sustente uma proposta, a execução registra `ABSTER_SE`.
+- [x] Decisão do PI em 16/10: proposta determinística só com condição comprovável; ausência de evidência suficiente resulta em `ABSTER_SE`.
+- [x] 210200 exige prova explícita e referenciada da realização, além de fornecedor aprovado, limite respeitado e histórico compatível; 210220/210240 exigem evidência positiva, explícita e referenciada para seus fatos.
+- [ ] Worker ainda não recebe fonte estruturada de prova de realização, não solicitação ou não realização; no estado atual, execuções elegíveis resultam em `ABSTER_SE` até existir essa fonte.
+- [ ] SPEC-020 §3.5.1 ainda descreve a regra anterior de 210200; alinhamento documental pelo Cowork pendente.
+- [ ] Suíte de regressão após a decisão do PI: `not_run`; pnpm tentou reinstalar dependências e bloqueou por diretório `node_modules` externo à worktree. Política compilada isoladamente e cenários com/sem prova exercitados diretamente em Node.
 - [ ] `test:banco`, E2E e smoke Playwright: `not_run`; Docker Engine não respondeu neste host, e `DATABASE_URL` não está configurada.
 - [ ] Provas visuais CLARO/ESCURO em 768/1024/1440, autorrevisão completa, relatório SPEC-020, PR, CI e merge.
 - [ ] Alteração remota de `proplan:todo` para `proplan:doing` bloqueada pelo 403 do GitHub connector; não contornar.

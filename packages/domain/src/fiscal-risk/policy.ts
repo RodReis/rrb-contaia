@@ -9,7 +9,7 @@ export const classificarFaixaDeConfianca = (confianca: number): FaixaDeConfianca
 };
 
 export type EvidenciaConclusivaDeOperacao = Readonly<{
-  tipo: 'NAO_SOLICITADA' | 'PARTICIPACAO_SEM_REALIZACAO';
+  tipo: 'OPERACAO_REALIZADA' | 'NAO_SOLICITADA' | 'PARTICIPACAO_SEM_REALIZACAO';
   referencias: readonly string[];
 }>;
 
@@ -32,19 +32,21 @@ export type DecisaoDaMatrizFiscal = Readonly<{
 }>;
 
 /**
- * Matriz conservadora aprovada para F20: 210200 exige fornecedor aprovado,
- * limite respeitado e recorrência observada (3 compras em 12 meses), sem valor
- * acima de 3x a média histórica. Os tipos negativos exigem evidência positiva
- * explícita; ausência de pedido/cadastro nunca serve como essa evidência.
+ * Matriz conservadora para F20: fornecedor, limite e recorrência são sinais de
+ * contexto, não prova de que a operação atual ocorreu. Toda sugestão exige
+ * evidência positiva, explícita e referenciada para o tipo correspondente.
+ * Ausência de pedido/cadastro nunca prova os tipos negativos.
  */
 export const decidirPropostaDeManifestacao = (entrada: EntradaDaMatrizFiscal): DecisaoDaMatrizFiscal => {
   const referencias = entrada.evidenciaConclusiva?.referencias.map((referencia) => referencia.trim()).filter(Boolean) ?? [];
-  const referenciaValida = entrada.evidenciaConclusiva?.tipo === 'NAO_SOLICITADA'
-    ? referencias.some((referencia) => /^operacao:nao-solicitada:[A-Za-z0-9_-]{1,128}$/u.test(referencia))
-    : entrada.evidenciaConclusiva?.tipo === 'PARTICIPACAO_SEM_REALIZACAO'
-      ? referencias.some((referencia) => /^operacao:participacao-confirmada:[A-Za-z0-9_-]{1,128}$/u.test(referencia))
-        && referencias.some((referencia) => /^operacao:nao-realizada:[A-Za-z0-9_-]{1,128}$/u.test(referencia))
-      : false;
+  const referenciaValida = entrada.evidenciaConclusiva?.tipo === 'OPERACAO_REALIZADA'
+    ? referencias.some((referencia) => /^operacao:realizada-confirmada:[A-Za-z0-9_-]{1,128}$/u.test(referencia))
+    : entrada.evidenciaConclusiva?.tipo === 'NAO_SOLICITADA'
+      ? referencias.some((referencia) => /^operacao:nao-solicitada:[A-Za-z0-9_-]{1,128}$/u.test(referencia))
+      : entrada.evidenciaConclusiva?.tipo === 'PARTICIPACAO_SEM_REALIZACAO'
+        ? referencias.some((referencia) => /^operacao:participacao-confirmada:[A-Za-z0-9_-]{1,128}$/u.test(referencia))
+          && referencias.some((referencia) => /^operacao:nao-realizada:[A-Za-z0-9_-]{1,128}$/u.test(referencia))
+        : false;
   if (entrada.evidenciaConclusiva && !referenciaValida) {
     return { tipo: 'ABSTER_SE', confianca: 0, motivo: 'A evidência conclusiva não possui referência verificável; nenhuma proposta foi emitida.', riscos: ['EVIDENCIA_CONCLUSIVA_INVALIDA'], lacunas: ['EVIDENCIA_CONCLUSIVA_SEM_REFERENCIA'] };
   }
@@ -81,8 +83,11 @@ export const decidirPropostaDeManifestacao = (entrada: EntradaDaMatrizFiscal): D
     && historicoCompativel
     && !entrada.conflito;
 
-  if (confirmacaoCompativel) {
-    return { tipo: '210200', confianca: 0.85, motivo: 'Fornecedor aprovado, valor dentro do limite e recorrência dentro do padrão observado; proposta não comprova recebimento e exige revisão humana.', riscos: [], lacunas: ['RECEBIMENTO_DA_OPERACAO_NAO_VERIFICADO'] };
+  if (!entrada.evidenciaConclusiva) {
+    lacunas.push('EVIDENCIA_DE_REALIZACAO_NAO_VERIFICADA');
+  }
+  if (confirmacaoCompativel && referenciaValida && entrada.evidenciaConclusiva?.tipo === 'OPERACAO_REALIZADA') {
+    return { tipo: '210200', confianca: 0.85, motivo: 'Há evidência explícita e rastreável da realização da operação, com fornecedor, limite e recorrência compatíveis; proposta sujeita à revisão humana.', riscos: [], lacunas: [] };
   }
   return { tipo: 'ABSTER_SE', confianca: 0, motivo: 'Os sinais disponíveis não sustentam proposta conclusiva; ausência de cadastro ou de histórico não comprova operação não solicitada ou não realizada.', riscos, lacunas };
 };
