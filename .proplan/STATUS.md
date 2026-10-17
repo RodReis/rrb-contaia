@@ -7,6 +7,12 @@ updated: 2026-10-17
 
 ## Backlog
 
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25)
+- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
+- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
+
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
 - [MVP2][SPEC-090][F90] Integração financeiro-contábil de títulos e baixas F68 (#122)
@@ -73,12 +79,6 @@ updated: 2026-10-17
 - [MVP2][SPEC-028][F28] ICMS na entrada histórica de autopeças em Goiás (#32)
 - [MVP2][SPEC-027][F27] ICMS-ST retido em entradas de autopeças em Goiás (#29)
 - [MVP2][SPEC-026][F26] Resolução tributária de entradas NF-e em Goiás (#28)
-
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
-- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
-- [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25)
 
 ### Sem épico
 
