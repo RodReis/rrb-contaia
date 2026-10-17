@@ -49,7 +49,7 @@ export default async function LayoutDaAplicacao({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[64rem] flex-1 px-lg py-xl">{children}</main>
+        <main className="flex-1 px-md py-lg tablet:px-lg tablet:py-xl">{children}</main>
       </div>
     </Provedores>
   );

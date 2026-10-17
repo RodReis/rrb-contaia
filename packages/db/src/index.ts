@@ -3,11 +3,14 @@ export {
   criarPool,
   criarPoolDaAplicacao,
   criarPoolDoAgendadorDfe,
+  criarPoolDoAgendadorDashboard,
   obterUrlDaAplicacao,
   obterUrlDoAgendadorDfe,
   obterUrlDoBanco,
 } from './client.js';
 export { aplicarMigrations, listarMigrations } from './migrate.js';
+export { coletarSinaisDaSaude, substituirProjecaoDaSaude, listarDashboardDaSaude, listarMotivosDaSaude } from './repositorios/dashboard-health.js';
+export type { FiltroDoDashboard } from './repositorios/dashboard-health.js';
 export { verificarRoleDaAplicacao, verificarSaudeDoBanco } from './health.js';
 export type { RoleDaAplicacao, SaudeDoBanco } from './health.js';
 export {

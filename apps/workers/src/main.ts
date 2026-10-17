@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import { criarPoolDaAplicacao, criarPoolDoAgendadorDfe } from '@contaia/db';
+import { criarPoolDaAplicacao, criarPoolDoAgendadorDashboard, criarPoolDoAgendadorDfe } from '@contaia/db';
 import { conexaoDoRedis, criarClienteDoSigner } from '@contaia/signer-client';
 
 import { lerConfig, type ConfigDoArmazenamento, type ConfigDoSigner } from './config.js';
@@ -12,6 +12,7 @@ import { iniciarConsumidorDeDocumentosFiscais } from './fiscal-documents.js';
 import { iniciarConsumidorDeRiscoFiscal } from './fiscal-risk.js';
 import { iniciarConsumidorDeManifestacoesConclusivas } from './fiscal-manifestation.js';
 import { iniciarAgendadorDeObrigacoes } from './obligations.js';
+import { iniciarReconciliadorDeSaude } from './dashboard-health.js';
 import { criarLeitorDoArmazenamento } from './importacao/leitura-s3.js';
 import { iniciarConsumidorDoPlanoDeContas } from './plano-contas/consumidor.js';
 import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
@@ -22,6 +23,7 @@ const config = lerConfig(process.env);
 const conexao = conexaoDoRedis(config.redisUrl);
 const pool = criarPoolDaAplicacao();
 const schedulerPool = criarPoolDoAgendadorDfe();
+const dashboardSchedulerPool = criarPoolDoAgendadorDashboard();
 const agora = (): Date => new Date();
 
 const iniciarSigner = async (signer: ConfigDoSigner): Promise<Fechar> => {
@@ -63,6 +65,9 @@ const ativos: string[] = [];
 const obligations = iniciarAgendadorDeObrigacoes({pool,schedulerPool,conexao,agora});
 fechamentos.push(obligations.fechar);
 ativos.push('agenda de obrigações F22');
+const dashboardHealth = iniciarReconciliadorDeSaude({ pool, schedulerPool: dashboardSchedulerPool, agora });
+fechamentos.push(dashboardHealth.fechar);
+ativos.push('reconciliação do dashboard F23');
 
 if (config.signer !== null) {
   fechamentos.push(await iniciarSigner(config.signer));
@@ -99,6 +104,7 @@ await escutar(server, config.portaDeSaude);
 encerrarComGraca(server, async () => {
   await Promise.all(fechamentos.map((fechar) => fechar()));
   await schedulerPool.end();
+  await dashboardSchedulerPool.end();
   await pool.end();
 });
 

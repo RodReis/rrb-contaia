@@ -934,6 +934,27 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     preparar: prepararRegraObrigacao,
     inserir: (banco,e,r) => unico(banco, `insert into app.obligation_occurrence(tenant_id,empresa_id,regra_id,codigo,competencia,versao_regra,estado) values($1,$2,$3,$4,$5::date,$6,'PENDENTE') returning id`, [e.tenantId,e.empresaId,r['ruleId'],r['codigo'],r['competencia'],r['versao']]),
   },
+  'app.dashboard_health_projection': {
+    inserir: (banco,e) => unico(banco,
+      `insert into app.dashboard_health_projection(tenant_id,empresa_id,cor,atualizado_em,correlation_id)
+       values($1,$2,'AMARELO',now(),'rls-dashboard-fixture')
+       on conflict(tenant_id,empresa_id) do update set cor=excluded.cor returning id`, [e.tenantId,e.empresaId]),
+    colunaDeAtualizacao: 'cor', atualizacao: "cor='VERMELHO'",
+  },
+  'app.dashboard_health_reason': {
+    inserir: (banco,e) => unico(banco,
+      `insert into app.dashboard_health_reason(tenant_id,empresa_id,fonte,codigo,gravidade,origem_id,descricao)
+       values($1,$2,'PENDENCIAS','PENDENCIA_ABERTA','AMARELO',$3,'Fixture da matriz RLS') returning id`,
+      [e.tenantId,e.empresaId,`rls-${e.sufixo}-${proximo()}`]),
+    colunaDeAtualizacao: 'ativo', atualizacao: 'ativo=false',
+  },
+  'app.dashboard_health_source_checkpoint': {
+    inserir: (banco,e) => unico(banco,
+      `insert into app.dashboard_health_source_checkpoint(tenant_id,empresa_id,fonte,revisao,processado_em)
+       values($1,$2,'PENDENCIAS','fixture',now())
+       on conflict(tenant_id,empresa_id,fonte) do update set revisao=excluded.revisao returning id`, [e.tenantId,e.empresaId]),
+    colunaDeAtualizacao: 'revisao', atualizacao: "revisao='updated'",
+  },
   'app.obligation_event': {
     preparar: prepararOcorrenciaObrigacao,
     inserir: (banco,e,r) => unico(banco, `insert into app.obligation_event(tenant_id,empresa_id,occurrence_id,sequencia,acao,estado_novo,autor_id,correlation_id) values($1,$2,$3,1,'GERADA','PENDENTE',$4,'rls-obligation') returning id`, [e.tenantId,e.empresaId,r['occurrenceId'],e.autorId]),
