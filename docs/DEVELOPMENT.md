@@ -623,6 +623,20 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [ ] Evidência visual CLARO/ESCURO em 768/1024/1440: `not_run`; o smoke validou o fluxo funcional em viewport atual, sem capturas dimensionais/temas.
 - [ ] PR e CI remoto: em andamento.
 
+### Card #25 — `[MVP1][SPEC-023][F23]` Dashboard multiempresa com semáforo e drill-down
+
+- [x] Projeção idempotente por empresa e fonte, semáforo determinístico, revisão por fonte e reconciliador técnico isolado.
+- [x] API paginada com KPIs, busca, filtros de cor/regime/fonte/tipo, carteira e autorização no servidor; painel de motivos com destinos condicionados às permissões existentes.
+- [x] Tela responsiva com estados de carregamento/vazio/erro, tema do produto, CNPJ mascarado, filtros na URL e drawer acessível.
+- [x] Navegação do dashboard adicionada sem restringir a largura global das demais telas.
+- [x] `pnpm typecheck`: 16 tarefas passaram; `pnpm lint`: passou, com aviso preexistente em `aba-de-enderecos.tsx`; `pnpm test:regras`: 13 tarefas passaram.
+- [x] API: validação de filtros, paginação, ordenação e UUID de detalhe — 2/2 testes.
+- [x] Banco F23: idempotência, fonte indisponível, isolamento de carteira/tenant e escopo técnico — 1/1; fixture de 500 empresas consultada em 1,511 s (<3 s).
+- [x] Dashboard: 3/3 testes focados; suíte web: 90/90 arquivos e 1.296/1.296 testes; anti-drift 17/17 e matriz RLS 5/5.
+- [ ] Suíte ampla de banco local afetada por fixtures antigas duplicadas e timeouts sob concorrência; os testes F23 focados passaram. CI limpo é gate obrigatório.
+- [ ] Playwright autenticado, E2E de origem até resolução, carga com 500 empresas e capturas CLARO/ESCURO em 768/1024/1440: `not_run` — infraestrutura Keycloak local sem resposta HTTP no smoke desta execução.
+- [ ] PR e CI remoto: em andamento.
+
 ## Referências
 
 - [`STATUS.md`](STATUS.md) · [`AUDIT.md`](AUDIT.md) · [`TESTING.md`](TESTING.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`FRONTEND.md`](FRONTEND.md)

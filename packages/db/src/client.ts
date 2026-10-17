@@ -72,3 +72,16 @@ export const obterUrlDoAgendadorDfe = (): string => {
 
 export const criarPoolDoAgendadorDfe = (url: string = obterUrlDoAgendadorDfe()): Pool =>
   tratarQuedaDeConexaoOciosa(new Pool({ connectionString: url, max: 2 }));
+
+export const obterUrlDoAgendadorDashboard = (): string => {
+  const explicita = process.env['DATABASE_DASHBOARD_SCHEDULER_URL'];
+  if (explicita) return explicita;
+  if (process.env['NODE_ENV'] === 'production') throw new Error('DATABASE_DASHBOARD_SCHEDULER_URL obrigatoria para o agendador do dashboard.');
+  const url = new URL(obterUrlDoBanco());
+  url.username = 'contaia_dashboard_scheduler';
+  url.password = 'contaia_dashboard_scheduler_local';
+  return url.toString();
+};
+
+export const criarPoolDoAgendadorDashboard = (url: string = obterUrlDoAgendadorDashboard()): Pool =>
+  tratarQuedaDeConexaoOciosa(new Pool({ connectionString: url, max: 2 }));

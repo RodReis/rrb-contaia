@@ -1,0 +1,6 @@
+import { requisitar } from '@/lib/http';
+export type MotivoDashboard = Readonly<{ fonte: string; codigo: string; gravidade: 'VERMELHO'|'AMARELO'; origem_id: string; descricao: string; data_referencia: string|null; atualizado_em: string|null; identidade: string; revisao_fonte: string; processado_em: string|null }>;
+export type EmpresaDashboard = Readonly<{ empresa_id: string; cnpj: string; nome: string; regime: string|null; cor: 'VERMELHO'|'AMARELO'|'VERDE'; contagens_fontes: Record<string,number>; contagens_gravidade: Record<string,number>; atualizado_em: string; resumo: Record<string,string>|null; motivo_prioritario: {fonte:string;codigo:string;gravidade:string;descricao:string}|null; total_motivos:number; proxima_data:string|null }>;
+export type RespostaDashboard = Readonly<{ resumo: {total:number;vermelho:number;amarelo:number;verde:number;vencidas:number;d3:number;manifestacoes:number;capturas:number;certificados:number}; empresas: readonly EmpresaDashboard[]; total:number }>;
+export const consultarDashboard=(params:URLSearchParams,signal?:AbortSignal)=>requisitar<RespostaDashboard>(`/dashboard?${params.toString()}`,signal?{signal}:{});
+export const consultarMotivos=(empresaId:string,signal?:AbortSignal)=>requisitar<readonly MotivoDashboard[]>(`/dashboard/${empresaId}/motivos`,signal?{signal}:{});

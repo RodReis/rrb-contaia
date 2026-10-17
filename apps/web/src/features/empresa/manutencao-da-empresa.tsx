@@ -84,6 +84,10 @@ const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
       proximos.set('aba', aba);
     }
 
+    if (aba === 'captura-dfe' && parametros.get('manifestacaoSelecionada')) {
+      proximos.set('manifestacaoSelecionada', parametros.get('manifestacaoSelecionada')!);
+    }
+
     const consulta = proximos.toString();
     navegador.replace(consulta === '' ? `/empresas/${empresaId}` : `/empresas/${empresaId}?${consulta}`, {
       scroll: false,

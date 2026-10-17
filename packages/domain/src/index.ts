@@ -4,6 +4,8 @@ export type CorrelationId = Brand<string, 'CorrelationId'>;
 export type TenantId = Brand<string, 'TenantId'>;
 export type EmpresaId = Brand<string, 'EmpresaId'>;
 
+export { projetarSaudeEmpresa, FONTES_DA_SAUDE } from './dashboard/saude-empresa.js';
+export type { CorDaSaude, EntradaDaProjecao, FonteDaSaude, MotivoDeSaude, ResultadoDaSaude, SinalDeSaude } from './dashboard/saude-empresa.js';
 export { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, ErroDeValidacao } from './erros.js';
 export type { CampoInvalido, CodigoDeErro } from './erros.js';
 
