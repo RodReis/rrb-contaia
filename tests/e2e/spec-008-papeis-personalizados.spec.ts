@@ -568,7 +568,7 @@ test('reduzir o papel nega na próxima requisição da mesma sessão, depois de 
 
   // A mesma sessão, o mesmo token: a revisão vigente já vale.
   await usuario.goto('/empresas');
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Empresas', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
   expect((await usuario.request.get('/api/proxy/historico')).status()).toBe(403);
 
   // Revisão concorrente: quem escreve com a revisão antiga é recusado e nada muda.
