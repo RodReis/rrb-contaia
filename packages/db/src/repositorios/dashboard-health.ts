@@ -158,8 +158,8 @@ export const listarDashboardDaSaude = async (cliente:PoolClient,tenantId:string,
   const elegiveis=`with elegiveis as (select e.tenant_id,e.id,p.cor,e.regime_tributario,e.razao_social,e.nome_fantasia,e.cnpj,e.status,e.situacao
     from app.empresa e join app.dashboard_health_projection p on p.tenant_id=e.tenant_id and p.empresa_id=e.id
     where ${condicao})`;
-  const summary=await cliente.query<{total:number;vermelho:number;amarelo:number;verde:number;vencidas:number;d3:number;manifestacoes:number;capturas:number;certificados:number}>(
-    `${elegiveis}, motivos as (select r.* from app.dashboard_health_reason r join elegiveis x on x.tenant_id=r.tenant_id and x.id=r.empresa_id where r.ativo)
+  const summarySql=`${elegiveis}, motivos as materialized (select r.* from app.dashboard_health_reason r
+       where r.tenant_id=$1 and r.ativo and r.empresa_id=any(array(select id from elegiveis)))
      select count(distinct e.id)::int total,
       count(distinct e.id) filter(where e.cor='VERMELHO')::int vermelho,
       count(distinct e.id) filter(where e.cor='AMARELO')::int amarelo,
@@ -169,7 +169,8 @@ export const listarDashboardDaSaude = async (cliente:PoolClient,tenantId:string,
       count(r.id) filter(where r.fonte='MANIFESTACOES')::int manifestacoes,
       count(r.id) filter(where r.fonte='CAPTURA' and r.gravidade='VERMELHO')::int capturas,
       count(distinct e.id) filter(where r.fonte='CERTIFICADOS')::int certificados
-     from elegiveis e left join motivos r on r.tenant_id=e.tenant_id and r.empresa_id=e.id`, args);
+     from elegiveis e left join motivos r on r.tenant_id=e.tenant_id and r.empresa_id=e.id`;
+  const summary=await cliente.query<{total:number;vermelho:number;amarelo:number;verde:number;vencidas:number;d3:number;manifestacoes:number;capturas:number;certificados:number}>(summarySql, args);
   const {rows}=await cliente.query(`select * from (select e.id empresa_id,e.cnpj,coalesce(e.nome_fantasia,e.razao_social,e.cnpj) nome,e.regime_tributario regime,p.cor,p.contagens_fontes,p.contagens_gravidade,p.atualizado_em,p.resumo,
     (select jsonb_build_object('fonte',r.fonte,'codigo',r.codigo,'gravidade',r.gravidade,'descricao',r.descricao) from app.dashboard_health_reason r where r.tenant_id=e.tenant_id and r.empresa_id=e.id and r.ativo order by case r.gravidade when 'VERMELHO' then 0 else 1 end,case r.fonte when 'OBRIGACOES' then 0 when 'CAPTURA' then 1 when 'CERTIFICADOS' then 2 when 'MANIFESTACOES' then 3 else 4 end,r.data_referencia nulls last,r.codigo limit 1) motivo_prioritario,
     (select count(*)::int from app.dashboard_health_reason r where r.tenant_id=e.tenant_id and r.empresa_id=e.id and r.ativo) total_motivos,
