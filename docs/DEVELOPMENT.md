@@ -614,10 +614,13 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Catálogo global versionado protegido por contexto de serviço e guard do `super_admin`; ocorrências, trilha e outbox permanecem isoladas por tenant/empresa.
 - [x] Geração idempotente, destinatários por carteira/admin, notificação in-app, baixa manual e reabertura auditadas.
 - [x] API, worker agendado e tela da agenda com lista/calendário, filtros na URL, detalhe e ações conforme alçada.
-- [x] Testes locais de domínio, tela, API e RLS/anti-drift focados; build e typecheck do workspace passaram.
-- [ ] `test:banco` completo e smoke visual/E2E local: `not_run` por indisponibilidade do PostgreSQL/Docker neste host; os gates remotos da PR são a prova de integração.
+- [x] Correção pós-smoke: origem humana `HUMANA` aceita nas funções SQL do catálogo/calendário; filtro mensal `AAAA-MM` convertido para o primeiro dia; consultas no mesmo cliente PostgreSQL sequenciadas.
+- [x] Regressão de banco: geração, leitura de regras publicadas, calendário e listagem mensal sob RLS; lint e typecheck de `@contaia/db` passaram.
+- [x] Smoke local autenticado: “Atualizar competência” gerou ocorrência para a empresa cadastrada; agenda carregou com 1 ocorrência e cobertura incompleta, sem novos erros da API.
+- [x] `test:banco` completo: 528/528 testes em 29 arquivos; lint e typecheck do workspace passaram.
+- [ ] E2E local: `not_run`; os gates remotos da PR são a prova completa de integração.
 - [x] Autorrevisão do CI: o E2E encontrou listas de menu exatas das SPECs 007/008 desatualizadas após a concessão da consulta da agenda aos papéis dessas jornadas; expectativas atualizadas para refletir as permissões efetivas, inclusive depois de alterar ou reduzir outras permissões.
-- [ ] Evidência visual CLARO/ESCURO em 768/1024/1440: `not_run` até captura autenticada local.
+- [ ] Evidência visual CLARO/ESCURO em 768/1024/1440: `not_run`; o smoke validou o fluxo funcional em viewport atual, sem capturas dimensionais/temas.
 - [ ] PR e CI remoto: em andamento.
 
 ## Referências
