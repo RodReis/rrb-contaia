@@ -1,11 +1,6 @@
-import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
+import { Skeleton } from '@/components/ui/estados';
+import { Dashboard } from '@/features/dashboard/dashboard';
 
-/**
- * O painel era o lugar provisório da carteira de empresas na SPEC-001 §3.3,
- * com estado vazio e sem CTA funcional. A SPEC-002 entrega a listagem real em
- * `/empresas`; esta rota continua existindo porque é o destino do fim do
- * cadastro do escritório e pode estar em favorito de quem usou a F1.
- */
-export default function PaginaDoPainel() {
-  redirect('/empresas');
-}
+export const metadata = { title: 'Dashboard da carteira — ContaIA', description: 'Saúde operacional das empresas da carteira, com motivos e acesso aos fluxos de origem.' };
+export default function PaginaDoPainel() { return <div className="mx-auto w-full max-w-[88rem]"><Suspense fallback={<div className="space-y-lg"><Skeleton className="h-20"/><Skeleton className="h-32"/><Skeleton className="h-96"/></div>}><Dashboard/></Suspense></div>; }

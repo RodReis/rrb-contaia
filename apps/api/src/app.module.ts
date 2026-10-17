@@ -73,6 +73,8 @@ import { PROVEDOR_DA_FILA_FISCAL_RISK } from './fiscal-risk/fiscal-risk.queue';
 import { PROVEDOR_DA_FILA_DE_MANIFESTACAO } from './fiscal-risk/fiscal-manifestation.queue';
 import { ObligationsController } from './obligations/obligations.controller';
 import { ObligationsCatalogController } from './obligations/obligations-catalog.controller';
+import { DashboardController } from './dashboard/dashboard.controller';
+import { DashboardService } from './dashboard/dashboard.service';
 import { ObligationsService } from './obligations/obligations.service';
 
 @Module({
@@ -113,6 +115,7 @@ import { ObligationsService } from './obligations/obligations.service';
     FiscalRiskController,
       ObligationsController,
     ObligationsCatalogController,
+    DashboardController,
   ],
   providers: [
     PoolDoBanco,
@@ -150,6 +153,7 @@ import { ObligationsService } from './obligations/obligations.service';
     ...PROVEDOR_DA_FILA_FISCAL,
     FiscalRiskService,
     ObligationsService,
+    DashboardService,
     ...PROVEDOR_DA_FILA_FISCAL_RISK,
     ...PROVEDOR_DA_FILA_DE_MANIFESTACAO,
     GuardDoCatalogoTributario,

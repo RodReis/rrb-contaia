@@ -141,7 +141,8 @@ test('conclui o cadastro pelo wizard e passa a editar por abas', async ({ page }
 
     // Visão inicial ativa, vazia e sem ação para fluxo inexistente.
     await page.waitForURL(/\/painel/);
-    await expect(page.getByText('Nenhuma empresa cadastrada')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Visão da carteira' })).toBeVisible();
+    await expect(page.getByText('Nenhuma empresa na carteira')).toBeVisible();
   }
 
   // Cadastro ativo é editado por abas, sem reabrir o wizard (SPEC-001 §3.3).

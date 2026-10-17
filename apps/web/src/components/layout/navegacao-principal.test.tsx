@@ -50,6 +50,7 @@ describe('NavegacaoPrincipal', () => {
 
     await waitFor(() => expect(links()).toContain('Usuários e permissões'));
     expect(links()).toEqual([
+      'Dashboard',
       'Empresas',
       'Histórico de Informações',
       'Minha carteira',
