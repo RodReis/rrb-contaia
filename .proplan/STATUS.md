@@ -7,12 +7,6 @@ updated: 2026-10-17
 
 ## Backlog
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25)
-- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
-- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
-
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
 - [MVP2][SPEC-090][F90] Integração financeiro-contábil de títulos e baixas F68 (#122)
@@ -90,7 +84,10 @@ updated: 2026-10-17
 
 ## A Fazer
 
-_(vazio)_
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
+- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
 
 ## Em Andamento
 
@@ -104,6 +101,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25, finalizado em: 2026-10-17)
 - [MVP1][SPEC-022][F22] Agenda de obrigações e alertas D-3 (#24, finalizado em: 2026-10-17)
 - [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23, finalizado em: 2026-10-16)
 - [MVP1][SPEC-020][F20] Classificação de risco e proposta de manifestação (#22, finalizado em: 2026-10-16)
