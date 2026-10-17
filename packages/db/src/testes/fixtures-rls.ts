@@ -51,6 +51,31 @@ const unico = async (banco: Consultavel, sql: string, parametros: unknown[]): Pr
   return linha.id;
 };
 
+const regraObrigacao = async (admin: Consultavel): Promise<Readonly<{ id: string; codigo: string; versao: number }>> => {
+  const { rows } = await admin.query<{ id: string; codigo: string; versao: number }>(
+    `select id,codigo,versao from app.obligation_rule where codigo='DAS_SIMPLES' and estado='PUBLICADA' limit 1`,
+  );
+  const regra = rows[0];
+  if (!regra) throw new Error('regra global da fixture F22 ausente');
+  return regra;
+};
+
+const prepararRegraObrigacao = async (admin: Consultavel): Promise<Referencias> => {
+  const regra = await regraObrigacao(admin);
+  const competencia = `2098-${String((proximo() % 12) + 1).padStart(2,'0')}-01`;
+  return { ruleId: regra.id, codigo: regra.codigo, versao: String(regra.versao + proximo()), competencia };
+};
+
+const prepararOcorrenciaObrigacao = async (admin: Consultavel,e: Escopo): Promise<Referencias> => {
+  const regra = await prepararRegraObrigacao(admin);
+  const occurrenceId = await unico(admin,
+    `insert into app.obligation_occurrence(tenant_id,empresa_id,regra_id,codigo,competencia,versao_regra,estado)
+     values($1,$2,$3,$4,$5::date,$6,'PENDENTE') returning id`,
+    [e.tenantId,e.empresaId,regra['ruleId'],regra['codigo'],regra['competencia'],regra['versao']],
+  );
+  return { occurrenceId };
+};
+
 const prepararStagingFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const cnpj = String(proximo()).padStart(14, '0').slice(-14);
   const stateId = await unico(admin,
@@ -904,5 +929,42 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.fiscal_manifestation_event': {
     preparar: async(admin,e)=>{const execucao=await prepararAnaliseParaManifestacao(admin,e);const manifestation=await unico(admin,`insert into app.fiscal_manifestation(tenant_id,empresa_id,document_id,analysis_id,chave_acesso,tipo,estado,decisao_original,aprovador_id,payload,payload_sha256,chave_idempotente,correlation_id) values($1,$2,$3,$4,$5,'210200','APROVADA','210200',$6,'{}'::jsonb,repeat('c',64),$7,'fiscal-manifestation-rls-fixture') returning id`,[e.tenantId,e.empresaId,execucao['documentId'],execucao['analysisId'],String(proximo()).padStart(44,'0'),e.autorId,`rls-event-${e.sufixo}-${proximo()}`]);return{...execucao,manifestationId:manifestation};},
     inserir:(banco,e,r)=>unico(banco,`insert into app.fiscal_manifestation_event(tenant_id,empresa_id,manifestation_id,estado,detalhe_sanitizado,correlation_id) values($1,$2,$3,'APROVADA','fixture','fiscal-manifestation-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['manifestationId']]),
+  },
+  'app.obligation_occurrence': {
+    preparar: prepararRegraObrigacao,
+    inserir: (banco,e,r) => unico(banco, `insert into app.obligation_occurrence(tenant_id,empresa_id,regra_id,codigo,competencia,versao_regra,estado) values($1,$2,$3,$4,$5::date,$6,'PENDENTE') returning id`, [e.tenantId,e.empresaId,r['ruleId'],r['codigo'],r['competencia'],r['versao']]),
+  },
+  'app.obligation_event': {
+    preparar: prepararOcorrenciaObrigacao,
+    inserir: (banco,e,r) => unico(banco, `insert into app.obligation_event(tenant_id,empresa_id,occurrence_id,sequencia,acao,estado_novo,autor_id,correlation_id) values($1,$2,$3,1,'GERADA','PENDENTE',$4,'rls-obligation') returning id`, [e.tenantId,e.empresaId,r['occurrenceId'],e.autorId]),
+  },
+  'app.obligation_alert': {
+    preparar: prepararOcorrenciaObrigacao,
+    inserir: (banco,e,r) => unico(banco, `insert into app.obligation_alert(tenant_id,empresa_id,occurrence_id,identidade,prioridade,dias_restantes) values($1,$2,$3,'D3_EVOLUTIVO','ALTA',3) returning id`, [e.tenantId,e.empresaId,r['occurrenceId']]),
+    colunaDeAtualizacao: 'dias_restantes', atualizacao: 'dias_restantes=2',
+  },
+  'app.obligation_alert_recipient': {
+    preparar: async(admin,e) => {
+      const occurrence = await prepararOcorrenciaObrigacao(admin,e);
+      const alertId = await unico(admin, `insert into app.obligation_alert(tenant_id,empresa_id,occurrence_id,identidade,prioridade,dias_restantes) values($1,$2,$3,'D3_EVOLUTIVO','ALTA',3) returning id`, [e.tenantId,e.empresaId,occurrence['occurrenceId']]);
+      return { alertId };
+    },
+    inserir: (banco,e,r) => unico(banco, `insert into app.obligation_alert_recipient(tenant_id,empresa_id,alert_id,usuario_id,papel_snapshot) values($1,$2,$3,$4,'contador') returning id`, [e.tenantId,e.empresaId,r['alertId'],e.autorId]),
+  },
+  'app.obligation_in_app_notification': {
+    preparar: async(admin,e) => {
+      const occurrence = await prepararOcorrenciaObrigacao(admin,e);
+      return { alertId: await unico(admin, `insert into app.obligation_alert(tenant_id,empresa_id,occurrence_id,identidade,prioridade,dias_restantes) values($1,$2,$3,'D3_EVOLUTIVO','ALTA',3) returning id`, [e.tenantId,e.empresaId,occurrence['occurrenceId']]) };
+    },
+    inserir: (banco,e,r) => unico(banco, `insert into app.obligation_in_app_notification(tenant_id,empresa_id,alert_id,usuario_id) values($1,$2,$3,$4) returning id`, [e.tenantId,e.empresaId,r['alertId'],e.autorId]),
+    colunaDeAtualizacao: 'lida', atualizacao: 'lida=true,lida_em=now()',
+  },
+  'app.obligation_channel_outbox': {
+    preparar: async(admin,e) => {
+      const occurrence = await prepararOcorrenciaObrigacao(admin,e);
+      return { alertId: await unico(admin, `insert into app.obligation_alert(tenant_id,empresa_id,occurrence_id,identidade,prioridade,dias_restantes) values($1,$2,$3,'D3_EVOLUTIVO','ALTA',3) returning id`, [e.tenantId,e.empresaId,occurrence['occurrenceId']]) };
+    },
+    inserir: (banco,e,r) => unico(banco, `insert into app.obligation_channel_outbox(tenant_id,empresa_id,alert_id,usuario_id,canal,payload,idempotency_key,correlation_id) values($1,$2,$3,$4,'EMAIL_LOCAL','{}'::jsonb,$5,'rls-obligation') returning id`, [e.tenantId,e.empresaId,r['alertId'],e.autorId,`rls-outbox-${e.sufixo}-${proximo()}`]),
+    colunaDeAtualizacao: 'tentativas', atualizacao: 'tentativas=tentativas+1',
   },
 };

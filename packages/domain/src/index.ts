@@ -491,3 +491,4 @@ export { FAIXAS_DE_CONFIANCA, classificarFaixaDeConfianca, decidirPropostaDeMani
 export type { DecisaoDaMatrizFiscal, EntradaDaMatrizFiscal, EvidenciaConclusivaDeOperacao, FaixaDeConfianca } from './fiscal-risk/policy.js';
 export { TIPOS_MANIFESTACAO_CONCLUSIVA, MOTIVOS_REJEICAO_MANIFESTACAO, validarJustificativaManifestacao, chaveIdempotenteManifestacao, hashPayloadManifestacao, ordenarInboxManifestacao, elegivelManifestacao } from './fiscal-manifestations.js';
 export type { TipoManifestacaoConclusiva, MotivoRejeicaoManifestacao } from './fiscal-manifestations.js';
+export * from './obligations.js';

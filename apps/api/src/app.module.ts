@@ -71,6 +71,9 @@ import { FiscalRiskController } from './fiscal-risk/fiscal-risk.controller';
 import { FiscalRiskService } from './fiscal-risk/fiscal-risk.service';
 import { PROVEDOR_DA_FILA_FISCAL_RISK } from './fiscal-risk/fiscal-risk.queue';
 import { PROVEDOR_DA_FILA_DE_MANIFESTACAO } from './fiscal-risk/fiscal-manifestation.queue';
+import { ObligationsController } from './obligations/obligations.controller';
+import { ObligationsCatalogController } from './obligations/obligations-catalog.controller';
+import { ObligationsService } from './obligations/obligations.service';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -108,6 +111,8 @@ import { PROVEDOR_DA_FILA_DE_MANIFESTACAO } from './fiscal-risk/fiscal-manifesta
     DfeCaptureController,
     FiscalDocumentsController,
     FiscalRiskController,
+      ObligationsController,
+    ObligationsCatalogController,
   ],
   providers: [
     PoolDoBanco,
@@ -144,6 +149,7 @@ import { PROVEDOR_DA_FILA_DE_MANIFESTACAO } from './fiscal-risk/fiscal-manifesta
     FiscalDocumentsService,
     ...PROVEDOR_DA_FILA_FISCAL,
     FiscalRiskService,
+    ObligationsService,
     ...PROVEDOR_DA_FILA_FISCAL_RISK,
     ...PROVEDOR_DA_FILA_DE_MANIFESTACAO,
     GuardDoCatalogoTributario,

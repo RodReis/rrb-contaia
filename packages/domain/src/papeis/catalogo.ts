@@ -28,6 +28,9 @@ export const ROTULO_DA_ACAO = {
   confirmar_importacao: 'Confirmar importação',
   baixar_relatorio: 'Baixar relatório',
   simular: 'Simular',
+  reabrir: 'Reabrir',
+  reprocessar: 'Reprocessar',
+  publicar: 'Publicar',
 } as const;
 
 export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
@@ -115,6 +118,13 @@ export const CATALOGO = [
       // SPEC-012: estado, histórico e teste manual do Signer. `Testar` só dispara o diagnóstico
       // do próprio Signer — ninguém assina XML pela interface.
       { id: 'signer', rotulo: 'Signer (mTLS de teste)', acoes: ['consultar', 'testar'] },
+    ],
+  },
+  {
+    id: 'obrigacoes',
+    rotulo: 'Agenda de obrigações',
+    funcionalidades: [
+      { id: 'agenda', rotulo: 'Agenda e ocorrências', acoes: ['consultar', 'baixar', 'reabrir', 'reprocessar'] },
     ],
   },
   {

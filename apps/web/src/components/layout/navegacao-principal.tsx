@@ -41,6 +41,7 @@ const ITENS: readonly ItemDoMenu[] = [
   // Motor tributário (SPEC-016): quem consulta as regras publicadas. O super-admin da plataforma não
   // tem sessão de escritório e abre a rota direto; a API decide cada comando.
   { href: '/fiscal/motor-tributario', rotulo: 'Motor tributário', consultas: [CONSULTA_DO_MOTOR] },
+  { href: '/fiscal/obrigacoes', rotulo: 'Agenda de obrigações', consultas: ['obrigacoes.agenda.consultar'] },
   {
     href: '/configuracoes/usuarios',
     rotulo: 'Usuários e permissões',

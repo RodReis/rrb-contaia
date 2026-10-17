@@ -44,3 +44,10 @@ describe('rotaDaNotificacao do aviso de importação', () => {
     expect(rotaDaNotificacao(aviso({ empresaId: null }))).toBe('/notificacoes');
   });
 });
+
+describe('rota do alerta de obrigação F22', () => {
+  it('abre a ocorrência correspondente na agenda fiscal', () => {
+    expect(rotaDaNotificacao(aviso({ tipo: 'OBRIGACAO_D3', chave: 'occ-22' })))
+      .toBe('/fiscal/obrigacoes?ocorrencia=occ-22');
+  });
+});

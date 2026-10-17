@@ -416,6 +416,8 @@ export {
 // Catálogo tributário global (SPEC-016): nomes genéricos (`list`, `publish`), por isso em namespace.
 export * as taxRules from './tax-rules/repository.js';
 export { listarDocumentosFiscais, obterDocumentoFiscal, persistirDocumentoFiscal, persistirFalhaDocumentoFiscal, registrarEventoDocumentoFiscal } from './repositorios/fiscal-documents.js';
+export { arquivarRegraDeObrigacao, criarRegraDeObrigacao, gerarOcorrenciasPublicadas, listarAgenda, listarAlertasDaObrigacao, listarEventosDaObrigacao, listarFeriados, listarRegrasDeObrigacao, obterOcorrencia, publicarRegraDeObrigacao, registrarBaixaDaObrigacao, registrarReaberturaDaObrigacao, salvarCoberturaDoCalendario, salvarFeriado } from './repositorios/obligations.js';
+export type { FiltroAgenda, OcorrenciaPersistida, RegraPersistida } from './repositorios/obligations.js';
 export type { RegistroFiscalPersistido } from './repositorios/fiscal-documents.js';
 export { iniciarCienciaDaEmissao, listarCienciasPendentes, listarHistoricoDaCiencia, listarResumoCienciasDaEmissao, listarTentativasDaCiencia, obterCienciaDaEmissao, preservarXmlCompletoRecuperado, registrarResumoImpedido, registrarXmlCompletoJaDisponivel, registrarTentativaDaCiencia, retomarCienciaDaEmissao, transicionarCienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';
 export type { CienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';

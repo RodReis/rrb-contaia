@@ -355,6 +355,19 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await alteracao('job técnico em outra empresa', tecnico(c.empresaA2), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
       const apagada = await tentar(app, tecnico(c.empresaA1), apagar(tabela, linhaA1));
       registrar(tabela, classe, 'DELETE sem privilégio', 'DELETE', 'negado_por_privilegio', apagada);
+    } else if (classe === 'empresa' && tabela === 'app.obligation_in_app_notification') {
+      await leitura('destinatário autorizado (controle positivo)', humano(u.naCarteira), 'visivel');
+      await leitura('outro colaborador não lê aviso alheio', humano(u.fora), 'invisivel');
+      await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');
+      await leitura('sem contexto', nenhum, 'invisivel');
+      await insercao('destinatário cria aviso próprio (controle positivo)', humano(u.naCarteira), 'inserido');
+      await insercao('outro colaborador não cria aviso para terceiro', humano(u.fora), 'rejeitado_por_rls');
+      await insercao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'rejeitado_por_rls');
+      await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
+      await alteracao('destinatário atualiza aviso próprio (controle positivo)', humano(u.naCarteira), temUpdate ? 'atualizado' : 'negado_por_privilegio');
+      await alteracao('outro colaborador não altera aviso alheio', humano(u.fora), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
+      await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
+      await alteracao('sem contexto', nenhum, temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
     } else if (classe === 'empresa') {
       // A exceção da F9 vale para os filhos também: o administrador sem vínculo alcança a empresa
       // ARQUIVADA (consulta e reativação gravam histórico), o colaborador comum não.
