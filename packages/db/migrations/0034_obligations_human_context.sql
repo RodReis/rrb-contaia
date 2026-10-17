@@ -6,7 +6,8 @@ DECLARE v_name text;
 BEGIN
   IF NOT (app.contexto_do_catalogo_tributario()
       OR (app.origem_atual() = 'HUMANA' AND app.tenant_atual() IS NOT NULL)
-      OR (app.origem_atual() = 'SERVICO' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA' AND app.tenant_atual() IS NOT NULL)) THEN
+      OR (app.origem_atual() = 'TECNICA' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA'
+          AND app.tenant_atual() IS NOT NULL AND app.empresa_tecnica_atual() IS NOT NULL)) THEN
     RAISE EXCEPTION 'contexto inválido para leitura de regra' USING ERRCODE = 'insufficient_privilege';
   END IF;
   SELECT nome INTO v_name FROM app.obligation_rule WHERE id=p_id AND estado IN ('PUBLICADA','ARQUIVADA');
@@ -18,7 +19,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, app AS $$
 BEGIN
   IF NOT (app.contexto_do_catalogo_tributario()
       OR (app.origem_atual() = 'HUMANA' AND app.tenant_atual() IS NOT NULL)
-      OR (app.origem_atual() = 'SERVICO' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA'
+      OR (app.origem_atual() = 'TECNICA' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA'
           AND app.tenant_atual() IS NOT NULL AND app.empresa_tecnica_atual() IS NOT NULL)) THEN
     RAISE EXCEPTION 'contexto inválido para leitura de regras publicadas' USING ERRCODE = 'insufficient_privilege';
   END IF;

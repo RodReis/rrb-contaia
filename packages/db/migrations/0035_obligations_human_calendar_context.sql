@@ -6,7 +6,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, app AS $$
 BEGIN
   IF NOT (app.contexto_do_catalogo_tributario()
       OR (app.origem_atual() = 'HUMANA' AND app.tenant_atual() IS NOT NULL)
-      OR (app.origem_atual() = 'SERVICO' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA'
+      OR (app.origem_atual() = 'TECNICA' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA'
           AND app.tenant_atual() IS NOT NULL AND app.empresa_tecnica_atual() IS NOT NULL)) THEN
     RAISE EXCEPTION 'contexto inválido para leitura do calendário de feriados' USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -21,7 +21,7 @@ DECLARE v_fim date;
 BEGIN
   IF NOT (app.contexto_do_catalogo_tributario()
       OR (app.origem_atual() = 'HUMANA' AND app.tenant_atual() IS NOT NULL)
-      OR (app.origem_atual() = 'SERVICO' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA'
+      OR (app.origem_atual() = 'TECNICA' AND app.finalidade_atual() = 'PROCESSAMENTO_DE_EMPRESA'
           AND app.tenant_atual() IS NOT NULL AND app.empresa_tecnica_atual() IS NOT NULL)) THEN
     RAISE EXCEPTION 'contexto inválido para consulta de cobertura do calendário' USING ERRCODE = 'insufficient_privilege';
   END IF;

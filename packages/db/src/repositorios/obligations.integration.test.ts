@@ -1,6 +1,7 @@
+import { contextoTecnico } from '@contaia/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { criarPool, criarPoolDaAplicacao } from '../client.js';
-import { comContextoHumano } from '../contexto.js';
+import { comContexto, comContextoHumano } from '../contexto.js';
 import { limparCenario, montarCenario, type Cenario } from '../testes/cenario-rls.js';
 import { gerarOcorrenciasPublicadas, listarAgenda } from './obligations.js';
 
@@ -39,5 +40,25 @@ describe('repositório da agenda de obrigações', () => {
     expect(resultado.agenda.total).toBe(0);
     expect(resultado.agenda.ocorrencias).toEqual([]);
     if (resultado.possuiRegra) expect(resultado.nomeLido).toBe(true);
+  });
+
+  it('permite ao scheduler ler regras e calendário no contexto técnico da empresa', async () => {
+    await comContexto(
+      app,
+      contextoTecnico({
+        identidadeTecnica: 'workers-dfe-capture',
+        finalidade: 'PROCESSAMENTO_DE_EMPRESA',
+        tenantId: c.tenantA,
+        empresaId: c.empresaA1,
+        correlationId: 'obligations-technical-context',
+      }),
+      async (cliente) => {
+        await cliente.query("select * from app.obligation_published_rules(date '2026-10-01')");
+        await cliente.query("select * from app.obligation_holiday_list(date '2026-10-01',date '2026-10-31')");
+        await cliente.query(
+          "select app.obligation_calendar_has_coverage('ESTADUAL','SP',null,date '2026-10-01')",
+        );
+      },
+    );
   });
 });
