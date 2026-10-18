@@ -34,33 +34,132 @@ CREATE INDEX audit_payload_expiry_idx ON app.audit_payload(expires_at);
 CREATE INDEX audit_payload_tenant_idx ON app.audit_payload(tenant_id);
 CREATE INDEX audit_payload_empresa_idx ON app.audit_payload(empresa_id);
 
+CREATE TABLE app.audit_export_job (
+  id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
+  requested_by uuid NOT NULL, format text NOT NULL CHECK(format IN ('JSON','CSV')), filters jsonb NOT NULL,
+  empresas_autorizadas uuid[] NOT NULL CHECK(cardinality(empresas_autorizadas)>0), correlation_id text NOT NULL,
+  estado text NOT NULL DEFAULT 'PENDENTE' CHECK(estado IN ('PENDENTE','PROCESSANDO','CONCLUIDA','FALHA','EXPIRADA')),
+  storage_key text, artifact_sha256 text CHECK(artifact_sha256 IS NULL OR artifact_sha256 ~ '^[0-9a-f]{64}$'),
+  item_count integer CHECK(item_count IS NULL OR item_count>=0), expires_at timestamptz, error_code text,
+  criado_em timestamptz NOT NULL DEFAULT now(), atualizado_em timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT audit_export_job_scope FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
+  CONSTRAINT audit_export_job_actor FOREIGN KEY(requested_by,tenant_id) REFERENCES app.usuario(id,tenant_id),
+  CONSTRAINT audit_export_job_identity_scope UNIQUE(id,tenant_id),
+  CONSTRAINT audit_export_job_result CHECK(
+    (estado IN ('PENDENTE','PROCESSANDO','FALHA') AND storage_key IS NULL AND artifact_sha256 IS NULL AND expires_at IS NULL)
+    OR (estado IN ('CONCLUIDA','EXPIRADA') AND storage_key IS NOT NULL AND artifact_sha256 IS NOT NULL AND expires_at IS NOT NULL)
+  )
+);
+CREATE INDEX audit_export_job_tenant_idx ON app.audit_export_job(tenant_id);
+CREATE INDEX audit_export_job_empresa_idx ON app.audit_export_job(empresa_id);
+CREATE INDEX audit_export_job_pending_idx ON app.audit_export_job(criado_em) WHERE estado='PENDENTE';
+
 CREATE TABLE app.audit_export_manifest (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
+  job_id uuid NOT NULL,
   requested_by uuid NOT NULL, format text NOT NULL CHECK (format IN ('JSON','CSV')),
   filters jsonb NOT NULL, item_count integer NOT NULL CHECK(item_count >= 0), schema_version integer NOT NULL,
-  artifact_sha256 text NOT NULL CHECK(artifact_sha256 ~ '^[0-9a-f]{64}$'), created_at timestamptz NOT NULL DEFAULT now(),
+  artifact_sha256 text NOT NULL CHECK(artifact_sha256 ~ '^[0-9a-f]{64}$'), expires_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT audit_export_scope FOREIGN KEY (empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
-  CONSTRAINT audit_export_actor FOREIGN KEY (requested_by,tenant_id) REFERENCES app.usuario(id,tenant_id)
+  CONSTRAINT audit_export_actor FOREIGN KEY (requested_by,tenant_id) REFERENCES app.usuario(id,tenant_id),
+  CONSTRAINT audit_export_job_scope FOREIGN KEY (job_id,tenant_id) REFERENCES app.audit_export_job(id,tenant_id)
+);
+CREATE TABLE app.audit_payload_revelation (
+  id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
+  event_id uuid NOT NULL REFERENCES app.audit_event(id), ator_id uuid NOT NULL,
+  justificativa text NOT NULL CHECK(length(btrim(justificativa)) BETWEEN 10 AND 500),
+  correlation_id text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT audit_revelation_scope FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
+  CONSTRAINT audit_revelation_actor FOREIGN KEY(ator_id,tenant_id) REFERENCES app.usuario(id,tenant_id)
+);
+CREATE TABLE app.audit_export_download (
+  id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
+  job_id uuid NOT NULL, requested_by uuid NOT NULL, correlation_id text NOT NULL, downloaded_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT audit_export_download_scope FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id),
+  CONSTRAINT audit_export_download_job FOREIGN KEY(job_id,tenant_id) REFERENCES app.audit_export_job(id,tenant_id),
+  CONSTRAINT audit_export_download_actor FOREIGN KEY(requested_by,tenant_id) REFERENCES app.usuario(id,tenant_id)
 );
 CREATE INDEX audit_export_manifest_tenant_idx ON app.audit_export_manifest(tenant_id);
 CREATE INDEX audit_export_manifest_empresa_idx ON app.audit_export_manifest(empresa_id);
 
 DO $$ DECLARE t text; BEGIN
-  FOREACH t IN ARRAY ARRAY['audit_event','audit_payload','audit_export_manifest'] LOOP
+  FOREACH t IN ARRAY ARRAY['audit_event','audit_payload','audit_export_job','audit_export_manifest','audit_payload_revelation','audit_export_download'] LOOP
     EXECUTE format('ALTER TABLE app.%I ENABLE ROW LEVEL SECURITY',t);
     EXECUTE format('ALTER TABLE app.%I FORCE ROW LEVEL SECURITY',t);
     EXECUTE format('CREATE POLICY %I ON app.%I FOR SELECT USING (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id))',t||'_select',t);
   END LOOP;
   CREATE POLICY audit_payload_expiry_delete ON app.audit_payload FOR DELETE USING (tenant_id=app.tenant_atual() AND app.contexto_tecnico() AND expires_at <= now());
   CREATE POLICY audit_export_insert ON app.audit_export_manifest FOR INSERT WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
+  CREATE POLICY audit_export_job_owner ON app.audit_export_job FOR ALL
+    USING (tenant_id=app.tenant_atual() AND requested_by=app.usuario_atual() AND app.empresa_autorizada(empresa_id))
+    WITH CHECK (tenant_id=app.tenant_atual() AND requested_by=app.usuario_atual() AND app.empresa_autorizada(empresa_id)
+      AND NOT EXISTS (
+        SELECT 1
+          FROM unnest(empresas_autorizadas) AS escopo(empresa_id)
+         WHERE NOT app.empresa_autorizada(escopo.empresa_id)
+            OR NOT EXISTS (
+              SELECT 1 FROM app.empresa e
+               WHERE e.id=escopo.empresa_id AND e.tenant_id=tenant_id
+                 AND (app.empresa_na_carteira(e.id) OR (app.administrador_comum() AND e.situacao='arquivado'))
+            )
+      ));
+  CREATE POLICY audit_export_download_insert ON app.audit_export_download FOR INSERT
+    WITH CHECK (tenant_id=app.tenant_atual() AND requested_by=app.usuario_atual() AND app.empresa_autorizada(empresa_id));
+  CREATE POLICY audit_revelation_insert ON app.audit_payload_revelation FOR INSERT WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id) AND ator_id=app.usuario_atual());
 END $$;
 CREATE TRIGGER audit_event_no_mutation BEFORE UPDATE OR DELETE ON app.audit_event FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 CREATE TRIGGER audit_export_no_mutation BEFORE UPDATE OR DELETE ON app.audit_export_manifest FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
+CREATE OR REPLACE FUNCTION app.proteger_ciclo_audit_export_job() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF (to_jsonb(NEW)-'estado'-'storage_key'-'artifact_sha256'-'item_count'-'expires_at'-'error_code'-'atualizado_em')
+     IS DISTINCT FROM (to_jsonb(OLD)-'estado'-'storage_key'-'artifact_sha256'-'item_count'-'expires_at'-'error_code'-'atualizado_em') THEN
+    RAISE EXCEPTION 'identidade e filtros da exportacao sao imutaveis' USING ERRCODE='restrict_violation';
+  END IF;
+  IF NOT ((OLD.estado='PENDENTE' AND NEW.estado IN ('PROCESSANDO','FALHA'))
+       OR (OLD.estado='PROCESSANDO' AND NEW.estado IN ('CONCLUIDA','FALHA'))
+       OR (OLD.estado='CONCLUIDA' AND NEW.estado='EXPIRADA')) THEN
+    RAISE EXCEPTION 'transicao de exportacao invalida' USING ERRCODE='restrict_violation';
+  END IF;
+  IF NEW.estado='CONCLUIDA' AND (NEW.storage_key IS NULL OR NEW.artifact_sha256 IS NULL OR NEW.item_count IS NULL OR NEW.expires_at<=now()) THEN
+    RAISE EXCEPTION 'exportacao concluida exige artefato valido' USING ERRCODE='check_violation';
+  END IF;
+  IF OLD.estado='CONCLUIDA' AND (NEW.storage_key,NEW.artifact_sha256,NEW.item_count,NEW.expires_at)
+      IS DISTINCT FROM (OLD.storage_key,OLD.artifact_sha256,OLD.item_count,OLD.expires_at) THEN
+    RAISE EXCEPTION 'manifesto concluido e imutavel' USING ERRCODE='restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER audit_export_job_lifecycle BEFORE UPDATE ON app.audit_export_job FOR EACH ROW EXECUTE FUNCTION app.proteger_ciclo_audit_export_job();
+CREATE TRIGGER audit_export_job_scope BEFORE UPDATE ON app.audit_export_job FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_event FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_export_manifest FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_payload FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
-REVOKE ALL ON app.audit_event,app.audit_payload,app.audit_export_manifest FROM contaia_app;
-GRANT SELECT ON app.audit_event,app.audit_payload,app.audit_export_manifest TO contaia_app;
+CREATE TRIGGER audit_revelation_no_mutation BEFORE UPDATE OR DELETE ON app.audit_payload_revelation FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_payload_revelation FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER audit_export_download_no_mutation BEFORE UPDATE OR DELETE ON app.audit_export_download FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
+REVOKE ALL ON app.audit_event,app.audit_payload,app.audit_export_job,app.audit_export_manifest,app.audit_payload_revelation,app.audit_export_download FROM contaia_app;
+GRANT SELECT ON app.audit_event,app.audit_payload,app.audit_export_job,app.audit_export_manifest,app.audit_payload_revelation,app.audit_export_download TO contaia_app;
+GRANT INSERT ON app.audit_export_job TO contaia_app;
+GRANT UPDATE(estado,storage_key,artifact_sha256,item_count,expires_at,error_code,atualizado_em) ON app.audit_export_job TO contaia_app;
+GRANT INSERT ON app.audit_payload_revelation TO contaia_app;
+GRANT INSERT ON app.audit_export_download TO contaia_app;
+
+CREATE OR REPLACE FUNCTION app.audit_export_expirar(p_tenant uuid,p_job uuid,p_solicitante uuid,p_correlation text)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,app AS $$
+DECLARE v_key text; v_empresa uuid;
+BEGIN
+  SELECT storage_key,empresa_id INTO v_key,v_empresa FROM app.audit_export_job
+   WHERE tenant_id=p_tenant AND id=p_job AND requested_by=p_solicitante AND estado='CONCLUIDA' AND expires_at<=now()
+   FOR UPDATE;
+  IF v_key IS NULL THEN RETURN NULL; END IF;
+  UPDATE app.audit_export_job SET estado='EXPIRADA',atualizado_em=now()
+   WHERE tenant_id=p_tenant AND id=p_job AND requested_by=p_solicitante AND estado='CONCLUIDA' AND expires_at<=now();
+  INSERT INTO app.audit_export_download(tenant_id,empresa_id,job_id,requested_by,correlation_id)
+    VALUES(p_tenant,v_empresa,p_job,p_solicitante,p_correlation||':expired');
+  RETURN v_key;
+END $$;
+REVOKE ALL ON FUNCTION app.audit_export_expirar(uuid,uuid,uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app.audit_export_expirar(uuid,uuid,uuid,text) TO contaia_app;
 
 -- Escrita executada pelo gatilho na mesma transacao da mudanca de origem.
 CREATE OR REPLACE FUNCTION app.audit_capture_source() RETURNS trigger
@@ -100,12 +199,16 @@ BEGIN
     WHEN 'fiscal_risk_event' THEN 'agent.execution.lifecycle.'||lower(COALESCE(v->>'estado','recorded'))
     WHEN 'fiscal_manifestation_event' THEN 'fiscal.transmission.'||lower(COALESCE(v_state,'recorded'))
     WHEN 'obligation_event' THEN 'compliance.rule.'||lower(COALESCE(v->>'acao','recorded'))
+    WHEN 'audit_payload_revelation' THEN 'audit.payload.revealed'
+    WHEN 'audit_export_job' THEN 'audit.export.'||lower(COALESCE(v_state,'requested'))
+    WHEN 'audit_export_download' THEN 'audit.export.downloaded'
+    WHEN 'audit_export_job' THEN 'audit.export.'||lower(COALESCE(v_state,'requested'))
     ELSE 'source.event' END;
   IF TG_OP='UPDATE' THEN v_actor:=NULL; v_kind:='SYSTEM'; END IF;
   v_key:=TG_TABLE_NAME||':'||v_source::text||':'||TG_OP||':'||COALESCE(v_state,'created')||':'||COALESCE(v->>'tentativas','0')||':'||COALESCE(v->>'codigo_erro','');
   p:=v;
   -- Payload separado, removendo segredos mesmo se o schema de origem evoluir.
-  FOR v_pair IN SELECT key FROM jsonb_each(p) WHERE lower(key) ~ '(secret|password|credential|private.?key|certificate.?pem|token_value)' LOOP
+  FOR v_pair IN SELECT key FROM jsonb_each(p) WHERE lower(key) ~ '(secret|password|credential|private.?key|certificate.*pem|(^|_)(api.?key|access.?token|refresh.?token|auth.?token|bearer|authorization|cookie|session.?token)(_|$))' LOOP
     p:=p-v_pair.key;
   END LOOP;
   -- Payload table is separate; source event contains only stable metadata.
@@ -132,12 +235,15 @@ BEGIN
 END $$;
 
 DO $$ DECLARE t text; BEGIN
-  FOREACH t IN ARRAY ARRAY['fiscal_risk_execution','fiscal_risk_analysis','fiscal_risk_attempt','fiscal_risk_event','fiscal_manifestation_event','obligation_event'] LOOP
+  FOREACH t IN ARRAY ARRAY['fiscal_risk_execution','fiscal_risk_analysis','fiscal_risk_attempt','fiscal_risk_event','fiscal_manifestation_event','obligation_event','audit_payload_revelation','audit_export_job','audit_export_download'] LOOP
     EXECUTE format('CREATE TRIGGER audit_capture AFTER INSERT ON app.%I FOR EACH ROW EXECUTE FUNCTION app.audit_capture_source()',t);
   END LOOP;
 END $$;
 CREATE TRIGGER audit_capture_execution_update AFTER UPDATE OF estado,tentativas,codigo_erro ON app.fiscal_risk_execution
   FOR EACH ROW WHEN (OLD.estado IS DISTINCT FROM NEW.estado OR OLD.tentativas IS DISTINCT FROM NEW.tentativas OR OLD.codigo_erro IS DISTINCT FROM NEW.codigo_erro)
+  EXECUTE FUNCTION app.audit_capture_source();
+CREATE TRIGGER audit_capture_export_job_update AFTER UPDATE OF estado,error_code ON app.audit_export_job
+  FOR EACH ROW WHEN (OLD.estado IS DISTINCT FROM NEW.estado OR OLD.error_code IS DISTINCT FROM NEW.error_code)
   EXECUTE FUNCTION app.audit_capture_source();
 GRANT INSERT ON app.audit_export_manifest TO contaia_app;
 

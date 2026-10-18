@@ -155,7 +155,7 @@ Número global de cobertura é métrica ruim: premia testar o que é fácil. **C
 
 ## 7. Evidência e relatório
 
-**F24/SPEC-024:** a evidência cobre canonicalização/redaction (regras), migração limpa, append-only, captura transacional e RLS (banco), e lista/detalhe redigido/vazio/acessibilidade automatizada (tela). A captura atual parte dos campos que F20–F22 persistem; não comprova prompt/contexto/ferramentas inexistentes nas origens. Revelação integral exige chave de permissão específica ainda não cadastrada. Exportação validada é JSON/CSV síncrona com manifesto e hash; o fluxo assíncrono com artefato/validade e E2E de origem até exportação permanecem `not_run`/pendentes. A prova visual autenticada em CLARO/ESCURO, 768/1024/1440 também permanece `not_run` nesta execução.
+**F24/SPEC-024:** a evidência cobre canonicalização/redaction (regras), migração limpa, append-only, captura transacional e RLS (banco), lista/detalhe redigido/vazio/acessibilidade automatizada (tela), e revelação autorizada apenas a `admin_escritorio` com justificativa, confirmação, checagem de hash e evento append-only. A captura atual parte dos campos que F20–F22 persistem; não comprova prompt/contexto/ferramentas inexistentes nas origens. Exportação JSON/CSV é assíncrona, enfileirada, gera artefato com hash, registra manifesto/download e expira em 24 horas; banco focado e matriz RLS passaram após migration limpa. E2E de origem até exportação e prova visual autenticada em CLARO/ESCURO, 768/1024/1440 permanecem `not_run` nesta execução.
 
 Toda execução produz artefato bruto rastreável por **SPEC/issue** (`CLAUDE.md`):
 

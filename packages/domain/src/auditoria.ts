@@ -23,7 +23,8 @@ export const redigirPayloadDeAuditoria = (valor: ValorCanonico): ValorCanonico =
   if (Array.isArray(valor)) return valor.map((item) => redigirPayloadDeAuditoria(item));
   if (valor !== null && typeof valor === 'object') {
     return Object.fromEntries(Object.entries(valor).map(([chave, item]) => {
-      if (/prompt|contexto|entrada|saida|resposta|conteudo|xml|senha|segredo|token|credential|private.?key/iu.test(chave)) {
+      if (/^(?:input|output)_tokens$/iu.test(chave)) return [chave, item];
+      if (/prompt|context|entrada|saida|resposta|conteudo|xml|senha|segredo|credential|private.?key|api.?key|access.?token|refresh.?token|auth.?token|authorization|cookie|session.?token/iu.test(chave)) {
         return [chave, '[REDACTADO]'];
       }
       return [chave, redigirPayloadDeAuditoria(item)];

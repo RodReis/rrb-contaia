@@ -10,6 +10,7 @@ import { iniciarConsumidorDeEmpregados } from './empregados/consumidor.js';
 import { iniciarConsumidorDfeCapture } from './dfe-capture.js';
 import { iniciarConsumidorDeDocumentosFiscais } from './fiscal-documents.js';
 import { iniciarConsumidorDeRiscoFiscal } from './fiscal-risk.js';
+import { iniciarConsumidorDeExportacoesDeAuditoria } from './audit-export.js';
 import { iniciarConsumidorDeManifestacoesConclusivas } from './fiscal-manifestation.js';
 import { iniciarAgendadorDeObrigacoes } from './obligations.js';
 import { iniciarReconciliadorDeSaude } from './dashboard-health.js';
@@ -93,6 +94,11 @@ if (config.armazenamento !== null) {
 const fiscalRisk = await iniciarConsumidorDeRiscoFiscal({pool,conexao});
 fechamentos.push(async()=>{await fiscalRisk.fechar();});
 ativos.push('análise fiscal F20 (abstenção segura até regra PI)');
+if (config.armazenamento !== null) {
+  const exportsAudit = await iniciarConsumidorDeExportacoesDeAuditoria({ pool, conexao, armazenamento: config.armazenamento });
+  fechamentos.push(async () => { await exportsAudit.fechar(); });
+  ativos.push('exportação temporária da auditoria F24');
+}
 if(config.signer){
  const conclusivas=await iniciarConsumidorDeManifestacoesConclusivas({pool,conexao,signer:criarClienteDoSigner({host:config.signer.signer.host,porta:config.signer.signer.porta,servername:config.signer.signer.servername,
   certificadoPem:readFileSync(config.signer.arquivoDoCertificado,'utf8'),chavePem:readFileSync(config.signer.arquivoDaChave,'utf8'),caPem:readFileSync(config.signer.arquivoDaCaInterna,'utf8')})});

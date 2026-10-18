@@ -337,7 +337,31 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
 
     // -- SELECT / INSERT / UPDATE por classe ------------------------------------
 
-    if (classe === 'empresa' && tabela.startsWith('app.dfe_capture_')) {
+    if (tabela === 'app.audit_payload_revelation' || tabela === 'app.audit_export_download' || tabela === 'app.audit_export_job') {
+      const ownActor = humano(u.naCarteira);
+      const scopedEscopo = { ...escopoA1, autorId: u.naCarteira };
+      const scopedRefs = await (fixture.preparar?.(admin, scopedEscopo) ?? Promise.resolve({}));
+      const scopedLine = await fixture.inserir(admin, scopedEscopo, scopedRefs);
+      await leitura('solicitante na carteira (controle positivo)', ownActor, 'visivel', scopedLine);
+      await leitura('fora da carteira', humano(u.fora), 'invisivel', scopedLine);
+      await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel', scopedLine);
+      await leitura('sem contexto', nenhum, 'invisivel', scopedLine);
+      await insercao('solicitante na carteira (controle positivo)', ownActor, 'inserido', scopedEscopo, scopedRefs);
+      await insercao('fora da carteira', humano(u.fora), 'rejeitado_por_rls', scopedEscopo, scopedRefs);
+      await insercao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'rejeitado_por_rls', { ...scopedEscopo, tenantId: c.tenantB }, scopedRefs);
+      await insercao('sem contexto', nenhum, 'rejeitado_por_rls', scopedEscopo, scopedRefs);
+      await insercao('job técnico não realiza operação humana', tecnico(c.empresaA1), 'rejeitado_por_rls', scopedEscopo, scopedRefs);
+      if (tabela === 'app.audit_export_job') {
+        await insercao('escopo inclui empresa fora da carteira', ownActor, 'rejeitado_por_rls', scopedEscopo, { ...scopedRefs, empresaAutorizada: c.empresaA2 });
+        await alteracao('solicitante atualiza estado (controle positivo)', ownActor, temUpdate ? 'atualizado' : 'negado_por_privilegio', scopedLine, "estado='PROCESSANDO',atualizado_em=now()");
+        await alteracao('outro colaborador não atualiza job alheio', humano(u.fora), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio', scopedLine, "estado='PROCESSANDO',atualizado_em=now()");
+        await alteracao('sem contexto', nenhum, temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio', scopedLine, "estado='PROCESSANDO',atualizado_em=now()");
+      } else {
+        await alteracao('append-only sem privilégio UPDATE', ownActor, 'negado_por_privilegio', scopedLine);
+      }
+      const apagada = await tentar(app, ownActor, apagar(tabela, scopedLine));
+      registrar(tabela, classe, 'DELETE sem privilégio', 'DELETE', 'negado_por_privilegio', apagada);
+    } else if (classe === 'empresa' && tabela.startsWith('app.dfe_capture_')) {
       await leitura('carteira da empresa (controle positivo)', humano(u.naCarteira), 'visivel');
       await leitura('fora da carteira', humano(u.fora), 'invisivel');
       await leitura('outro tenant', humano(u.deB, 'COMUM', c.tenantB), 'invisivel');

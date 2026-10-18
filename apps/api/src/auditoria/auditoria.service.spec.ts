@@ -5,9 +5,10 @@ import { AuditoriaService, construirFiltroSqlDeAuditoria } from './auditoria.ser
 
 describe('AuditoriaService', () => {
   it('nega consulta e exportacao a papeis fora da alçada transversal', async () => {
-    const service = new AuditoriaService({ instancia: {} as Pool } as never);
+    const service = new AuditoriaService({ instancia: {} as Pool } as never, {} as never, null);
     await expect(service.listar('tenant','usuario','corr',[],{pagina:1,limite:25})).rejects.toBeInstanceOf(ForbiddenException);
     await expect(service.exportar('tenant','usuario','corr',['contador'],'JSON',{pagina:1,limite:25})).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.revelar('tenant','usuario','corr',['auditor_readonly'],'123e4567-e89b-42d3-a456-426614174000','Auditoria de incidente aprovado')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('separa tenant, filtros e paginação em parâmetros SQL sem colisão', () => {

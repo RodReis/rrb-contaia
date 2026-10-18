@@ -1007,6 +1007,22 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     colunaDeAtualizacao: 'event_id',
   },
   'app.audit_export_manifest': {
-    inserir: (banco,e) => unico(banco,"insert into app.audit_export_manifest(tenant_id,empresa_id,requested_by,format,filters,item_count,schema_version,artifact_sha256) values($1,$2,$3,'JSON','{}'::jsonb,0,1,repeat('c',64)) returning id",[e.tenantId,e.empresaId,e.autorId]),
+    preparar: async(admin,e) => {
+      const jobId = await unico(admin,"insert into app.audit_export_job(tenant_id,empresa_id,requested_by,format,filters,empresas_autorizadas,correlation_id,estado,storage_key,artifact_sha256,item_count,expires_at) values($1,$2,$3,'JSON','{}'::jsonb,ARRAY[$2]::uuid[],'rls-audit-export','CONCLUIDA','test/audit.json',repeat('c',64),0,now()+interval '24 hours') returning id",[e.tenantId,e.empresaId,e.autorId]);
+      return { jobId };
+    },
+    inserir: (banco,e,r) => unico(banco,"insert into app.audit_export_manifest(tenant_id,empresa_id,job_id,requested_by,format,filters,item_count,schema_version,artifact_sha256,expires_at) values($1,$2,$3,$4,'JSON','{}'::jsonb,0,1,repeat('c',64),now()+interval '24 hours') returning id",[e.tenantId,e.empresaId,r['jobId'],e.autorId]),
+  },
+  'app.audit_export_job': {
+    inserir: (banco,e,r) => unico(banco,"insert into app.audit_export_job(tenant_id,empresa_id,requested_by,format,filters,empresas_autorizadas,correlation_id) values($1,$2,$3,'JSON','{}'::jsonb,ARRAY[$4::uuid]::uuid[],'rls-audit-export') returning id",[e.tenantId,e.empresaId,e.autorId,r['empresaAutorizada'] ?? e.empresaId]),
+    colunaDeAtualizacao: 'estado', atualizacao: "estado='PROCESSANDO',storage_key=NULL,artifact_sha256=NULL,item_count=NULL,expires_at=NULL,atualizado_em=now()",
+  },
+  'app.audit_export_download': {
+    preparar: async(admin,e) => ({ jobId: await unico(admin,"insert into app.audit_export_job(tenant_id,empresa_id,requested_by,format,filters,empresas_autorizadas,correlation_id,estado,storage_key,artifact_sha256,item_count,expires_at) values($1,$2,$3,'JSON','{}'::jsonb,ARRAY[$2]::uuid[],'rls-audit-export','CONCLUIDA','test/audit.json',repeat('c',64),0,now()+interval '24 hours') returning id",[e.tenantId,e.empresaId,e.autorId]) }),
+    inserir: (banco,e,r) => unico(banco,"insert into app.audit_export_download(tenant_id,empresa_id,job_id,requested_by,correlation_id) values($1,$2,$3,$4,'rls-audit-download') returning id",[e.tenantId,e.empresaId,r['jobId'],e.autorId]),
+  },
+  'app.audit_payload_revelation': {
+    preparar: async(admin,e) => ({ eventId: await inserirEventoDeAuditoria(admin,e,'d'.repeat(64)) }),
+    inserir: (banco,e,r) => unico(banco,"insert into app.audit_payload_revelation(tenant_id,empresa_id,event_id,ator_id,justificativa,correlation_id) values($1,$2,$3,$4,'Justificativa de teste para revelar payload',$5) returning id",[e.tenantId,e.empresaId,r['eventId'],e.autorId,'rls-audit-revelation']),
   },
 };

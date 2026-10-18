@@ -77,6 +77,7 @@ import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
 import { AuditoriaController } from './auditoria/auditoria.controller';
 import { AuditoriaService } from './auditoria/auditoria.service';
+import { PROVEDOR_DA_FILA_DE_AUDITORIA } from './auditoria/auditoria.queue';
 import { ObligationsService } from './obligations/obligations.service';
 
 @Module({
@@ -158,6 +159,7 @@ import { ObligationsService } from './obligations/obligations.service';
     ObligationsService,
     DashboardService,
     AuditoriaService,
+    ...PROVEDOR_DA_FILA_DE_AUDITORIA,
     ...PROVEDOR_DA_FILA_FISCAL_RISK,
     ...PROVEDOR_DA_FILA_DE_MANIFESTACAO,
     GuardDoCatalogoTributario,

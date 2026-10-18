@@ -86,6 +86,7 @@ const OBRIGACOES = [
 const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
   admin_escritorio: [
     ...CHAVES_DO_CATALOGO,
+    'usuarios.auditoria_payload.revelar',
     'usuarios.usuarios_e_papeis.consultar',
     'usuarios.usuarios_e_papeis.administrar',
   ],
@@ -141,12 +142,12 @@ describe('papéis padrão em chaves do catálogo', () => {
     });
   }
 
-  it('só o administrador exerce a área exclusiva; o auditor apenas a consulta', () => {
+  it('só o administrador exerce permissões exclusivas; o auditor mantém apenas consulta de usuários', () => {
     const exclusivas = new Set<string>(CHAVES_EXCLUSIVAS);
     const concedidas = (papel: PapelPadrao): string[] =>
       permissoesDoPapelPadrao(papel).filter((chave) => exclusivas.has(chave));
 
-    expect(concedidas('admin_escritorio')).toHaveLength(2);
+    expect(concedidas('admin_escritorio')).toHaveLength(3);
     expect(concedidas('auditor_readonly')).toEqual(['usuarios.usuarios_e_papeis.consultar']);
     expect(concedidas('contador')).toEqual([]);
     expect(concedidas('auxiliar')).toEqual([]);
@@ -193,7 +194,9 @@ describe('papéis padrão em chaves do catálogo', () => {
       for (const chave of concedidas) {
         const [modulo, funcionalidade] = chave.split('.');
 
-        expect(concedidas.has(`${modulo}.${funcionalidade}.consultar`)).toBe(true);
+        if (chave !== 'usuarios.auditoria_payload.revelar') {
+          expect(concedidas.has(`${modulo}.${funcionalidade}.consultar`)).toBe(true);
+        }
       }
     }
   });

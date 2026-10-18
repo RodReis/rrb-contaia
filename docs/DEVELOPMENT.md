@@ -90,7 +90,7 @@ Enquanto o fatiamento em MVP/SPEC não existir, esta tabela fica vazia — **ela
 | 12 | [#19](https://github.com/RodReis/rrb-contaia/issues/19) `[MVP1][SPEC-017][F17]` Captura DF-e por NSU | F17 / SPEC-017 | em implementação | — | estado/cursor, staging opaco, Signer mTLS, fila e scheduler por elegibilidade; DLQ, reprocessamento autenticado, consulta e métricas operacionais. Pendentes: jornada E2E e provas visuais nos dois temas/viewports |
 | 13 | [#20](https://github.com/RodReis/rrb-contaia/issues/20) `[MVP1][SPEC-018][F18]` Parse e persistência de XML, hash e IBS/CBS | F18 / SPEC-018 | em implementação | — | parser seguro com checks estruturais de leiaute 4.00, outbox transacional staging → fila F18, storage original, hash, persistência/RLS, API e painel; itens/componentes, protocolo, referências, partes/endereço e tributos normalizados. Pendentes: XSD oficial, migration/integração em PostgreSQL, cobertura completa de CT-e/NF-e, provas de UI/E2E e CI |
 | 14 | [#21](https://github.com/RodReis/rrb-contaia/issues/21) `[MVP1][SPEC-019][F19]` Ciência da Emissão automática | F19 / SPEC-019 | integrada; aguarda aceite do PI | #125 | fluxo resNFe → Ciência 210210 pelo Signer mTLS → procNFe por chave → staging/outbox F18; tentativas append-only, RLS, DLQ, retomada por ciclo, API e painel. CI #203 verde em todos os gates. Prova visual comparativa em CLARO/ESCURO e viewports 768/1024/1440 permanece `not_run` localmente pelo symlink do worktree rejeitado pelo Turbopack |
-| 15 | [#26](https://github.com/RodReis/rrb-contaia/issues/26) `[MVP1][SPEC-024][F24]` Auditoria append-only e decisões dos agentes | F24 / SPEC-024 | em implementação | — | ledger com RLS/append-only, captura F20–F22, redaction, integridade, retenção e tela mestre-detalhe; export JSON/CSV síncrona com manifesto. Revelação integral requer permissão específica ainda ausente no catálogo; export assíncrona/artefato e prova visual/E2E autenticada pendentes |
+| 15 | [#26](https://github.com/RodReis/rrb-contaia/issues/26) `[MVP1][SPEC-024][F24]` Auditoria append-only e decisões dos agentes | F24 / SPEC-024 | implementação em PR | — | ledger com RLS/append-only, captura F20–F22, redaction, integridade e tela mestre-detalhe; revelação restrita a `admin_escritorio`, justificada e auditada; exportação assíncrona com artefato/hash, download rastreado e expiração em 24 horas. E2E ponta a ponta e captura visual autenticada pendentes |
 
 ---
 
@@ -643,11 +643,12 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Ledger separado de metadados e payload, escopado por tenant/empresa, RLS forçada, escrita sem privilégios diretos e proteção append-only; capture transacional de execuções, análises, tentativas e eventos F20, transmissão F21 e eventos determinísticos F22.
 - [x] Canonicalização/hash SHA-256, redaction no armazenamento e leitura, filtro/paginação/detalhe com estado de integridade, expiração de payload após 12 meses com evento, e manifesto por empresa do universo exportado.
 - [x] Tela CLARO/ESCURO responsiva, filtros e seleção na URL, detalhe redigido, indicação de integridade e exportação JSON/CSV.
-- [x] Migração limpa e banco focado: integração F24 3/3, anti-drift 17/17 e matriz RLS 5/5; domínio 3/3, serviço API 1/1, tela 2/2; typecheck API/Web/DB e lint API/Web passaram (um warning preexistente em `aba-de-enderecos.tsx`).
-- [ ] Revelação integral: não implementada porque exige permissão específica que não existe no catálogo aprovado; não foi criada regra de autorização nesta fatia.
-- [ ] Exportação assíncrona com artefato e validade: implementação atual retorna conteúdo síncrono e manifesto/hash; falta consumidor e estado do artefato.
+- [x] Migração limpa e banco focado: auditoria 5/5 e matriz RLS 5/5; typecheck API/Web/DB/Workers, lint dos pacotes e testes focados executados.
+  - [x] Revelação integral: chave exclusiva `usuarios.auditoria_payload.revelar`, concedida apenas ao `admin_escritorio`; endpoint exige justificativa e confirmação, verifica hashes e grava evento append-only antes de devolver conteúdo. Auditor e demais papéis recebem 403.
+- [x] Exportação JSON/CSV assíncrona por fila, armazenamento do artefato, SHA-256, download rastreado e remoção/estado de expiração em 24 horas; revalida escopo no processamento e no download.
 - [ ] Execução completa do agente com prompt/contexto/ferramentas, E2E ponta a ponta e prova visual autenticada CLARO/ESCURO em 768/1024/1440: `not_run` nesta execução; captura disponível reflete apenas campos persistidos pelas fontes F20–F22.
-- [ ] Autorrevisão, PR `refs #26` e CI remoto: pendentes.
+- [x] Autorrevisão do diff contra `origin/main`, incluindo migration, API, worker, UI e testes; `git diff --check` limpo.
+- [ ] PR `refs #26` e CI remoto: pendentes.
 
 ## Referências
 

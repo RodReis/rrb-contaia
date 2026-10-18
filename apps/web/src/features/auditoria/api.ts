@@ -28,8 +28,22 @@ export const listarAuditoria = (filtros: FiltrosDeAuditoria): Promise<PaginaDeAu
 export const obterEventoDeAuditoria = (id: string): Promise<DetalheDeAuditoria> =>
   requisitar<DetalheDeAuditoria>('/fiscal/auditoria/' + id);
 
+export const revelarPayloadDeAuditoria = (id: string, justificativa: string): Promise<Readonly<{ eventId: string; payload: unknown }>> =>
+  requisitar('/fiscal/auditoria/' + id + '/revelacao', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ justificativa, confirmacao: true }),
+  });
+
+export type EstadoDaExportacao = Readonly<{
+  id: string; estado: 'PENDENTE' | 'PROCESSANDO' | 'CONCLUIDA' | 'FALHA' | 'EXPIRADA'; format: 'JSON' | 'CSV';
+  item_count: number | null; artifact_sha256: string | null; expires_at: string | null; error_code: string | null;
+}>;
+
 export const exportarAuditoria = (filtros: FiltrosDeAuditoria, formato: 'JSON' | 'CSV') =>
-  requisitar<Readonly<{ formato: string; arquivo: string; sha256: string; quantidade: number; conteudo: string }>>(
+  requisitar<Readonly<{ id: string; estado: 'PENDENTE' }>>(
     '/fiscal/auditoria/exportacoes?' + query(filtros),
     { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ formato }) },
   );
+
+export const obterEstadoDaExportacao = (id: string): Promise<EstadoDaExportacao> =>
+  requisitar<EstadoDaExportacao>('/fiscal/auditoria/exportacoes/' + id);

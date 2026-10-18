@@ -12,8 +12,10 @@ describe('auditoria append-only', () => {
   });
 
   it('redige campos sensíveis recursivamente sem alterar evidência pública', () => {
-    expect(redigirPayloadDeAuditoria({ justificativa: 'Regra aplicada', prompt: 'privado', nested: { entrada: 'sigilosa' } })).toEqual({
-      justificativa: 'Regra aplicada', prompt: '[REDACTADO]', nested: { entrada: '[REDACTADO]' },
+    expect(redigirPayloadDeAuditoria({ justificativa: 'Regra aplicada', prompt: 'privado', input_tokens: 12, output_tokens: 8,
+      api_key: 'secreto', nested: { entrada: 'sigilosa', access_token: 'secreto' } })).toEqual({
+      justificativa: 'Regra aplicada', prompt: '[REDACTADO]', input_tokens: 12, output_tokens: 8,
+      api_key: '[REDACTADO]', nested: { entrada: '[REDACTADO]', access_token: '[REDACTADO]' },
     });
   });
 });

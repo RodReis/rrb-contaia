@@ -76,6 +76,7 @@ describe('catálogo de permissões (SPEC-008 §3.2)', () => {
     expect([...CHAVES_EXCLUSIVAS]).toEqual([
       'usuarios.usuarios_e_papeis.consultar',
       'usuarios.usuarios_e_papeis.administrar',
+      'usuarios.auditoria_payload.revelar',
     ]);
     expect(CATALOGO.some((modulo) => modulo.id === 'usuarios')).toBe(false);
   });
@@ -97,6 +98,7 @@ describe('catálogo de permissões (SPEC-008 §3.2)', () => {
 
   it('reconhece a chave exclusiva', () => {
     expect(ehChaveExclusiva('usuarios.usuarios_e_papeis.administrar')).toBe(true);
+    expect(ehChaveExclusiva('usuarios.auditoria_payload.revelar')).toBe(true);
     expect(ehChaveExclusiva('empresas.cadastro.criar')).toBe(false);
   });
 
