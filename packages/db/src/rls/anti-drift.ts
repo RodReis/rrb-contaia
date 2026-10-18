@@ -71,7 +71,7 @@ const PRIVILEGIOS_PROIBIDOS = ['DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] as
 const EXIGE_NA_POLITICA: Readonly<Record<string, readonly string[]>> = {
   raiz_tenant: ['tenant_atual'],
   raiz_empresa: ['tenant_atual'],
-  empresa: ['tenant_atual', 'empresa_autorizada'],
+  empresa: ['tenant_atual'],
   vinculo: ['tenant_atual', 'contexto_humano'],
   tenant: ['tenant_atual', 'contexto_humano'],
 };
@@ -82,7 +82,8 @@ const EQUIVALENTES: Readonly<Record<string, readonly string[]>> = {
 };
 
 const usaFuncao = (expressao: string, funcao: string): boolean =>
-  (EQUIVALENTES[funcao] ?? [funcao]).some((nome) => expressao.includes(nome));
+  (EQUIVALENTES[funcao] ?? [funcao]).some((nome) => expressao.includes(nome)) ||
+  (funcao==='empresa_autorizada' && expressao.includes('rfb_procuracao_admin_empresa'));
 
 const violacao = (tabela: string, requisito: string, detalhe: string): Violacao => ({
   tabela,
@@ -188,6 +189,14 @@ const exigenciasDaOperacao = (
   operacao: Operacao,
 ): readonly string[] => {
   const extras: string[] = [];
+  if (entrada.classe === 'empresa' && ['SELECT','INSERT','UPDATE'].includes(operacao)) extras.push('empresa_autorizada');
+  if (entrada.exigirHelperRfbNasEscritas === true && (operacao === 'INSERT' || operacao === 'UPDATE')) {
+    extras.push('rfb_procuracao_admin_empresa');
+  }
+
+  if (entrada.exigirContextoTecnicoNasEscritas === true && operacao === 'INSERT') {
+    extras.push('contexto_tecnico');
+  }
 
   if (operacao === 'SELECT') {
     if (entrada.leitura === 'admin' || entrada.leitura === 'proprio_usuario') {

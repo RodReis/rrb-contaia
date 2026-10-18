@@ -32,6 +32,9 @@ export const ROTULO_DA_ACAO = {
   reprocessar: 'Reprocessar',
   publicar: 'Publicar',
   revelar: 'Revelar',
+  confirmar: 'Confirmar',
+  operar: 'Operar',
+  revogar: 'Revogar',
 } as const;
 
 export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
@@ -119,6 +122,18 @@ export const CATALOGO = [
       // SPEC-012: estado, histórico e teste manual do Signer. `Testar` só dispara o diagnóstico
       // do próprio Signer — ninguém assina XML pela interface.
       { id: 'signer', rotulo: 'Signer (mTLS de teste)', acoes: ['consultar', 'testar'] },
+    ],
+  },
+  {
+    // SPEC-025: gestão local, sem integração oficial com a RFB.
+    id: 'procuracoes',
+    rotulo: 'Procurações RFB/e-CAC',
+    funcionalidades: [
+      {
+        id: 'registro',
+        rotulo: 'Registro e operações RFB simuladas',
+        acoes: ['consultar', 'administrar', 'confirmar', 'testar', 'operar', 'revogar', 'arquivar'],
+      },
     ],
   },
   {

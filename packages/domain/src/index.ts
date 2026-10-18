@@ -1,5 +1,20 @@
 export { canonicalizarEnvelopeDeAuditoria, hashDoEnvelopeDeAuditoria, redigirPayloadDeAuditoria, sha256DeAuditoria } from './auditoria.js';
 export type { ValorCanonico } from './auditoria.js';
+export {
+  autorizarOperacaoRfb,
+  CATALOGO_DE_PODERES_RFB,
+  estadoDaProcuracao,
+  marcosDeAlertaDaProcuracao,
+  periodosSobrepostos,
+  validarPoderesRfb,
+  VERSAO_DO_CATALOGO_RFB,
+} from './procuracoes/procuracoes.js';
+export type {
+  EstadoDaProcuracao,
+  MarcoDaProcuracao,
+  PoderRfb,
+  ProcuracaoParaAutorizacao,
+} from './procuracoes/procuracoes.js';
 
 export type Brand<T, Name extends string> = T & { readonly __brand: Name };
 

@@ -394,6 +394,35 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       await alteracao('outro colaborador não altera aviso alheio', humano(u.fora), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
       await alteracao('outro tenant', humano(u.deB, 'COMUM', c.tenantB), temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
       await alteracao('sem contexto', nenhum, temUpdate ? 'nenhuma_linha_alterada' : 'negado_por_privilegio');
+    } else if (classe === 'empresa' && tabela.startsWith('app.rfb_procuracao')) {
+      await leitura('administrador alcança registro administrativo', humano(u.admin), tabela==='app.rfb_procuracao_notificacao'?'invisivel':'visivel');
+      await leitura('carteira da empresa (controle positivo)', humano(u.naCarteira), 'visivel');
+      await leitura('empresa fora da carteira', humano(u.fora), 'invisivel');
+      await leitura('outro tenant', humano(u.deB,'COMUM',c.tenantB), 'invisivel');
+      await leitura('sem contexto', nenhum, 'invisivel');
+      await insercao('carteira da empresa (controle positivo)', humano(u.naCarteira), tabela==='app.rfb_procuracao_notificacao'?'negado_por_privilegio':tabela==='app.rfb_procuracao'?'rejeitado_por_rls':'inserido');
+      const resultadoSemEscopo:Resultado=tabela==='app.rfb_procuracao_notificacao'?'negado_por_privilegio':'rejeitado_por_rls';
+      await insercao('fora da carteira', humano(u.fora), resultadoSemEscopo);
+      await insercao('outro tenant', humano(u.deB,'COMUM',c.tenantB), resultadoSemEscopo);
+      await insercao('sem contexto', nenhum, resultadoSemEscopo);
+      if (tabela === 'app.rfb_procuracao') {
+        await insercao('administrador cria procuração', humano(u.admin), 'inserido');
+        await alteracao('administrador atualiza rascunho', humano(u.admin), 'atualizado', linhaA1, "revision=revision+1,updated_at=now()");
+        await alteracao('fora da carteira não altera', humano(u.fora), 'nenhuma_linha_alterada');
+      } else if (tabela === 'app.rfb_procuracao_notificacao') {
+        // Matriz de RLS usa apenas finalidades cadastradas; notificação é emitida pelo owner do scheduler.
+        await insercao('somente scheduler grava notificação',humano(u.admin),'negado_por_privilegio');
+        const escopoDoAdmin={...escopoA1,autorId:u.admin,sufixo:`${escopoA1.sufixo}-admin-alert`};
+        const referenciasDoAdmin=await (fixture.preparar?.(admin,escopoDoAdmin)??Promise.resolve({}));
+        const alertaDoAdmin=await fixture.inserir(admin,escopoDoAdmin,referenciasDoAdmin);
+        await leitura('administrador destinatário lê alerta fora da carteira',humano(u.admin),'visivel',alertaDoAdmin);
+        await alteracao('destinatário atualiza aviso (controle positivo)', humano(u.naCarteira), 'atualizado');
+        await alteracao('outro colaborador não altera aviso', humano(u.fora), 'nenhuma_linha_alterada');
+      } else {
+        await alteracao('append-only sem UPDATE', humano(u.naCarteira), 'negado_por_privilegio');
+      }
+      const apagada = await tentar(app, humano(u.naCarteira), apagar(tabela, linhaA1));
+      registrar(tabela, classe, 'DELETE sem privilégio', 'DELETE', 'negado_por_privilegio', apagada);
     } else if (classe === 'empresa') {
       // A exceção da F9 vale para os filhos também: o administrador sem vínculo alcança a empresa
       // ARQUIVADA (consulta e reativação gravam histórico), o colaborador comum não.

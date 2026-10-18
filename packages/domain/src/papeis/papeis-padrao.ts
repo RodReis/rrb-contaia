@@ -59,6 +59,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...chavesDoModulo('certificados'),
+    'procuracoes.registro.consultar',
     // SPEC-016 §3.7: contador consulta as regras publicadas e simula.
     ...chavesDoModulo('fiscal'),
     ...OBRIGACOES_OPERACAO,
@@ -71,6 +72,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...OPERACAO,
     ...OBRIGACOES_OPERACAO,
     'certificados.cofre.consultar',
+    'procuracoes.registro.consultar',
   ],
   auditor_readonly: [
     'escritorio.dados.consultar',
@@ -83,6 +85,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...consultas('notificacoes'),
     'obrigacoes.agenda.consultar',
     ...consultas('certificados'),
+    ...consultas('procuracoes'),
     // SPEC-016 §3.7: o auditor consulta e simula (simular não grava nada).
     ...chavesDoModulo('fiscal'),
     'historico.global.consultar',

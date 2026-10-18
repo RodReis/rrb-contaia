@@ -20,6 +20,7 @@ import { SemCarteira } from '@/components/ui/sem-carteira';
 import { ErroDaApi } from '@/lib/http';
 
 import { useSessao } from '../usuarios/queries';
+import { ProcuracoesRfb } from './procuracoes';
 import { CartoesDoResumo, EsqueletoDosCartoes } from './cartoes-do-resumo';
 import { DetalheDaEmpresa } from './detalhe-da-empresa';
 import { SemPermissaoNoCofre } from './erro-do-cofre';
@@ -158,6 +159,7 @@ export const AreaDoCofre = () => {
             <CartoesDoResumo resumo={consulta.data.resumo} aoFiltrar={controle.aplicar} />
           )}
           {podeVerSigner ? <CartaoDoSigner /> : null}
+          {sessao ? <ProcuracoesRfb sessao={sessao} /> : null}
         </section>
 
         {podeEnviar ? (

@@ -651,6 +651,24 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] PR #132 aberta com `refs #26`, head `162274ab`; build, quality, test-regras, test-tela e E2E passaram no CI.
 - [ ] `test-banco` e gate ainda falham: em três tentativas no mesmo head, a suíte atingiu timeout de 5s em XLSX de F13 ou excedeu por 30–345ms o limite de 3s do benchmark F23. Nenhuma falha aponta para código F24; não alterei esses testes/limites fora do escopo.
 
+### Card #27 — `[MVP1][SPEC-025][F25]` Procuração eletrônica RFB/e-CAC
+
+- [x] Domínio de poderes, vigência civil inclusiva, autorização, estados e marcos D-30/D-7/vencimento.
+- [x] Migration 0039 com versões, snapshots de CNPJ, eventos/ operações/notificações, RLS, imutabilidade, constraints, scheduler e funções de acesso à evidência.
+- [x] Repositórios com ciclo de vida, documento F4 privado com SHA-256, idempotência, alertas, resumo por estado, filtros por estado/poder/vencimento e ordenação/paginação SQL.
+- [x] API delegada a services, autorização tenant/carteira/papel/estado/poder, erro com `correlationId`, histórico paginado com verificação de carteira e dublê local fixo.
+- [x] Worker de alertas e serviço Docker do dublê RFB sem acesso a portal oficial, gov.br ou Sefaz.
+- [x] Interface integrada ao Cofre com query cache, filtros/página na URL, contagem por estado com escopo de carteira, cadastro em cinco etapas, metadados/hash, detalhe/histórico, download protegido e operações visíveis por permissão/poder ativo; declaração de conferência humana explícita.
+- [x] API: resposta do dublê limitada a campos tipados e 16 KiB; tentativas recusadas e falhas de comunicação auditadas; resumo de resultados sem guardar payload integral.
+- [x] Testes locais: API 1.452/1.452 regras antes do limite de leitura em streaming; testes F25 focados 8/8 após o ajuste; workers 191/191; domain 883/883; shared 246/246; tela/Cofre 40/40; typecheck e lint API/DB/Web/Workers.
+- [ ] Repetição posterior da suíte API encerrou com código nativo `3221226505` antes do relatório; não foi classificada como falha de teste. O teste focado F25 permaneceu verde.
+- [x] Web lint sem erros; aviso preexistente de `react-hooks/incompatible-library` em `aba-de-enderecos.tsx`.
+- [x] Build do workspace: 10/10 pacotes, incluindo Next.js, API e workers.
+- [x] Banco: suíte completa 536/536 antes dos últimos ajustes; após corrigir fixtures de CNPJ, anti-drift 17/17 e matriz RLS 5/5.
+- [ ] Reexecutar suíte DB após ajuste do acesso às notificações. O Docker Desktop iniciou, mas o engine retornou HTTP 500/timeout no `/ping`; Postgres local está indisponível. O erro local `DATABASE_URL não definida` foi de uma primeira tentativa sem carregar o env file e não conta como resultado de testes.
+- [ ] Playwright autenticado e capturas CLARO/ESCURO em 768/1024/1440: `not_run`; dependem de API, Keycloak, Vault e MinIO locais.
+- [ ] PR `refs #27`, CI verde, merge confirmado e comentário obrigatório de encerramento: pendentes. Issue #27 segue aberta em `proplan:doing`.
+
 ## Referências
 
 - [`STATUS.md`](STATUS.md) · [`AUDIT.md`](AUDIT.md) · [`TESTING.md`](TESTING.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`FRONTEND.md`](FRONTEND.md)

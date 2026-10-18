@@ -4,6 +4,20 @@ name: ${COMPOSE_PROJECT_NAME:-contaia}
 # nenhum servico em `latest` e nenhum segredo real. Nao ha deploy produtivo aqui.
 
 services:
+  rfb-duble:
+    image: node:24-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-contaia}-rfb-duble
+    command: ['node', '/app/server.mjs']
+    restart: unless-stopped
+    read_only: true
+    security_opt: ['no-new-privileges:true']
+    user: '1000:1000'
+    environment:
+      PORT: '8080'
+    volumes:
+      - ./rfb-duble/server.mjs:/app/server.mjs:ro
+    networks: [privada]
+
   postgres:
     image: pgvector/pgvector:pg17
     container_name: ${COMPOSE_PROJECT_NAME:-contaia}-postgres
@@ -317,6 +331,7 @@ services:
       # Só o papel da aplicação (sem BYPASSRLS): o superusuário das migrations nunca entra num contêiner de serviço.
       DATABASE_APP_URL: postgresql://contaia_app:${POSTGRES_APP_PASSWORD:-contaia_app_local}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
+      RFB_DUBLE_URL: http://rfb-duble:8080
       # `iss` dos tokens é a origem do navegador; o JWKS e a Admin API vão pelo nome da rede.
       KEYCLOAK_ISSUER_URL: ${KEYCLOAK_ISSUER_URL}
       KEYCLOAK_INTERNAL_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-contaia}

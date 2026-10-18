@@ -14,6 +14,7 @@ import { iniciarConsumidorDeExportacoesDeAuditoria } from './audit-export.js';
 import { iniciarConsumidorDeManifestacoesConclusivas } from './fiscal-manifestation.js';
 import { iniciarAgendadorDeObrigacoes } from './obligations.js';
 import { iniciarReconciliadorDeSaude } from './dashboard-health.js';
+import { iniciarAgendadorDeAlertasDeProcuracao } from './rfb-procuracao-scheduler.js';
 import { criarLeitorDoArmazenamento } from './importacao/leitura-s3.js';
 import { iniciarConsumidorDoPlanoDeContas } from './plano-contas/consumidor.js';
 import { criarServidorDeSaude, encerrarComGraca, escutar } from './server.js';
@@ -69,6 +70,9 @@ ativos.push('agenda de obrigações F22');
 const dashboardHealth = iniciarReconciliadorDeSaude({ pool, schedulerPool: dashboardSchedulerPool, agora });
 fechamentos.push(dashboardHealth.fechar);
 ativos.push('reconciliação do dashboard F23');
+const alertasProcuracao = iniciarAgendadorDeAlertasDeProcuracao({ schedulerPool: dashboardSchedulerPool });
+fechamentos.push(alertasProcuracao.fechar);
+ativos.push('alertas de procuração RFB F25');
 
 if (config.signer !== null) {
   fechamentos.push(await iniciarSigner(config.signer));
