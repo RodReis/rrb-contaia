@@ -306,7 +306,7 @@ CREATE POLICY rfb_procuracao_notificacao_update ON app.rfb_procuracao_notificaca
   USING (tenant_id=app.tenant_atual() AND usuario_id=app.usuario_atual() AND (app.empresa_autorizada(empresa_id) OR app.rfb_procuracao_admin_empresa(empresa_id)))
   WITH CHECK (tenant_id=app.tenant_atual() AND usuario_id=app.usuario_atual() AND (app.empresa_autorizada(empresa_id) OR app.rfb_procuracao_admin_empresa(empresa_id)));
 CREATE POLICY rfb_procuracao_notificacao_insert ON app.rfb_procuracao_notificacao FOR INSERT
-  WITH CHECK (tenant_id=app.tenant_atual() AND (app.rfb_procuracao_admin_empresa(empresa_id) OR (app.contexto_tecnico() AND app.empresa_tecnica_atual()=empresa_id)));
+  WITH CHECK (tenant_id=app.tenant_atual() AND app.rfb_procuracao_admin_empresa(empresa_id));
 
 CREATE TRIGGER rfb_procuracao_lifecycle BEFORE UPDATE OR DELETE ON app.rfb_procuracao
   FOR EACH ROW EXECUTE FUNCTION app.rfb_procuracao_proteger();

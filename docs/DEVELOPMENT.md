@@ -665,9 +665,9 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Web lint sem erros; aviso preexistente de `react-hooks/incompatible-library` em `aba-de-enderecos.tsx`.
 - [x] Build do workspace: 10/10 pacotes, incluindo Next.js, API e workers.
 - [x] Banco: suíte completa 536/536 antes dos últimos ajustes; após corrigir fixtures de CNPJ, anti-drift 17/17 e matriz RLS 5/5.
-- [ ] Reexecutar suíte DB após ajuste do acesso às notificações. O Docker Desktop iniciou, mas o engine retornou HTTP 500/timeout no `/ping`; Postgres local está indisponível. O erro local `DATABASE_URL não definida` foi de uma primeira tentativa sem carregar o env file e não conta como resultado de testes.
+- [x] Suíte DB local final: 536/536; Docker/Postgres foram iniciados pela composição isolada local.
 - [ ] Playwright autenticado e capturas CLARO/ESCURO em 768/1024/1440: `not_run`; dependem de API, Keycloak, Vault e MinIO locais.
-- [ ] PR `refs #27`, CI verde, merge confirmado e comentário obrigatório de encerramento: pendentes. Issue #27 segue aberta em `proplan:doing`.
+- [ ] PR #135 (`refs #27`): primeira rodada CI com build, quality, regras, tela e E2E verdes; `test-banco` encontrou expectativas RLS de notificações corrigidas neste commit. Novo CI, merge confirmado e comentário obrigatório de encerramento pendentes. Issue #27 segue aberta em `proplan:doing`.
 
 ## Referências
 
