@@ -22,6 +22,8 @@ type ItemDoMenu = Readonly<{
   rotulo: string;
   /** O item aparece para quem tem todas estas permissões: as mesmas que a API exige da rota. */
   consultas: readonly string[];
+  /** Restringe itens cujo acesso depende do papel efetivo, além da permissão genérica. */
+  papeisPermitidos?: readonly string[];
 }>;
 
 const ITENS: readonly ItemDoMenu[] = [
@@ -34,6 +36,12 @@ const ITENS: readonly ItemDoMenu[] = [
     href: '/historico',
     rotulo: 'Histórico de Informações',
     consultas: ['historico.global.consultar', 'empresas.historico.consultar'],
+  },
+  {
+    href: '/auditoria',
+    rotulo: 'Trilha de auditoria',
+    consultas: ['historico.global.consultar'],
+    papeisPermitidos: ['admin_escritorio', 'auditor_readonly'],
   },
   // A carteira é de qualquer usuário ativo: sem permissão de catálogo, só a própria lista.
   { href: '/carteira', rotulo: 'Minha carteira', consultas: [] },
@@ -57,7 +65,9 @@ export const NavegacaoPrincipal = () => {
   const visiveis = ITENS.filter((item) =>
     sessao === undefined
       ? item.href === '/empresas' || item.href === '/carteira'
-      : item.consultas.every((chave) => concede(sessao, chave)),
+      : item.consultas.every((chave) => concede(sessao, chave)) &&
+        (item.papeisPermitidos === undefined ||
+          sessao.papeis.some((papel) => item.papeisPermitidos?.includes(papel))),
   );
 
   return (

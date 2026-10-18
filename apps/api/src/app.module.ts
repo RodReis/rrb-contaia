@@ -75,6 +75,9 @@ import { ObligationsController } from './obligations/obligations.controller';
 import { ObligationsCatalogController } from './obligations/obligations-catalog.controller';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
+import { AuditoriaController } from './auditoria/auditoria.controller';
+import { AuditoriaService } from './auditoria/auditoria.service';
+import { PROVEDOR_DA_FILA_DE_AUDITORIA } from './auditoria/auditoria.queue';
 import { ObligationsService } from './obligations/obligations.service';
 
 @Module({
@@ -116,6 +119,7 @@ import { ObligationsService } from './obligations/obligations.service';
       ObligationsController,
     ObligationsCatalogController,
     DashboardController,
+    AuditoriaController,
   ],
   providers: [
     PoolDoBanco,
@@ -154,6 +158,8 @@ import { ObligationsService } from './obligations/obligations.service';
     FiscalRiskService,
     ObligationsService,
     DashboardService,
+    AuditoriaService,
+    ...PROVEDOR_DA_FILA_DE_AUDITORIA,
     ...PROVEDOR_DA_FILA_FISCAL_RISK,
     ...PROVEDOR_DA_FILA_DE_MANIFESTACAO,
     GuardDoCatalogoTributario,

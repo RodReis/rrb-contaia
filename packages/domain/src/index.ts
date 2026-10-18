@@ -1,3 +1,6 @@
+export { canonicalizarEnvelopeDeAuditoria, hashDoEnvelopeDeAuditoria, redigirPayloadDeAuditoria, sha256DeAuditoria } from './auditoria.js';
+export type { ValorCanonico } from './auditoria.js';
+
 export type Brand<T, Name extends string> = T & { readonly __brand: Name };
 
 export type CorrelationId = Brand<string, 'CorrelationId'>;

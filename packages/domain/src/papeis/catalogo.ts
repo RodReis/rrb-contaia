@@ -31,6 +31,7 @@ export const ROTULO_DA_ACAO = {
   reabrir: 'Reabrir',
   reprocessar: 'Reprocessar',
   publicar: 'Publicar',
+  revelar: 'Revelar',
 } as const;
 
 export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
@@ -38,7 +39,7 @@ export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
 type Funcionalidade = Readonly<{
   id: string;
   rotulo: string;
-  acoes: readonly AcaoDoCatalogo[];
+  acoes: readonly (AcaoDoCatalogo | 'revelar')[];
 }>;
 
 type Modulo = Readonly<{
@@ -145,8 +146,8 @@ export const CATALOGO = [
 
 /**
  * Área exclusiva do `admin_escritorio` (SPEC-008 §3.3): aparece no editor
- * bloqueada e nunca entra na matriz de um papel personalizado. Quem a exerce são
- * os papéis padrão (`auditor_readonly` só consulta, como na F7).
+ * bloqueada e nunca entra na matriz de um papel personalizado. `auditor_readonly`
+ * mantém somente a permissão padrão de consulta de usuários; payload integral é admin-only (SPEC-024).
  */
 export const AREA_EXCLUSIVA = {
   id: 'usuarios',
@@ -156,6 +157,11 @@ export const AREA_EXCLUSIVA = {
       id: 'usuarios_e_papeis',
       rotulo: 'Usuários e papéis',
       acoes: ['consultar', 'administrar'],
+    },
+    {
+      id: 'auditoria_payload',
+      rotulo: 'Conteúdo integral da auditoria',
+      acoes: ['revelar'],
     },
   ],
 } as const satisfies Modulo;

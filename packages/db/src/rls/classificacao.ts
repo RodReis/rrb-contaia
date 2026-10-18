@@ -26,6 +26,8 @@ export type EntradaDeClassificacao = Readonly<{
   classe: ClasseDeTabela;
   /** Fatia e requisito de onde vem a tabela. */
   origem: string;
+  /** Tabela temporal que exige índice independente por empresa, além do composto tenant/empresa. */
+  exigeIndiceEmpresa?: boolean;
   /** Obrigatória nas classes sem `empresa_id`: por que a tabela não é por empresa. */
   justificativa?: string;
   /** I-6: o papel da aplicação nunca tem UPDATE nem DELETE. */
@@ -175,6 +177,12 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.dashboard_health_projection', classe: 'empresa', origem: 'F23 / SPEC-023' },
   { tabela: 'app.dashboard_health_reason', classe: 'empresa', origem: 'F23 / SPEC-023' },
   { tabela: 'app.dashboard_health_source_checkpoint', classe: 'empresa', origem: 'F23 / SPEC-023' },
+  { tabela: 'app.audit_event', classe: 'empresa', origem: 'F24 / SPEC-024', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.audit_payload', classe: 'empresa', origem: 'F24 / SPEC-024', exigeIndiceEmpresa: true },
+  { tabela: 'app.audit_export_job', classe: 'empresa', origem: 'F24 / SPEC-024', exigeIndiceEmpresa: true },
+  { tabela: 'app.audit_export_manifest', classe: 'empresa', origem: 'F24 / SPEC-024', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.audit_payload_revelation', classe: 'empresa', origem: 'F24 / SPEC-024', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.audit_export_download', classe: 'empresa', origem: 'F24 / SPEC-024', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.obligation_event', classe: 'empresa', origem: 'F22 / SPEC-022', appendOnly: true },
   { tabela: 'app.obligation_alert', classe: 'empresa', origem: 'F22 / SPEC-022' },
   { tabela: 'app.obligation_alert_recipient', classe: 'empresa', origem: 'F22 / SPEC-022' },

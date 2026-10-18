@@ -49,10 +49,12 @@ describe('NavegacaoPrincipal', () => {
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
     await waitFor(() => expect(links()).toContain('Usuários e permissões'));
+    expect(links()).toContain('Trilha de auditoria');
     expect(links()).toEqual([
       'Dashboard',
       'Empresas',
       'Histórico de Informações',
+      'Trilha de auditoria',
       'Minha carteira',
       'Usuários e permissões',
     ]);
@@ -81,6 +83,17 @@ describe('NavegacaoPrincipal', () => {
 
     await waitFor(() => expect(links()).toContain('Histórico de Informações'));
     expect(links()).not.toContain('Usuários e permissões');
+    expect(links()).not.toContain('Trilha de auditoria');
+  });
+
+  it('auditor vê a Trilha de auditoria', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      sessao(['auditor_readonly'], ['empresas.cadastro.consultar', 'historico.global.consultar']),
+    );
+
+    render(<NavegacaoPrincipal />, { wrapper: Envolvido });
+
+    await waitFor(() => expect(links()).toContain('Trilha de auditoria'));
   });
 
   it('permissão vinda de papel personalizado abre o item, como a de qualquer papel padrão', async () => {
@@ -97,6 +110,7 @@ describe('NavegacaoPrincipal', () => {
     await waitFor(() => expect(links()).toContain('Histórico de Informações'));
     // Papel personalizado nunca concede a área exclusiva de usuários e papéis.
     expect(links()).not.toContain('Usuários e permissões');
+    expect(links()).not.toContain('Trilha de auditoria');
   });
 
   it('o Histórico exige o global e o cadastral, como a API: só um deles não abre o item', async () => {

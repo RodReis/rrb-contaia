@@ -8,6 +8,7 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
@@ -128,5 +129,9 @@ export class StorageService implements OnModuleInit {
         'O arquivo não está disponível no momento. Tente novamente.',
       );
     }
+  }
+
+  async remover(chave: string): Promise<void> {
+    await this.cliente.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: chave }));
   }
 }
