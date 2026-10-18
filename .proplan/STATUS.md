@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-17
+updated: 2026-10-18
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -87,11 +87,12 @@ updated: 2026-10-17
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
 - [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
-- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
 
 ## Em Andamento
 
-_(vazio)_
+### [MVP1] Fundação, captura e controle operacional (#30)
+
+- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
 
 ## Feito
 
@@ -101,13 +102,14 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-023][FIX] dashboard de 500 empresas excede limite sob carga CI (#133, finalizado em: 2026-10-18)
+- [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19, finalizado em: 2026-10-15)
 - [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25, finalizado em: 2026-10-17)
 - [MVP1][SPEC-022][F22] Agenda de obrigações e alertas D-3 (#24, finalizado em: 2026-10-17)
 - [MVP1][SPEC-021][F21] Inbox, aprovação e transmissão de manifestações (#23, finalizado em: 2026-10-16)
 - [MVP1][SPEC-020][F20] Classificação de risco e proposta de manifestação (#22, finalizado em: 2026-10-16)
 - [MVP1][SPEC-019][F19] Ciência da Emissão automática (#21, finalizado em: 2026-10-16)
 - [MVP1][SPEC-018][F18] Parse e persistência de XML, hash e IBS/CBS (#20, finalizado em: 2026-10-15)
-- [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19, finalizado em: 2026-10-15)
 - [MVP1][SPEC-016][F16] Motor tributário base versionado (#18, finalizado em: 2026-10-13)
 - [MVP1][SPEC-015][F15] Importação de planilhas XLSX/ODS (#17, finalizado em: 2026-10-11)
 - [MVP1][SPEC-014][F14] Importação de empregados por CSV (#16, finalizado em: 2026-10-11)
