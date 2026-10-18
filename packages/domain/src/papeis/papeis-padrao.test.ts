@@ -101,6 +101,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...CERTIFICADOS_TODAS,
+    'procuracoes.registro.consultar',
     ...FISCAL,
     ...OBRIGACOES,
     'historico.global.consultar',
@@ -114,6 +115,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...OPERACAO,
     ...OBRIGACOES,
     'certificados.cofre.consultar',
+    'procuracoes.registro.consultar',
   ],
   auditor_readonly: [
     'escritorio.dados.consultar',
@@ -128,6 +130,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'certificados.historico.consultar',
     // SPEC-012: o auditor lê o painel do Signer e não testa.
     'certificados.signer.consultar',
+    'procuracoes.registro.consultar',
     ...FISCAL,
     'obrigacoes.agenda.consultar',
     'historico.global.consultar',

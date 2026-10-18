@@ -1021,6 +1021,45 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     preparar: async(admin,e) => ({ jobId: await unico(admin,"insert into app.audit_export_job(tenant_id,empresa_id,requested_by,format,filters,empresas_autorizadas,correlation_id,estado,storage_key,artifact_sha256,item_count,expires_at) values($1,$2,$3,'JSON','{}'::jsonb,ARRAY[$2]::uuid[],'rls-audit-export','CONCLUIDA','test/audit.json',repeat('c',64),0,now()+interval '24 hours') returning id",[e.tenantId,e.empresaId,e.autorId]) }),
     inserir: (banco,e,r) => unico(banco,"insert into app.audit_export_download(tenant_id,empresa_id,job_id,requested_by,correlation_id) values($1,$2,$3,$4,'rls-audit-download') returning id",[e.tenantId,e.empresaId,r['jobId'],e.autorId]),
   },
+  'app.rfb_procuracao': {
+    preparar: async(admin,e) => ({
+      empresaCnpj: await unico(admin,"select cnpj id from app.empresa where id=$1 and tenant_id=$2",[e.empresaId,e.tenantId]),
+      escritorioCnpj: await unico(admin,"select cnpj id from app.tenant where id=$1",[e.tenantId]),
+    }),
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.rfb_procuracao(tenant_id,empresa_id,outorgante_cnpj,outorgado_cnpj,valid_from,valid_until,version_number,powers,created_by) values($1,$2,$3,$4,date '2098-01-01',date '2098-12-31',$5,'["RFB_CNPJ_STATUS_READ"]'::jsonb,$6) returning id`,
+      [e.tenantId,e.empresaId,r['empresaCnpj'],r['escritorioCnpj'],1000+proximo(),e.autorId]),
+  },
+  'app.rfb_procuracao_evento': {
+    preparar: async(admin,e) => ({procuracaoId:await unico(admin,
+      `insert into app.rfb_procuracao(tenant_id,empresa_id,outorgante_cnpj,outorgado_cnpj,valid_from,valid_until,version_number,powers,created_by)
+       select t.id,em.id,em.cnpj,t.cnpj,date '2098-01-01',date '2098-12-31',$3,'["RFB_CNPJ_STATUS_READ"]'::jsonb,$4
+         from app.tenant t join app.empresa em on em.tenant_id=t.id where t.id=$1 and em.id=$2 returning id`,
+      [e.tenantId,e.empresaId,2000+proximo(),e.autorId])}),
+    inserir:(banco,e,r)=>unico(banco,
+      `insert into app.rfb_procuracao_evento(tenant_id,empresa_id,procuracao_id,acao,correlation_id,idempotency_key) values($1,$2,$3,'CRIADA','rls-rfb-fixture',$4) returning id`,
+      [e.tenantId,e.empresaId,r['procuracaoId'],`rfb-rls-${e.sufixo}-${proximo()}`]),
+  },
+  'app.rfb_procuracao_operacao': {
+    preparar: async(admin,e) => ({procuracaoId:await unico(admin,
+      `insert into app.rfb_procuracao(tenant_id,empresa_id,outorgante_cnpj,outorgado_cnpj,valid_from,valid_until,version_number,powers,created_by)
+       select t.id,em.id,em.cnpj,t.cnpj,date '2098-01-01',date '2098-12-31',$3,'["RFB_CNPJ_STATUS_READ"]'::jsonb,$4
+         from app.tenant t join app.empresa em on em.tenant_id=t.id where t.id=$1 and em.id=$2 returning id`,
+      [e.tenantId,e.empresaId,3000+proximo(),e.autorId])}),
+    inserir:(banco,e,r)=>unico(banco,
+      `insert into app.rfb_procuracao_operacao(tenant_id,empresa_id,procuracao_id,poder,idempotency_key,resultado_codigo,resultado_resumo,correlation_id,ator_id) values($1,$2,$3,'RFB_CNPJ_STATUS_READ',$4,'FIXTURE','{}'::jsonb,'rls-rfb-op',$5) returning id`,
+      [e.tenantId,e.empresaId,r['procuracaoId'],`rfb-op-${e.sufixo}-${proximo()}`,e.autorId]),
+  },
+  'app.rfb_procuracao_notificacao': {
+    preparar: async(admin,e) => ({procuracaoId:await unico(admin,
+      `insert into app.rfb_procuracao(tenant_id,empresa_id,outorgante_cnpj,outorgado_cnpj,valid_from,valid_until,version_number,powers,created_by)
+       select t.id,em.id,em.cnpj,t.cnpj,date '2098-01-01',date '2098-12-31',$3,'["RFB_CNPJ_STATUS_READ"]'::jsonb,$4
+         from app.tenant t join app.empresa em on em.tenant_id=t.id where t.id=$1 and em.id=$2 returning id`,
+      [e.tenantId,e.empresaId,4000+proximo(),e.autorId])}),
+    inserir:(banco,e,r)=>unico(banco,
+      `insert into app.rfb_procuracao_notificacao(tenant_id,empresa_id,procuracao_id,usuario_id,marco) values($1,$2,$3,$4,'D30') returning id`,[e.tenantId,e.empresaId,r['procuracaoId'],e.autorId]),
+    colunaDeAtualizacao:'lida',atualizacao:'lida=true,lida_em=now()',
+  },
   'app.audit_payload_revelation': {
     preparar: async(admin,e) => ({ eventId: await inserirEventoDeAuditoria(admin,e,'d'.repeat(64)) }),
     inserir: (banco,e,r) => unico(banco,"insert into app.audit_payload_revelation(tenant_id,empresa_id,event_id,ator_id,justificativa,correlation_id) values($1,$2,$3,$4,'Justificativa de teste para revelar payload',$5) returning id",[e.tenantId,e.empresaId,r['eventId'],e.autorId,'rls-audit-revelation']),

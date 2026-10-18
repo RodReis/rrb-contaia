@@ -11,6 +11,34 @@ export {
 export { aplicarMigrations, listarMigrations } from './migrate.js';
 export { coletarSinaisDaSaude, substituirProjecaoDaSaude, listarDashboardDaSaude, listarMotivosDaSaude } from './repositorios/dashboard-health.js';
 export type { FiltroDoDashboard } from './repositorios/dashboard-health.js';
+export {
+  anexarEvidenciaDeProcuracao,
+  arquivarProcuracaoRfb,
+  atualizarRascunhoDeProcuracao,
+  carregarEmpresaParaProcuracao,
+  carregarUsuarioAdminDaProcuracao,
+  carregarEvidenciaDeProcuracao,
+  carregarOperacaoIdempotenteDeProcuracao,
+  carregarProcuracaoRfb,
+  exigirCarteiraOuAdminDaProcuracao,
+  exigirCarteiraDaProcuracao,
+  confirmarProcuracaoRfb,
+  criarRascunhoDeProcuracao,
+  gravarTesteLocalDaProcuracao,
+  gravarOperacaoDeProcuracao,
+  listarEventosDeProcuracao,
+  listarProcuracoesRfb,
+  resumirProcuracoesRfb,
+  registrarEventoDeProcuracao,
+  registrarTentativaRecusadaDeProcuracao,
+  revogarProcuracaoRfb,
+} from './repositorios/procuracoes-rfb.js';
+export type {
+  DocumentoDaProcuracao,
+  EmpresaParaProcuracao,
+  EventoDaProcuracao,
+  ProcuracaoPersistida,
+} from './repositorios/procuracoes-rfb.js';
 export { verificarRoleDaAplicacao, verificarSaudeDoBanco } from './health.js';
 export type { RoleDaAplicacao, SaudeDoBanco } from './health.js';
 export {

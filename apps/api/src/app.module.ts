@@ -79,6 +79,9 @@ import { AuditoriaController } from './auditoria/auditoria.controller';
 import { AuditoriaService } from './auditoria/auditoria.service';
 import { PROVEDOR_DA_FILA_DE_AUDITORIA } from './auditoria/auditoria.queue';
 import { ObligationsService } from './obligations/obligations.service';
+import { ProcuracoesController } from './procuracoes/procuracoes.controller';
+import { ProcuracoesService } from './procuracoes/procuracoes.service';
+import { RfbDubleClient } from './procuracoes/rfb-duble.client';
 
 @Module({
   // `ManutencaoDaEmpresaController` vem antes de `EmpresaController`: o Nest
@@ -120,6 +123,7 @@ import { ObligationsService } from './obligations/obligations.service';
     ObligationsCatalogController,
     DashboardController,
     AuditoriaController,
+    ProcuracoesController,
   ],
   providers: [
     PoolDoBanco,
@@ -159,6 +163,8 @@ import { ObligationsService } from './obligations/obligations.service';
     ObligationsService,
     DashboardService,
     AuditoriaService,
+    ProcuracoesService,
+    RfbDubleClient,
     ...PROVEDOR_DA_FILA_DE_AUDITORIA,
     ...PROVEDOR_DA_FILA_FISCAL_RISK,
     ...PROVEDOR_DA_FILA_DE_MANIFESTACAO,

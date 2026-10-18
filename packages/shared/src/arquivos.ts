@@ -62,6 +62,7 @@ export type TipoDeArquivo =
   | 'LOGO'
   | 'DOCUMENTO'
   | 'DOCUMENTO_DA_EMPRESA'
+  | 'PROCURACAO_RFB'
   | 'IMPORTACAO_PLANO_CONTAS'
   | 'IMPORTACAO_EMPREGADOS';
 
@@ -104,6 +105,11 @@ export const REGRAS_DE_ARQUIVO: Readonly<Record<TipoDeArquivo, RegraDeArquivo>> 
     limiteBytes: LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
     tiposAceitos: TIPOS_DE_DOCUMENTO_DA_EMPRESA,
     extensoesAceitas: ['.pdf', '.png', '.jpg', '.jpeg'],
+  },
+  PROCURACAO_RFB: {
+    limiteBytes: LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
+    tiposAceitos: ['application/pdf'],
+    extensoesAceitas: ['.pdf'],
   },
   IMPORTACAO_PLANO_CONTAS: {
     limiteBytes: LIMITE_DE_IMPORTACAO_DO_PLANO_BYTES,

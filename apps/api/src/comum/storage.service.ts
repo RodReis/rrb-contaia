@@ -66,7 +66,8 @@ export class StorageService implements OnModuleInit {
     arquivo: ArquivoRecebido,
   ): Promise<string> {
     const extensao = extname(arquivo.nomeOriginal).toLowerCase().slice(0, 10);
-    const chave = `${tenantId}/${tipo.toLowerCase()}/${randomUUID()}${extensao}`;
+    const pasta = tipo === 'PROCURACAO_RFB' ? 'documento_da_empresa' : tipo.toLowerCase();
+    const chave = `${tenantId}/${pasta}/${randomUUID()}${extensao}`;
 
     await this.cliente.send(
       new PutObjectCommand({

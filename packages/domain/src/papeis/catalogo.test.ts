@@ -56,6 +56,13 @@ const ESPERADO = [
   // SPEC-012: painel do Signer dentro do Cofre; só o teste manual muta (diagnóstico, nunca assinatura).
   'certificados.signer.consultar',
   'certificados.signer.testar',
+  'procuracoes.registro.consultar',
+  'procuracoes.registro.administrar',
+  'procuracoes.registro.confirmar',
+  'procuracoes.registro.testar',
+  'procuracoes.registro.operar',
+  'procuracoes.registro.revogar',
+  'procuracoes.registro.arquivar',
   'obrigacoes.agenda.consultar',
   'obrigacoes.agenda.baixar',
   'obrigacoes.agenda.reabrir',

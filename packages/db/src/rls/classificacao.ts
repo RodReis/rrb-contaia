@@ -26,8 +26,10 @@ export type EntradaDeClassificacao = Readonly<{
   classe: ClasseDeTabela;
   /** Fatia e requisito de onde vem a tabela. */
   origem: string;
-  /** Tabela temporal que exige índice independente por empresa, além do composto tenant/empresa. */
   exigeIndiceEmpresa?: boolean;
+  exigirContextoTecnicoNasEscritas?: boolean;
+  exigirHelperRfbNasEscritas?: boolean;
+  /** Tabela temporal que exige índice independente por empresa, além do composto tenant/empresa. */
   /** Obrigatória nas classes sem `empresa_id`: por que a tabela não é por empresa. */
   justificativa?: string;
   /** I-6: o papel da aplicação nunca tem UPDATE nem DELETE. */
@@ -339,6 +341,10 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
       'Auditoria append-only do catálogo tributário global (SPEC-016 §3.8, I-6): sem dado de tenant. A aplicação só a alcança pelas funções SECURITY DEFINER app.tax_rule_*, sob o contexto de serviço CATALOGO_TRIBUTARIO.',
     appendOnly: true,
   },
+  { tabela: 'app.rfb_procuracao', classe: 'empresa', origem: 'F25 / SPEC-025', exigirHelperRfbNasEscritas: true },
+  { tabela: 'app.rfb_procuracao_evento', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },
+  { tabela: 'app.rfb_procuracao_operacao', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },
+  { tabela: 'app.rfb_procuracao_notificacao', classe: 'empresa', origem: 'F25 / SPEC-025' },
   {
     tabela: 'public.__migrations',
     classe: 'global',

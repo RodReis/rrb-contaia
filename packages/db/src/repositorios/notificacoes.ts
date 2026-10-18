@@ -163,7 +163,18 @@ const ITENS_DO_SINO = `
     join app.obligation_occurrence o on o.id=a.occurrence_id join app.empresa e on e.id=n.empresa_id
    where n.tenant_id=$1 and n.usuario_id=$2`;
 
-const SELECAO_DO_SINO = `select * from (${ITENS_DO_SINO}) itens`;
+const ITENS_DA_PROCURACAO = `
+  select n.id,n.empresa_id,e.empresa_nome,'PROCURACAO_RFB_'||n.marco,
+         'rfb-procuracao:'||n.procuracao_id::text||':'||n.marco,
+         n.lida,n.lida_em,n.criado_em,n.sequencia,null::jsonb,null::jsonb,null::bigint,
+         null::uuid,null::text,null::jsonb
+    from app.rfb_procuracao_notificacao n
+    join lateral app.rfb_procuracao_empresa_info(n.empresa_id) e on true
+   where n.tenant_id=$1 and n.usuario_id=$2`;
+
+const ITENS_COM_PROCURACOES = `${ITENS_DO_SINO} union all ${ITENS_DA_PROCURACAO}`;
+
+const SELECAO_DO_SINO = `select * from (${ITENS_COM_PROCURACOES}) itens`;
 
 /**
  * Insere as causas novas (ignora conflito com notificação não lida já
@@ -231,7 +242,7 @@ export const listarHistorico = async (
   );
 
   const total = await cliente.query<{ total: string }>(
-    `select count(*)::text as total from (${ITENS_DO_SINO}) itens`,
+    `select count(*)::text as total from (${ITENS_COM_PROCURACOES}) itens`,
     [tenantId, usuarioId],
   );
 
@@ -247,7 +258,7 @@ export const contarNaoLidas = async (
   usuarioId: string,
 ): Promise<number> => {
   const resultado = await cliente.query<{ total: string }>(
-    `select count(*)::text as total from (${ITENS_DO_SINO}) itens where not lida`,
+    `select count(*)::text as total from (${ITENS_COM_PROCURACOES}) itens where not lida`,
     [tenantId, usuarioId],
   );
 
@@ -370,6 +381,12 @@ export const marcarVariasComoLidas = async (
     [ids,tenantId,usuarioId],
   );
 
+  const daProcuracao = await cliente.query(
+    `update app.rfb_procuracao_notificacao set lida=true,lida_em=now()
+      where id=any($1) and tenant_id=$2 and usuario_id=$3 and lida=false`,
+    [ids, tenantId, usuarioId],
+  );
+
   return (
     deEmpresa.rows.length +
     (deCarteira.rowCount ?? 0) +
@@ -377,6 +394,7 @@ export const marcarVariasComoLidas = async (
     (doSigner.rowCount ?? 0) +
     (daImportacao.rowCount ?? 0) +
     (daImportacaoDeEmpregados.rowCount ?? 0) +
-    (daObrigacao.rowCount ?? 0)
+    (daObrigacao.rowCount ?? 0) +
+    (daProcuracao.rowCount ?? 0)
   );
 };
