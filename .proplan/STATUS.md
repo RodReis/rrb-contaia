@@ -84,9 +84,7 @@ updated: 2026-10-18
 
 ## A Fazer
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27)
+_(vazio)_
 
 ## Em Andamento
 
@@ -100,6 +98,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27, finalizado em: 2026-10-18)
 - [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26, finalizado em: 2026-10-18)
 - [MVP1][SPEC-023][FIX] dashboard de 500 empresas excede limite sob carga CI (#133, finalizado em: 2026-10-18)
 - [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19, finalizado em: 2026-10-15)
