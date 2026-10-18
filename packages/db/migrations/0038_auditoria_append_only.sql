@@ -133,13 +133,14 @@ BEGIN
   RETURN NEW;
 END $$;
 CREATE TRIGGER audit_export_job_lifecycle BEFORE UPDATE ON app.audit_export_job FOR EACH ROW EXECUTE FUNCTION app.proteger_ciclo_audit_export_job();
-CREATE TRIGGER audit_export_job_scope BEFORE UPDATE ON app.audit_export_job FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_export_job FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_event FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_export_manifest FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_payload FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER audit_revelation_no_mutation BEFORE UPDATE OR DELETE ON app.audit_payload_revelation FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_payload_revelation FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER audit_export_download_no_mutation BEFORE UPDATE OR DELETE ON app.audit_export_download FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.audit_export_download FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 REVOKE ALL ON app.audit_event,app.audit_payload,app.audit_export_job,app.audit_export_manifest,app.audit_payload_revelation,app.audit_export_download FROM contaia_app;
 GRANT SELECT ON app.audit_event,app.audit_payload,app.audit_export_job,app.audit_export_manifest,app.audit_payload_revelation,app.audit_export_download TO contaia_app;
 GRANT INSERT ON app.audit_export_job TO contaia_app;
