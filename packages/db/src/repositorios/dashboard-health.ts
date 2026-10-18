@@ -155,37 +155,66 @@ export const listarDashboardDaSaude = async (cliente:PoolClient,tenantId:string,
   const termo=busca?`%${busca.replace(/[\\%_]/gu,c=>`\\${c}`)}%`:null;
   const termoCnpj=busca.replace(/\\D/gu,'');
   const args=[tenantId,usuarioId,filtro.cor,filtro.regime,filtro.fonte,filtro.codigo,termo,termoCnpj.length>=2?`%${termoCnpj}%`:null];
-  const elegiveis=`with elegiveis as (select e.tenant_id,e.id,p.cor,e.regime_tributario,e.razao_social,e.nome_fantasia,e.cnpj,e.status,e.situacao
+  const consulta=`with elegiveis as materialized (
+    select e.tenant_id,e.id,e.cnpj,coalesce(e.nome_fantasia,e.razao_social,e.cnpj) nome,e.regime_tributario regime,
+      p.cor,p.contagens_fontes,p.contagens_gravidade,p.atualizado_em,p.resumo
     from app.empresa e join app.dashboard_health_projection p on p.tenant_id=e.tenant_id and p.empresa_id=e.id
-    where ${condicao})`;
-  const summarySql=`${elegiveis}, motivos as materialized (select r.* from app.dashboard_health_reason r
-       where r.tenant_id=$1 and r.ativo and r.empresa_id=any(array(select id from elegiveis)))
-     select count(distinct e.id)::int total,
-      count(distinct e.id) filter(where e.cor='VERMELHO')::int vermelho,
-      count(distinct e.id) filter(where e.cor='AMARELO')::int amarelo,
-      count(distinct e.id) filter(where e.cor='VERDE')::int verde,
-      count(r.id) filter(where r.fonte='OBRIGACOES' and r.codigo='OBRIGACAO_VENCIDA')::int vencidas,
-      count(r.id) filter(where r.fonte='OBRIGACOES' and r.codigo='OBRIGACAO_D3_D0')::int d3,
-      count(r.id) filter(where r.fonte='MANIFESTACOES')::int manifestacoes,
-      count(r.id) filter(where r.fonte='CAPTURA' and r.gravidade='VERMELHO')::int capturas,
-      count(distinct e.id) filter(where r.fonte='CERTIFICADOS')::int certificados
-     from elegiveis e left join motivos r on r.tenant_id=e.tenant_id and r.empresa_id=e.id`;
-  const summary=await cliente.query<{total:number;vermelho:number;amarelo:number;verde:number;vencidas:number;d3:number;manifestacoes:number;capturas:number;certificados:number}>(summarySql, args);
-  const {rows}=await cliente.query(`select * from (select e.id empresa_id,e.cnpj,coalesce(e.nome_fantasia,e.razao_social,e.cnpj) nome,e.regime_tributario regime,p.cor,p.contagens_fontes,p.contagens_gravidade,p.atualizado_em,p.resumo,
-    (select jsonb_build_object('fonte',r.fonte,'codigo',r.codigo,'gravidade',r.gravidade,'descricao',r.descricao) from app.dashboard_health_reason r where r.tenant_id=e.tenant_id and r.empresa_id=e.id and r.ativo order by case r.gravidade when 'VERMELHO' then 0 else 1 end,case r.fonte when 'OBRIGACOES' then 0 when 'CAPTURA' then 1 when 'CERTIFICADOS' then 2 when 'MANIFESTACOES' then 3 else 4 end,r.data_referencia nulls last,r.codigo limit 1) motivo_prioritario,
-    (select count(*)::int from app.dashboard_health_reason r where r.tenant_id=e.tenant_id and r.empresa_id=e.id and r.ativo) total_motivos,
-    (select min(r.data_referencia)::text from app.dashboard_health_reason r where r.tenant_id=e.tenant_id and r.empresa_id=e.id and r.ativo and r.data_referencia>=current_date) proxima_data,
-    (select min(r.data_referencia) from app.dashboard_health_reason r where r.tenant_id=e.tenant_id and r.empresa_id=e.id and r.ativo and r.gravidade='VERMELHO') data_critica
-   from app.empresa e join app.dashboard_health_projection p on p.tenant_id=e.tenant_id and p.empresa_id=e.id where ${condicao}
-  ) dashboard
-   order by case when $9::text='NOME' then 0 else case dashboard.cor when 'VERMELHO' then 0 when 'AMARELO' then 1 else 2 end end,
-    case when $9::text='NOME' then lower(dashboard.nome) end asc nulls last,
-    case when $9::text='URGENCIA' and dashboard.cor='VERMELHO' then dashboard.data_critica end nulls last,
-    case when $9::text='URGENCIA' then dashboard.proxima_data end nulls last,
-    case when $9::text='URGENCIA' then dashboard.total_motivos end desc nulls last,
-    lower(dashboard.nome),dashboard.empresa_id limit $10 offset $11`,[...args,filtro.ordem,filtro.limite,filtro.deslocamento]);
-  const resumo=summary.rows[0]??{total:0,vermelho:0,amarelo:0,verde:0,vencidas:0,d3:0,manifestacoes:0,capturas:0,certificados:0};
-  return {resumo,empresas:rows,total:Number(resumo.total??0)};
+    where ${condicao}
+  ), motivos as materialized (
+    select r.tenant_id,r.empresa_id,r.fonte,r.codigo,r.gravidade,r.descricao,r.data_referencia
+    from app.dashboard_health_reason r
+    where r.tenant_id=$1 and r.ativo and r.empresa_id=any(array(select id from elegiveis))
+  ), motivos_por_empresa as materialized (
+    select r.tenant_id,r.empresa_id,
+      (jsonb_agg(jsonb_build_object('fonte',r.fonte,'codigo',r.codigo,'gravidade',r.gravidade,'descricao',r.descricao)
+        order by case r.gravidade when 'VERMELHO' then 0 else 1 end,
+          case r.fonte when 'OBRIGACOES' then 0 when 'CAPTURA' then 1 when 'CERTIFICADOS' then 2 when 'MANIFESTACOES' then 3 else 4 end,
+          r.data_referencia nulls last,r.codigo)->0) motivo_prioritario,
+      count(*)::int total_motivos,
+      min(r.data_referencia) filter(where r.data_referencia>=current_date)::text proxima_data,
+      min(r.data_referencia) filter(where r.gravidade='VERMELHO') data_critica,
+      count(*) filter(where r.fonte='OBRIGACOES' and r.codigo='OBRIGACAO_VENCIDA')::int vencidas,
+      count(*) filter(where r.fonte='OBRIGACOES' and r.codigo='OBRIGACAO_D3_D0')::int d3,
+      count(*) filter(where r.fonte='MANIFESTACOES')::int manifestacoes,
+      count(*) filter(where r.fonte='CAPTURA' and r.gravidade='VERMELHO')::int capturas,
+      bool_or(r.fonte='CERTIFICADOS') certificados
+    from motivos r group by r.tenant_id,r.empresa_id
+  ), resumo as (
+    select count(e.id)::int total,
+      count(e.id) filter(where e.cor='VERMELHO')::int vermelho,
+      count(e.id) filter(where e.cor='AMARELO')::int amarelo,
+      count(e.id) filter(where e.cor='VERDE')::int verde,
+      coalesce(sum(m.vencidas),0)::int vencidas,
+      coalesce(sum(m.d3),0)::int d3,
+      coalesce(sum(m.manifestacoes),0)::int manifestacoes,
+      coalesce(sum(m.capturas),0)::int capturas,
+      count(e.id) filter(where coalesce(m.certificados,false))::int certificados
+    from elegiveis e left join motivos_por_empresa m on m.tenant_id=e.tenant_id and m.empresa_id=e.id
+  ), dashboard as (
+    select e.id empresa_id,e.cnpj,e.nome,e.regime,e.cor,e.contagens_fontes,e.contagens_gravidade,e.atualizado_em,e.resumo,
+      m.motivo_prioritario,coalesce(m.total_motivos,0)::int total_motivos,m.proxima_data,m.data_critica
+    from elegiveis e left join motivos_por_empresa m on m.tenant_id=e.tenant_id and m.empresa_id=e.id
+  ), pagina as (
+    select * from dashboard
+    order by case when $9::text='NOME' then 0 else case cor when 'VERMELHO' then 0 when 'AMARELO' then 1 else 2 end end,
+      case when $9::text='NOME' then lower(nome) end asc nulls last,
+      case when $9::text='URGENCIA' and cor='VERMELHO' then data_critica end nulls last,
+      case when $9::text='URGENCIA' then proxima_data end nulls last,
+      case when $9::text='URGENCIA' then total_motivos end desc nulls last,
+      lower(nome),empresa_id limit $10 offset $11
+  )
+  select to_jsonb(resumo) resumo,
+    coalesce((select jsonb_agg(to_jsonb(pagina) order by
+      case when $9::text='NOME' then 0 else case pagina.cor when 'VERMELHO' then 0 when 'AMARELO' then 1 else 2 end end,
+      case when $9::text='NOME' then lower(pagina.nome) end asc nulls last,
+      case when $9::text='URGENCIA' and pagina.cor='VERMELHO' then pagina.data_critica end nulls last,
+      case when $9::text='URGENCIA' then pagina.proxima_data end nulls last,
+      case when $9::text='URGENCIA' then pagina.total_motivos end desc nulls last,
+      lower(pagina.nome),pagina.empresa_id) from pagina),'[]'::jsonb) empresas
+  from resumo`;
+  const resultado=await cliente.query<{resumo:Record<string,number>;empresas:readonly Record<string,unknown>[]}>(consulta,[...args,filtro.ordem,filtro.limite,filtro.deslocamento]);
+  const resumo=resultado.rows[0]?.resumo??{total:0,vermelho:0,amarelo:0,verde:0,vencidas:0,d3:0,manifestacoes:0,capturas:0,certificados:0};
+  return {resumo,empresas:resultado.rows[0]?.empresas??[],total:Number(resumo['total']??0)};
 };
 
 export const listarMotivosDaSaude = async(cliente:PoolClient,tenantId:string,usuarioId:string,empresaId:string):Promise<readonly MotivoDeSaude[]>=>{

@@ -41,6 +41,13 @@ describe('projeção do dashboard e isolamento', () => {
       motivos: await listarMotivosDaSaude(cliente, c.tenantA, c.usuarios.naCarteira, c.empresaA1),
     }));
     expect(carteiraA.dashboard.empresas.map((empresa) => empresa.empresa_id)).toEqual([c.empresaA1]);
+    expect(carteiraA.dashboard.empresas[0]).toMatchObject({
+      contagens_fontes: { OBRIGACOES: 1 },
+      contagens_gravidade: { AMARELO: 5 },
+      resumo: { fonte: 'OBRIGACOES', codigo: 'FONTE_INCOMPLETA', gravidade: 'AMARELO', descricao: 'Dados incompletos ou desatualizados; estado da fonte não confirmado.' },
+      motivo_prioritario: { fonte: 'OBRIGACOES', codigo: 'FONTE_INCOMPLETA', gravidade: 'AMARELO' },
+      total_motivos: 5,
+    });
     expect(carteiraA.dashboard.resumo).toMatchObject({ total: 1, amarelo: 1, vermelho: 0, verde: 0 });
     expect(carteiraA.motivos).toHaveLength(5);
     expect(carteiraA.motivos.every((motivo) => motivo.codigo === 'FONTE_INCOMPLETA')).toBe(true);
@@ -78,6 +85,7 @@ describe('projeção do dashboard e isolamento', () => {
       listarDashboardDaSaude(cliente, c.tenantA, c.usuarios.naCarteira, filtro));
     const duracao = performance.now() - inicio;
     expect(resultado.total).toBe(501);
+    expect(resultado.resumo).toMatchObject({ total: 501, amarelo: 1, verde: 500 });
     expect(resultado.empresas).toHaveLength(25);
     expect(duracao).toBeLessThan(3_000);
   }, 60_000);
