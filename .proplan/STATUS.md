@@ -90,9 +90,7 @@ updated: 2026-10-18
 
 ## Em Andamento
 
-### [MVP1] Fundação, captura e controle operacional (#30)
-
-- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26)
+_(vazio)_
 
 ## Feito
 
@@ -102,6 +100,7 @@ _(vazio)_
 
 ### [MVP1] Fundação, captura e controle operacional (#30)
 
+- [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26, finalizado em: 2026-10-18)
 - [MVP1][SPEC-023][FIX] dashboard de 500 empresas excede limite sob carga CI (#133, finalizado em: 2026-10-18)
 - [MVP1][SPEC-017][F17] Captura DF-e por NSU (#19, finalizado em: 2026-10-15)
 - [MVP1][SPEC-023][F23] Dashboard multiempresa com semáforo e drill-down (#25, finalizado em: 2026-10-17)
