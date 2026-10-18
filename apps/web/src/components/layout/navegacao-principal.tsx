@@ -35,6 +35,11 @@ const ITENS: readonly ItemDoMenu[] = [
     rotulo: 'Histórico de Informações',
     consultas: ['historico.global.consultar', 'empresas.historico.consultar'],
   },
+  {
+    href: '/auditoria',
+    rotulo: 'Trilha de auditoria',
+    consultas: ['historico.global.consultar'],
+  },
   // A carteira é de qualquer usuário ativo: sem permissão de catálogo, só a própria lista.
   { href: '/carteira', rotulo: 'Minha carteira', consultas: [] },
   // Cofre local de certificados A1 (SPEC-011): quem consulta o catálogo `certificados.cofre`.

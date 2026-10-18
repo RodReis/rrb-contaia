@@ -146,9 +146,9 @@ const tentar = async (
   return 'outro:sem-resultado';
 };
 
-const ler = (tabela: string, linhaId: string) => async (cliente: PoolClient): Promise<Resultado> => {
+const ler = (tabela: string, coluna: string, linhaId: string) => async (cliente: PoolClient): Promise<Resultado> => {
   const { rows } = await cliente.query<{ n: string }>(
-    `select count(*)::text as n from ${tabela} where id = $1`,
+    `select count(*)::text as n from ${tabela} where ${coluna} = $1`,
     [linhaId],
   );
 
@@ -164,36 +164,38 @@ const inserir =
   };
 
 const atualizar =
-  (tabela: string, linhaId: string, coluna: string, definicao?: string) =>
+  (tabela: string, linhaId: string, coluna: string, colunaChave = 'id', definicao?: string) =>
   async (cliente: PoolClient): Promise<Resultado> => {
     const { rowCount } = await cliente.query(
-      `update ${tabela} set ${definicao ?? `${coluna} = ${coluna}`} where id = $1`,
+      `update ${tabela} set ${definicao ?? `${coluna} = ${coluna}`} where ${colunaChave} = $1`,
       [linhaId],
     );
 
     return (rowCount ?? 0) > 0 ? 'atualizado' : 'nenhuma_linha_alterada';
   };
 
-const apagar = (tabela: string, linhaId: string) => async (cliente: PoolClient): Promise<Resultado> => {
-  const { rowCount } = await cliente.query(`delete from ${tabela} where id = $1`, [linhaId]);
+const apagar = (tabela: string, linhaId: string, colunaChave = 'id') => async (cliente: PoolClient): Promise<Resultado> => {
+  const { rowCount } = await cliente.query(`delete from ${tabela} where ${colunaChave} = $1`, [linhaId]);
 
   return (rowCount ?? 0) > 0 ? 'atualizado' : 'nenhuma_linha_alterada';
 };
 
-type Privilegios = Readonly<{ update: boolean; atualizaTenant: boolean; atualizaEmpresa: boolean }>;
+type Privilegios = Readonly<{ insert: boolean; update: boolean; atualizaTenant: boolean; atualizaEmpresa: boolean }>;
 
 const privilegiosDe = async (pool: Pool, tabela: string): Promise<Privilegios> => {
   const coluna = (nome: string): string =>
     `coalesce((select has_column_privilege(current_user, $1::regclass, a.attnum, 'UPDATE')
                  from pg_attribute a
                 where a.attrelid = $1::regclass and a.attname = '${nome}' and not a.attisdropped), false)`;
-  const { rows } = await pool.query<{ pode: boolean; tenant: boolean; empresa: boolean }>(
-    `select has_any_column_privilege(current_user, $1::regclass, 'UPDATE') as pode,
+  const { rows } = await pool.query<{ inserir: boolean; pode: boolean; tenant: boolean; empresa: boolean }>(
+    `select has_table_privilege(current_user, $1::regclass, 'INSERT') as inserir,
+            has_any_column_privilege(current_user, $1::regclass, 'UPDATE') as pode,
             ${coluna('tenant_id')} as tenant, ${coluna('empresa_id')} as empresa`,
     [tabela],
   );
 
   return {
+    insert: rows[0]?.inserir === true,
     update: rows[0]?.pode === true,
     atualizaTenant: rows[0]?.tenant === true,
     atualizaEmpresa: rows[0]?.empresa === true,
@@ -281,7 +283,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       continue; // a ausência é reprovada pelo teste de cobertura, com mensagem própria.
     }
 
-    const { update: temUpdate, atualizaTenant, atualizaEmpresa } = await privilegiosDe(app, tabela);
+    const { insert: temInsert, update: temUpdate, atualizaTenant, atualizaEmpresa } = await privilegiosDe(app, tabela);
     const moverTenant: Resultado = atualizaTenant ? 'rejeitado_por_escopo_imutavel' : 'negado_por_privilegio';
     const moverEmpresa: Resultado = atualizaEmpresa ? 'rejeitado_por_escopo_imutavel' : 'negado_por_privilegio';
     const coluna = fixture.colunaDeAtualizacao ?? 'id';
@@ -309,7 +311,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
     }
 
     const leitura = (caso: string, ator: Ator, esperado: Resultado, linha = linhaA1): Promise<void> =>
-      tentar(app, ator, ler(tabela, linha)).then((obtido) =>
+      tentar(app, ator, ler(tabela, fixture.colunaDeLeitura ?? 'id', linha)).then((obtido) =>
         registrar(tabela, classe, caso, 'SELECT', esperado, obtido),
       );
     const insercao = (
@@ -320,7 +322,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       refs: Referencias = referencias,
     ): Promise<void> =>
       tentar(app, ator, inserir(fixture, escopo, refs)).then((obtido) =>
-        registrar(tabela, classe, caso, 'INSERT', esperado, obtido),
+        registrar(tabela, classe, caso, 'INSERT', temInsert ? esperado : 'negado_por_privilegio', obtido),
       );
     const alteracao = (
       caso: string,
@@ -329,7 +331,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       linha = linhaA1,
       definicao?: string,
     ): Promise<void> =>
-      tentar(app, ator, atualizar(tabela, linha, coluna, definicao ?? fixture.atualizacao)).then((obtido) =>
+      tentar(app, ator, atualizar(tabela, linha, coluna, fixture.colunaDeChave, definicao ?? fixture.atualizacao)).then((obtido) =>
         registrar(tabela, classe, caso, 'UPDATE', esperado, obtido),
       );
 
@@ -664,10 +666,10 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
 
     // -- DELETE: a aplicação não tem o privilégio em tabela alguma (I-7) ------------
 
-    await tentar(app, humano(u.naCarteira), apagar(tabela, linhaA1)).then((obtido) =>
+    await tentar(app, humano(u.naCarteira), apagar(tabela, linhaA1, fixture.colunaDeChave)).then((obtido) =>
       registrar(tabela, classe, 'o papel da aplicação não apaga', 'DELETE', 'negado_por_privilegio', obtido),
     );
-    await tentar(app, humano(u.admin, 'ADMIN_ACESSO'), apagar(tabela, linhaA1)).then((obtido) =>
+    await tentar(app, humano(u.admin, 'ADMIN_ACESSO'), apagar(tabela, linhaA1, fixture.colunaDeChave)).then((obtido) =>
       registrar(tabela, classe, 'nem na finalidade administrativa', 'DELETE', 'negado_por_privilegio', obtido),
     );
   }
