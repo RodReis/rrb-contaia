@@ -648,7 +648,8 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Exportação JSON/CSV assíncrona por fila, armazenamento do artefato, SHA-256, download rastreado e remoção/estado de expiração em 24 horas; revalida escopo no processamento e no download.
 - [ ] Execução completa do agente com prompt/contexto/ferramentas, E2E ponta a ponta e prova visual autenticada CLARO/ESCURO em 768/1024/1440: `not_run` nesta execução; captura disponível reflete apenas campos persistidos pelas fontes F20–F22.
 - [x] Autorrevisão do diff contra `origin/main`, incluindo migration, API, worker, UI e testes; `git diff --check` limpo.
-- [ ] PR `refs #26` e CI remoto: pendentes.
+- [x] PR #132 aberta com `refs #26`, head `162274ab`; build, quality, test-regras, test-tela e E2E passaram no CI.
+- [ ] `test-banco` e gate ainda falham: em três tentativas no mesmo head, a suíte atingiu timeout de 5s em XLSX de F13 ou excedeu por 30–345ms o limite de 3s do benchmark F23. Nenhuma falha aponta para código F24; não alterei esses testes/limites fora do escopo.
 
 ## Referências
 
