@@ -150,6 +150,21 @@ const auditarChaves = (
           (indice.colunas[0] === 'tenant_id' && indice.colunas[1] === 'empresa_id')),
     );
 
+    if (entrada.exigeIndiceEmpresa === true) {
+      const temIndiceEmpresa = tabela.indices.some(
+        (indice) => !indice.parcial && indice.colunas[0] === 'empresa_id',
+      );
+      if (!temIndiceEmpresa) {
+        achados.push(
+          violacao(
+            tabela.nome,
+            'índice independente por empresa_id',
+            'tabela temporal exige índice completo começando por empresa_id',
+          ),
+        );
+      }
+    }
+
     if (!temIndice) {
       achados.push(
         violacao(

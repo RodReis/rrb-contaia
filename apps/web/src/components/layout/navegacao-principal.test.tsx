@@ -49,10 +49,12 @@ describe('NavegacaoPrincipal', () => {
     render(<NavegacaoPrincipal />, { wrapper: Envolvido });
 
     await waitFor(() => expect(links()).toContain('Usuários e permissões'));
+    expect(links()).toContain('Trilha de auditoria');
     expect(links()).toEqual([
       'Dashboard',
       'Empresas',
       'Histórico de Informações',
+      'Trilha de auditoria',
       'Minha carteira',
       'Usuários e permissões',
     ]);

@@ -53,6 +53,10 @@ CREATE TABLE app.audit_export_job (
 CREATE INDEX audit_export_job_tenant_idx ON app.audit_export_job(tenant_id);
 CREATE INDEX audit_export_job_empresa_idx ON app.audit_export_job(empresa_id);
 CREATE INDEX audit_export_job_pending_idx ON app.audit_export_job(criado_em) WHERE estado='PENDENTE';
+CREATE INDEX audit_payload_revelation_tenant_idx ON app.audit_payload_revelation(tenant_id);
+CREATE INDEX audit_payload_revelation_empresa_idx ON app.audit_payload_revelation(empresa_id);
+CREATE INDEX audit_export_download_tenant_idx ON app.audit_export_download(tenant_id);
+CREATE INDEX audit_export_download_empresa_idx ON app.audit_export_download(empresa_id);
 
 CREATE TABLE app.audit_export_manifest (
   id uuid PRIMARY KEY DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
