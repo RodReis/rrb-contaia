@@ -67,7 +67,7 @@ export const NavegacaoPrincipal = () => {
       ? item.href === '/empresas' || item.href === '/carteira'
       : item.consultas.every((chave) => concede(sessao, chave)) &&
         (item.papeisPermitidos === undefined ||
-          item.papeisPermitidos.some((papel) => sessao.papeis.includes(papel))),
+          sessao.papeis.some((papel) => item.papeisPermitidos?.includes(papel))),
   );
 
   return (
