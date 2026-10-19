@@ -12,6 +12,7 @@ import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { InboxDeManifestacoes } from './inbox-de-manifestacoes';
 import { mensagemDoCodigo } from '@/lib/mensagens';
+import { orientarDadoResolucaoTributaria, orientarMotivoResolucaoTributaria } from './orientacao-resolucao-tributaria';
 import { baixarOriginalFiscal, listarDocumentosFiscais, obterDocumentoFiscal, reprocessarDocumentoFiscal, verificarIntegridadeFiscal, listarCienciasDaEmissao, obterCienciaDaEmissao, retomarCienciaDaEmissao, listarResolucaoTributaria, processarResolucaoTributaria, compararResolucaoTributaria, type DocumentoFiscal, type CienciaDaEmissaoUI } from './api';
 
 const rotulo: Record<DocumentoFiscal['estado'], string> = {
@@ -426,7 +427,13 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                     <div className="flex flex-wrap items-center justify-between gap-sm"><h5 className="font-medium text-foreground">Revisão {revision}</h5><span className="text-label-sm text-muted-foreground">{dataHora(snapshotsTributarios.data.itens.find((snapshot)=>snapshot.revision===revision)?.processed_at ?? null)}</span></div>
                                     <ul className="mt-sm grid gap-sm md:grid-cols-2">{snapshotsTributarios.data.itens.filter((snapshot)=>snapshot.revision===revision).map((snapshot)=><li key={snapshot.id} className="rounded-md bg-muted/30 p-sm">
                                       <div className="flex flex-wrap items-center justify-between gap-xs"><span className="font-medium text-foreground">Item {snapshot.item_number}</span><StatusBadge tom={snapshot.decisions.every((decision)=>decision.status==='INDETERMINATE')?'atencao':'conforme'} rotulo={snapshot.decisions.every((decision)=>decision.status==='INDETERMINATE')?'Indeterminado':'Resolvido'} /></div>
-                                      <ul className="mt-xs space-y-xs text-body-sm">{snapshot.decisions.map((decision)=><li key={decision.tax} className="border-t border-border/50 pt-xs"><span className="font-medium text-foreground">{decision.tax}</span><span className="ml-xs text-muted-foreground">{decision.status} · crédito {decision.creditEligibility}</span><p className="text-muted-foreground">{decision.rationale}</p>{decision.missingInputs.length ? <p className="text-muted-foreground">Dados ausentes: {decision.missingInputs.join(', ')}</p> : null}</li>)}</ul>
+                                      <ul className="mt-xs space-y-xs text-body-sm">{snapshot.decisions.map((decision)=>{
+                                        const orientacoes = [
+                                          ...decision.missingInputs.map(orientarDadoResolucaoTributaria),
+                                          ...decision.reasons.map(orientarMotivoResolucaoTributaria).filter((item) => item !== null),
+                                        ].filter((item, index, items) => items.findIndex((candidate) => candidate.campo === item.campo) === index);
+                                        return <li key={decision.tax} className="border-t border-border/50 pt-xs"><span className="font-medium text-foreground">{decision.tax}</span><span className="ml-xs text-muted-foreground">{decision.status} · crédito {decision.creditEligibility}</span><p className="text-muted-foreground">{decision.rationale}</p>{orientacoes.length ? <ul aria-label={`Dados e próximos passos para ${decision.tax}`} className="mt-xs space-y-xs rounded-sm bg-muted/40 p-sm text-muted-foreground">{orientacoes.map((orientacao)=><li key={orientacao.campo}><span className="font-medium text-foreground">{orientacao.campo}</span><p>Origem esperada: {orientacao.origem}</p><p>Próximo passo: {orientacao.proximoPasso}</p></li>)}</ul> : null}</li>;
+                                      })}</ul>
                                       {snapshot.package_sha256 ? <p className="mt-xs break-all font-mono text-label-sm text-muted-foreground">Pacote SHA-256: {snapshot.package_sha256}</p> : <p className="mt-xs text-label-sm text-muted-foreground">Sem pacote curado associado.</p>}
                                     </li>)}</ul>
                                   </section>)}

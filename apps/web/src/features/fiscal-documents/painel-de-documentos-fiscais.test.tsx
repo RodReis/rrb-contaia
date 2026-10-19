@@ -136,7 +136,7 @@ describe('PainelDeDocumentosFiscais', () => {
       document_id: '123e4567-e89b-12d3-a456-426614174000', item_number: 1, parser_version: 'f18-v1', revision: 1, idempotency_key: 'idempotency-1',
       input_sha256: 'b'.repeat(64), package_id: null, package_sha256: null,
       facts: { itemNumber: 1, missingInputs: ['REGIME_HISTORICO', 'FINALIDADE_AQUISICAO'] },
-      decisions: [{ tax: 'ICMS', status: 'INDETERMINATE', creditEligibility: 'INDETERMINATE', ruleId: null, reasons: ['REGIME_HISTORY_UNAVAILABLE'], missingInputs: ['REGIME_HISTORICO'], sourceIds: [], rationale: 'Sem regime histórico; nenhuma regra aplicada.' }],
+      decisions: [{ tax: 'ICMS', status: 'INDETERMINATE', creditEligibility: 'INDETERMINATE', ruleId: null, reasons: ['REGIME_HISTORY_UNAVAILABLE', 'PACKAGE_UNAVAILABLE'], missingInputs: ['REGIME_HISTORICO'], sourceIds: [], rationale: 'Sem regime histórico; nenhuma regra aplicada.' }],
       reprocessing_reason: null, actor_id: '523e4567-e89b-12d3-a456-426614174000', correlation_id: 'corr-1', processed_at: '2026-10-18T13:00:00.000Z',
     }] });
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -146,6 +146,10 @@ describe('PainelDeDocumentosFiscais', () => {
     expect(await screen.findByText('Tratamento tributário por item')).toBeTruthy();
     expect(await screen.findByText('Indeterminado')).toBeTruthy();
     expect(screen.getByText('Sem regime histórico; nenhuma regra aplicada.')).toBeTruthy();
+    expect(screen.getByText('Regime tributário na data da NF-e')).toBeTruthy();
+    expect(screen.getByText(/Origem esperada: Histórico fiscal cadastral da empresa/u)).toBeTruthy();
+    expect(screen.getByText(/Confira o regime e a data de vigência/u)).toBeTruthy();
+    expect(screen.getByText(/Aguarde a publicação de pacote compatível/u)).toBeTruthy();
     expect(screen.getByText('Sem pacote curado associado.')).toBeTruthy();
     cliente.clear();
   });

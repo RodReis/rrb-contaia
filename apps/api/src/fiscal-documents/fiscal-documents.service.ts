@@ -111,6 +111,7 @@ export class FiscalDocumentsService {
           ...(!item.cfop ? ['CFOP'] : []),
           ...(!item.ncm ? ['NCM'] : []),
           ...(!item.cst_csosn ? ['CST_CSOSN'] : []),
+          'ST_STATUS', 'IMPORT_STATUS', 'MONOPHASE_STATUS', 'BENEFIT_STATUS', 'RETURN_TRANSFER_STATUS',
         ];
         const facts = {
           itemNumber: item.numero, parserVersion: item.parser_version, factDate: source.emitido_em,
