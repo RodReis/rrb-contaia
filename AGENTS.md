@@ -64,7 +64,15 @@ Depois do merge confirmado na origem e **antes** de aplicar `proplan:done`, o Co
 
 Aceite verde para uma entrega é **CI verde** — nada mais.
 
-O Codex só para quando `todo` está vazio ou quando cai num dos dois casos abaixo.
+### Regra de continuidade do Code
+
+Ao assumir um card `proplan:doing`, o Codex Code mantém o trabalho ativo até concluir o ciclo: implementação, revisão, testes e provas aplicáveis; PR aberta com `refs #N`; CI verde no HEAD atual; merge confirmado na origem; comentário obrigatório de encerramento publicado; card movido para `proplan:done`.
+
+Não encerra a execução nem devolve o card ao PI em etapas intermediárias (código pronto, commit/push feito, PR aberta, CI verde antes do merge, ou merge antes do comentário e de `proplan:done`). Se uma validação falhar, corrige e repete. Se houver trabalho independente do bloqueio, continua esse trabalho.
+
+Só interrompe o ciclo quando: (a) `todo` estiver vazio depois de concluir o card; ou (b) surgir um dos dois bloqueios abaixo que exija decisão do PI. Nesse caso, apresenta a pergunta objetiva com contexto e alternativas, registra o bloqueio e avança no trabalho independente possível. Não pede autorização para decisões técnicas reversíveis que pertencem ao Code.
+
+`proplan:done` é o status de entrega do Code; não fecha a issue nem marca `finalizado`. O PI mantém exclusivamente o aceite final e o fechamento, conforme a tabela de transições.
 
 ## O que bloqueia o Code — dois casos, não há terceiro
 
