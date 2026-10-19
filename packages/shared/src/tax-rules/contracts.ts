@@ -263,6 +263,9 @@ export const CuratedTaxPackageSchema = z.strictObject({
   exclusions: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
   sources: z.array(taxPackageSourceSchema).min(1).max(500),
   rules: z.array(taxPackageRuleSchema).min(1).max(20000),
-  fixtures: z.array(z.strictObject({ id: z.string().min(1).max(120), ruleId: z.string().min(1).max(120), expected: z.string().min(1).max(500) })).max(5000),
+  fixtures: z.array(z.strictObject({
+    id: z.string().min(1).max(120), ruleId: z.string().min(1).max(120),
+    expected: z.enum(['APPLICABLE','NOT_APPLICABLE']),
+  })).min(1).max(5000),
 });
 export type CuratedTaxPackageInput = z.infer<typeof CuratedTaxPackageSchema>;

@@ -8,10 +8,19 @@ const pkg: CuratedTaxPackage = {
   consultedOn: '2026-09-19', coverage: ['revenda'], exclusions: ['ST'],
   sources: [{ id: 'src', authority: 'SEFAZ-GO', title: 'Norma', url: 'https://goias.gov.br/economia/', provision: 'art. 1', publishedOn: '2025-01-01', consultedOn: '2026-09-19', validFrom: '2026-01-01', validUntil: null }],
   rules: [{ id: 'r1', taxType: 'ICMS', regime: 'LUCRO_PRESUMIDO', operationType: 'COMPRA_INTERNA_REVENDA', cfop: ['1102'], ncm: ['12345678'], cst: ['00'], validFrom: '2026-01-01', validUntil: null, treatment: 'APPLICABLE', creditEligibility: 'ALLOWED', sourceIds: ['src'], rationale: 'Regra de fixture; não publicada.' }],
-  fixtures: [],
+  fixtures: [{ id: 'fixture-r1', ruleId: 'r1', expected: 'APPLICABLE' }],
 };
 
 describe('pacote tributário curado', () => {
+  it('recusa pacote sem fixture de conformidade', () => {
+    expect(validateTaxPackage({ ...pkg, fixtures: [] }).errors).toContain('PACKAGE_FIXTURES_EMPTY');
+  });
+
+  it('executa fixture contra regra indicada e recusa expectativa divergente', () => {
+    const invalid = { ...pkg, fixtures: [{ ...pkg.fixtures[0]!, expected: 'NOT_APPLICABLE' as const }] };
+    expect(validateTaxPackage(invalid).errors).toContain('FIXTURE_EXPECTATION_MISMATCH:fixture-r1');
+  });
+
   it('valida estrutura normativa e gera hash estável da forma canônica', async () => {
     expect(validateTaxPackage(pkg)).toEqual({ valid: true, errors: [] });
     expect(await hashTaxPackage(pkg)).toMatch(/^[0-9a-f]{64}$/u);

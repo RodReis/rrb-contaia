@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CreateTaxRuleSchema,
+  CuratedTaxPackageSchema,
   LIMITE_DA_NFE_BYTES,
   ListTaxRulesQuerySchema,
   ManualTaxSimulationSchema,
@@ -73,6 +74,23 @@ describe('CreateTaxRuleSchema', () => {
     for (const operationType of TAX_OPERATION_TYPES) {
       expect(CreateTaxRuleSchema.safeParse({ ...validRule, operationType }).success).toBe(true);
     }
+  });
+});
+
+describe('CuratedTaxPackageSchema (SPEC-026)', () => {
+  const pacote = {
+    schemaVersion: 1, packageId: 'go-entry', semanticVersion: '1.0.0', jurisdiction: 'GO',
+    regimes: ['LUCRO_PRESUMIDO'], document: { model: '55', direction: 'ENTRY', purpose: 'RESALE' },
+    validFrom: '2026-01-01', validUntil: null, consultedOn: '2026-09-19', coverage: ['revenda'], exclusions: ['ST'],
+    sources: [{ id: 'src', authority: 'SEFAZ-GO', title: 'Norma', url: 'https://goias.gov.br/economia/', provision: 'art. 1', publishedOn: '2025-01-01', consultedOn: '2026-09-19', validFrom: '2026-01-01', validUntil: null }],
+    rules: [{ id: 'r1', taxType: 'ICMS', regime: 'LUCRO_PRESUMIDO', operationType: 'COMPRA_INTERNA_REVENDA', cfop: ['1102'], ncm: ['12345678'], cst: ['00'], validFrom: '2026-01-01', validUntil: null, treatment: 'APPLICABLE', creditEligibility: 'ALLOWED', sourceIds: ['src'], rationale: 'Fixture de contrato.' }],
+    fixtures: [{ id: 'f1', ruleId: 'r1', expected: 'APPLICABLE' }],
+  } as const;
+
+  it('exige fixtures e expectativa compatível com resultado de regra', () => {
+    expect(CuratedTaxPackageSchema.safeParse(pacote).success).toBe(true);
+    expect(CuratedTaxPackageSchema.safeParse({ ...pacote, fixtures: [] }).success).toBe(false);
+    expect(CuratedTaxPackageSchema.safeParse({ ...pacote, fixtures: [{ ...pacote.fixtures[0], expected: 'QUALQUER' }] }).success).toBe(false);
   });
 });
 

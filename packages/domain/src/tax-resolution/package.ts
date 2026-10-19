@@ -1,3 +1,5 @@
+import { resolveEntryTax } from './resolve-entry.js';
+
 export type TaxPackageSource = Readonly<{
   id: string;
   authority: string;
@@ -38,7 +40,7 @@ export type CuratedTaxPackage = Readonly<{
     sourceIds: readonly string[];
     rationale: string;
   }>[];
-  fixtures: readonly Readonly<{ id: string; ruleId: string; expected: string }> [];
+  fixtures: readonly Readonly<{ id: string; ruleId: string; expected: 'APPLICABLE' | 'NOT_APPLICABLE' }> [];
 }>;
 
 export type PackageValidation = Readonly<{ valid: boolean; errors: readonly string[] }>;
@@ -68,6 +70,7 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
   if (!validDate(input.validFrom) || !validDate(input.consultedOn)) errors.push('PACKAGE_DATE_INVALID');
   if (input.validUntil !== null && (!validDate(input.validUntil) || input.validUntil < input.validFrom)) errors.push('PACKAGE_VALIDITY_INVALID');
   if (input.regimes.length === 0 || input.rules.length === 0) errors.push('PACKAGE_COVERAGE_EMPTY');
+  if (input.fixtures.length === 0) errors.push('PACKAGE_FIXTURES_EMPTY');
 
   const sourceIds = new Set<string>();
   for (const source of input.sources) {
@@ -111,6 +114,18 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
     fixtureIds.add(fixture.id);
     if (!ruleIds.has(fixture.ruleId)) errors.push(`FIXTURE_RULE_NOT_FOUND:${fixture.id}:${fixture.ruleId}`);
     if (fixture.expected.trim().length === 0) errors.push(`FIXTURE_EXPECTATION_EMPTY:${fixture.id}`);
+    const rule = input.rules.find((item) => item.id === fixture.ruleId);
+    if (rule !== undefined && rule.cfop[0] !== undefined && rule.ncm[0] !== undefined && rule.cst[0] !== undefined) {
+      const internal = rule.operationType === 'COMPRA_INTERNA_REVENDA';
+      const decision = resolveEntryTax(input, {
+        factDate: rule.validFrom, regime: rule.regime,
+        originUf: internal ? 'GO' : 'SP', destinationUf: 'GO', documentModel: '55', authorized: true,
+        operationType: rule.operationType, purpose: 'RESALE', cfop: rule.cfop[0], ncm: rule.ncm[0], cst: rule.cst[0],
+        hasSubstitutionTax: false, isImport: false, isMonophase: false,
+        hasUnmodeledBenefit: false, isReturnOrTransfer: false, declaredCents: null,
+      }, rule.taxType, null);
+      if (decision.ruleId !== rule.id || decision.status !== fixture.expected) errors.push(`FIXTURE_EXPECTATION_MISMATCH:${fixture.id}`);
+    }
   }
 
   return { valid: errors.length === 0, errors };
