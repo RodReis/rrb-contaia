@@ -233,3 +233,36 @@ export type TaxSimulationResultDto = Readonly<{
   }>;
   memory: TaxCalculationMemory;
 }>;
+
+const taxPackageSourceSchema = z.strictObject({
+  id: z.string().trim().min(1).max(120), authority: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(500), url: z.string().url().max(2000),
+  provision: z.string().trim().min(1).max(500), publishedOn: civilDate, consultedOn: civilDate,
+  validFrom: civilDate, validUntil: civilDate.nullable(),
+});
+const taxPackageRuleSchema = z.strictObject({
+  id: z.string().trim().min(1).max(120), taxType, regime: z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']),
+  operationType: z.enum(['COMPRA_INTERNA_REVENDA','COMPRA_INTERESTADUAL_REVENDA']),
+  cfop: z.array(z.string().regex(/^\d{4}$/u)).min(1).max(100),
+  ncm: z.array(z.string().regex(/^\d{8}$/u)).min(1).max(500),
+  cst: z.array(z.string().regex(/^\d{2,3}$/u)).min(1).max(50),
+  validFrom: civilDate, validUntil: civilDate.nullable(),
+  treatment: z.enum(['APPLICABLE','NOT_APPLICABLE']),
+  creditEligibility: z.enum(['ALLOWED','BLOCKED','NOT_RELEVANT']),
+  sourceIds: z.array(z.string().trim().min(1).max(120)).min(1).max(50),
+  rationale: z.string().trim().min(1).max(2000),
+});
+
+export const CuratedTaxPackageSchema = z.strictObject({
+  schemaVersion: z.literal(1), packageId: z.string().trim().min(1).max(120),
+  semanticVersion: z.string().regex(/^\d+\.\d+\.\d+$/u), jurisdiction: z.enum(['BR','GO']),
+  regimes: z.array(z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO'])).min(1).max(2),
+  document: z.strictObject({ model: z.literal('55'), direction: z.literal('ENTRY'), purpose: z.literal('RESALE') }),
+  validFrom: civilDate, validUntil: civilDate.nullable(), consultedOn: civilDate,
+  coverage: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
+  exclusions: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
+  sources: z.array(taxPackageSourceSchema).min(1).max(500),
+  rules: z.array(taxPackageRuleSchema).min(1).max(20000),
+  fixtures: z.array(z.strictObject({ id: z.string().min(1).max(120), ruleId: z.string().min(1).max(120), expected: z.string().min(1).max(500) })).max(5000),
+});
+export type CuratedTaxPackageInput = z.infer<typeof CuratedTaxPackageSchema>;

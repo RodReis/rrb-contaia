@@ -1,13 +1,15 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao } from '@contaia/db';
-import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
+import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, obterRegimeTributarioHistorico } from '@contaia/db';
+import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, resolveEntryTax, type CuratedTaxPackage } from '@contaia/domain';
 import { FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from '@contaia/shared';
+import { CuratedTaxPackageSchema } from '@contaia/shared';
 import type { PoolClient } from 'pg';
 import { PoolDoBanco } from '../banco/pool.provider';
 import { StorageService } from '../comum/storage.service';
 import { FISCAL_DOCUMENTS_API_QUEUE } from './fiscal-documents.queue';
+import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
 
 const versaoParser = 'f18-1.0.0';
 const chaveMascarada = (value: string | null) => value ? `${value.slice(0, 4)}…${value.slice(-4)}` : null;
@@ -60,6 +62,119 @@ export class FiscalDocumentsService {
 
   private async detalhe(client: PoolClient, companyId: string, documentId: string) {
     return obterDocumentoFiscal(client, companyId, documentId);
+  }
+
+  async resolverTratamentoTributario(tenantId: string, userId: string, companyId: string, documentId: string,
+    correlationId: string, input: Readonly<{ expectedDocumentRevision: string; packageId?: string | undefined; idempotencyKey: string; reprocessingReason?: string | undefined }>) {
+    const publishedPackages = await noCatalogoTributario(this.pool.instancia,correlationId,(client) =>
+      client.query<{ id: string; content: Record<string,unknown>; content_sha256: string }>(
+        'select id,content,content_sha256 from app.tax_package_list(false) where status=\'PUBLISHED\'',
+      ));
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
+      const company = await getDfeCaptureCompany(client, companyId);
+      if (!company || company.tenantId !== tenantId) throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada.');
+      const authorizedDocument = await obterDocumentoFiscal(client, companyId, documentId);
+      if (!authorizedDocument) throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED, 'Documento fiscal não encontrado.');
+      const source = await listarItensParaResolucaoTributaria(client, companyId, documentId);
+      if (!source || source.estado !== 'PROCESSADO') throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED, 'Apenas NF-e processada pode receber resolução tributária.');
+      const regimeHistory = await obterRegimeTributarioHistorico(client, companyId, source.emitido_em);
+      const regime = regimeHistory?.regime ?? null;
+      const matchingPackages = publishedPackages.rows.flatMap((row) => {
+        if (input.packageId !== undefined && row.id !== input.packageId) return [];
+        const parsed = CuratedTaxPackageSchema.safeParse(row.content);
+        if (!parsed.success) return [];
+        const content = parsed.data as CuratedTaxPackage;
+        const matches = content.jurisdiction === 'GO' && source.modelo === '55' && typeof source.emitido_em === 'string' &&
+          regime !== null && content.regimes.includes(regime as 'SIMPLES_NACIONAL'|'LUCRO_PRESUMIDO') &&
+          content.document.direction === 'ENTRY' && content.document.purpose === 'RESALE' &&
+          content.validFrom <= source.emitido_em &&
+          (content.validUntil === null || source.emitido_em <= content.validUntil);
+        return matches ? [{ id: row.id, content, sha256: row.content_sha256 }] : [];
+      });
+      if (input.packageId !== undefined && matchingPackages.length !== 1) {
+        throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_PACKAGE_NOT_APPLICABLE,
+          'Pacote não publicado ou incompatível com a jurisdição, regime, documento ou data do fato.');
+      }
+      const selectedPackage = matchingPackages.length === 1 ? matchingPackages[0] ?? null : null;
+      const items = source.itens.map((item) => {
+        const missingInputs = [
+          ...(!regime ? ['REGIME_HISTORICO'] : []),
+          'FINALIDADE_AQUISICAO',
+          ...(!source.emitido_em ? ['DATA_FATO_GERADOR'] : []),
+          ...(!source.origem_uf ? ['UF_ORIGEM'] : []),
+          ...(!source.destino_uf ? ['UF_DESTINO'] : []),
+          ...(!item.cfop ? ['CFOP'] : []),
+          ...(!item.ncm ? ['NCM'] : []),
+          ...(!item.cst_csosn ? ['CST_CSOSN'] : []),
+        ];
+        const facts = {
+          itemNumber: item.numero, parserVersion: item.parser_version, factDate: source.emitido_em,
+          regime, regimeEffectiveDate: regimeHistory?.vigente_desde ?? null,
+          model: source.modelo, status: source.estado, authorizedProtocolPresent: source.protocolo !== null,
+          originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm,
+          cstCsosn: item.cst_csosn, declaredValue: item.valor, missingInputs,
+        };
+        const resolverFacts = {
+          factDate: source.emitido_em,
+          regime,
+          originUf: item.origem_uf, destinationUf: item.destino_uf,
+          documentModel: source.modelo, authorized: source.protocolo !== null,
+          operationType: item.origem_uf === null || item.destino_uf === null ? null :
+            item.origem_uf === item.destino_uf
+              ? 'COMPRA_INTERNA_REVENDA'
+              : item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA',
+          purpose: null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
+          hasSubstitutionTax: null, isImport: null, isMonophase: null,
+          hasUnmodeledBenefit: null, isReturnOrTransfer: null,
+          declaredCents: item.valor === null ? null : (() => {
+            const match = /^(\d+)(?:\.(\d{1,2}))?$/u.exec(item.valor!);
+            return match ? Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0')) : null;
+          })(),
+        } as const;
+        const decisions = (['ICMS','PIS','COFINS','IBS_UF','IBS_MUN','CBS'] as const).map((tax) => {
+          const decision = resolveEntryTax(selectedPackage?.content ?? null, resolverFacts, tax, selectedPackage?.sha256 ?? null);
+          if (decision.reasonCodes.includes('AMBIGUOUS_RULES')) {
+            throw new ErroDeConflito(CODIGOS_DE_ERRO.TAX_TREATMENT_RULE_AMBIGUOUS,
+              'Mais de uma regra tributária coincide com os fatos; nenhum snapshot foi concluído.');
+          }
+          return {
+            tax, status: decision.status, creditEligibility: decision.creditEligibility, ruleId: decision.ruleId,
+            reasons: [...decision.reasonCodes,
+              ...(matchingPackages.length > 1 ? ['CURATED_PACKAGE_AMBIGUOUS'] : []),
+              ...(!selectedPackage && matchingPackages.length === 0 ? ['CURATED_PACKAGE_UNAVAILABLE'] : []),
+              ...(!regime ? ['REGIME_HISTORY_UNAVAILABLE'] : []), 'PURPOSE_UNAVAILABLE'],
+            missingInputs, sourceIds: decision.sourceIds, packageId: decision.packageId,
+            packageSha256: decision.packageHash, rationale: decision.rationale,
+          };
+        });
+        const hashFacts = {
+          ...facts,
+          regimeEffectiveDate: regimeHistory?.vigente_desde ?? null,
+          purpose: null,
+          excludedCasesUnresolved: ['SUBSTITUICAO_TRIBUTARIA','IMPORTACAO','MONOFASICO','BENEFICIO_NAO_MODELADO','DEVOLUCAO_TRANSFERENCIA'],
+          missingInputs,
+        };
+        const hashCanonical = JSON.stringify({ facts: hashFacts, decisions });
+        return { itemNumber: item.numero, parserVersion: item.parser_version,
+          inputSha256: createHash('sha256').update(hashCanonical).digest('hex'), facts, decisions };
+      });
+      const result = await persistirSnapshotsResolucaoTributaria(client, {
+        tenantId, empresaId: companyId, documentId, actorId: userId, correlationId,
+        idempotencyKey: input.idempotencyKey, expectedParserVersion: input.expectedDocumentRevision,
+        reprocessingReason: input.reprocessingReason?.trim() || null, packageId: selectedPackage?.id ?? null,
+        packageSha256: selectedPackage?.sha256 ?? null, items,
+      });
+      return result;
+    });
+  }
+
+  async listarTratamentosTributarios(tenantId: string, userId: string, companyId: string, documentId: string, correlationId: string, revision?: number) {
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
+      const company = await getDfeCaptureCompany(client, companyId);
+      if (!company || company.tenantId !== tenantId) throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada.');
+      const snapshots = await listarSnapshotsResolucaoTributaria(client, companyId, documentId, revision);
+      return { itens: snapshots };
+    });
   }
 
   async obter(tenantId: string, userId: string, companyId: string, documentId: string, correlationId: string) {

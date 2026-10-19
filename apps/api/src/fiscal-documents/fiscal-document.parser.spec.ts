@@ -29,6 +29,14 @@ describe('parser fiscal SPEC-018', () => {
     expect(result.ibsCbsPendente).toBe(false);
   });
 
+  it('preserva CST/CSOSN do grupo ICMS sem confundir com CST de IBS/CBS', () => {
+    const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(
+      '<imposto>', '<imposto><ICMS><ICMS00><CST>00</CST></ICMS00></ICMS>',
+    );
+    const parsed = parsearDocumentoFiscal(Buffer.from(source), 'NFE_55');
+    expect(parsed.itens[0]?.cstCsosn).toBe('00');
+  });
+
   it('normaliza campos de endereço declarados sem inventar localização ausente', () => {
     const source = fixture('nfe-rtc-valida.xml').toString('utf8').replace(
       '</emit>', '<enderEmit><xLgr>Rua Teste</xLgr><nro>10</nro><xBairro>Centro</xBairro><cMun>3550308</cMun><xMun>São Paulo</xMun><UF>SP</UF><CEP>01000000</CEP></enderEmit></emit>',

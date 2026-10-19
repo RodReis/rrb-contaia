@@ -39,6 +39,7 @@ const montar = (permissoes: readonly string[] | null, canAdminister = false) => 
     if (url === '/api/proxy/usuarios/eu') {
       return permissoes === null ? problema(401, 'HTTP_401') : json(sessao(permissoes));
     }
+    if (url === '/api/proxy/tax-packages') return json({ canAdminister: false, actorId: '123e4567-e89b-12d3-a456-426614174000', items: [] });
 
     return init?.method === undefined && url.startsWith(`${BASE}?`) ? json(pagina([regra()], { canAdminister })) : undefined;
   });
@@ -74,6 +75,24 @@ describe('AreaDoMotor — página do motor tributário (SPEC-016 §5)', () => {
     await screen.findByRole('table', { name: /Regras tributárias/u });
   });
 
+  it('consulta o catálogo curado e não confunde pacote publicado com cobertura automática', async () => {
+    instalarFetch((url, init) => {
+      if (url === '/api/proxy/usuarios/eu') return json(sessao(COMPLETA));
+      if (url === '/api/proxy/tax-packages') return json({ canAdminister: false, actorId: '123e4567-e89b-12d3-a456-426614174000', items: [{
+        id: '123e4567-e89b-12d3-a456-426614174000', packageId: 'go-entry-v1', semanticVersion: '1.0.0', status: 'PUBLISHED', jurisdiction: 'GO',
+        regimes: ['SIMPLES_NACIONAL'], validFrom: '2026-01-01', validUntil: null, coverage: ['revenda'], exclusions: ['ST'], sha256: 'a'.repeat(64),
+        importedBy: '223e4567-e89b-12d3-a456-426614174000', importedAt: '2026-10-18T13:00:00.000Z', reviewedBy: '323e4567-e89b-12d3-a456-426614174000', reviewedAt: '2026-10-18T13:00:00.000Z',
+        publishedBy: '323e4567-e89b-12d3-a456-426614174000', publishedAt: '2026-10-18T13:00:00.000Z', archivedAt: null,
+      }] });
+      return init?.method === undefined && url.startsWith(`${BASE}?`) ? json(pagina([regra()])) : undefined;
+    });
+    render(<main><AreaDoMotor /></main>, { wrapper: Envolvido });
+
+    expect(await screen.findByText('Pacote publicado')).toBeInTheDocument();
+    expect(screen.getByText(/regime histórico, finalidade, vigência e fonte precisam coincidir/u)).toBeInTheDocument();
+    await screen.findByRole('table', { name: /Regras tributárias/u });
+  });
+
   it('não promete apuração, guia, fechamento, SPED nem carteira (fora da fronteira da F16)', async () => {
     montar(COMPLETA);
     await screen.findByRole('table', { name: /Regras tributárias/u });
@@ -87,7 +106,7 @@ describe('AreaDoMotor — página do motor tributário (SPEC-016 §5)', () => {
     montar(COMPLETA);
 
     const titulos = screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent);
-    expect(titulos).toEqual(['Catálogo de regras', 'Simulador']);
+    expect(titulos).toEqual(['Resolução tributária de entradas — Goiás', 'Catálogo de regras', 'Simulador']);
     await screen.findByRole('table', { name: /Regras tributárias/u });
   });
 

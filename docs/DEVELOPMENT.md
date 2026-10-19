@@ -669,6 +669,26 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [ ] Playwright autenticado e capturas CLARO/ESCURO em 768/1024/1440: `not_run`; dependem de API, Keycloak, Vault e MinIO locais.
 - [ ] PR #135 (`refs #27`): primeira rodada CI com build, quality, regras, tela e E2E verdes; `test-banco` encontrou expectativas RLS de notificações corrigidas neste commit. Novo CI, merge confirmado e comentário obrigatório de encerramento pendentes. Issue #27 segue aberta em `proplan:doing`.
 
+### Card #28 — `[MVP2][SPEC-026][F26]` Resolução tributária de entradas NF-e em Goiás
+
+- [x] Iniciado em worktree dedicado `codex/f26-issue28`; issue em `proplan:doing`.
+- [x] Modelo tipado de pacote curado, validação estrutural, canonicalização e hash SHA-256; resolvedor por vigência com abstenção em lacuna, ausência de dados, exceção e colisão.
+- [x] Migration 0040 para pacotes globais, auditoria do ciclo e snapshots imutáveis por item, tenant, empresa e documento; RLS, chaves idempotentes e classificação anti-drift.
+- [x] API de importar/validar/revisar/publicar/arquivar pacote com autorização de super-admin; API de processar/listar/comparar snapshots com permissões fiscais.
+- [x] F18 fornece NF-e, NCM, CFOP, CST/CSOSN, partes e data. Regime é buscado no histórico cadastral pela vigência do fato e congelado nos fatos do snapshot.
+- [x] Idempotência, revisão sequencial, motivo obrigatório após a primeira versão, preservação imutável e histórico/comparação na tela de documentos fiscais.
+- [x] Ambiguidade entre regras aborta a revisão inteira com Problem Details 409; publicação de pacote serializa a checagem de cobertura concorrente em `0041_tax_package_publish_lock.sql`.
+- [x] Endpoint de resolução aceita `packageId` publicado opcional; pacote ausente ou incompatível com fatos do documento retorna `TAX_PACKAGE_NOT_APPLICABLE` sem fallback.
+- [x] Erros de ciclo de vida do pacote são traduzidos em códigos `TAX_PACKAGE_*` estáveis; validação rejeita fixtures duplicadas ou sem regra referenciada.
+- [x] UI do motor consulta o estado real de pacotes publicados e declara limites; teste focal de decisão indeterminada e de pacote publicado sem pressupor cobertura.
+- [ ] Pacote inicial normativo ainda não importado/publicado: falta concluir curadoria por tributo/regra com ato e dispositivo específicos, vigências e fixtures revisadas; sem isso, não há decisões `APPLICABLE` nem `NOT_APPLICABLE`.
+- [ ] Finalidade da aquisição não vem do XML nem há contexto cadastral aprovado para obtê-la. O processamento registra `INDETERMINATE`; falta completar a captura/contexto definido pela SPEC sem inferir finalidade.
+- [ ] Smoke Playwright autenticado específico da F26 e capturas das telas alteradas em CLARO/ESCURO a 768/1024/1440: `not_run`. A navegação abriu a tela, mas o primeiro servidor Next foi iniciado sem `API_ORIGIN` e respondeu 502; após corrigir para `http://127.0.0.1:25127`, rotas de sessão responderam 401 e a área de pacotes permaneceu indisponível. Capturas obtidas nessa condição não contam como prova de aceite.
+- [x] Checks locais após integração: domínio 894/894; API 1453/1453; tela 1308/1308; banco F26 6/6; typecheck API/web/db aprovado. Suite completa de banco anterior terminou 524/542, com 18 falhas fora F26 em 13 arquivos (timeouts por contenção, FK fixture Signer e limiar de performance).
+- [x] Lint API/db sem erros; lint web com um aviso preexistente em `aba-de-enderecos.tsx`. `impeccable detect` sem achados. `pnpm build` 10/10 pacotes; `git diff --check` limpo.
+- [ ] E2E autenticado F26 e prova visual final continuam `not_run`: browser redirecionou a `/acesso`, sem sessão válida; API/Keycloak não responderam pelas portas publicadas do host apesar dos containers indicarem saúde. Screenshot sem autenticação não conta como prova. Capturas CLARO/ESCURO em 768/1024/1440 pendentes.
+- [ ] Não abrir PR enquanto o pacote normativo inicial com atos/dispositivos e fixtures revisados e a decisão de captura da finalidade não existirem. Autorrevisão final do diff contra `origin/main`, PR `refs #28`, CI verde, merge e comentário de encerramento também pendentes.
+
 ## Referências
 
 - [`STATUS.md`](STATUS.md) · [`AUDIT.md`](AUDIT.md) · [`TESTING.md`](TESTING.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`FRONTEND.md`](FRONTEND.md)

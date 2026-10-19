@@ -249,3 +249,21 @@ describe('status dos códigos da importação do plano de contas (SPEC-013)', ()
     expect(corpo.type).toMatch(/arquivo-acima-do-limite$/u);
   });
 });
+
+describe('status dos códigos do pacote tributário F26', () => {
+  const casos: ReadonlyArray<readonly [keyof typeof CODIGOS_DE_ERRO, number]> = [
+    ['TAX_PACKAGE_NOT_FOUND', HttpStatus.NOT_FOUND],
+    ['TAX_PACKAGE_NOT_REVIEWED', HttpStatus.CONFLICT],
+    ['TAX_PACKAGE_REVIEWER_INVALID', HttpStatus.CONFLICT],
+    ['TAX_PACKAGE_TRANSITION_INVALID', HttpStatus.CONFLICT],
+    ['TAX_PACKAGE_OVERLAPPING_COVERAGE', HttpStatus.CONFLICT],
+    ['TAX_PACKAGE_IMMUTABLE', HttpStatus.CONFLICT],
+    ['TAX_PACKAGE_VERSION_CONFLICT', HttpStatus.CONFLICT],
+    ['TAX_PACKAGE_NOT_APPLICABLE', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['TAX_TREATMENT_RULE_AMBIGUOUS', HttpStatus.CONFLICT],
+  ];
+
+  it.each(casos)('%s responde %i', (codigo, esperado) => {
+    expect(statusDoErro(new ErroDeDominio(CODIGOS_DE_ERRO[codigo], 'x'))).toBe(esperado);
+  });
+});

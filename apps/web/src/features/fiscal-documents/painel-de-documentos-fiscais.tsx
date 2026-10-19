@@ -5,13 +5,14 @@ import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, Download, FileCh
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { AreaDeTexto } from '@/components/ui/area-de-texto';
 import { EmptyState, ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { Select, type OpcaoDoSelect } from '@/components/ui/select';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { InboxDeManifestacoes } from './inbox-de-manifestacoes';
 import { mensagemDoCodigo } from '@/lib/mensagens';
-import { baixarOriginalFiscal, listarDocumentosFiscais, obterDocumentoFiscal, reprocessarDocumentoFiscal, verificarIntegridadeFiscal, listarCienciasDaEmissao, obterCienciaDaEmissao, retomarCienciaDaEmissao, type DocumentoFiscal, type CienciaDaEmissaoUI } from './api';
+import { baixarOriginalFiscal, listarDocumentosFiscais, obterDocumentoFiscal, reprocessarDocumentoFiscal, verificarIntegridadeFiscal, listarCienciasDaEmissao, obterCienciaDaEmissao, retomarCienciaDaEmissao, listarResolucaoTributaria, processarResolucaoTributaria, compararResolucaoTributaria, type DocumentoFiscal, type CienciaDaEmissaoUI } from './api';
 
 const rotulo: Record<DocumentoFiscal['estado'], string> = {
   PENDENTE: 'Pendente', PROCESSANDO: 'Em processamento',
@@ -40,13 +41,17 @@ const moedaFiscal = (value: string | null) => {
 const rotuloCiencia:Record<CienciaDaEmissaoUI['estado'],string>={RESUMO_CAPTURADO:'Resumo capturado',CIENCIA_PENDENTE:'Aguardando Ciência',CIENCIA_EM_ENVIO:'Enviando Ciência',CIENCIA_REGISTRADA:'Ciência registrada',XML_COMPLETO_PENDENTE:'Aguardando XML completo',XML_COMPLETO_OBTIDO:'XML completo obtido',PARSEADO:'Encaminhado à F18',JA_MANIFESTADO:'Já manifestado',XML_COMPLETO_JA_DISPONIVEL:'XML já disponível',RESULTADO_INCERTO:'Resultado incerto',RETRY_AGENDADO:'Nova tentativa agendada',REJEITADO:'Rejeitado',IMPEDIDO:'Impedido',DLQ:'Fila de falhas'};
 const tomCiencia:Record<CienciaDaEmissaoUI['estado'],TomDoStatus>={RESUMO_CAPTURADO:'atencao',CIENCIA_PENDENTE:'atencao',CIENCIA_EM_ENVIO:'atencao',CIENCIA_REGISTRADA:'conforme',XML_COMPLETO_PENDENTE:'atencao',XML_COMPLETO_OBTIDO:'conforme',PARSEADO:'conforme',JA_MANIFESTADO:'atencao',XML_COMPLETO_JA_DISPONIVEL:'conforme',RESULTADO_INCERTO:'critico',RETRY_AGENDADO:'atencao',REJEITADO:'critico',IMPEDIDO:'critico',DLQ:'critico'};
 
-export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeReprocessar, permitirDecisao }: {
+export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeReprocessar, permitirDecisao, podeResolverTributos = false }: {
   empresaId: string;
   somenteLeitura: boolean;
   podeReprocessar: boolean;
   permitirDecisao?: boolean;
+  podeResolverTributos?: boolean;
 }) => {
   const [selecionado, setSelecionado] = useState<string | null>(null);
+  const [motivoReprocessamento, setMotivoReprocessamento] = useState('');
+  const [comparacaoSelecionada, setComparacaoSelecionada] = useState<{ de: number; para: number } | null>(null);
+  const [chaveIdempotencia, setChaveIdempotencia] = useState<string | null>(null);
   const [cienciaSelecionada,setCienciaSelecionada]=useState<string|null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -92,6 +97,43 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
       return obterDocumentoFiscal(empresaId, selecionado);
     },
     enabled: selecionado !== null,
+  });
+  const snapshotsTributarios = useQuery({
+    queryKey: ['sessao', 'eu', 'resolucao-tributaria', empresaId, selecionado],
+    queryFn: () => listarResolucaoTributaria(empresaId, selecionado!),
+    enabled: selecionado !== null && detalhe.data !== undefined,
+  });
+  const processarTributario = useMutation({
+    mutationFn: (idempotencyKey: string) => {
+      if (!selecionado || !detalhe.data) throw new Error('Documento fiscal indisponível.');
+      const houveSnapshot = (snapshotsTributarios.data?.itens.length ?? 0) > 0;
+      const motivo = motivoReprocessamento.trim();
+      return processarResolucaoTributaria(empresaId, selecionado, {
+        expectedDocumentRevision: detalhe.data.parser_version,
+        idempotencyKey,
+        ...(houveSnapshot ? { reprocessingReason: motivo } : {}),
+      });
+    },
+    onSuccess: async (result) => {
+      setMotivoReprocessamento('');
+      setComparacaoSelecionada(null);
+      setChaveIdempotencia(null);
+      await queryClient.invalidateQueries({ queryKey: ['sessao', 'eu', 'resolucao-tributaria', empresaId, selecionado] });
+      toast.success(result.reused ? `Revisão ${result.revision} já estava registrada.` : `Revisão ${result.revision} registrada; itens sem contexto suficiente ficaram indeterminados.`);
+    },
+    onError: (error: unknown) => {
+      const problema = error instanceof ErroDaApi ? error.problema : null;
+      toast.error(problema?.code === 'TAX_RESOLUTION_REPROCESSING_REASON_REQUIRED'
+        ? 'Informe um motivo com pelo menos 10 caracteres para reprocessar.'
+        : problema?.code === 'TAX_RESOLUTION_DOCUMENT_REVISION_MISMATCH'
+          ? 'O documento mudou; atualize os detalhes antes de processar.'
+          : 'Não foi possível registrar a resolução tributária.');
+    },
+  });
+  const compararTributario = useQuery({
+    queryKey: ['sessao', 'eu', 'resolucao-tributaria-comparacao', empresaId, selecionado, comparacaoSelecionada],
+    queryFn: () => compararResolucaoTributaria(empresaId, selecionado!, comparacaoSelecionada!.de, comparacaoSelecionada!.para),
+    enabled: selecionado !== null && comparacaoSelecionada !== null,
   });
   const integridade = useMutation({
     mutationFn: (id: string) => verificarIntegridadeFiscal(empresaId, id),
@@ -210,7 +252,12 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                             aria-label={emProcessamento ? 'Detalhes disponíveis após o processamento' : selecionado === item.id ? 'Fechar detalhes' : 'Abrir detalhes'}
                             className="min-h-11 min-w-11"
                             disabled={emProcessamento}
-                            onClick={() => setSelecionado((previous) => previous === item.id ? null : item.id)}>
+                            onClick={() => {
+                              setSelecionado((previous) => previous === item.id ? null : item.id);
+                              setMotivoReprocessamento('');
+                              setComparacaoSelecionada(null);
+                              setChaveIdempotencia(null);
+                            }}>
                             {selecionado === item.id ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
                           </Button>
                           <Button variante="contorno" tamanho="compacto" className="min-h-11 min-w-11" aria-label="Verificar integridade"
@@ -239,6 +286,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                             <ErroDeTela titulo="Não foi possível abrir os detalhes" descricao="Tente novamente em instantes." />
                           ) : null}
                           {detalhe.data ? (
+                            <div className="space-y-lg">
                             <div className="grid gap-lg lg:grid-cols-[1fr_1.3fr]">
                               <section>
                                 <h4 className="font-display text-title-sm text-foreground">Resumo normalizado</h4>
@@ -340,6 +388,45 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                   </div>
                                 ) : null}
                               </section>
+                            </div>
+                            <section aria-labelledby="resolucao-tributaria-titulo" className="rounded-md border border-border bg-card p-md">
+                              <div className="flex flex-wrap items-start justify-between gap-md">
+                                <div>
+                                  <h4 id="resolucao-tributaria-titulo" className="font-display text-title-sm text-foreground">Tratamento tributário por item</h4>
+                                  <p className="mt-xs max-w-3xl text-body-sm text-muted-foreground">Registra fatos e decisões versionados. Contexto ausente ou cobertura não confirmada mantém o item indeterminado; esta resolução não apura valores devidos.</p>
+                                </div>
+                                {podeResolverTributos && !somenteLeitura ? (
+                                  <Button variante="primaria" disabled={processarTributario.isPending || detalhe.data.estado !== 'PROCESSADO' || ((snapshotsTributarios.data?.itens.length ?? 0) > 0 && motivoReprocessamento.trim().length < 10)} onClick={() => {
+                                    const idempotencyKey = chaveIdempotencia ?? crypto.randomUUID();
+                                    setChaveIdempotencia(idempotencyKey);
+                                    processarTributario.mutate(idempotencyKey);
+                                  }}>
+                                    {processarTributario.isPending ? 'Registrando…' : (snapshotsTributarios.data?.itens.length ?? 0) > 0 ? 'Reprocessar itens' : 'Processar itens'}
+                                  </Button>
+                                ) : null}
+                              </div>
+                              {snapshotsTributarios.isPending ? <div className="mt-md" aria-busy="true"><Skeleton className="h-16 w-full" /></div> : null}
+                              {snapshotsTributarios.isError ? <div className="mt-md"><ErroDeTela titulo="Histórico de resolução indisponível" descricao="Tente novamente em instantes." /></div> : null}
+                              {snapshotsTributarios.data && snapshotsTributarios.data.itens.length === 0 ? <p className="mt-md rounded-md border border-dashed border-border p-md text-body-sm text-muted-foreground">Nenhuma resolução foi registrada para este documento.</p> : null}
+                              {snapshotsTributarios.data && snapshotsTributarios.data.itens.length > 0 ? (() => {
+                                const revisoes = [...new Set(snapshotsTributarios.data.itens.map((snapshot) => snapshot.revision))].sort((a,b)=>b-a);
+                                const ultima = revisoes[0] ?? 0;
+                                const anterior = revisoes[1] ?? 0;
+                                return <div className="mt-md space-y-md">
+                                  {revisoes.length > 1 ? <div className="flex flex-wrap items-center gap-sm"><Button variante={comparacaoSelecionada?.para === ultima && comparacaoSelecionada.de === anterior ? 'primaria' : 'contorno'} tamanho="compacto" onClick={()=>setComparacaoSelecionada({de:anterior,para:ultima})}>Comparar revisões {anterior} → {ultima}</Button></div> : null}
+                                  {comparacaoSelecionada ? compararTributario.isPending ? <div aria-busy="true"><Skeleton className="h-12 w-full" /></div> : compararTributario.isError ? <ErroDeTela titulo="Comparação indisponível" descricao="Tente novamente em instantes." /> : compararTributario.data ? <p role="status" className="rounded-md bg-muted/50 p-sm text-body-sm text-foreground">{compararTributario.data.diff.filter((item)=>item.changed).length} de {compararTributario.data.diff.length} itens com fatos ou decisões diferentes entre as revisões {comparacaoSelecionada.de} e {comparacaoSelecionada.para}.</p> : null : null}
+                                  {revisoes.map((revision)=><section key={revision} className="rounded-md border border-border/70 p-md">
+                                    <div className="flex flex-wrap items-center justify-between gap-sm"><h5 className="font-medium text-foreground">Revisão {revision}</h5><span className="text-label-sm text-muted-foreground">{dataHora(snapshotsTributarios.data.itens.find((snapshot)=>snapshot.revision===revision)?.processed_at ?? null)}</span></div>
+                                    <ul className="mt-sm grid gap-sm md:grid-cols-2">{snapshotsTributarios.data.itens.filter((snapshot)=>snapshot.revision===revision).map((snapshot)=><li key={snapshot.id} className="rounded-md bg-muted/30 p-sm">
+                                      <div className="flex flex-wrap items-center justify-between gap-xs"><span className="font-medium text-foreground">Item {snapshot.item_number}</span><StatusBadge tom={snapshot.decisions.every((decision)=>decision.status==='INDETERMINATE')?'atencao':'conforme'} rotulo={snapshot.decisions.every((decision)=>decision.status==='INDETERMINATE')?'Indeterminado':'Resolvido'} /></div>
+                                      <ul className="mt-xs space-y-xs text-body-sm">{snapshot.decisions.map((decision)=><li key={decision.tax} className="border-t border-border/50 pt-xs"><span className="font-medium text-foreground">{decision.tax}</span><span className="ml-xs text-muted-foreground">{decision.status} · crédito {decision.creditEligibility}</span><p className="text-muted-foreground">{decision.rationale}</p>{decision.missingInputs.length ? <p className="text-muted-foreground">Dados ausentes: {decision.missingInputs.join(', ')}</p> : null}</li>)}</ul>
+                                      {snapshot.package_sha256 ? <p className="mt-xs break-all font-mono text-label-sm text-muted-foreground">Pacote SHA-256: {snapshot.package_sha256}</p> : <p className="mt-xs text-label-sm text-muted-foreground">Sem pacote curado associado.</p>}
+                                    </li>)}</ul>
+                                  </section>)}
+                                  {podeResolverTributos && !somenteLeitura ? <div className="max-w-2xl"><AreaDeTexto rotulo="Motivo do reprocessamento" obrigatorio value={motivoReprocessamento} onValorChange={setMotivoReprocessamento} maxLength={500} ajuda="Obrigatório a partir da segunda revisão; mínimo de 10 caracteres." /></div> : null}
+                                </div>;
+                              })() : null}
+                            </section>
                             </div>
                           ) : null}
                         </td>

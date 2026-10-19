@@ -24,7 +24,7 @@ const TributoFiscalSchema = z.object({
   base_calculo: z.string().nullable(), aliquota: z.string().nullable(), valor: z.string().nullable(), situacao: z.string().nullable(), classificacao: z.string().nullable(),
 });
 const DocumentoFiscalDetalheSchema = z.object({
-  id: z.string().uuid(), especie: z.enum(['NFE_55', 'CTE']), chave_acesso: z.string().nullable(), hash_sha256: z.string(), tamanho_bytes: z.number().int().nonnegative(),
+  id: z.string().uuid(), especie: z.enum(['NFE_55', 'CTE']), parser_version: z.string(), chave_acesso: z.string().nullable(), hash_sha256: z.string(), tamanho_bytes: z.number().int().nonnegative(),
   estado: EstadoDocumentoFiscalSchema.exclude(['PENDENTE', 'PROCESSANDO']), emitido_em: z.string().nullable(), emitente: z.string().nullable(), destinatario: z.string().nullable(),
   total: z.string().nullable(), base_ibs_cbs: z.string().nullable(), total_ibs: z.string().nullable(), total_cbs: z.string().nullable(), itens: z.array(ItemFiscalSchema),
   protocolo: z.string().nullable(), protocolo_recebido_em: z.string().nullable(), referencias: z.array(z.object({ tipo: z.string(), chave: z.string() })),
@@ -34,6 +34,15 @@ const DocumentoFiscalDetalheSchema = z.object({
   eventos: z.array(z.object({ tipo: z.string(), codigo: z.string().nullable(), ocorrido_em: z.string() })),
 });
 export type DocumentoFiscalDetalhe = z.infer<typeof DocumentoFiscalDetalheSchema>;
+const DecisaoTributariaSchema=z.object({tax:z.enum(['ICMS','PIS','COFINS','IBS_UF','IBS_MUN','CBS']),status:z.enum(['APPLICABLE','NOT_APPLICABLE','INDETERMINATE']),creditEligibility:z.enum(['ALLOWED','BLOCKED','INDETERMINATE','NOT_RELEVANT']),ruleId:z.string().nullable(),reasons:z.array(z.string()),missingInputs:z.array(z.string()),sourceIds:z.array(z.string()),rationale:z.string()});
+const SnapshotTributarioSchema=z.object({id:z.string().uuid(),tenant_id:z.string().uuid(),empresa_id:z.string().uuid(),document_id:z.string().uuid(),item_number:z.number().int().positive(),parser_version:z.string(),revision:z.number().int().positive(),idempotency_key:z.string(),input_sha256:z.string(),package_id:z.string().uuid().nullable(),package_sha256:z.string().nullable(),facts:z.record(z.string(),z.unknown()),decisions:z.array(DecisaoTributariaSchema),reprocessing_reason:z.string().nullable(),actor_id:z.string().uuid(),correlation_id:z.string(),processed_at:z.union([z.string(),z.date()]).transform((value)=>value instanceof Date?value.toISOString():value)});
+const SnapshotsTributariosSchema=z.object({itens:z.array(SnapshotTributarioSchema)});
+const PacoteCuradoResumoSchema=z.object({id:z.string().uuid(),packageId:z.string(),semanticVersion:z.string(),status:z.enum(['IMPORTED','VALIDATED','REVIEWED','PUBLISHED','ARCHIVED']),jurisdiction:z.enum(['BR','GO']),regimes:z.array(z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO'])),validFrom:z.string(),validUntil:z.string().nullable(),coverage:z.array(z.string()),exclusions:z.array(z.string()),sha256:z.string(),importedBy:z.string().uuid(),importedAt:z.string(),reviewedBy:z.string().uuid().nullable(),reviewedAt:z.string().nullable(),publishedBy:z.string().uuid().nullable(),publishedAt:z.string().nullable(),archivedAt:z.string().nullable()});
+const PacotesCuradosSchema=z.object({canAdminister:z.boolean(),actorId:z.string().uuid(),items:z.array(PacoteCuradoResumoSchema)});
+const PacoteComandoSchema=z.object({id:z.string().uuid(),packageId:z.string(),semanticVersion:z.string(),status:z.enum(['IMPORTED','VALIDATED','REVIEWED','PUBLISHED','ARCHIVED']),sha256:z.string()});
+const ResultadoValidacaoPacoteSchema=PacoteComandoSchema.extend({validation:z.object({valid:z.boolean(),errors:z.array(z.string())})}).or(PacoteComandoSchema);
+const ResultadoResolucaoTributariaSchema=z.object({revision:z.number().int().positive(),reused:z.boolean(),snapshots:z.array(SnapshotTributarioSchema)});
+const ComparacaoTributariaSchema=z.object({fromRevision:z.number().int().positive(),toRevision:z.number().int().positive(),diff:z.array(z.object({itemNumber:z.number().int().positive(),changed:z.boolean(),from:SnapshotTributarioSchema.nullable(),to:SnapshotTributarioSchema.nullable()})),from:z.array(SnapshotTributarioSchema),to:z.array(SnapshotTributarioSchema)});
 const ListaDeDocumentosFiscaisSchema = z.object({ pagina: z.number().int().positive(), temProximaPagina: z.boolean(), itens: z.array(DocumentoFiscalSchema) });
 const IntegridadeFiscalSchema = z.object({ documentId: z.string().uuid(), estado: z.literal('INTEGRO'), verificadoEm: z.string() });
 const ReprocessamentoFiscalSchema = z.object({ documentId: z.string().uuid(), status: z.literal('QUEUED') });
@@ -72,6 +81,16 @@ export const listarDocumentosFiscais = async (empresaId: string, pagina: number,
 };
 export const obterDocumentoFiscal = async (empresaId: string, documentId: string) =>
   DocumentoFiscalDetalheSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/${documentId}`));
+export const listarResolucaoTributaria = async (empresaId:string,documentId:string) => SnapshotsTributariosSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/${documentId}/tax-treatment-resolutions`));
+export type PacotesCuradosUI=z.infer<typeof PacotesCuradosSchema>;
+export const listarPacotesTributarios = async ():Promise<PacotesCuradosUI> => PacotesCuradosSchema.parse(await ler('/tax-packages'));
+export const importarPacoteTributario = async (body:unknown) => PacoteComandoSchema.parse(await requisitar<unknown>('/tax-packages',{method:'POST',body:JSON.stringify(body)}));
+export const validarPacoteTributario = async (id:string) => ResultadoValidacaoPacoteSchema.parse(await requisitar<unknown>(`/tax-packages/${id}/validate`,{method:'POST',body:JSON.stringify({})}));
+export const revisarPacoteTributario = async (id:string,declaration:string) => PacoteComandoSchema.parse(await requisitar<unknown>(`/tax-packages/${id}/review`,{method:'POST',body:JSON.stringify({declaration})}));
+export const publicarPacoteTributario = async (id:string) => PacoteComandoSchema.parse(await requisitar<unknown>(`/tax-packages/${id}/publish`,{method:'POST',body:JSON.stringify({})}));
+export const arquivarPacoteTributario = async (id:string) => PacoteComandoSchema.parse(await requisitar<unknown>(`/tax-packages/${id}/archive`,{method:'POST',body:JSON.stringify({})}));
+export const processarResolucaoTributaria = async (empresaId:string,documentId:string,input:Readonly<{expectedDocumentRevision:string;packageId?:string;idempotencyKey:string;reprocessingReason?:string}>) => ResultadoResolucaoTributariaSchema.parse(await requisitar<unknown>(`/companies/${empresaId}/fiscal-documents/${documentId}/tax-treatment-resolutions`,{method:'POST',body:JSON.stringify(input)}));
+export const compararResolucaoTributaria = async (empresaId:string,documentId:string,fromRevision:number,toRevision:number) => ComparacaoTributariaSchema.parse(await ler(`/companies/${empresaId}/fiscal-documents/${documentId}/tax-treatment-resolutions/compare?fromRevision=${fromRevision}&toRevision=${toRevision}`));
 export const verificarIntegridadeFiscal = async (empresaId: string, documentId: string) =>
   IntegridadeFiscalSchema.parse(await requisitar<unknown>(
     `/companies/${empresaId}/fiscal-documents/${documentId}/integrity-checks`, { method: 'POST', body: JSON.stringify({}) },
