@@ -82,7 +82,7 @@ describe('PainelDeDocumentosFiscais', () => {
     api.obter.mockResolvedValueOnce({
       id: '123e4567-e89b-12d3-a456-426614174000', especie: 'NFE_55', parser_version: 'f18-v1', chave_acesso: '0'.repeat(40) + '0010', hash_sha256: 'a'.repeat(64),
       tamanho_bytes: 1200, estado: 'PROCESSADO', emitido_em: '2026-06-15', emitente: 'Emitente de teste', destinatario: 'Destinatário de teste',
-      total: '10.00', itens: [{ numero: 1, codigo: 'A1', descricao: 'Item', valor: '10.00', ibs: '0.01', cbs: '0.09' }],
+      total: '10.00', itens: [{ numero: 1, tipo: 'ITEM', codigo: 'A1', descricao: 'Item', valor: '10.00', ibs: '0.01', cbs: '0.09' }],
       base_ibs_cbs: '10.00', total_ibs: '0.01', total_cbs: '0.09',
       protocolo: '135260000000001', referencias: [{ tipo: 'NF-e', chave: 'chave referenciada' }],
       protocolo_recebido_em: '2026-08-03T13:31:00.000Z',
@@ -93,7 +93,7 @@ describe('PainelDeDocumentosFiscais', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={cliente}>
-        <PainelDeDocumentosFiscais empresaId="empresa-1" somenteLeitura={false} podeReprocessar={false} />
+        <PainelDeDocumentosFiscais empresaId="empresa-1" somenteLeitura={false} podeReprocessar={false} podeResolverTributos />
       </QueryClientProvider>,
     );
 
@@ -101,6 +101,11 @@ describe('PainelDeDocumentosFiscais', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir detalhes' }));
 
     expect(await screen.findByText('Itens e componentes')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Declarar item 1 para revenda' }));
+    expect(screen.getByRole('button', { name: 'Declarar todos para revenda' })).toBeTruthy();
+    api.processarResolucao.mockResolvedValueOnce({ revision: 1, reused: false, snapshots: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Processar itens' }));
+    await waitFor(() => expect(api.processarResolucao).toHaveBeenCalledWith('empresa-1', '123e4567-e89b-12d3-a456-426614174000', expect.objectContaining({ resaleItemNumbers: [1] })));
     expect(screen.getByText('Destinatário de teste')).toBeTruthy();
     expect(screen.getByText('135260000000001')).toBeTruthy();
     expect(screen.getByText('NF-e: chave referenciada')).toBeTruthy();

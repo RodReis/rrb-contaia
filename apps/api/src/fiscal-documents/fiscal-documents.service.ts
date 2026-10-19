@@ -65,7 +65,7 @@ export class FiscalDocumentsService {
   }
 
   async resolverTratamentoTributario(tenantId: string, userId: string, companyId: string, documentId: string,
-    correlationId: string, input: Readonly<{ expectedDocumentRevision: string; packageId?: string | undefined; idempotencyKey: string; reprocessingReason?: string | undefined }>) {
+    correlationId: string, input: Readonly<{ expectedDocumentRevision: string; packageId?: string | undefined; resaleItemNumbers: readonly number[]; idempotencyKey: string; reprocessingReason?: string | undefined }>) {
     const publishedPackages = await noCatalogoTributario(this.pool.instancia,correlationId,(client) =>
       client.query<{ id: string; content: Record<string,unknown>; content_sha256: string }>(
         'select id,content,content_sha256 from app.tax_package_list(false) where status=\'PUBLISHED\'',
@@ -77,6 +77,11 @@ export class FiscalDocumentsService {
       if (!authorizedDocument) throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED, 'Documento fiscal não encontrado.');
       const source = await listarItensParaResolucaoTributaria(client, companyId, documentId);
       if (!source || source.estado !== 'PROCESSADO') throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED, 'Apenas NF-e processada pode receber resolução tributária.');
+      const sourceItemNumbers = new Set(source.itens.map((item) => item.numero));
+      if (input.resaleItemNumbers.some((number) => !sourceItemNumbers.has(number))) {
+        throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_TREATMENT_DOCUMENT_CONFLICT, 'A declaração inclui item que não pertence à revisão atual da NF-e.');
+      }
+      const resaleItemNumbers = new Set(input.resaleItemNumbers);
       const regimeHistory = await obterRegimeTributarioHistorico(client, companyId, source.emitido_em);
       const regime = regimeHistory?.regime ?? null;
       const matchingPackages = publishedPackages.rows.flatMap((row) => {
@@ -99,7 +104,7 @@ export class FiscalDocumentsService {
       const items = source.itens.map((item) => {
         const missingInputs = [
           ...(!regime ? ['REGIME_HISTORICO'] : []),
-          'FINALIDADE_AQUISICAO',
+          ...(!resaleItemNumbers.has(item.numero) ? ['FINALIDADE_AQUISICAO'] : []),
           ...(!source.emitido_em ? ['DATA_FATO_GERADOR'] : []),
           ...(!source.origem_uf ? ['UF_ORIGEM'] : []),
           ...(!source.destino_uf ? ['UF_DESTINO'] : []),
@@ -110,6 +115,7 @@ export class FiscalDocumentsService {
         const facts = {
           itemNumber: item.numero, parserVersion: item.parser_version, factDate: source.emitido_em,
           regime, regimeEffectiveDate: regimeHistory?.vigente_desde ?? null,
+          purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null,
           model: source.modelo, status: source.estado, authorizedProtocolPresent: source.protocolo !== null,
           originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm,
           cstCsosn: item.cst_csosn, declaredValue: item.valor, missingInputs,
@@ -123,7 +129,7 @@ export class FiscalDocumentsService {
             item.origem_uf === item.destino_uf
               ? 'COMPRA_INTERNA_REVENDA'
               : item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA',
-          purpose: null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
+          purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
           hasSubstitutionTax: null, isImport: null, isMonophase: null,
           hasUnmodeledBenefit: null, isReturnOrTransfer: null,
           declaredCents: item.valor === null ? null : (() => {
@@ -142,7 +148,7 @@ export class FiscalDocumentsService {
             reasons: [...decision.reasonCodes,
               ...(matchingPackages.length > 1 ? ['CURATED_PACKAGE_AMBIGUOUS'] : []),
               ...(!selectedPackage && matchingPackages.length === 0 ? ['CURATED_PACKAGE_UNAVAILABLE'] : []),
-              ...(!regime ? ['REGIME_HISTORY_UNAVAILABLE'] : []), 'PURPOSE_UNAVAILABLE'],
+              ...(!regime ? ['REGIME_HISTORY_UNAVAILABLE'] : []), ...(!resaleItemNumbers.has(item.numero) ? ['PURPOSE_UNAVAILABLE'] : [])],
             missingInputs, sourceIds: decision.sourceIds, packageId: decision.packageId,
             packageSha256: decision.packageHash, rationale: decision.rationale,
           };
@@ -150,7 +156,7 @@ export class FiscalDocumentsService {
         const hashFacts = {
           ...facts,
           regimeEffectiveDate: regimeHistory?.vigente_desde ?? null,
-          purpose: null,
+          purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null,
           excludedCasesUnresolved: ['SUBSTITUICAO_TRIBUTARIA','IMPORTACAO','MONOFASICO','BENEFICIO_NAO_MODELADO','DEVOLUCAO_TRANSFERENCIA'],
           missingInputs,
         };

@@ -52,6 +52,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
   const [motivoReprocessamento, setMotivoReprocessamento] = useState('');
   const [comparacaoSelecionada, setComparacaoSelecionada] = useState<{ de: number; para: number } | null>(null);
   const [chaveIdempotencia, setChaveIdempotencia] = useState<string | null>(null);
+  const [itensParaRevenda, setItensParaRevenda] = useState<Set<number>>(() => new Set());
   const [cienciaSelecionada,setCienciaSelecionada]=useState<string|null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -110,6 +111,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
       const motivo = motivoReprocessamento.trim();
       return processarResolucaoTributaria(empresaId, selecionado, {
         expectedDocumentRevision: detalhe.data.parser_version,
+        resaleItemNumbers: [...itensParaRevenda],
         idempotencyKey,
         ...(houveSnapshot ? { reprocessingReason: motivo } : {}),
       });
@@ -253,7 +255,8 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                             className="min-h-11 min-w-11"
                             disabled={emProcessamento}
                             onClick={() => {
-                              setSelecionado((previous) => previous === item.id ? null : item.id);
+                              setSelecionado(selecionado === item.id ? null : item.id);
+                              setItensParaRevenda(new Set());
                               setMotivoReprocessamento('');
                               setComparacaoSelecionada(null);
                               setChaveIdempotencia(null);
@@ -356,14 +359,18 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                                 </p>
                               </section>
                               <section>
-                                <h4 className="font-display text-title-sm text-foreground">Itens e componentes</h4>
+                                <div className="flex flex-wrap items-center justify-between gap-sm"><h4 className="font-display text-title-sm text-foreground">Itens e componentes</h4>
+                                  {podeResolverTributos && !somenteLeitura && detalhe.data.itens.some((line) => line['tipo'] === 'ITEM' && typeof line['numero'] === 'number') ? <Button variante="contorno" tamanho="compacto" onClick={() => setItensParaRevenda(new Set(detalhe.data.itens.filter((line) => line['tipo'] === 'ITEM' && typeof line['numero'] === 'number').map((line) => line['numero'] as number)))}>Declarar todos para revenda</Button> : null}
+                                </div>
                                 {detalhe.data.itens.length ? (
                                   <div className="mt-sm overflow-x-auto">
                                     <table className="w-full min-w-[320px] text-body-sm">
                                       <thead className="text-label-sm text-muted-foreground"><tr><th scope="col" className="py-xs text-left">Descrição</th><th scope="col" className="py-xs text-right">Valor</th></tr></thead>
                                       <tbody>{detalhe.data.itens.map((line, index) => (
                                         <tr key={index} className="border-t border-border/60">
-                                          <td className="max-w-48 py-xs pr-sm"><span className="block truncate text-foreground">{String(line['descricao'] ?? 'Item sem descrição')}</span><span className="text-label-sm text-muted-foreground">{line['tipo'] === 'COMPONENTE' ? 'Componente do frete' : line['tipo'] === 'MEDIDA_CARGA' ? 'Medida da carga' : String(line['codigo'] ?? '—')}</span></td>
+                                          <td className="max-w-48 py-xs pr-sm"><span className="block truncate text-foreground">{String(line['descricao'] ?? 'Item sem descrição')}</span><span className="text-label-sm text-muted-foreground">{line['tipo'] === 'COMPONENTE' ? 'Componente do frete' : line['tipo'] === 'MEDIDA_CARGA' ? 'Medida da carga' : String(line['codigo'] ?? '—')}</span>
+                                            {podeResolverTributos && !somenteLeitura && line['tipo'] === 'ITEM' && typeof line['numero'] === 'number' ? <label className="mt-xs flex w-fit items-center gap-xs text-label-sm text-muted-foreground"><input type="checkbox" aria-label={`Declarar item ${line['numero']} para revenda`} checked={itensParaRevenda.has(line['numero'])} onChange={(event) => setItensParaRevenda((current) => { const next = new Set(current); if (event.target.checked) next.add(line['numero'] as number); else next.delete(line['numero'] as number); return next; })} />Declarar este item para revenda</label> : null}
+                                          </td>
                                           <td className="py-xs text-right tabular-nums">{moedaFiscal(typeof line['valor'] === 'string' ? line['valor'] : null)}</td>
                                         </tr>
                                       ))}</tbody>
@@ -393,7 +400,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
                               <div className="flex flex-wrap items-start justify-between gap-md">
                                 <div>
                                   <h4 id="resolucao-tributaria-titulo" className="font-display text-title-sm text-foreground">Tratamento tributário por item</h4>
-                                  <p className="mt-xs max-w-3xl text-body-sm text-muted-foreground">Registra fatos e decisões versionados. Contexto ausente ou cobertura não confirmada mantém o item indeterminado; esta resolução não apura valores devidos.</p>
+                                  <p className="mt-xs max-w-3xl text-body-sm text-muted-foreground">Marque na lista acima cada item adquirido para revenda. A declaração fica vinculada ao seu usuário e à revisão; itens sem declaração ou sem cobertura permanecem indeterminados. Esta resolução não apura valores devidos.</p>
                                 </div>
                                 {podeResolverTributos && !somenteLeitura ? (
                                   <Button variante="primaria" disabled={processarTributario.isPending || detalhe.data.estado !== 'PROCESSADO' || ((snapshotsTributarios.data?.itens.length ?? 0) > 0 && motivoReprocessamento.trim().length < 10)} onClick={() => {

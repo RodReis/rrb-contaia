@@ -18,6 +18,7 @@ const consultaFiscalSchema = paginaSchema.extend({
 const resolucaoTributariaSchema = z.strictObject({
   expectedDocumentRevision: z.string().min(1).max(100),
   packageId: uuid.optional(),
+  resaleItemNumbers: z.array(z.number().int().positive()).max(1000).refine((items) => new Set(items).size === items.length, 'Itens duplicados não são permitidos.'),
   idempotencyKey: z.string().uuid(),
   reprocessingReason: z.string().trim().min(10).max(500).optional(),
 });
