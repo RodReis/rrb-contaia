@@ -436,7 +436,7 @@ export {
 } from './tax-rules/model.js';
 export { validateTaxPackage, taxPackageCoversDate, hashTaxPackage } from './tax-resolution/package.js';
 export type { CuratedTaxPackage, TaxPackageSource, PackageValidation } from './tax-resolution/package.js';
-export { resolveEntryTax } from './tax-resolution/resolve-entry.js';
+export { resolveEntryTax, statusSubstituicaoTributariaComEvidencia } from './tax-resolution/resolve-entry.js';
 export type { EntryTaxFacts, EntryTaxDecision } from './tax-resolution/resolve-entry.js';
 
 export {

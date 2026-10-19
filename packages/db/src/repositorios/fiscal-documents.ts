@@ -47,8 +47,18 @@ export const listarItensParaResolucaoTributaria = async (client: PoolClient, emp
       where i.empresa_id=$1 and i.document_id=$2 and i.parser_version=$3 and i.tipo='ITEM' order by i.numero`,
     [empresaId,documentId,document.rows[0].parser_version],
   );
+  const { rows: tributos } = await client.query<{
+    escopo: 'ITEM'; numero_item: number; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS';
+    base_calculo: string | null; aliquota: string | null; valor: string | null; situacao: string | null; classificacao: string | null;
+  }>(
+    `select escopo,numero_item,codigo,base_calculo::text,aliquota::text,valor::text,situacao,classificacao
+       from app.fiscal_document_tax
+      where empresa_id=$1 and document_id=$2 and parser_version=$3 and escopo='ITEM'
+      order by numero_item,codigo`,
+    [empresaId,documentId,document.rows[0].parser_version],
+  );
   return { ...document.rows[0], origem_uf: items[0]?.origem_uf ?? null, destino_uf: items[0]?.destino_uf ?? null,
-    protocolo: items[0]?.protocolo ?? null, itens: items };
+    protocolo: items[0]?.protocolo ?? null, itens: items, tributos };
 };
 
 export const obterRegimeTributarioHistorico = async (client: PoolClient, empresaId: string, factDate: string | null) => {

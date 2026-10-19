@@ -32,6 +32,10 @@ export type EntryTaxDecision = Readonly<{
   rationale: string;
 }>;
 
+export const statusSubstituicaoTributariaComEvidencia = (
+  tributos: readonly Readonly<{ codigo: string }>[],
+): boolean | null => tributos.some((tributo) => tributo.codigo === 'ICMS_ST') ? true : null;
+
 const blockedReasons = (facts: EntryTaxFacts): string[] => [
   ...(facts.factDate === null ? ['FACT_DATE_MISSING'] : []),
   ...(facts.regime === null ? ['REGIME_HISTORY_UNAVAILABLE'] : []),

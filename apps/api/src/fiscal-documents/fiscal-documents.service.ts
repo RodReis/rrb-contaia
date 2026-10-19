@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, obterRegimeTributarioHistorico } from '@contaia/db';
-import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, resolveEntryTax, type CuratedTaxPackage } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, resolveEntryTax, statusSubstituicaoTributariaComEvidencia, type CuratedTaxPackage } from '@contaia/domain';
 import { FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from '@contaia/shared';
 import { CuratedTaxPackageSchema } from '@contaia/shared';
 import type { PoolClient } from 'pg';
@@ -102,6 +102,8 @@ export class FiscalDocumentsService {
       }
       const selectedPackage = matchingPackages.length === 1 ? matchingPackages[0] ?? null : null;
       const items = source.itens.map((item) => {
+        const tributosDoItem = source.tributos.filter((tributo) => tributo.numero_item === item.numero);
+        const hasSubstitutionTax = statusSubstituicaoTributariaComEvidencia(tributosDoItem);
         const missingInputs = [
           ...(!regime ? ['REGIME_HISTORICO'] : []),
           ...(!resaleItemNumbers.has(item.numero) ? ['FINALIDADE_AQUISICAO'] : []),
@@ -111,7 +113,8 @@ export class FiscalDocumentsService {
           ...(!item.cfop ? ['CFOP'] : []),
           ...(!item.ncm ? ['NCM'] : []),
           ...(!item.cst_csosn ? ['CST_CSOSN'] : []),
-          'ST_STATUS', 'IMPORT_STATUS', 'MONOPHASE_STATUS', 'BENEFIT_STATUS', 'RETURN_TRANSFER_STATUS',
+          ...(hasSubstitutionTax === null ? ['ST_STATUS'] : []),
+          'IMPORT_STATUS', 'MONOPHASE_STATUS', 'BENEFIT_STATUS', 'RETURN_TRANSFER_STATUS',
         ];
         const facts = {
           itemNumber: item.numero, parserVersion: item.parser_version, factDate: source.emitido_em,
@@ -120,6 +123,7 @@ export class FiscalDocumentsService {
           model: source.modelo, status: source.estado, authorizedProtocolPresent: source.protocolo !== null,
           originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm,
           cstCsosn: item.cst_csosn, declaredValue: item.valor, missingInputs,
+          tributos: tributosDoItem,
         };
         const resolverFacts = {
           factDate: source.emitido_em,
@@ -131,7 +135,7 @@ export class FiscalDocumentsService {
               ? 'COMPRA_INTERNA_REVENDA'
               : item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA',
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
-          hasSubstitutionTax: null, isImport: null, isMonophase: null,
+          hasSubstitutionTax, isImport: null, isMonophase: null,
           hasUnmodeledBenefit: null, isReturnOrTransfer: null,
           declaredCents: item.valor === null ? null : (() => {
             const match = /^(\d+)(?:\.(\d{1,2}))?$/u.exec(item.valor!);

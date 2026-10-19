@@ -4,7 +4,7 @@ import { contextoDeServico } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 import { criarPool, criarPoolDaAplicacao } from './client.js';
 import { comContexto, comContextoHumano } from './contexto.js';
-import { obterRegimeTributarioHistorico, persistirSnapshotsResolucaoTributaria } from './repositorios/fiscal-documents.js';
+import { listarItensParaResolucaoTributaria, obterRegimeTributarioHistorico, persistirSnapshotsResolucaoTributaria } from './repositorios/fiscal-documents.js';
 import { limparCenario, montarCenario } from './testes/cenario-rls.js';
 import { FIXTURES } from './testes/fixtures-rls.js';
 
@@ -53,6 +53,19 @@ afterAll(async () => {
 });
 
 describe('snapshots tributários F26', () => {
+  it('retorna tributos persistidos por item para fatos da resolução', async () => {
+    await admin.query(
+      `insert into app.fiscal_document_tax
+         (tenant_id,empresa_id,document_id,parser_version,escopo,numero_item,codigo,valor)
+       values($1,$2,$3,'fixture','ITEM',2,'ICMS_ST',12.34)
+       on conflict do nothing`,
+      [cenario.tenantA,cenario.empresaA1,documentId],
+    );
+    const result = await comContextoHumano(app, { tenantId: cenario.tenantA, usuarioId: cenario.usuarios.naCarteira, correlationId: 'f26-item-tax-facts' },
+      (client) => listarItensParaResolucaoTributaria(client,cenario.empresaA1,documentId));
+    expect(result?.tributos).toContainEqual(expect.objectContaining({ escopo: 'ITEM', numero_item: 2, codigo: 'ICMS_ST' }));
+  });
+
   const persist = (idempotencyKey: string, inputSha256: string, reprocessingReason: string | null = null,
     taxPackage: Readonly<{ id: string; sha256: string }> | null = null, targetDocumentId = documentId) =>
     comContextoHumano(app, { tenantId: cenario.tenantA, usuarioId: cenario.usuarios.naCarteira, correlationId: 'f26-snapshot-test' }, (client) =>

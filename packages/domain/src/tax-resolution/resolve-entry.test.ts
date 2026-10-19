@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveEntryTax, type CuratedTaxPackage, type EntryTaxFacts } from '../index.js';
+import { resolveEntryTax, statusSubstituicaoTributariaComEvidencia, type CuratedTaxPackage, type EntryTaxFacts } from '../index.js';
 
 const pacote: CuratedTaxPackage = {
   schemaVersion: 1, packageId: 'go-entry', semanticVersion: '1.0.0', jurisdiction: 'GO',
@@ -10,6 +10,14 @@ const pacote: CuratedTaxPackage = {
   rules: [{ id: 'icms-go', taxType: 'ICMS', regime: 'LUCRO_PRESUMIDO', operationType: 'COMPRA_INTERNA_REVENDA', cfop: ['1102'], ncm: ['12345678'], cst: ['00'], validFrom: '2026-01-01', validUntil: null, treatment: 'APPLICABLE', creditEligibility: 'ALLOWED', sourceIds: ['fonte-1'], rationale: 'Fixture de teste; não é regra fiscal publicada.' }],
   fixtures: [],
 };
+
+describe('fatos fiscais da NF-e', () => {
+  it('confirma ST com evidência ICMS_ST e mantém desconhecido sem evidência', () => {
+    expect(statusSubstituicaoTributariaComEvidencia([{ codigo: 'ICMS_ST' }])).toBe(true);
+    expect(statusSubstituicaoTributariaComEvidencia([{ codigo: 'ICMS' }])).toBeNull();
+    expect(statusSubstituicaoTributariaComEvidencia([])).toBeNull();
+  });
+});
 
 const fatos: EntryTaxFacts = {
   factDate: '2026-09-19', regime: 'LUCRO_PRESUMIDO', originUf: 'GO', destinationUf: 'GO', documentModel: '55',
