@@ -23,6 +23,17 @@ const resolucaoTributariaSchema = z.strictObject({
   reprocessingReason: z.string().trim().min(10).max(500).optional(),
 });
 const revisionSchema = z.coerce.number().int().positive();
+const dataCivilQuerySchema=z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).refine((value)=>{
+  const date=new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.valueOf())&&date.toISOString().slice(0,10)===value;
+},'Data civil inválida.');
+const filaResolucaoSchema = paginaSchema.extend({
+  de:dataCivilQuerySchema.optional(),
+  ate:dataCivilQuerySchema.optional(),
+  regime:z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']).optional(),
+  estadoResolucao:z.enum(['SEM_PROCESSAMENTO','INDETERMINADO','RESOLVIDO']).optional(),
+  indeterminados:z.enum(['true','false']).transform((value)=>value==='true').optional(),
+}).refine((query)=>query.de===undefined||query.ate===undefined||query.de<=query.ate,'Período inválido.');
 
 @Controller('companies/:companyId/fiscal-documents')
 @DfeAdminTenantScope()
@@ -35,6 +46,16 @@ export class FiscalDocumentsController {
   listar(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Query() query: unknown) {
     const consulta = analisar(consultaFiscalSchema, query);
     return this.service.listar(tenantDa(request), autorDa(request).usuarioId, companyId, obterCorrelationId(request), consulta.pagina, consulta.estado ?? null);
+  }
+
+  @Get('tax-treatment-resolutions/queue')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarFilaTributaria(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Query() query:unknown) {
+    const filters=analisar(filaResolucaoSchema,query);
+    return this.service.listarFilaTributaria(tenantDa(request),autorDa(request).usuarioId,companyId,obterCorrelationId(request),filters.pagina,{
+      from:filters.de??null,to:filters.ate??null,regime:filters.regime??null,
+      state:filters.estadoResolucao??null,hasIndeterminate:filters.indeterminados??null,
+    });
   }
 
   @Get('acknowledgements')

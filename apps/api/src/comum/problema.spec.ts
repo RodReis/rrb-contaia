@@ -261,6 +261,8 @@ describe('status dos códigos do pacote tributário F26', () => {
     ['TAX_PACKAGE_VERSION_CONFLICT', HttpStatus.CONFLICT],
     ['TAX_PACKAGE_NOT_APPLICABLE', HttpStatus.UNPROCESSABLE_ENTITY],
     ['TAX_TREATMENT_RULE_AMBIGUOUS', HttpStatus.CONFLICT],
+    ['TAX_TREATMENT_DOCUMENT_NOT_ENTRY', HttpStatus.UNPROCESSABLE_ENTITY],
+    ['TAX_TREATMENT_DOCUMENT_UNAUTHORIZED', HttpStatus.UNPROCESSABLE_ENTITY],
   ];
 
   it.each(casos)('%s responde %i', (codigo, esperado) => {

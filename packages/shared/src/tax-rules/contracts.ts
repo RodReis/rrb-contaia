@@ -252,12 +252,24 @@ const taxPackageRuleSchema = z.strictObject({
   sourceIds: z.array(z.string().trim().min(1).max(120)).min(1).max(50),
   rationale: z.string().trim().min(1).max(2000),
 });
+const taxPackageFixtureFactsSchema = z.strictObject({
+  factDate: civilDate.nullable(), regime: z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']).nullable(),
+  originUf: z.string().length(2).nullable(), destinationUf: z.string().length(2).nullable(),
+  documentModel: z.string().min(1).max(10), authorized: z.boolean(),
+  operationType: z.enum(['COMPRA_INTERNA_REVENDA','COMPRA_INTERESTADUAL_REVENDA']).nullable(),
+  purpose: z.string().nullable(), cfop: z.string().regex(/^\d{4}$/u).nullable(),
+  ncm: z.string().regex(/^\d{8}$/u).nullable(), cst: z.string().regex(/^\d{2,3}$/u).nullable(),
+  hasSubstitutionTax: z.boolean().nullable(), isImport: z.boolean().nullable(), isMonophase: z.boolean().nullable(),
+  hasUnmodeledBenefit: z.boolean().nullable(), isReturnOrTransfer: z.boolean().nullable(),
+  declaredCents: z.number().int().nonnegative().nullable(),
+});
 
 export const CuratedTaxPackageSchema = z.strictObject({
   schemaVersion: z.literal(1), packageId: z.string().trim().min(1).max(120),
   semanticVersion: z.string().regex(/^\d+\.\d+\.\d+$/u), jurisdiction: z.enum(['BR','GO']),
   regimes: z.array(z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO'])).min(1).max(2),
   document: z.strictObject({ model: z.literal('55'), direction: z.literal('ENTRY'), purpose: z.literal('RESALE') }),
+  operations: z.array(z.enum(['COMPRA_INTERNA_REVENDA','COMPRA_INTERESTADUAL_REVENDA'])).min(1).max(2),
   validFrom: civilDate, validUntil: civilDate.nullable(), consultedOn: civilDate,
   coverage: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
   exclusions: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
@@ -265,6 +277,7 @@ export const CuratedTaxPackageSchema = z.strictObject({
   rules: z.array(taxPackageRuleSchema).min(1).max(20000),
   fixtures: z.array(z.strictObject({
     id: z.string().min(1).max(120), ruleId: z.string().min(1).max(120),
+    taxType, facts: taxPackageFixtureFactsSchema,
     expected: z.enum(['APPLICABLE','NOT_APPLICABLE']),
   })).min(1).max(5000),
 });

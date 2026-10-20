@@ -72,6 +72,28 @@ export const criarIdentidade = async (pessoa: Pessoa): Promise<string> => {
     }),
   });
 
+  if (criacao.status === 409) {
+    const existentes = (await fetch(
+      `${KEYCLOAK}/admin/realms/${REALM}/users?username=${encodeURIComponent(pessoa.usuario)}&exact=true`,
+      { headers: { authorization: `Bearer ${await tokenDeAdministracao()}` } },
+    ).then((resposta) => resposta.json())) as Array<{ id: string }>;
+    const idExistente = existentes[0]?.id;
+
+    if (idExistente !== undefined) {
+      const redefinicao = await fetch(`${KEYCLOAK}/admin/realms/${REALM}/users/${idExistente}/reset-password`, {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${await tokenDeAdministracao()}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'password', value: pessoa.senha, temporary: false }),
+      });
+
+      if (!redefinicao.ok) {
+        throw new Error(`Keycloak recusou redefinir senha de ${pessoa.usuario} (${redefinicao.status})`);
+      }
+
+      return idExistente;
+    }
+  }
+
   if (criacao.status !== 201) {
     throw new Error(`Keycloak recusou criar ${pessoa.usuario} (${criacao.status})`);
   }

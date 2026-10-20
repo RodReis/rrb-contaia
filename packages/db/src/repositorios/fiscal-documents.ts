@@ -33,8 +33,8 @@ export type ItemParaResolucaoTributaria = Readonly<{
 }>;
 
 export const listarItensParaResolucaoTributaria = async (client: PoolClient, empresaId: string, documentId: string) => {
-  const document = await client.query<{ parser_version: string; modelo: string; estado: string; emitido_em: string | null }>(
-    `select parser_version,modelo,estado,emitido_em from app.fiscal_document where empresa_id=$1 and id=$2`,
+  const document = await client.query<{ parser_version: string; especie: string; modelo: string; estado: string; emitido_em: string | null }>(
+    `select parser_version,especie,modelo,estado,emitido_em from app.fiscal_document where empresa_id=$1 and id=$2`,
     [empresaId,documentId],
   );
   if (!document.rows[0]) return null;
@@ -96,9 +96,11 @@ export const persistirSnapshotsResolucaoTributaria = async (client: PoolClient, 
   );
   if (prior.rows.length > 0) {
     const hashes = new Map(prior.rows.map((row) => [Number(row.item_number),String(row.input_sha256)]));
+    const requestedItems = new Set(input.items.map((item) => item.itemNumber));
     const priorPackageId = prior.rows[0]?.package_id ?? null;
     const priorPackageSha256 = prior.rows[0]?.package_sha256 ?? null;
-    if (input.items.length !== prior.rows.length ||
+    if (input.items.length !== prior.rows.length || requestedItems.size !== input.items.length || requestedItems.size !== hashes.size ||
+        [...requestedItems].some((itemNumber) => !hashes.has(itemNumber)) ||
         input.items.some((item) => hashes.get(item.itemNumber) !== item.inputSha256) ||
         prior.rows.some((row) => (row.package_id ?? null) !== priorPackageId || (row.package_sha256 ?? null) !== priorPackageSha256) ||
         priorPackageId !== input.packageId || priorPackageSha256 !== input.packageSha256) {
@@ -138,6 +140,63 @@ export const listarSnapshotsResolucaoTributaria = async (client: PoolClient, emp
     [empresaId,documentId,revision ?? null],
   );
   return rows;
+};
+
+export const registrarEventoResolucaoTributaria = async (client: PoolClient, input: Readonly<{
+  tenantId: string; empresaId: string; documentId: string; actorId: string; correlationId: string;
+  action: 'PROCESSED' | 'REPROCESSED' | 'ABSTAINED'; revision: number; packageId: string | null;
+  itemCount: number; indeterminateCount: number; idempotencyKey: string;
+}>) => {
+  await client.query(
+    `insert into app.tax_entry_resolution_event
+      (tenant_id,empresa_id,document_id,actor_id,correlation_id,action,revision,package_id,item_count,indeterminate_count,idempotency_key)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     on conflict(tenant_id,idempotency_key) do nothing`,
+    [input.tenantId,input.empresaId,input.documentId,input.actorId,input.correlationId,input.action,input.revision,
+      input.packageId,input.itemCount,input.indeterminateCount,input.idempotencyKey],
+  );
+};
+
+export const listarFilaResolucaoTributaria = async (client: PoolClient, empresaId:string, page:number, filters:Readonly<{
+  from:string|null; to:string|null; regime:'SIMPLES_NACIONAL'|'LUCRO_PRESUMIDO'|null;
+  state:'SEM_PROCESSAMENTO'|'INDETERMINADO'|'RESOLVIDO'|null; hasIndeterminate:boolean|null;
+}>, pageSize=20) => {
+  const { rows } = await client.query(
+    `with elegiveis as (
+       select d.id,d.chave_acesso,d.emitido_em,coalesce(issuer.nome,d.emitente) emitente,d.destinatario,d.modelo,d.protocolo,
+              (select count(*)::int from app.fiscal_document_item fi where fi.document_id=d.id and fi.parser_version=d.parser_version and fi.tipo='ITEM') item_count,
+              regime.regime,
+              latest.revision,latest.package_id,latest.has_indeterminate,
+              case when latest.revision is null then 'SEM_PROCESSAMENTO'
+                   when latest.has_indeterminate then 'INDETERMINADO' else 'RESOLVIDO' end resolution_state
+         from app.fiscal_document d
+         join app.empresa company on company.id=d.empresa_id and company.id=$1
+         join app.fiscal_document_party issuer on issuer.document_id=d.id and issuer.parser_version=d.parser_version and issuer.papel='EMITENTE'
+         join app.fiscal_document_party recipient on recipient.document_id=d.id and recipient.parser_version=d.parser_version and recipient.papel='DESTINATARIO'
+         left join lateral (
+           select valor_novo as regime from app.empresa_evento_de_historico h
+            where h.empresa_id=d.empresa_id and h.aba='DADOS_FISCAIS' and h.campo='regimeTributario'
+              and h.vigencia<=d.emitido_em order by h.vigencia desc,h.ocorrido_em desc,h.sequencia desc limit 1
+         ) regime on true
+         left join lateral (
+           select s.revision,(array_agg(s.package_id ORDER BY s.item_number) FILTER (WHERE s.package_id IS NOT NULL))[1] package_id,
+                  bool_or(exists(select 1 from jsonb_array_elements(s.decisions) decision where decision->>'status'='INDETERMINATE')) has_indeterminate
+             from app.tax_entry_resolution_snapshot s where s.tenant_id=d.tenant_id and s.empresa_id=d.empresa_id and s.document_id=d.id
+            group by s.revision order by s.revision desc limit 1
+         ) latest on true
+        where d.tenant_id=(select tenant_id from app.empresa where id=$1)
+          and d.especie='NFE_55' and d.modelo='55' and d.estado='PROCESSADO' and d.protocolo is not null and d.emitido_em is not null
+          and recipient.identificador is not null and regexp_replace(recipient.identificador,'\\D','','g')=regexp_replace(company.cnpj,'\\D','','g')
+          and issuer.identificador is not null and regexp_replace(issuer.identificador,'\\D','','g')<>regexp_replace(recipient.identificador,'\\D','','g')
+     )
+     select *,count(*) over()::int total from elegiveis
+      where ($2::date is null or emitido_em >= $2::date) and ($3::date is null or emitido_em <= $3::date)
+        and ($4::text is null or regime=$4) and ($5::text is null or resolution_state=$5)
+        and ($6::boolean is null or coalesce(has_indeterminate,false)=$6)
+      order by emitido_em desc,id limit $7 offset $8`,
+    [empresaId,filters.from,filters.to,filters.regime,filters.state,filters.hasIndeterminate,pageSize+1,(page-1)*pageSize],
+  );
+  return { total:rows[0]?.total ?? 0,temProximaPagina:rows.length>pageSize,items:rows.slice(0,pageSize) };
 };
 
 const estadoFiscalApresentado = (alias: string) => `case

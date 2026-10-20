@@ -1085,4 +1085,12 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
         [e.tenantId,e.empresaId,r['documentId'],`f26-${e.sufixo}-${proximo()}`,e.autorId],
       ),
   },
+  'app.tax_entry_resolution_event': {
+    preparar: prepararDocumentoParaSnapshot,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_entry_resolution_event
+        (tenant_id,empresa_id,document_id,actor_id,correlation_id,action,revision,package_id,item_count,indeterminate_count,idempotency_key)
+       values($1,$2,$3,$4,'rls-f26-event','ABSTAINED',1,null,1,1,$5) returning id`,
+      [e.tenantId,e.empresaId,r['documentId'],e.autorId,`f26-event-${e.sufixo}-${proximo()}`]),
+  },
 };

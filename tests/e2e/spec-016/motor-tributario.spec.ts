@@ -28,6 +28,7 @@ import { Pool } from 'pg';
 import {
   cnpjValido,
   criarEscritorio,
+  criarEmpresa,
   criarIdentidade,
   criarUsuario,
   entrarComo,
@@ -51,7 +52,10 @@ const pessoa = (papel: string, nome: string): Pessoa => ({
   senha: `senha-${papel}-f16-123456`,
   nome,
 });
-const CONTADORA = pessoa('contador', 'Contadora do Motor');
+const CONTADORA: Pessoa = {
+  ...pessoa('contador', 'Contadora do Motor'),
+  usuario: `e2e-f26-contador-${randomUUID()}`,
+};
 const AUXILIAR = pessoa('auxiliar', 'Auxiliar do Motor');
 
 /** Identidade da regra desta spec: nenhuma outra spec nem o seed a usa. */
@@ -76,6 +80,144 @@ let contadora: Page;
 let auxiliar: Page;
 const contextos: BrowserContext[] = [];
 const achados: Record<string, AchadosVisuais> = {};
+let empresaFiscalId = '';
+let tenantFiscalId = '';
+let usuarioContadoraId = '';
+let documentoFiscalId = '';
+
+const semearDocumentoFiscal = async (tenantId: string, usuarioId: string): Promise<void> => {
+  const cnpj = cnpjValido('262626260001');
+  tenantFiscalId = tenantId;
+  usuarioContadoraId = usuarioId;
+  empresaFiscalId = await criarEmpresa(pool, tenantFiscalId, cnpj, 'Comércio sintético F26');
+  await pool.query(
+    `insert into app.carteira_vinculo (tenant_id, usuario_id, empresa_id)
+     values ($1,$2,$3)`,
+    [tenantFiscalId, usuarioContadoraId, empresaFiscalId],
+  );
+  await pool.query(
+    `insert into app.empresa_evento_de_historico
+       (tenant_id,empresa_id,aba,acao,campo,valor_novo,vigencia,usuario_id)
+     values ($1,$2,'DADOS_FISCAIS','ALTERACAO','regimeTributario','SIMPLES_NACIONAL','2026-01-01',$3)`,
+    [tenantFiscalId, empresaFiscalId, usuarioContadoraId],
+  );
+
+  const correlationId = `e2e-f26-${randomUUID()}`;
+  const criadoEm = new Date('2026-10-19T12:00:00.000Z');
+  await pool.query('begin');
+  try {
+    await pool.query(`select set_config('app.tenant_id',$1,true), set_config('app.usuario_id',$2,true),
+      set_config('app.finalidade','COMUM',true), set_config('app.origem','HUMANA',true),
+      set_config('app.correlation_id',$3,true)`, [tenantFiscalId, usuarioContadoraId, correlationId]);
+    const state = await pool.query<{ id: string }>(
+      `insert into app.dfe_capture_state(tenant_id,empresa_id,cnpj) values($1,$2,$3) returning id`,
+      [tenantFiscalId, empresaFiscalId, cnpj],
+    );
+    const stateId = state.rows[0]!.id;
+    const run = await pool.query<{ id: string }>(
+      `insert into app.dfe_capture_run(tenant_id,empresa_id,estado_id,cnpj,origem,usuario_originador_id,
+         chave_idempotente,correlation_id,estado,tentativa,ult_nsu_entrada,ult_nsu_retorno,max_nsu_retorno,
+         quantidade_recebida,quantidade_criada,quantidade_deduplicada,iniciado_em,finalizado_em)
+       values($1,$2,$3,$4,'MANUAL',$5,$6,$7,'SUCCEEDED',1,'0','1','1',1,1,0,$8,$8) returning id`,
+      [tenantFiscalId, empresaFiscalId, stateId, cnpj, usuarioContadoraId, randomUUID(), correlationId, criadoEm],
+    );
+    const runId = run.rows[0]!.id;
+    await pool.query(
+      `update app.dfe_capture_state set ult_nsu='1',max_nsu='1',tempo_medio_ms=60000,
+        proximo_instante_permitido=$1,estado='WAITING',ultimo_sucesso_em=$1,atualizado_em=$1 where id=$2`,
+      [criadoEm, stateId],
+    );
+    const staging = await pool.query<{ id: string }>(
+      `insert into app.dfe_capture_staging
+        (tenant_id,empresa_id,run_id,cnpj,nsu,especie,conteudo_bruto,capturado_em,correlation_id)
+       values($1,$2,$3,$4,'1','NFE_55',convert_to('<nfeProc>fixture-sintetica-f26</nfeProc>','UTF8'),$5,$6)
+       returning id`,
+      [tenantFiscalId, empresaFiscalId, runId, cnpj, criadoEm, correlationId],
+    );
+    const stagingId = staging.rows[0]!.id;
+    documentoFiscalId = randomUUID();
+    const hash = 'c'.repeat(64);
+    const parser = 'f18-e2e-f26';
+    await pool.query(
+      `insert into app.fiscal_document
+        (id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,
+        modelo,versao_layout,protocolo,emitido_em,emitente,total,estado,parser_version)
+       values($1,$2,$3,$4,'NFE_55','26262626000100000000000000000000000000000001',$5,$6,42,'55','4.00','135260000000001',
+         '2026-06-15',$7,'10.00','PROCESSADO',$8)`,
+      [documentoFiscalId, tenantFiscalId, empresaFiscalId, stagingId, hash,
+        `${tenantFiscalId}/${empresaFiscalId}/fiscal-original/${hash}.xml`, cnpj, parser],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,parser_version,papel,identificador,nome,uf)
+       values($1,$2,$3,$4,'EMITENTE',$5,'Fornecedor sintético F26','GO')`,
+      [tenantFiscalId, empresaFiscalId, documentoFiscalId, parser, '12121212000199'],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,parser_version,papel,identificador,nome,uf)
+       values($1,$2,$3,$4,'DESTINATARIO',$5,'Comércio sintético F26','GO')`,
+      [tenantFiscalId, empresaFiscalId, documentoFiscalId, parser, cnpj],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor)
+       values($1,$2,$3,$4,1,'ITEM','F26-1','Mercadoria sintética para teste',1,'UN',10)`,
+      [tenantFiscalId, empresaFiscalId, documentoFiscalId, parser],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_origin(tenant_id,empresa_id,document_id,staging_id,cnpj,nsu,correlation_id,capturado_em)
+       values($1,$2,$3,$4,$5,'1',$6,$7)`,
+      [tenantFiscalId, empresaFiscalId, documentoFiscalId, stagingId, cnpj, correlationId, criadoEm],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,staging_id,tipo,parser_version,hash_sha256,correlation_id,ocorrido_em)
+       values($1,$2,$3,$4,'PROCESSADO',$5,$6,$7,$8)`,
+      [tenantFiscalId, empresaFiscalId, documentoFiscalId, stagingId, parser, hash, correlationId, criadoEm],
+    );
+    const stagingSaida = await pool.query<{ id: string }>(
+      `insert into app.dfe_capture_staging
+        (tenant_id,empresa_id,run_id,cnpj,nsu,especie,conteudo_bruto,capturado_em,correlation_id)
+       values($1,$2,$3,$4,'2','NFE_55',convert_to('<nfeProc>fixture-sintetica-f26-saida</nfeProc>','UTF8'),$5,$6)
+       returning id`,
+      [tenantFiscalId, empresaFiscalId, runId, cnpj, criadoEm, correlationId],
+    );
+    const stagingSaidaId = stagingSaida.rows[0]!.id;
+    const documentoSaidaId = randomUUID();
+    const hashSaida = 'd'.repeat(64);
+    await pool.query(
+      `insert into app.fiscal_document
+        (id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,
+         modelo,versao_layout,emitido_em,emitente,total,estado,parser_version)
+       values($1,$2,$3,$4,'NFE_55','26262626000100000000000000000000000000000002',$5,$6,42,'55','4.00',
+         '2026-06-15','Emitente sintético de saída','10.00','PROCESSADO',$7)`,
+      [documentoSaidaId, tenantFiscalId, empresaFiscalId, stagingSaidaId, hashSaida,
+        `${tenantFiscalId}/${empresaFiscalId}/fiscal-original/${hashSaida}.xml`, parser],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,parser_version,papel,identificador,nome,uf)
+       values($1,$2,$3,$4,'EMITENTE',$5,'Comércio sintético F26','GO'),
+             ($1,$2,$3,$4,'DESTINATARIO','12121212000199','Cliente sintético F26','GO')`,
+      [tenantFiscalId, empresaFiscalId, documentoSaidaId, parser, cnpj],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor)
+       values($1,$2,$3,$4,1,'ITEM','F26-2','Mercadoria sintética de saída',1,'UN',10)` ,
+      [tenantFiscalId, empresaFiscalId, documentoSaidaId, parser],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_origin(tenant_id,empresa_id,document_id,staging_id,cnpj,nsu,correlation_id,capturado_em)
+       values($1,$2,$3,$4,$5,'2',$6,$7)`,
+      [tenantFiscalId, empresaFiscalId, documentoSaidaId, stagingSaidaId, cnpj, correlationId, criadoEm],
+    );
+    await pool.query(
+      `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,staging_id,tipo,parser_version,hash_sha256,correlation_id,ocorrido_em)
+       values($1,$2,$3,$4,'PROCESSADO',$5,$6,$7,$8)`,
+      [tenantFiscalId, empresaFiscalId, documentoSaidaId, stagingSaidaId, parser, hashSaida, correlationId, criadoEm],
+    );
+    await pool.query('commit');
+  } catch (error) {
+    await pool.query('rollback');
+    throw error;
+  }
+};
 
 const provar = async (page: Page, estado: string, opcoes: Parameters<typeof provarVisualmente>[3]): Promise<void> => {
   achados[estado] = await provarVisualmente(page, PASTA_DAS_PROVAS, estado, opcoes);
@@ -116,9 +258,12 @@ const novaPagina = async (browser: Browser, quem: Pessoa): Promise<Page> => {
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(240_000);
 
-  await limparORegistroDaSpec();
-  await limparEscritorios(pool, [CNPJ_DO_ESCRITORIO]);
-  await removerIdentidadesComPrefixo('e2e-f16-');
+  const apenasF26 = process.env['E2E_F26_ONLY'] === '1';
+  if (!apenasF26) {
+    await limparORegistroDaSpec();
+    await limparEscritorios(pool, [CNPJ_DO_ESCRITORIO]);
+    await removerIdentidadesComPrefixo('e2e-f16-');
+  }
   mkdirSync(PASTA_DAS_PROVAS, { recursive: true });
   for (const nome of readdirSync(PASTA_DAS_PROVAS)) {
     if (nome.endsWith('.png')) {
@@ -126,19 +271,29 @@ test.beforeAll(async ({ browser }) => {
     }
   }
 
-  const tenantId = await criarEscritorio(pool, CNPJ_DO_ESCRITORIO, 'Escritório E2E da F16');
-
-  await criarUsuario(pool, tenantId, await criarIdentidade(CONTADORA), CONTADORA, 'contador');
-  await criarUsuario(pool, tenantId, await criarIdentidade(AUXILIAR), AUXILIAR, 'auxiliar');
-
-  administradora = await novaPagina(browser, ADMINISTRADORA);
-  contadora = await novaPagina(browser, CONTADORA);
-  auxiliar = await novaPagina(browser, AUXILIAR);
+  if (apenasF26) {
+    await limparEscritorios(pool, [CNPJ_DO_ESCRITORIO]);
+    await removerIdentidadesComPrefixo('e2e-f26-contador-');
+    const tenantId = await criarEscritorio(pool, CNPJ_DO_ESCRITORIO, 'Escritório E2E da F26');
+    const usuarioId = await criarUsuario(pool, tenantId, await criarIdentidade(CONTADORA), CONTADORA, 'contador');
+    await semearDocumentoFiscal(tenantId, usuarioId);
+    contadora = await novaPagina(browser, CONTADORA);
+  } else {
+    const tenantId = await criarEscritorio(pool, CNPJ_DO_ESCRITORIO, 'Escritório E2E da F16');
+    const usuarioId = await criarUsuario(pool, tenantId, await criarIdentidade(CONTADORA), CONTADORA, 'contador');
+    await criarUsuario(pool, tenantId, await criarIdentidade(AUXILIAR), AUXILIAR, 'auxiliar');
+    await semearDocumentoFiscal(tenantId, usuarioId);
+    administradora = await novaPagina(browser, ADMINISTRADORA);
+    contadora = await novaPagina(browser, CONTADORA);
+    auxiliar = await novaPagina(browser, AUXILIAR);
+  }
 });
 
 test.afterAll(async () => {
   await Promise.all(contextos.map((contexto) => contexto.close()));
-  await limparORegistroDaSpec().catch(() => undefined);
+  if (process.env['E2E_F26_ONLY'] !== '1') {
+    await limparORegistroDaSpec().catch(() => undefined);
+  }
   await pool.end();
 });
 
@@ -417,6 +572,82 @@ test('NF-e de teste: calcula por item e no total, compara com o declarado e não
   expect(comOXml, 'tabelas com o conteúdo do XML').toEqual([]);
 });
 
+test('F26: registra snapshots indeterminados, preserva revisões e exibe a decisão na empresa', async () => {
+  const inicio = `/empresas/${empresaFiscalId}?aba=captura-dfe`;
+  await contadora.goto(inicio);
+  await expect(contadora.getByRole('heading', { name: 'Documentos fiscais', exact: true })).toBeVisible({ timeout: 30_000 });
+  const filaFiltrada=await pelaApi(contadora,`/companies/${empresaFiscalId}/fiscal-documents/tax-treatment-resolutions/queue?pagina=1&estadoResolucao=SEM_PROCESSAMENTO`);
+  expect(filaFiltrada.status).toBe(200);
+  expect(filaFiltrada.corpo).toMatchObject({itens:expect.arrayContaining([expect.objectContaining({id:documentoFiscalId,resolution_state:'SEM_PROCESSAMENTO'})])});
+  const filaResolucao=contadora.getByRole('table',{name:'Fila paginada de resolução tributária por empresa'});
+  const linhaEntrada=filaResolucao.getByRole('row').filter({hasText:'Fornecedor sintético F26'});
+  await expect(linhaEntrada).toContainText('Sem processamento');
+  await expect(linhaEntrada).toContainText('1');
+  await linhaEntrada.getByRole('button', { name: 'Abrir documento' }).click();
+  await expect(contadora.getByRole('region', { name: 'Documento selecionado na fila tributária' })).toBeVisible();
+  await contadora.getByRole('button', { name: 'Fechar detalhes' }).last().click();
+  expect(filaFiltrada.corpo).not.toMatchObject({itens:expect.arrayContaining([expect.objectContaining({emitente:'Emitente sintético de saída'})])});
+  const linhaDeSaida = contadora.getByRole('row').filter({ hasText: 'Emitente sintético de saída' });
+  await expect(linhaDeSaida).toBeVisible();
+  await linhaDeSaida.getByRole('button', { name: 'Abrir detalhes' }).click();
+  await contadora.getByRole('button', { name: 'Processar itens' }).click();
+  const rejeicaoSaida = await contadora.waitForResponse((response) => response.url().includes('tax-treatment-resolutions') && response.request().method() === 'POST');
+  expect(rejeicaoSaida.status()).toBe(422);
+  expect(await rejeicaoSaida.json()).toMatchObject({ code: 'TAX_TREATMENT_DOCUMENT_NOT_ENTRY' });
+  await contadora.getByRole('button', { name: 'Fechar detalhes' }).click();
+
+  const linha = contadora.getByRole('row').filter({ hasText: '26262626000160' });
+  await expect(linha).toBeVisible();
+  await linha.getByRole('button', { name: 'Abrir detalhes' }).click();
+  const painel = contadora.getByRole('region', { name: 'Tratamento tributário por item' });
+  await expect(painel).toBeVisible();
+
+  await contadora.getByRole('button', { name: 'Processar itens' }).click();
+  const post = await contadora.waitForResponse((response) => response.url().includes('tax-treatment-resolutions') && response.request().method() === 'POST');
+  expect(post.status()).toBe(201);
+  const revisaoUm = contadora.getByRole('heading', { name: 'Revisão 1' });
+  await expect(revisaoUm).toBeVisible({ timeout: 30_000 });
+  await expect(painel).toContainText('Indeterminado');
+  await expect(painel).toContainText('Sem pacote curado associado.');
+  await expect(painel).toContainText('Aguarde a publicação de pacote compatível');
+  const orientacoesDoItem = painel.getByRole('list', { name: 'Dados e próximos passos para item 1' }).first();
+  await expect(orientacoesDoItem.getByText('CFOP do item', { exact: true })).toHaveCount(1);
+
+  const declararRevenda = contadora.getByRole('checkbox', { name: 'Declarar item 1 para revenda' });
+  await declararRevenda.focus();
+  await declararRevenda.press('Space');
+  await expect(declararRevenda).toBeChecked();
+  await contadora.getByLabel('Motivo do reprocessamento').fill('Nova declaração sintética de finalidade para provar revisão.');
+  await contadora.getByRole('button', { name: 'Reprocessar itens' }).click();
+  await expect(contadora.getByRole('heading', { name: 'Revisão 2' })).toBeVisible({ timeout: 30_000 });
+  await expect(contadora.getByRole('button', { name: 'Comparar revisões 1 → 2' })).toBeVisible();
+  await contadora.getByRole('button', { name: 'Comparar revisões 1 → 2' }).click();
+  await expect(contadora.getByRole('status').filter({ hasText: 'itens com fatos ou decisões diferentes' })).toContainText('1 de 1');
+
+  const snapshots = await pool.query<{ revision: number; package_sha256: string | null; status: string }>(
+    `select s.revision, s.package_sha256, d->>'status' as status
+       from app.tax_entry_resolution_snapshot s
+       cross join lateral jsonb_array_elements(s.decisions) d
+      where s.document_id=$1 order by s.revision`,
+    [documentoFiscalId],
+  );
+  expect(snapshots.rows.length).toBeGreaterThan(1);
+  expect(snapshots.rows.every((snapshot) => snapshot.package_sha256 === null)).toBe(true);
+  expect(snapshots.rows.some((snapshot) => snapshot.revision === 1 && snapshot.status === 'INDETERMINATE')).toBe(true);
+
+  await provar(contadora, 'f26-resolucao-documento', {
+    recarregar: false,
+    semToasts: true,
+    pronto: (page) => page.getByRole('heading', { name: 'Revisão 2' }),
+    recorte: (page) => page.getByRole('region', { name: 'Tratamento tributário por item' }),
+  });
+
+  const violacoes = Object.fromEntries(Object.entries(achados['f26-resolucao-documento']?.violacoes ?? {}).filter(([, lista]) => lista.length > 0));
+  const rolagens = achados['f26-resolucao-documento']?.rolagens ?? [];
+  expect(violacoes, 'violações axe na resolução F26').toEqual({});
+  expect(rolagens, 'rolagem horizontal na resolução F26').toEqual([]);
+});
+
 test('o auxiliar não tem acesso ao motor tributário', async () => {
   await auxiliar.goto(CAMINHO_DO_MOTOR);
   await expect(auxiliar.getByText(/Você não tem acesso ao motor tributário/u)).toBeVisible({ timeout: 30_000 });
@@ -437,6 +668,7 @@ test('provas visuais: os estados-chave capturados, sem violação do axe (WCAG 2
       'acesso-negado',
       'catalogo-administradora',
       'catalogo-escritorio',
+      'f26-resolucao-documento',
       'nfe-resultado',
       'sem-regra-aplicavel',
       'simulacao-manual',

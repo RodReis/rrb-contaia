@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, obterRegimeTributarioHistorico } from '@contaia/db';
+import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, obterRegimeTributarioHistorico, registrarEventoResolucaoTributaria, listarFilaResolucaoTributaria } from '@contaia/db';
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, resolveEntryTax, statusSubstituicaoTributariaComEvidencia, type CuratedTaxPackage } from '@contaia/domain';
 import { FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from '@contaia/shared';
 import { CuratedTaxPackageSchema } from '@contaia/shared';
@@ -77,6 +77,15 @@ export class FiscalDocumentsService {
       if (!authorizedDocument) throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED, 'Documento fiscal não encontrado.');
       const source = await listarItensParaResolucaoTributaria(client, companyId, documentId);
       if (!source || source.estado !== 'PROCESSADO') throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_ACCESS_DENIED, 'Apenas NF-e processada pode receber resolução tributária.');
+      const destinatario = authorizedDocument.partes.find((parte: { papel: string; identificador: string | null }) => parte.papel === 'DESTINATARIO')?.identificador?.replace(/\D/gu, '');
+      const emitente = authorizedDocument.partes.find((parte: { papel: string; identificador: string | null }) => parte.papel === 'EMITENTE')?.identificador?.replace(/\D/gu, '');
+      if (source.especie !== 'NFE_55' || source.modelo !== '55' || !destinatario || !emitente ||
+          destinatario !== company.cnpj.replace(/\D/gu, '') || emitente === destinatario) {
+        throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_TREATMENT_DOCUMENT_NOT_ENTRY,
+          'A resolução F26 só aceita NF-e modelo 55 de entrada endereçada à empresa selecionada.');
+      }
+      if (source.protocolo === null) throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_TREATMENT_DOCUMENT_UNAUTHORIZED,
+        'A resolução F26 exige protocolo de autorização da NF-e.');
       const sourceItemNumbers = new Set(source.itens.map((item) => item.numero));
       if (input.resaleItemNumbers.some((number) => !sourceItemNumbers.has(number))) {
         throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_TREATMENT_DOCUMENT_CONFLICT, 'A declaração inclui item que não pertence à revisão atual da NF-e.');
@@ -89,9 +98,13 @@ export class FiscalDocumentsService {
         const parsed = CuratedTaxPackageSchema.safeParse(row.content);
         if (!parsed.success) return [];
         const content = parsed.data as CuratedTaxPackage;
+        const operationType = source.origem_uf === null || source.destino_uf === null ? null :
+          source.origem_uf === source.destino_uf ? 'COMPRA_INTERNA_REVENDA' :
+            source.origem_uf === 'EX' || source.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA';
         const matches = content.jurisdiction === 'GO' && source.modelo === '55' && typeof source.emitido_em === 'string' &&
           regime !== null && content.regimes.includes(regime as 'SIMPLES_NACIONAL'|'LUCRO_PRESUMIDO') &&
           content.document.direction === 'ENTRY' && content.document.purpose === 'RESALE' &&
+          operationType !== null && content.operations.includes(operationType) &&
           content.validFrom <= source.emitido_em &&
           (content.validUntil === null || source.emitido_em <= content.validUntil);
         return matches ? [{ id: row.id, content, sha256: row.content_sha256 }] : [];
@@ -123,6 +136,7 @@ export class FiscalDocumentsService {
           model: source.modelo, status: source.estado, authorizedProtocolPresent: source.protocolo !== null,
           originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm,
           cstCsosn: item.cst_csosn, declaredValue: item.valor, missingInputs,
+          packageSources: selectedPackage?.content.sources ?? [],
           tributos: tributosDoItem,
         };
         const resolverFacts = {
@@ -131,9 +145,8 @@ export class FiscalDocumentsService {
           originUf: item.origem_uf, destinationUf: item.destino_uf,
           documentModel: source.modelo, authorized: source.protocolo !== null,
           operationType: item.origem_uf === null || item.destino_uf === null ? null :
-            item.origem_uf === item.destino_uf
-              ? 'COMPRA_INTERNA_REVENDA'
-              : item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA',
+            item.origem_uf === item.destino_uf ? 'COMPRA_INTERNA_REVENDA' :
+              item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA',
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
           hasSubstitutionTax, isImport: null, isMonophase: null,
           hasUnmodeledBenefit: null, isReturnOrTransfer: null,
@@ -175,6 +188,17 @@ export class FiscalDocumentsService {
         reprocessingReason: input.reprocessingReason?.trim() || null, packageId: selectedPackage?.id ?? null,
         packageSha256: selectedPackage?.sha256 ?? null, items,
       });
+      if (!result.reused) {
+        const indeterminateCount = result.snapshots.filter((snapshot) =>
+          Array.isArray(snapshot.decisions) && (snapshot.decisions as Array<{ status?: string }>).some((decision) => decision.status === 'INDETERMINATE'),
+        ).length;
+        await registrarEventoResolucaoTributaria(client, {
+          tenantId,empresaId:companyId,documentId,actorId:userId,correlationId,
+          action: result.revision > 1 ? 'REPROCESSED' : indeterminateCount > 0 ? 'ABSTAINED' : 'PROCESSED',
+          revision:result.revision,packageId:selectedPackage?.id ?? null,itemCount:result.snapshots.length,
+          indeterminateCount,idempotencyKey:`tax-resolution:${documentId}:${input.idempotencyKey}`,
+        });
+      }
       return result;
     });
   }
@@ -185,6 +209,18 @@ export class FiscalDocumentsService {
       if (!company || company.tenantId !== tenantId) throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada.');
       const snapshots = await listarSnapshotsResolucaoTributaria(client, companyId, documentId, revision);
       return { itens: snapshots };
+    });
+  }
+
+  async listarFilaTributaria(tenantId:string,userId:string,companyId:string,correlationId:string,page:number,filters:Readonly<{
+    from:string|null;to:string|null;regime:'SIMPLES_NACIONAL'|'LUCRO_PRESUMIDO'|null;
+    state:'SEM_PROCESSAMENTO'|'INDETERMINADO'|'RESOLVIDO'|null;hasIndeterminate:boolean|null;
+  }>) {
+    return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);
+      if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      const result=await listarFilaResolucaoTributaria(client,companyId,page,filters);
+      return {pagina:page,temProximaPagina:result.temProximaPagina,total:result.total,itens:result.items.map((row)=>({...row,chave_acesso:chaveMascarada(row.chave_acesso)}))};
     });
   }
 

@@ -78,13 +78,19 @@ describe('CreateTaxRuleSchema', () => {
 });
 
 describe('CuratedTaxPackageSchema (SPEC-026)', () => {
+  const fixtureFacts = {
+    factDate: '2026-06-15', regime: 'LUCRO_PRESUMIDO', originUf: 'GO', destinationUf: 'GO',
+    documentModel: '55', authorized: true, operationType: 'COMPRA_INTERNA_REVENDA', purpose: 'RESALE',
+    cfop: '1102', ncm: '12345678', cst: '00', hasSubstitutionTax: false, isImport: false,
+    isMonophase: false, hasUnmodeledBenefit: false, isReturnOrTransfer: false, declaredCents: 1000,
+  } as const;
   const pacote = {
     schemaVersion: 1, packageId: 'go-entry', semanticVersion: '1.0.0', jurisdiction: 'GO',
-    regimes: ['LUCRO_PRESUMIDO'], document: { model: '55', direction: 'ENTRY', purpose: 'RESALE' },
+    regimes: ['LUCRO_PRESUMIDO'], document: { model: '55', direction: 'ENTRY', purpose: 'RESALE' }, operations: ['COMPRA_INTERNA_REVENDA'],
     validFrom: '2026-01-01', validUntil: null, consultedOn: '2026-09-19', coverage: ['revenda'], exclusions: ['ST'],
     sources: [{ id: 'src', authority: 'SEFAZ-GO', title: 'Norma', url: 'https://goias.gov.br/economia/', provision: 'art. 1', publishedOn: '2025-01-01', consultedOn: '2026-09-19', validFrom: '2026-01-01', validUntil: null }],
     rules: [{ id: 'r1', taxType: 'ICMS', regime: 'LUCRO_PRESUMIDO', operationType: 'COMPRA_INTERNA_REVENDA', cfop: ['1102'], ncm: ['12345678'], cst: ['00'], validFrom: '2026-01-01', validUntil: null, treatment: 'APPLICABLE', creditEligibility: 'ALLOWED', sourceIds: ['src'], rationale: 'Fixture de contrato.' }],
-    fixtures: [{ id: 'f1', ruleId: 'r1', expected: 'APPLICABLE' }],
+    fixtures: [{ id: 'f1', ruleId: 'r1', taxType: 'ICMS', facts: fixtureFacts, expected: 'APPLICABLE' }],
   } as const;
 
   it('exige fixtures e expectativa compatível com resultado de regra', () => {

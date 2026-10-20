@@ -6,6 +6,7 @@ import type { CienciaDaEmissaoUI, DocumentoFiscal } from './api';
 const navegacao = vi.hoisted(() => ({ replace: vi.fn(), parametros: 'aba=captura-dfe&documentosPagina=2&documentosEstado=CONFLITO' }));
 const api = vi.hoisted(() => ({
   listar: vi.fn(async (): Promise<{ pagina: number; temProximaPagina: boolean; itens: DocumentoFiscal[] }> => ({ pagina: 2, temProximaPagina: false, itens: [] })),
+  fila: vi.fn(async () => ({pagina:1,temProximaPagina:false,total:0,itens:[]})),
   obter: vi.fn(),
   listarCiencias: vi.fn(async (): Promise<{ itens: CienciaDaEmissaoUI[] }> => ({ itens: [] })),
   obterCiencia: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('./api', () => ({
   baixarOriginalFiscal: vi.fn(),
   listarDocumentosFiscais: api.listar,
+  listarFilaResolucaoTributaria: api.fila,
   obterDocumentoFiscal: api.obter,
   reprocessarDocumentoFiscal: vi.fn(),
   verificarIntegridadeFiscal: vi.fn(),
@@ -39,6 +41,7 @@ describe('PainelDeDocumentosFiscais', () => {
   beforeEach(() => {
     navegacao.replace.mockReset();
     api.listar.mockClear();
+    api.fila.mockReset().mockResolvedValue({pagina:1,temProximaPagina:false,total:0,itens:[]});
     api.obter.mockReset();
     api.listarCiencias.mockReset().mockResolvedValue({ itens: [] });
     api.obterCiencia.mockReset();
@@ -102,7 +105,7 @@ describe('PainelDeDocumentosFiscais', () => {
 
     expect(await screen.findByText('Itens e componentes')).toBeTruthy();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Declarar item 1 para revenda' }));
-    expect(screen.getByRole('button', { name: 'Declarar todos para revenda' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Declarar 1 item desta NF-e para revenda' })).toBeTruthy();
     api.processarResolucao.mockResolvedValueOnce({ revision: 1, reused: false, snapshots: [] });
     fireEvent.click(screen.getByRole('button', { name: 'Processar itens' }));
     await waitFor(() => expect(api.processarResolucao).toHaveBeenCalledWith('empresa-1', '123e4567-e89b-12d3-a456-426614174000', expect.objectContaining({ resaleItemNumbers: [1] })));

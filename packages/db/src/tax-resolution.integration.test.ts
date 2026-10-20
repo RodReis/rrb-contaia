@@ -4,7 +4,7 @@ import { contextoDeServico } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 import { criarPool, criarPoolDaAplicacao } from './client.js';
 import { comContexto, comContextoHumano } from './contexto.js';
-import { listarItensParaResolucaoTributaria, obterRegimeTributarioHistorico, persistirSnapshotsResolucaoTributaria } from './repositorios/fiscal-documents.js';
+import { listarItensParaResolucaoTributaria, obterRegimeTributarioHistorico, persistirSnapshotsResolucaoTributaria, registrarEventoResolucaoTributaria } from './repositorios/fiscal-documents.js';
 import { limparCenario, montarCenario } from './testes/cenario-rls.js';
 import { FIXTURES } from './testes/fixtures-rls.js';
 
@@ -66,15 +66,30 @@ describe('snapshots tributários F26', () => {
     expect(result?.tributos).toContainEqual(expect.objectContaining({ escopo: 'ITEM', numero_item: 2, codigo: 'ICMS_ST' }));
   });
 
+  it('grava evento de resolução uma vez e mantém a trilha imutável', async () => {
+    const event = { tenantId:cenario.tenantA,empresaId:cenario.empresaA1,documentId,actorId:cenario.usuarios.naCarteira,
+      correlationId:'f26-event-ledger',action:'ABSTAINED' as const,revision:88,packageId:null,itemCount:2,indeterminateCount:2,
+      idempotencyKey:`f26-event:${randomUUID()}` };
+    await comContextoHumano(app,{tenantId:cenario.tenantA,usuarioId:cenario.usuarios.naCarteira,correlationId:event.correlationId},async(client)=>{
+      await registrarEventoResolucaoTributaria(client,event);
+      await registrarEventoResolucaoTributaria(client,event);
+    });
+    const { rows } = await admin.query('select * from app.tax_entry_resolution_event where tenant_id=$1 and idempotency_key=$2',[event.tenantId,event.idempotencyKey]);
+    expect(rows).toHaveLength(1);
+    await expect(admin.query("update app.tax_entry_resolution_event set action='PROCESSED' where id=$1",[rows[0]?.id])).rejects.toThrow();
+    await expect(admin.query('delete from app.tax_entry_resolution_event where id=$1',[rows[0]?.id])).rejects.toThrow();
+  },30_000);
+
   const persist = (idempotencyKey: string, inputSha256: string, reprocessingReason: string | null = null,
-    taxPackage: Readonly<{ id: string; sha256: string }> | null = null, targetDocumentId = documentId) =>
+    taxPackage: Readonly<{ id: string; sha256: string }> | null = null, targetDocumentId = documentId,
+    itemNumbers: readonly number[] = [1]) =>
     comContextoHumano(app, { tenantId: cenario.tenantA, usuarioId: cenario.usuarios.naCarteira, correlationId: 'f26-snapshot-test' }, (client) =>
       persistirSnapshotsResolucaoTributaria(client, {
         tenantId: cenario.tenantA, empresaId: cenario.empresaA1, documentId: targetDocumentId,
         actorId: cenario.usuarios.naCarteira, correlationId: 'f26-snapshot-test', idempotencyKey,
         expectedParserVersion: parserVersion, reprocessingReason, packageId: taxPackage?.id ?? null, packageSha256: taxPackage?.sha256 ?? null,
-        items: [{ itemNumber: 1, parserVersion, inputSha256, facts: { ncm: '12345678' },
-          decisions: [{ tax: 'ICMS', status: 'INDETERMINATE' }] }],
+        items: itemNumbers.map((itemNumber) => ({ itemNumber, parserVersion, inputSha256, facts: { ncm: '12345678' },
+          decisions: [{ tax: 'ICMS', status: 'INDETERMINATE' }] })),
       }));
 
   it('repete a mesma chave sem criar outra revisão e exige motivo na revisão seguinte', async () => {
@@ -96,6 +111,13 @@ describe('snapshots tributários F26', () => {
     const testKey = randomUUID();
     await persist(testKey, 'c'.repeat(64), 'Fixture isolada de idempotência');
     await expect(persist(testKey, 'd'.repeat(64))).rejects.toThrow('chave idempotente');
+  });
+
+  it('recusa reuso idempotente quando os itens repetidos não correspondem ao snapshot', async () => {
+    const testKey = randomUUID();
+    await persist(testKey, 'f'.repeat(64), 'Reprocessamento para testar a lista de itens', null, documentId, [1, 2]);
+    await expect(persist(testKey, 'f'.repeat(64), null, null, documentId, [1, 1]))
+      .rejects.toThrow('chave idempotente');
   });
 
   it('recusa reutilizar chave com outro pacote ou hash normativo', async () => {
@@ -150,7 +172,8 @@ describe('snapshots tributários F26', () => {
     const effectiveDate = `${effectiveYear}-01-01`;
     const importer = randomUUID();
     const reviewer = randomUUID();
-    const content = { jurisdiction: 'BR', regimes: ['SIMPLES_NACIONAL'], validFrom: effectiveDate, validUntil: `${effectiveYear}-12-31` };
+    const content = { jurisdiction: 'BR', regimes: ['SIMPLES_NACIONAL'], validFrom: effectiveDate, validUntil: `${effectiveYear}-12-31`,
+      document:{model:'55',direction:'ENTRY',purpose:'RESALE'},operations:['COMPRA_INTERNA_REVENDA'] };
     const saved = await asCatalog(async (client) => {
       const imported = await client.query<{ id: string }>(
         `select (app.tax_package_import($1,$2,$3,$4,$5,$6::jsonb,$7)).id`,
@@ -185,4 +208,24 @@ describe('snapshots tributários F26', () => {
     expect(Number(events.rows[0]?.count)).toBe(5);
     expect(saved.overlappingError).toContain('TAX_PACKAGE_OVERLAPPING_VALIDITY');
   }, 30_000);
+
+  it('permite vigências sobrepostas quando o escopo de documento ou operação é distinto', async () => {
+    const year = 2600 + (Number.parseInt(randomUUID().slice(0,8),16) % 6000);
+    const from = `${year}-01-01`, until = `${year}-12-31`;
+    const actor = randomUUID(), reviewer = randomUUID();
+    const publish = async (key:string, document:string, operation:string) => asCatalog(async(client) => {
+      const content = { jurisdiction:'BR',regimes:['SIMPLES_NACIONAL'],validFrom:from,validUntil:until,
+        document:{model:document, direction:'ENTRY',purpose:'RESALE'},operations:[operation] };
+      const imported = await client.query<{id:string}>('select (app.tax_package_import($1,$2,$3,$4,$5,$6::jsonb,$7)).id',
+        [actor,`${year-1}-12-01T12:00:00Z`,`f26-scope-${key}`,`f26-${key}-${randomUUID()}`,'1.0.0',JSON.stringify(content),randomUUID().replaceAll('-','').padEnd(64,'0').slice(0,64)]);
+      const id = imported.rows[0]?.id;
+      if(!id) throw new Error('pacote ausente');
+      for(const [action,who] of [['VALIDATED',actor],['REVIEWED',reviewer],['PUBLISHED',reviewer]] as const)
+        await client.query('select app.tax_package_transition($1,$2,$3,$4,$5,$6::jsonb)',[id,who,`${year-1}-12-01T12:01:00Z`,`f26-${key}-${action}`,action,'{}']);
+      return id;
+    });
+    await publish('entry-a','55','COMPRA_INTERNA_REVENDA');
+    await expect(publish('entry-b','65','COMPRA_INTERNA_REVENDA')).resolves.toBeTruthy();
+    await expect(publish('entry-c','55','COMPRA_INTERESTADUAL_REVENDA')).resolves.toBeTruthy();
+  },30_000);
 });
