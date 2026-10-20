@@ -9,6 +9,7 @@ updated: 2026-10-20
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-026][F26] Resolução tributária de entradas NF-e em Goiás (#28)
 - [MVP2][SPEC-090][F90] Integração financeiro-contábil de títulos e baixas F68 (#122)
 - [MVP2][SPEC-089][F89] Pix Automático para cobrança recorrente F68 (#121)
 - [MVP2][SPEC-088][F88] Iniciação Pix de DAS e FGTS via Open Finance (#119)
@@ -80,10 +81,9 @@ updated: 2026-10-20
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
-- [MVP2][SPEC-026][F26] Resolução tributária de entradas NF-e em Goiás (#28)
 - [MVP2][SPEC-031][F31] Inclusão da NFC-e no complemento e restituição do ICMS-ST de autopeças em Goiás (#35)
-- [MVP2][SPEC-029][F29] Complemento e restituição do ICMS-ST de autopeças em Goiás (#33)
 - [MVP2][SPEC-030][F30] Importação e normalização de NFC-e modelo 65 em Goiás (#34)
+- [MVP2][SPEC-029][F29] Complemento e restituição do ICMS-ST de autopeças em Goiás (#33)
 - [MVP2][SPEC-028][F28] ICMS na entrada histórica de autopeças em Goiás (#32)
 - [MVP2][SPEC-027][F27] ICMS-ST retido em entradas de autopeças em Goiás (#29)
 
