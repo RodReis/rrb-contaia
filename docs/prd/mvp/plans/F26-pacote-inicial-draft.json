@@ -104,10 +104,32 @@
       "authority": "Receita Federal do Brasil / Comitê Gestor do Simples Nacional",
       "title": "CGSN atualiza regras do Simples Nacional para adequação à Reforma Tributária do Consumo",
       "url": "https://www.gov.br/receitafederal/pt-br/assuntos/noticias/2026/agosto/cgsn-atualiza-regras-do-simples-nacional-para-adequacao-a-reforma-tributaria-do-consumo",
-      "provision": "Notícia institucional sobre Resoluções CGSN nº 190 e 191/2026, créditos e opção pelo recolhimento regular IBS/CBS; usar atos normativos publicados como base da regra final.",
+      "provision": "Notícia institucional (11/08/2026): Res. 190/2026 produz efeitos em regra em 01/01/2027; opção pelo regime regular IBS/CBS tem períodos semestrais. Fonte contextual, não base suficiente para regra fiscal.",
       "publishedOn": "2026-08-11",
       "consultedOn": "2026-10-20",
       "validFrom": "2026-08-11",
+      "validUntil": null
+    },
+    {
+      "id": "cgsn-190-2026",
+      "authority": "Comitê Gestor do Simples Nacional",
+      "title": "Resolução CGSN nº 190, de 4 de agosto de 2026",
+      "url": "https://www.in.gov.br/web/dou/-/resolucao-cgsn-n-190-de-4-de-agosto-de-2026-724454118",
+      "provision": "Altera a Resolução CGSN nº 140/2018. Efeitos, em regra, a partir de 01/01/2027 (art. 9º); aplicação e exceções por dispositivo exigem revisão normativa antes de regra executável.",
+      "publishedOn": "2026-08-10",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2027-01-01",
+      "validUntil": null
+    },
+    {
+      "id": "cgsn-191-2026",
+      "authority": "Comitê Gestor do Simples Nacional",
+      "title": "Resolução CGSN nº 191, de 4 de agosto de 2026",
+      "url": "https://www.in.gov.br/web/dou/-/resolucao-cgsn-n-191-de-4-de-agosto-de-2026-724399487",
+      "provision": "Altera a Resolução CGSN nº 140/2018; art. 3º prevê efeitos desde publicação para parte dos dispositivos e 01/11/2026 para art. 1º. Recorte exato requer revisão do ato integral.",
+      "publishedOn": "2026-08-10",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-08-10",
       "validUntil": null
     },
     {
