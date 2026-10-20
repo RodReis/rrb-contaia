@@ -252,9 +252,31 @@ const taxPackageRuleSchema = z.strictObject({
   creditEligibility: z.enum(['ALLOWED','BLOCKED','NOT_RELEVANT']),
   sourceIds: z.array(z.string().trim().min(1).max(120)).min(1).max(50),
   rationale: z.string().trim().min(1).max(2000),
+  liabilityKind: z.enum(['ICMS_ST_RECIPIENT_DUE','ICMS_ENTRY_ADVANCE','ICMS_ST_JOINT_LIABILITY']).optional(),
+  relation: z.enum(['EXCLUSIVE','ALTERNATIVE','COEXISTENT']).optional(),
+  taxSegment: z.literal('AUTO_PARTS').optional(),
+  legalDescription: z.string().trim().min(1).max(1000).optional(),
+  originStates: z.array(z.string().regex(/^[A-Z]{2}$/u)).min(1).max(27).optional(),
+  calculationMethod: z.enum(['MVA_ORIGINAL','MVA_ADJUSTED']).optional(),
+  mvaBasisPoints: z.number().int().nonnegative().nullable().optional(),
+  internalRateBasisPoints: z.number().int().min(0).max(9999).nullable().optional(),
+  interstateRateBasisPoints: z.number().int().min(0).max(9999).nullable().optional(),
+  rounding: z.literal('HALF_UP').optional(),
+  formulaVersion: z.string().trim().min(1).max(80).optional(),
+  dueDate: civilDate.nullable().optional(),
+  revenueCode: z.string().trim().min(1).max(40).nullable().optional(),
 }).superRefine((rule, context) => {
   if (rule.taxType === 'ICMS' && rule.cest !== undefined && rule.cest.length === 0) {
     context.addIssue({ code: 'custom', message: 'Regra ICMS com seletor CEST exige combinação explícita.', path: ['cest'] });
+  }
+  if (rule.liabilityKind !== undefined && rule.taxType !== 'ICMS') {
+    context.addIssue({ code: 'custom', message: 'Obrigação histórica F28 só aceita ICMS.', path: ['taxType'] });
+  }
+  if (rule.liabilityKind !== undefined && (rule.validUntil === null || rule.validUntil > '2018-02-28')) {
+    context.addIssue({ code: 'custom', message: 'Regra F28 deve terminar até 28/02/2018.', path: ['validUntil'] });
+  }
+  if (rule.liabilityKind !== undefined && rule.calculationMethod === 'MVA_ADJUSTED' && rule.interstateRateBasisPoints === undefined) {
+    context.addIssue({ code: 'custom', message: 'MVA ajustada exige alíquota interestadual versionada.', path: ['interstateRateBasisPoints'] });
   }
 });
 const taxPackageFixtureFactsSchema = z.strictObject({
@@ -268,6 +290,18 @@ const taxPackageFixtureFactsSchema = z.strictObject({
   hasSubstitutionTax: z.boolean().nullable(), isImport: z.boolean().nullable(), isMonophase: z.boolean().nullable(),
   hasUnmodeledBenefit: z.boolean().nullable(), isReturnOrTransfer: z.boolean().nullable(),
   declaredCents: z.number().int().nonnegative().nullable(),
+});
+const historicalIcmsFixtureFactsSchema = z.strictObject({
+  factDate: civilDate.nullable(), regime: z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']).nullable(),
+  documentModel: z.string().min(1).max(10), authorized: z.boolean(), purpose: z.string().nullable(),
+  originUf: z.string().length(2).nullable(), destinationUf: z.string().length(2).nullable(),
+  operationType: z.enum(['COMPRA_INTERNA_REVENDA','COMPRA_INTERESTADUAL_REVENDA']).nullable(),
+  cfop: z.string().regex(/^\d{4}$/u).nullable(), ncm: z.string().regex(/^\d{8}$/u).nullable(), cest: z.string().regex(/^\d{7}$/u).nullable(),
+  cst: z.string().regex(/^\d{2,3}$/u).nullable(),
+  hasValidRetention: z.boolean().nullable(), operationAmountCents: z.number().int().nonnegative().nullable(),
+  freightAmountCents: z.number().int().nonnegative().nullable(), insuranceAmountCents: z.number().int().nonnegative().nullable(),
+  otherExpensesAmountCents: z.number().int().nonnegative().nullable(), discountAmountCents: z.number().int().nonnegative().nullable(),
+  ownIcmsAmountCents: z.number().int().nonnegative().nullable(),
 });
 
 export const CuratedTaxPackageSchema = z.strictObject({
@@ -284,7 +318,9 @@ export const CuratedTaxPackageSchema = z.strictObject({
   fixtures: z.array(z.strictObject({
     id: z.string().min(1).max(120), ruleId: z.string().min(1).max(120),
     taxType, facts: taxPackageFixtureFactsSchema,
-    expected: z.enum(['APPLICABLE','NOT_APPLICABLE']),
+    expected: z.enum(['APPLICABLE','NOT_APPLICABLE','INDETERMINATE']),
+    liabilityKind: z.enum(['ICMS_ST_RECIPIENT_DUE','ICMS_ENTRY_ADVANCE','ICMS_ST_JOINT_LIABILITY']).optional(),
+    historicalFacts: historicalIcmsFixtureFactsSchema.optional(), expectedAmountCents: z.number().int().nonnegative().nullable().optional(),
   })).max(5000),
 }).refine((pkg) => pkg.rules.length === 0 || pkg.fixtures.length > 0, {
   message: 'Pacote com regras executáveis exige fixtures de conformidade.',

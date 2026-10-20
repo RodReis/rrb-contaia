@@ -1093,4 +1093,42 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
        values($1,$2,$3,$4,'rls-f26-event','ABSTAINED',1,null,1,1,$5) returning id`,
       [e.tenantId,e.empresaId,r['documentId'],e.autorId,`f26-event-${e.sufixo}-${proximo()}`]),
   },
+  'app.tax_entry_resolution_human_review': {
+    preparar: async(admin,e)=>{
+      const refs=await prepararDocumentoParaSnapshot(admin,e);
+      const snapshotId=await unico(admin,
+        `insert into app.tax_entry_resolution_snapshot (tenant_id,empresa_id,document_id,item_number,parser_version,revision,idempotency_key,input_sha256,facts,decisions,actor_id,correlation_id)
+         values($1,$2,$3,1,'fixture',1,$4,repeat('b',64),'{}'::jsonb,$5::jsonb,$6,'rls-f28-review-fixture') returning id`,
+        [e.tenantId,e.empresaId,refs['documentId'],`f28-review-${e.sufixo}-${proximo()}`,
+          JSON.stringify([{tax:'ICMS_HISTORICAL',liabilityKind:'ICMS_ENTRY_ADVANCE',status:'APPLICABLE',amountDueCents:'100'}]),e.autorId]);
+      return {...refs,snapshotId};
+    },
+    inserir: async (banco,e,r) => {
+      return unico(banco,
+        `insert into app.tax_entry_resolution_human_review(tenant_id,empresa_id,document_id,snapshot_id,item_number,revision,liability_kind,status,submitted_by,submitted_at,correlation_id)
+         values($1,$2,$3,$4,1,1,'ICMS_ENTRY_ADVANCE','PENDING_REVIEW',$5,now(),'rls-f28-fixture') returning id`,
+        [e.tenantId,e.empresaId,r['documentId'],r['snapshotId'],e.autorId]);
+    },
+    colunaDeAtualizacao:'status',
+  },
+  'app.tax_entry_resolution_human_review_event': {
+    preparar: async(admin,e)=>{
+      const refs=await prepararDocumentoParaSnapshot(admin,e);
+      const snapshotId=await unico(admin,
+        `insert into app.tax_entry_resolution_snapshot (tenant_id,empresa_id,document_id,item_number,parser_version,revision,idempotency_key,input_sha256,facts,decisions,actor_id,correlation_id)
+         values($1,$2,$3,1,'fixture',1,$4,repeat('c',64),'{}'::jsonb,$5::jsonb,$6,'rls-f28-event-fixture') returning id`,
+        [e.tenantId,e.empresaId,refs['documentId'],`f28-event-${e.sufixo}-${proximo()}`,
+          JSON.stringify([{tax:'ICMS_HISTORICAL',liabilityKind:'ICMS_ENTRY_ADVANCE',status:'APPLICABLE',amountDueCents:'100'}]),e.autorId]);
+      return {...refs,snapshotId};
+    },
+    inserir: async (banco,e,r) => {
+      const reviewId=await unico(banco,
+        `insert into app.tax_entry_resolution_human_review(tenant_id,empresa_id,document_id,snapshot_id,item_number,revision,liability_kind,status,submitted_by,submitted_at,correlation_id)
+         values($1,$2,$3,$4,1,1,'ICMS_ENTRY_ADVANCE','PENDING_REVIEW',$5,now(),'rls-f28-fixture') returning id`,
+        [e.tenantId,e.empresaId,r['documentId'],r['snapshotId'],e.autorId]);
+      return unico(banco,
+        `insert into app.tax_entry_resolution_human_review_event(tenant_id,empresa_id,review_id,action,actor_id,correlation_id,occurred_at,lock_version)
+         values($1,$2,$3,'SUBMITTED',$4,'rls-f28-event',now(),1) returning id`,[e.tenantId,e.empresaId,reviewId,e.autorId]);
+    },
+  },
 };

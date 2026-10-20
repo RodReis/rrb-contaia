@@ -88,7 +88,7 @@ export class TaxPackagesService {
 
   async validate(actor: AtorDoCatalogo, id: string, correlationId: string) {
     const current = await this.get(actor, id, correlationId);
-    const content = CuratedTaxPackageSchema.parse(current.content);
+    const content = CuratedTaxPackageSchema.parse(current.content) as unknown as CuratedTaxPackage;
     const result = validateTaxPackage(content);
     if (content.rules.length === 0) {
       return { ...current, validation: { valid: false, errors: ['PACKAGE_EXECUTABLE_RULES_EMPTY'] } };

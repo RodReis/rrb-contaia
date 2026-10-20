@@ -21,7 +21,7 @@ export type DocumentoFiscalParseado = Readonly<{
   tributos: readonly TributoFiscalParseado[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
-  total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; ncm: string | null; cest: string | null; cfop: string | null; cstCsosn: string | null; codigoBeneficio: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
+  total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; ncm: string | null; cest: string | null; cfop: string | null; cstCsosn: string | null; codigoBeneficio: string | null; quantidade: string | null; unidade: string | null; valor: string | null; freight: string | null; insurance: string | null; discount: string | null; otherExpenses: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
 }>;
 
@@ -121,13 +121,18 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
       quantidade: texto(product ?? null, nfe ? 'qCom' : 'qCarga', namespaceEsperado), unidade: texto(product ?? null, nfe ? 'uCom' : 'cUnid', namespaceEsperado),
       // CT-e informa medidas de carga por infQ, mas o valor do frete é total do documento.
       valor: nfe ? texto(product ?? null, 'vProd', namespaceEsperado) : null,
+      freight: nfe ? texto(product ?? null, 'vFrete', namespaceEsperado) : null,
+      insurance: nfe ? texto(product ?? null, 'vSeg', namespaceEsperado) : null,
+      discount: nfe ? texto(product ?? null, 'vDesc', namespaceEsperado) : null,
+      otherExpenses: nfe ? texto(product ?? null, 'vOutro', namespaceEsperado) : null,
       ibs: texto(tax ?? null, 'vIBS', namespaceEsperado), cbs: texto(tax ?? null, 'vCBS', namespaceEsperado),
     };
   });
   if (cte) {
     const components = Array.from(document.getElementsByTagNameNS(namespaceEsperado, 'Comp')).map((node) => ({
       tipo: 'COMPONENTE' as const, codigo: null, ncm: null, cest: null, cfop: null, cstCsosn: null, codigoBeneficio: null, descricao: texto(node as unknown as XmlContainer, 'xNome', namespaceEsperado),
-      quantidade: null, unidade: null, valor: texto(node as unknown as XmlContainer, 'vComp', namespaceEsperado), ibs: null, cbs: null,
+      quantidade: null, unidade: null, valor: texto(node as unknown as XmlContainer, 'vComp', namespaceEsperado),
+      freight: null, insurance: null, discount: null, otherExpenses: null, ibs: null, cbs: null,
     }));
     items.unshift(...components);
   }

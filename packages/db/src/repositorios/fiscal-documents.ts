@@ -12,7 +12,7 @@ export type RegistroFiscalPersistido = Readonly<{
   emitidoEm: string | null; emitente: string | null;
   destinatario: string | null; total: string | null; ibsCbsPendente: boolean;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
-  itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null; ncm?: string | null; cest?: string | null; cfop?: string | null; cstCsosn?: string | null; codigoBeneficio?: string | null }>[];
+  itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; freight?: string | null; insurance?: string | null; discount?: string | null; otherExpenses?: string | null; ibs: string | null; cbs: string | null; ncm?: string | null; cest?: string | null; cfop?: string | null; cstCsosn?: string | null; codigoBeneficio?: string | null }>[];
   tributos: readonly Readonly<{ escopo: 'DOCUMENTO' | 'ITEM'; numeroItem: number | null; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS'; baseCalculo: string | null; aliquota: string | null; valor: string | null; situacao: string | null; classificacao: string | null }>[];
 }>;
 
@@ -21,6 +21,10 @@ export type ItemParaResolucaoTributaria = Readonly<{
   parser_version: string;
   descricao: string | null;
   valor: string | null;
+  freight: string | null;
+  insurance: string | null;
+  discount: string | null;
+  other_expenses: string | null;
   ncm: string | null;
   cest?: string | null;
   cfop: string | null;
@@ -41,7 +45,8 @@ export const listarItensParaResolucaoTributaria = async (client: PoolClient, emp
   );
   if (!document.rows[0]) return null;
   const { rows: items } = await client.query<ItemParaResolucaoTributaria>(
-    `select i.numero,i.parser_version,i.descricao,i.valor::text,i.ncm,i.cest,i.cfop,i.cst_csosn,i.codigo_beneficio,
+    `select i.numero,i.parser_version,i.descricao,i.valor::text,i.frete::text as freight,i.seguro::text as insurance,
+            i.desconto::text as discount,i.outras_despesas::text as other_expenses,i.ncm,i.cest,i.cfop,i.cst_csosn,i.codigo_beneficio,
             d.modelo,d.estado,d.emitido_em::text,d.protocolo,
             (select uf from app.fiscal_document_party p where p.document_id=d.id and p.parser_version=d.parser_version and p.papel='EMITENTE' limit 1) origem_uf,
             (select uf from app.fiscal_document_party p where p.document_id=d.id and p.parser_version=d.parser_version and p.papel='DESTINATARIO' limit 1) destino_uf
@@ -138,10 +143,46 @@ export const persistirSnapshotsResolucaoTributaria = async (client: PoolClient, 
 
 export const listarSnapshotsResolucaoTributaria = async (client: PoolClient, empresaId: string, documentId: string, revision?: number) => {
   const { rows } = await client.query(
-    `select * from app.tax_entry_resolution_snapshot where empresa_id=$1 and document_id=$2 and ($3::integer is null or revision=$3) order by revision desc,item_number`,
+    `select s.*,
+       coalesce((select jsonb_agg(
+                   to_jsonb(review) || coalesce((select to_jsonb(event) - 'id' - 'tenant_id' - 'empresa_id' - 'review_id' - 'action' - 'actor_id' - 'correlation_id' - 'occurred_at' - 'details' - 'lock_version'
+                       from app.tax_entry_resolution_human_review_event event
+                       where event.review_id=review.id and event.action in ('APPROVED','REJECTED')
+                       order by event.lock_version desc limit 1),'{}'::jsonb)
+                   order by review.liability_kind)
+                   from app.tax_entry_resolution_human_review review where review.snapshot_id=s.id),'[]'::jsonb) as human_reviews
+       from app.tax_entry_resolution_snapshot s where s.empresa_id=$1 and s.document_id=$2 and ($3::integer is null or s.revision=$3)
+      order by s.revision desc,s.item_number`,
     [empresaId,documentId,revision ?? null],
   );
   return rows;
+};
+
+export const submeterRevisaoResolucaoTributaria = async (client: PoolClient, input: Readonly<{
+  snapshotId: string; empresaId: string; liabilityKind: string; actorId: string; now: Date; correlationId: string;
+}>) => {
+  const { rows } = await client.query(
+    'select review.* from app.tax_entry_human_review_submit($1,$2,$3,$4,$5,$6) review',
+    [input.snapshotId,input.empresaId,input.liabilityKind,input.actorId,input.now,input.correlationId],
+  );
+  if (rows[0] === undefined) throw new Error('TAX_REVIEW_RESULT_NOT_FOUND');
+  return rows[0];
+};
+
+export const decidirRevisaoResolucaoTributaria = async (client: PoolClient, input: Readonly<{
+  reviewId: string; empresaId: string; actorId: string; now: Date; expectedVersion: number; action: 'APPROVED' | 'REJECTED';
+  reason: string | null; correlationId: string;
+}>) => {
+  const { rows } = await client.query(
+    'select review.* from app.tax_entry_human_review_decide($1,$2,$3,$4,$5,$6,$7,$8) review',
+    [input.reviewId,input.empresaId,input.actorId,input.now,input.expectedVersion,input.action,input.reason,input.correlationId],
+  );
+  if (rows[0] === undefined) throw new Error('TAX_REVIEW_NOT_FOUND');
+  const { rows: eventRows } = await client.query(
+    'select coalesce(jsonb_agg(to_jsonb(event) order by event.lock_version),\'[]\'::jsonb) as events from app.tax_entry_resolution_human_review_event event where event.review_id=$1',
+    [input.reviewId],
+  );
+  return { ...rows[0], events: eventRows[0]?.['events'] ?? [] };
 };
 
 export const registrarEventoResolucaoTributaria = async (client: PoolClient, input: Readonly<{
@@ -302,9 +343,9 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   if (precisaNormalizar) {
     for (const [index,item] of input.parsed.itens.entries()) {
       await client.query(
-        `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs,ncm,cest,cfop,cst_csosn,codigo_beneficio)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9::numeric,$10,$11::numeric,$12::numeric,$13::numeric,$14,$15,$16,$17,$18)`,
-        [input.tenantId,input.empresaId,id,input.parserVersion,index+1,item.tipo,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs,item.ncm ?? null,item.cest ?? null,item.cfop ?? null,item.cstCsosn ?? null,item.codigoBeneficio ?? null],
+        `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs,ncm,cest,cfop,cst_csosn,codigo_beneficio,frete,seguro,desconto,outras_despesas)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9::numeric,$10,$11::numeric,$12::numeric,$13::numeric,$14,$15,$16,$17,$18,$19::numeric,$20::numeric,$21::numeric,$22::numeric)`,
+        [input.tenantId,input.empresaId,id,input.parserVersion,index+1,item.tipo,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs,item.ncm ?? null,item.cest ?? null,item.cfop ?? null,item.cstCsosn ?? null,item.codigoBeneficio ?? null,item.freight,item.insurance,item.discount,item.otherExpenses],
       );
     }
     for (const tax of input.parsed.tributos) {

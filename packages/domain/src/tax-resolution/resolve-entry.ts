@@ -84,7 +84,7 @@ export const resolveEntryTax = (
     };
   }
 
-  const candidates = pkg.rules.filter((rule) => rule.taxType === taxType && rule.regime === facts.regime &&
+  const candidates = pkg.rules.filter((rule) => rule.liabilityKind === undefined && rule.taxType === taxType && rule.regime === facts.regime &&
     rule.operationType === facts.operationType && rule.cfop.includes(facts.cfop ?? '') &&
     rule.ncm.includes(facts.ncm ?? '') && rule.cst.includes(facts.cst ?? '') &&
     (taxType !== 'ICMS' || (rule.cest === undefined && !facts.hasSubstitutionTax) || rule.cest?.includes(facts.cest ?? '') === true) &&

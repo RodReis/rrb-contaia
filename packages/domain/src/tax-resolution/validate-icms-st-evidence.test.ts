@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { decimalDeclaradoParaCentavos, validateIcmsStDeclaredEvidence } from './validate-icms-st-evidence.js';
+import { decimalDeclaradoParaCentavos, statusRetencaoIcmsDeclarada, validateIcmsStDeclaredEvidence } from './validate-icms-st-evidence.js';
 
 describe('evidência declarada de ICMS-ST', () => {
+  it('reconhece somente presença/ausência explícita no grupo ICMS do item', () => {
+    expect(statusRetencaoIcmsDeclarada([{ codigo: 'ICMS_ST', situacao: '10', valor: '1.00' }])).toBe(true);
+    expect(statusRetencaoIcmsDeclarada([{ codigo: 'ICMS', situacao: '00', valor: '1.00' }])).toBe(false);
+    expect(statusRetencaoIcmsDeclarada([])).toBeNull();
+  });
   it('valida presença e fechamento exato em centavos sem recalcular tributo', () => {
     const checks = validateIcmsStDeclaredEvidence({ cest: '0100100', ncm: '87089990', taxableBaseCents: 100_000, rateBasisPoints: 1800, retainedAmountCents: 18_000 }, 18_000, 18_000);
     expect(checks.every((check) => check.status === 'VALID')).toBe(true);

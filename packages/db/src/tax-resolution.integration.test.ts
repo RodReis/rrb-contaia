@@ -4,7 +4,7 @@ import { contextoDeServico } from '@contaia/domain';
 import type { PoolClient } from 'pg';
 import { criarPool, criarPoolDaAplicacao } from './client.js';
 import { comContexto, comContextoHumano } from './contexto.js';
-import { listarItensParaResolucaoTributaria, obterRegimeTributarioHistorico, persistirSnapshotsResolucaoTributaria, registrarEventoResolucaoTributaria } from './repositorios/fiscal-documents.js';
+import { decidirRevisaoResolucaoTributaria, listarItensParaResolucaoTributaria, obterRegimeTributarioHistorico, persistirSnapshotsResolucaoTributaria, registrarEventoResolucaoTributaria, submeterRevisaoResolucaoTributaria } from './repositorios/fiscal-documents.js';
 import { limparCenario, montarCenario } from './testes/cenario-rls.js';
 import { FIXTURES } from './testes/fixtures-rls.js';
 
@@ -53,6 +53,52 @@ afterAll(async () => {
 });
 
 describe('snapshots tributários F26', () => {
+  it('submete e aprova cálculo histórico com papel autorizado, versão otimista e trilha append-only', async()=>{
+    await admin.query("insert into app.usuario_papel(tenant_id,usuario_id,papel) values($1,$2,'contador')",[cenario.tenantA,cenario.usuarios.naCarteira]);
+    const saved=await comContextoHumano(app,{tenantId:cenario.tenantA,usuarioId:cenario.usuarios.naCarteira,correlationId:'f28-human-review'},async(client)=>{
+      return persistirSnapshotsResolucaoTributaria(client,{tenantId:cenario.tenantA,empresaId:cenario.empresaA1,documentId,
+        actorId:cenario.usuarios.naCarteira,correlationId:'f28-human-review',idempotencyKey:randomUUID(),expectedParserVersion:parserVersion,
+        reprocessingReason:null,packageId:null,packageSha256:null,items:[{itemNumber:2,parserVersion,inputSha256:'9'.repeat(64),facts:{},decisions:[{
+          tax:'ICMS_HISTORICAL',liabilityKind:'ICMS_ENTRY_ADVANCE',status:'APPLICABLE',amountDueCents:'1234',sourceIds:['source-reviewed'],
+        }]}]});
+    });
+    let review!:Record<string,unknown>;
+    await comContextoHumano(app,{tenantId:cenario.tenantA,usuarioId:cenario.usuarios.naCarteira,correlationId:'f28-human-review'},async(client)=>{
+      review=await submeterRevisaoResolucaoTributaria(client,{snapshotId:saved.snapshots[0]!.id,empresaId:cenario.empresaA1,
+        liabilityKind:'ICMS_ENTRY_ADVANCE',actorId:cenario.usuarios.naCarteira,now:new Date(),correlationId:'f28-human-review'});
+    });
+    expect(review['status']).toBe('PENDING_REVIEW');
+    const approved=await comContextoHumano(app,{tenantId:cenario.tenantA,usuarioId:cenario.usuarios.naCarteira,correlationId:'f28-human-approve'},async(client)=>{
+      const result=await decidirRevisaoResolucaoTributaria(client,{reviewId:String(review['id']),empresaId:cenario.empresaA1,
+        actorId:cenario.usuarios.naCarteira,now:new Date(),expectedVersion:1,action:'APPROVED',reason:null,correlationId:'f28-human-approve'});
+      expect(result['status']).toBe('APPROVED');
+      expect(result['lock_version']).toBe(2);
+      return result;
+    });
+    expect(approved['events']).toHaveLength(2);
+    let staleError: unknown;
+    try {
+      await comContextoHumano(app,{tenantId:cenario.tenantA,usuarioId:cenario.usuarios.naCarteira,correlationId:'f28-stale'},async(client)=>
+        decidirRevisaoResolucaoTributaria(client,{reviewId:String(review['id']),empresaId:cenario.empresaA1,
+          actorId:cenario.usuarios.naCarteira,now:new Date(Date.now()+10),expectedVersion:1,action:'APPROVED',reason:null,correlationId:'f28-stale'}));
+    } catch (error) {
+      staleError = error;
+    }
+    expect(staleError).toBeInstanceOf(Error);
+    expect((staleError as Error).message).toContain('TAX_REVIEW_CONFLICT');
+    let duplicateDecisionError: unknown;
+    try {
+      await comContextoHumano(app,{tenantId:cenario.tenantA,usuarioId:cenario.usuarios.naCarteira,correlationId:'f28-duplicate-decision'},async(client)=>
+        decidirRevisaoResolucaoTributaria(client,{reviewId:String(review['id']),empresaId:cenario.empresaA1,
+          actorId:cenario.usuarios.naCarteira,now:new Date(Date.now()+20),expectedVersion:2,action:'REJECTED',reason:'decisão concorrente duplicada',correlationId:'f28-duplicate-decision'}));
+    } catch (error) {
+      duplicateDecisionError = error;
+    }
+    expect(duplicateDecisionError).toBeInstanceOf(Error);
+    expect((duplicateDecisionError as Error).message).toContain('TAX_REVIEW_CONFLICT');
+    await expect(admin.query("delete from app.tax_entry_resolution_human_review_event where review_id=$1",[review['id']])).rejects.toThrow();
+  },30_000);
+
   it('retorna tributos persistidos por item para fatos da resolução', async () => {
     await admin.query(
       `insert into app.fiscal_document_tax
@@ -93,17 +139,20 @@ describe('snapshots tributários F26', () => {
       }));
 
   it('repete a mesma chave sem criar outra revisão e exige motivo na revisão seguinte', async () => {
+    const isolated = await FIXTURES['app.tax_entry_resolution_snapshot']?.preparar?.(admin,{tenantId:cenario.tenantA,empresaId:cenario.empresaA1,autorId:cenario.usuarios.naCarteira,sufixo:`idem-${randomUUID()}`});
+    const targetDocumentId=isolated?.['documentId'];
+    if(!targetDocumentId)throw new Error('documento isolado para idempotência ausente');
     const testKey = randomUUID();
-    const first = await persist(testKey, 'a'.repeat(64));
-    const replay = await persist(testKey, 'a'.repeat(64));
+    const first = await persist(testKey, 'a'.repeat(64),null,null,targetDocumentId);
+    const replay = await persist(testKey, 'a'.repeat(64),null,null,targetDocumentId);
     expect(first.revision).toBe(1);
     expect(first.reused).toBe(false);
     expect(replay.revision).toBe(1);
     expect(replay.reused).toBe(true);
     const nextKey = randomUUID();
-    await expect(persist(nextKey, 'b'.repeat(64)))
+    await expect(persist(nextKey, 'b'.repeat(64),null,null,targetDocumentId))
       .rejects.toThrow('Informe o motivo');
-    const revised = await persist(nextKey, 'b'.repeat(64), 'Atualização de contexto fiscal');
+    const revised = await persist(nextKey, 'b'.repeat(64), 'Atualização de contexto fiscal',null,targetDocumentId);
     expect(revised.revision).toBe(2);
   }, 30_000);
 

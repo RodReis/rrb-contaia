@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, obterRegimeTributarioHistorico, registrarEventoResolucaoTributaria, listarFilaResolucaoTributaria } from '@contaia/db';
-import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, decimalDeclaradoParaCentavos, resolveEntryTax, statusSubstituicaoTributariaComEvidencia, validateIcmsStDeclaredEvidence, type CuratedTaxPackage } from '@contaia/domain';
+import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, submeterRevisaoResolucaoTributaria, decidirRevisaoResolucaoTributaria, obterRegimeTributarioHistorico, registrarEventoResolucaoTributaria, listarFilaResolucaoTributaria } from '@contaia/db';
+import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, decimalDeclaradoParaCentavos, HISTORICAL_CUTOFF_SOURCE_ID, resolveEntryTax, resolveHistoricalIcms, statusRetencaoIcmsDeclarada, statusSubstituicaoTributariaComEvidencia, validateIcmsStDeclaredEvidence, type CuratedTaxPackage, type HistoricalIcmsRule } from '@contaia/domain';
 import { FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from '@contaia/shared';
 import { CuratedTaxPackageSchema } from '@contaia/shared';
 import type { PoolClient } from 'pg';
@@ -13,6 +13,25 @@ import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
 
 const versaoParser = 'f18-1.0.0';
 const chaveMascarada = (value: string | null) => value ? `${value.slice(0, 4)}…${value.slice(-4)}` : null;
+
+const regrasHistoricasDoPacote = (content: CuratedTaxPackage | null): HistoricalIcmsRule[] =>
+  (content?.rules ?? []).flatMap((rule) => {
+    if (rule.liabilityKind === undefined || rule.relation === undefined || rule.calculationMethod === undefined ||
+        rule.taxSegment !== 'AUTO_PARTS' || rule.cest === undefined || rule.originStates === undefined ||
+        rule.validUntil === null || rule.mvaBasisPoints === null || rule.mvaBasisPoints === undefined ||
+        rule.internalRateBasisPoints === null || rule.internalRateBasisPoints === undefined || rule.rounding !== 'HALF_UP' ||
+        rule.formulaVersion === undefined || rule.dueDate === null || rule.dueDate === undefined ||
+        rule.revenueCode === null || rule.revenueCode === undefined) return [];
+    return [{
+      id: rule.id, liabilityKind: rule.liabilityKind, relation: rule.relation, regime: rule.regime,
+      operationType: rule.operationType, cfop: rule.cfop, ncm: rule.ncm, cest: rule.cest, cst: rule.cst,
+      originStates: rule.originStates, validFrom: rule.validFrom, validUntil: rule.validUntil,
+      method: rule.calculationMethod, mvaBasisPoints: rule.mvaBasisPoints,
+      internalRateBasisPoints: rule.internalRateBasisPoints, interstateRateBasisPoints: rule.interstateRateBasisPoints ?? null,
+      rounding: rule.rounding, formulaVersion: rule.formulaVersion, dueDate: rule.dueDate,
+      revenueCode: rule.revenueCode, sourceIds: rule.sourceIds,
+    }];
+  });
 
 export const statusImportacaoPeloCfop = (cfop: string | null): boolean | null => {
   if (cfop === null || !/^\d{4}$/u.test(cfop)) return null;
@@ -52,6 +71,7 @@ export const statusBeneficioPeloCBenef = (codigo: string | null): boolean | null
 
 @Injectable()
 export class FiscalDocumentsService {
+  agora: () => Date = () => new Date();
   constructor(private readonly pool: PoolDoBanco, private readonly storage: StorageService,
     @Inject(FISCAL_DOCUMENTS_API_QUEUE) private readonly queue: Queue | null) {}
 
@@ -150,6 +170,7 @@ export class FiscalDocumentsService {
           'Pacote não publicado ou incompatível com a jurisdição, regime, documento ou data do fato.');
       }
       const selectedPackage = matchingPackages.length === 1 ? matchingPackages[0] ?? null : null;
+      const historicalRules = regrasHistoricasDoPacote(selectedPackage?.content ?? null);
       const items = source.itens.map((item) => {
         const tributosDoItem = source.tributos.filter((tributo) => tributo.numero_item === item.numero);
         const hasSubstitutionTax = statusSubstituicaoTributariaComEvidencia(tributosDoItem);
@@ -182,7 +203,24 @@ export class FiscalDocumentsService {
           originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm, cest: item.cest ?? null,
           cstCsosn: item.cst_csosn, codigoBeneficio: item.codigo_beneficio,
           declaredValue: item.valor, missingInputs,
-          packageSources: selectedPackage?.content.sources ?? [],
+          historicalCalculationInputs: {
+            operationAmountCents: decimalDeclaradoParaCentavos(item.valor),
+            freightAmountCents: decimalDeclaradoParaCentavos(item.freight),
+            insuranceAmountCents: decimalDeclaradoParaCentavos(item.insurance),
+            discountAmountCents: decimalDeclaradoParaCentavos(item.discount),
+            otherExpensesAmountCents: decimalDeclaradoParaCentavos(item.other_expenses),
+            ownIcmsAmountCents: decimalDeclaradoParaCentavos(tributosDoItem.find((tributo) => tributo.codigo === 'ICMS')?.valor ?? null),
+          },
+          packageSources: [
+            ...(selectedPackage?.content.sources ?? []),
+            ...(source.emitido_em !== null && source.emitido_em > '2018-02-28' ? [{
+              id: HISTORICAL_CUTOFF_SOURCE_ID, authority: 'Casa Civil do Estado de Goiás',
+              title: 'Decreto nº 9.147, de 30 de janeiro de 2018',
+              url: 'https://legisla.casacivil.go.gov.br/api/v2/pesquisa/legislacoes/70329/pdf',
+              provision: 'Altera para 1º de março de 2018 o início da exclusão das autopeças da substituição tributária',
+              publishedOn: '2018-01-30', consultedOn: '2026-10-20', validFrom: '2018-03-01', validUntil: null,
+            }] : []),
+          ],
           tributos: tributosDoItem,
         };
         const resolverFacts = {
@@ -202,9 +240,25 @@ export class FiscalDocumentsService {
             return match ? Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0')) : null;
           })(),
         } as const;
+        const historicalFacts = {
+          factDate: source.emitido_em, regime, documentModel: source.modelo,
+          authorized: source.protocolo !== null, purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null,
+          originUf: item.origem_uf, destinationUf: item.destino_uf,
+          operationType: item.origem_uf === null || item.destino_uf === null ? null :
+            item.origem_uf === item.destino_uf ? 'COMPRA_INTERNA_REVENDA' as const :
+              item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA' as const,
+          cfop: item.cfop, ncm: item.ncm, cest: item.cest ?? null, cst: item.cst_csosn,
+          hasValidRetention: statusRetencaoIcmsDeclarada(tributosDoItem),
+          operationAmountCents: decimalDeclaradoParaCentavos(item.valor),
+          freightAmountCents: decimalDeclaradoParaCentavos(item.freight),
+          insuranceAmountCents: decimalDeclaradoParaCentavos(item.insurance),
+          otherExpensesAmountCents: decimalDeclaradoParaCentavos(item.other_expenses),
+          discountAmountCents: decimalDeclaradoParaCentavos(item.discount),
+          ownIcmsAmountCents: decimalDeclaradoParaCentavos(tributosDoItem.find((tributo) => tributo.codigo === 'ICMS')?.valor ?? null),
+        } as const;
         const icmsStEvidence = tributosDoItem.find((tributo) => tributo.codigo === 'ICMS_ST');
         const declaredStCents = decimalDeclaradoParaCentavos(icmsStEvidence?.valor ?? null);
-        const decisions = (['ICMS','PIS','COFINS','IBS_UF','IBS_MUN','CBS'] as const).map((tax) => {
+        const regularDecisions = (['ICMS','PIS','COFINS','IBS_UF','IBS_MUN','CBS'] as const).map((tax) => {
           const decision = resolveEntryTax(selectedPackage?.content ?? null, resolverFacts, tax, selectedPackage?.sha256 ?? null);
           if (decision.reasonCodes.includes('AMBIGUOUS_RULES')) {
             throw new ErroDeConflito(CODIGOS_DE_ERRO.TAX_TREATMENT_RULE_AMBIGUOUS,
@@ -237,6 +291,25 @@ export class FiscalDocumentsService {
             packageSha256: decision.packageHash, rationale: decision.rationale,
           };
         });
+        const historicalResolution = resolveHistoricalIcms(historicalRules, historicalFacts);
+        if (historicalResolution.revisionStatus === 'ABORTED') {
+          const ambiguous = historicalResolution.obligations.some((obligation) => obligation.reasonCodes.includes('TAX_TREATMENT_RULE_AMBIGUOUS'));
+          throw new ErroDeConflito(ambiguous ? CODIGOS_DE_ERRO.TAX_TREATMENT_RULE_AMBIGUOUS : CODIGOS_DE_ERRO.TAX_LIABILITY_RELATION_CONFLICT,
+            'Hipóteses históricas incompatíveis; revisão inteira abortada.');
+        }
+        const historicalDecisions = historicalResolution.obligations.map((obligation) => ({
+          tax: 'ICMS_HISTORICAL' as const, liabilityKind: obligation.liabilityKind, relation: obligation.relation,
+          status: obligation.status, creditEligibility: 'NOT_RELEVANT' as const, ruleId: obligation.ruleId,
+          reasons: [...obligation.reasonCodes], checks: [], declaredEvidence: null,
+          missingInputs: [...obligation.reasonCodes], sourceIds: [...obligation.sourceIds],
+          packageId: selectedPackage?.id ?? null, packageSha256: selectedPackage?.sha256 ?? null,
+          rationale: obligation.status === 'APPLICABLE'
+            ? 'Resultado informativo por MVA; depende de submissão e aprovação humana.'
+            : 'Sem regra ou evidência material suficiente; nenhum valor foi inferido.',
+          amountDueCents: obligation.amountDueCents, memory: obligation.memory,
+          approvalStatus: obligation.status === 'APPLICABLE' ? 'NOT_SUBMITTED' as const : null,
+        }));
+        const decisions = [...regularDecisions, ...historicalDecisions];
         const hashFacts = {
           ...facts,
           regimeEffectiveDate: regimeHistory?.vigente_desde ?? null,
@@ -283,6 +356,40 @@ export class FiscalDocumentsService {
       const snapshots = await listarSnapshotsResolucaoTributaria(client, companyId, documentId, revision);
       return { itens: snapshots };
     });
+  }
+
+  async submeterRevisaoHistorica(tenantId: string, userId: string, companyId: string, snapshotId: string,
+    liabilityKind: string, correlationId: string) {
+    return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);
+      if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      try {
+        return await submeterRevisaoResolucaoTributaria(client,{snapshotId,empresaId:companyId,liabilityKind,actorId:userId,now:this.agora(),correlationId});
+      } catch(error) { this.mapearErroDeRevisao(error); }
+    });
+  }
+
+  async decidirRevisaoHistorica(tenantId:string,userId:string,companyId:string,reviewId:string,
+    input:Readonly<{expectedVersion:number;action:'APPROVED'|'REJECTED';reason:string|null}>,correlationId:string) {
+    return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);
+      if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      try {
+        return await decidirRevisaoResolucaoTributaria(client,{reviewId,empresaId:companyId,actorId:userId,now:this.agora(),
+          expectedVersion:input.expectedVersion,action:input.action,reason:input.reason,correlationId});
+      } catch(error) { this.mapearErroDeRevisao(error); }
+    });
+  }
+
+  private mapearErroDeRevisao(error:unknown):never {
+    const message=error instanceof Error?error.message:String(error);
+    if(message.includes('TAX_REVIEW_CONFLICT'))throw new ErroDeConflito(CODIGOS_DE_ERRO.TAX_REVIEW_CONFLICT,'Revisão superada ou já decidida.');
+    if(message.includes('TAX_REVIEW_REASON_REQUIRED'))throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_REVIEW_REASON_REQUIRED,'Rejeição exige motivo com pelo menos 10 caracteres.');
+    if(message.includes('TAX_REVIEW_RESULT_NOT_APPROVABLE'))throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_REVIEW_RESULT_NOT_APPROVABLE,'Resultado não aplicável para revisão humana.');
+    if(message.includes('TAX_REVIEW_NOT_FOUND')||message.includes('TAX_SNAPSHOT_NOT_FOUND'))throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_REVIEW_NOT_FOUND,'Revisão tributária não encontrada.');
+    if(message.includes('TAX_REVIEW_DECISION_FORBIDDEN'))throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_REVIEW_DECISION_FORBIDDEN,'Papel não pode aprovar ou rejeitar este resultado.');
+    if(message.includes('TAX_REVIEW_SUBMISSION_FORBIDDEN'))throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_REVIEW_SUBMISSION_FORBIDDEN,'Papel não pode submeter este resultado.');
+    throw error;
   }
 
   async listarFilaTributaria(tenantId:string,userId:string,companyId:string,correlationId:string,page:number,filters:Readonly<{

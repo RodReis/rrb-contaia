@@ -14,6 +14,8 @@ const api = vi.hoisted(() => ({
   resolucoes: vi.fn(async (): Promise<{ itens: Record<string, unknown>[] }> => ({ itens: [] })),
   processarResolucao: vi.fn(),
   compararResolucao: vi.fn(),
+  submeterRevisao: vi.fn(),
+  decidirRevisao: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -33,6 +35,8 @@ vi.mock('./api', () => ({
   listarResolucaoTributaria: api.resolucoes,
   processarResolucaoTributaria: api.processarResolucao,
   compararResolucaoTributaria: api.compararResolucao,
+  submeterRevisaoHistorica: api.submeterRevisao,
+  decidirRevisaoHistorica: api.decidirRevisao,
 }));
 
 import { PainelDeDocumentosFiscais } from './painel-de-documentos-fiscais';
@@ -49,6 +53,8 @@ describe('PainelDeDocumentosFiscais', () => {
     api.resolucoes.mockReset().mockResolvedValue({ itens: [] });
     api.processarResolucao.mockReset();
     api.compararResolucao.mockReset();
+    api.submeterRevisao.mockReset();
+    api.decidirRevisao.mockReset();
   });
 
   it('mantém filtro e aba na URL ao voltar uma página', async () => {
@@ -154,6 +160,25 @@ describe('PainelDeDocumentosFiscais', () => {
     expect(screen.getByText(/Confira o regime e a data de vigência/u)).toBeTruthy();
     expect(screen.getByText(/Aguarde a publicação de pacote compatível/u)).toBeTruthy();
     expect(screen.getByText('Sem pacote curado associado.')).toBeTruthy();
+    cliente.clear();
+  });
+
+  it('separa três obrigações históricas e restringe aprovação ao papel de revisor', async()=>{
+    const docId='123e4567-e89b-12d3-a456-426614174000';
+    api.listar.mockResolvedValueOnce({pagina:1,temProximaPagina:false,itens:[{id:docId,especie:'NFE_55',chave_acesso:'0000…0010',hash_sha256:'a'.repeat(64),emitido_em:'2018-01-15',emitente:'Fornecedor',destinatario:'Empresa',total:'10.00',estado:'PROCESSADO',versao_layout:'4.00',criado_em:'2018-01-16T13:00:00.000Z',nsu:'1',capturado_em:'2018-01-16T13:00:00.000Z',atividade_em:'2018-01-16T13:00:00.000Z',origens:1}]});
+    api.obter.mockResolvedValueOnce({id:docId,especie:'NFE_55',parser_version:'f18-v1',chave_acesso:'0'.repeat(40)+'0010',hash_sha256:'a'.repeat(64),tamanho_bytes:1200,estado:'PROCESSADO',emitido_em:'2018-01-15',emitente:'Fornecedor',destinatario:'Empresa',total:'10.00',itens:[{numero:1,tipo:'ITEM',codigo:'A1',descricao:'Autopeça',valor:'10.00'}],base_ibs_cbs:null,total_ibs:null,total_cbs:null,protocolo:'135260000000001',protocolo_recebido_em:null,referencias:[],partes:[],tributos:[],origens:[],eventos:[]});
+    api.resolucoes.mockResolvedValueOnce({itens:[{id:'223e4567-e89b-12d3-a456-426614174000',tenant_id:'323e4567-e89b-12d3-a456-426614174000',empresa_id:'423e4567-e89b-12d3-a456-426614174000',document_id:docId,item_number:1,parser_version:'f18-v1',revision:1,idempotency_key:'idempotency-1',input_sha256:'b'.repeat(64),package_id:null,package_sha256:null,facts:{factDate:'2018-01-15'},decisions:['ICMS_ST_RECIPIENT_DUE','ICMS_ENTRY_ADVANCE','ICMS_ST_JOINT_LIABILITY'].map((liabilityKind)=>({tax:'ICMS_HISTORICAL',liabilityKind,status:'APPLICABLE',creditEligibility:'NOT_RELEVANT',ruleId:'rule-1',reasons:[],missingInputs:[],sourceIds:[],rationale:'Resultado informativo.',amountDueCents:'1234',memory:{mvaBasisPoints:1000}})),human_reviews:[{id:'523e4567-e89b-12d3-a456-426614174000',snapshot_id:'223e4567-e89b-12d3-a456-426614174000',tenant_id:'323e4567-e89b-12d3-a456-426614174000',empresa_id:'423e4567-e89b-12d3-a456-426614174000',document_id:docId,item_number:1,revision:1,liability_kind:'ICMS_ENTRY_ADVANCE',status:'PENDING_REVIEW',submitted_by:'623e4567-e89b-12d3-a456-426614174000',submitted_at:'2018-01-16T13:00:00.000Z',decided_by:null,decided_at:null,rejection_reason:null,lock_version:1}],reprocessing_reason:null,actor_id:'523e4567-e89b-12d3-a456-426614174000',correlation_id:'corr-1',processed_at:'2026-10-18T13:00:00.000Z'}]});
+    const cliente=new QueryClient({defaultOptions:{queries:{retry:false}}});
+    const view=render(<QueryClientProvider client={cliente}><PainelDeDocumentosFiscais empresaId="empresa-1" somenteLeitura={false} podeReprocessar={false} podeResolverTributos podeRevisarHistorico={false}/></QueryClientProvider>);
+    fireEvent.click(await screen.findByRole('button',{name:'Abrir detalhes'}));
+    expect(await screen.findByText('ICMS-ST devido pelo destinatário')).toBeTruthy();
+    expect(screen.getByText('Antecipação de ICMS na entrada')).toBeTruthy();
+    expect(screen.getByText('Responsabilidade solidária por ICMS-ST')).toBeTruthy();
+    expect(screen.getAllByText(/Valor calculado: R\$\s*12,34/u)).toHaveLength(3);
+    expect(screen.queryByRole('button',{name:'Aprovar cálculo'})).toBeNull();
+    view.rerender(<QueryClientProvider client={cliente}><PainelDeDocumentosFiscais empresaId="empresa-1" somenteLeitura={false} podeReprocessar={false} podeResolverTributos podeRevisarHistorico/></QueryClientProvider>);
+    expect(await screen.findByRole('button',{name:'Aprovar cálculo'})).toBeTruthy();
+    expect(screen.getByLabelText('Motivo da rejeição')).toBeTruthy();
     cliente.clear();
   });
 
