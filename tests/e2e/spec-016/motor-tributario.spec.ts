@@ -158,8 +158,8 @@ const semearDocumentoFiscal = async (tenantId: string, usuarioId: string): Promi
       [tenantFiscalId, empresaFiscalId, documentoFiscalId, parser, cnpj],
     );
     await pool.query(
-      `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor)
-       values($1,$2,$3,$4,1,'ITEM','F26-1','Mercadoria sintética para teste',1,'UN',10)`,
+      `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor,cest)
+       values($1,$2,$3,$4,1,'ITEM','F26-1','Mercadoria sintética para teste',1,'UN',10,'1234567')`,
       [tenantFiscalId, empresaFiscalId, documentoFiscalId, parser],
     );
     await pool.query(
@@ -572,7 +572,7 @@ test('NF-e de teste: calcula por item e no total, compara com o declarado e não
   expect(comOXml, 'tabelas com o conteúdo do XML').toEqual([]);
 });
 
-test('F26: registra snapshots indeterminados, preserva revisões e exibe a decisão na empresa', async () => {
+test('F27: preserva CEST de teste no snapshot indeterminado e exibe a decisão na empresa', async () => {
   const inicio = `/empresas/${empresaFiscalId}?aba=captura-dfe`;
   await contadora.goto(inicio);
   await expect(contadora.getByRole('heading', { name: 'Documentos fiscais', exact: true })).toBeVisible({ timeout: 30_000 });
@@ -599,6 +599,7 @@ test('F26: registra snapshots indeterminados, preserva revisões e exibe a decis
   await expect(painel).toContainText('Indeterminado');
   await expect(painel).toContainText('Sem pacote curado associado.');
   await expect(painel).toContainText('Aguarde a publicação de pacote compatível');
+  await expect(painel.getByLabel('Contexto fiscal do item 1')).toContainText('1234567');
   const orientacoesDoItem = painel.getByRole('list', { name: 'Dados e próximos passos para item 1' }).first();
   await expect(orientacoesDoItem.getByText('CFOP do item', { exact: true })).toHaveCount(1);
 
@@ -624,17 +625,17 @@ test('F26: registra snapshots indeterminados, preserva revisões e exibe a decis
   expect(snapshots.rows.every((snapshot) => snapshot.package_sha256 === null)).toBe(true);
   expect(snapshots.rows.some((snapshot) => snapshot.revision === 1 && snapshot.status === 'INDETERMINATE')).toBe(true);
 
-  await provar(contadora, 'f26-resolucao-documento', {
+  await provar(contadora, 'f27-cest-contexto', {
     recarregar: false,
     semToasts: true,
     pronto: (page) => page.getByRole('heading', { name: 'Revisão 2' }),
     recorte: (page) => page.getByRole('region', { name: 'Tratamento tributário por item' }),
   });
 
-  const violacoes = Object.fromEntries(Object.entries(achados['f26-resolucao-documento']?.violacoes ?? {}).filter(([, lista]) => lista.length > 0));
-  const rolagens = achados['f26-resolucao-documento']?.rolagens ?? [];
-  expect(violacoes, 'violações axe na resolução F26').toEqual({});
-  expect(rolagens, 'rolagem horizontal na resolução F26').toEqual([]);
+  const violacoes = Object.fromEntries(Object.entries(achados['f27-cest-contexto']?.violacoes ?? {}).filter(([, lista]) => lista.length > 0));
+  const rolagens = achados['f27-cest-contexto']?.rolagens ?? [];
+  expect(violacoes, 'violações axe na evidência CEST F27').toEqual({});
+  expect(rolagens, 'rolagem horizontal na evidência CEST F27').toEqual([]);
 });
 
 test('o auxiliar não tem acesso ao motor tributário', async () => {
@@ -657,7 +658,7 @@ test('provas visuais: os estados-chave capturados, sem violação do axe (WCAG 2
       'acesso-negado',
       'catalogo-administradora',
       'catalogo-escritorio',
-      'f26-resolucao-documento',
+      'f27-cest-contexto',
       'nfe-resultado',
       'sem-regra-aplicavel',
       'simulacao-manual',

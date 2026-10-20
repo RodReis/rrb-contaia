@@ -116,15 +116,21 @@ export const PainelResolucaoTributaria = ({ empresaId, documento, podeResolver }
             const context: readonly (readonly [string, unknown])[] = [
               ['Data do fato', snapshot.facts['factDate']], ['Regime', snapshot.facts['regime']],
               ['Origem', snapshot.facts['originUf']], ['Destino', snapshot.facts['destinationUf']],
-              ['CFOP', snapshot.facts['cfop']], ['NCM', snapshot.facts['ncm']],
+              ['CFOP', snapshot.facts['cfop']], ['NCM', snapshot.facts['ncm']], ['CEST', snapshot.facts['cest']],
               ['CST/CSOSN', snapshot.facts['cstCsosn']], ['Finalidade', snapshot.facts['purpose']],
             ];
-            const indeterminate = snapshot.decisions.every((decision) => decision.status === 'INDETERMINATE');
+            const indeterminate = snapshot.decisions.some((decision) => decision.status === 'INDETERMINATE');
             return <li key={snapshot.id} className="rounded-md bg-muted/30 p-sm">
               <div className="flex flex-wrap items-center justify-between gap-xs"><span className="font-medium text-foreground">Item {snapshot.item_number}</span><StatusBadge tom={indeterminate ? 'atencao' : 'conforme'} rotulo={indeterminate ? 'Indeterminado' : 'Resolvido'} /></div>
               <dl aria-label={`Contexto fiscal do item ${snapshot.item_number}`} className="mt-xs grid grid-cols-[auto_minmax(0,1fr)] gap-x-sm gap-y-xs text-label-sm sm:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
                 {context.map(([label, value]) => <Fragment key={label}><dt className="text-muted-foreground">{label}</dt><dd className="break-words text-foreground">{label === 'Data do fato' && typeof value === 'string' ? formatarData(value) : typeof value === 'string' ? value : '—'}</dd></Fragment>)}
               </dl>
+              {snapshot.decisions.find((decision) => decision.tax === 'ICMS')?.declaredEvidence ? <section aria-label={`Evidência declarada de ICMS-ST do item ${snapshot.item_number}`} className="mt-sm rounded-sm border border-border p-sm text-body-sm">
+                <h6 className="font-medium text-foreground">ICMS-ST declarado na NF-e</h6>
+                <p className="mt-xs text-muted-foreground">Base: {String(snapshot.decisions.find((decision) => decision.tax === 'ICMS')?.declaredEvidence?.['taxableBaseCents'] ?? '—')} centavos · alíquota: {String(snapshot.decisions.find((decision) => decision.tax === 'ICMS')?.declaredEvidence?.['ratePercent'] ?? '—')}% · valor retido: {String(snapshot.decisions.find((decision) => decision.tax === 'ICMS')?.declaredEvidence?.['retainedAmountCents'] ?? '—')} centavos.</p>
+                <p className="mt-xs text-muted-foreground">Coerência dos dados declarados não recalcula o imposto nem constitui crédito ou apuração.</p>
+                {snapshot.decisions.find((decision) => decision.tax === 'ICMS')?.checks?.map((check) => <p key={check.code} className="mt-xs text-muted-foreground">{check.code}: {check.status}{check.reasons.length ? ` · ${check.reasons.join(', ')}` : ''}</p>)}
+              </section> : null}
               {guidance.length ? <ul aria-label={`Dados e próximos passos para item ${snapshot.item_number}`} className="mt-xs space-y-xs rounded-sm bg-muted/40 p-sm text-body-sm text-muted-foreground">{guidance.map((item) => <li key={item.campo}><span className="font-medium text-foreground">{item.campo}</span><p>Origem esperada: {item.origem}</p><p>Próximo passo: {item.proximoPasso}</p></li>)}</ul> : null}
               <ul className="mt-xs space-y-xs text-body-sm">{snapshot.decisions.map((decision) => <li key={decision.tax} className="border-t border-border/50 pt-xs">
                 <span className="font-medium text-foreground">{decision.tax}</span><span className="ml-xs text-muted-foreground">{decision.status} · crédito {decision.creditEligibility}</span><p className="text-muted-foreground">{decision.rationale}</p>

@@ -11,6 +11,7 @@ export type EntryTaxFacts = Readonly<{
   purpose: string | null;
   cfop: string | null;
   ncm: string | null;
+  cest?: string | null | undefined;
   cst: string | null;
   hasSubstitutionTax: boolean | null;
   isImport: boolean | null;
@@ -36,7 +37,7 @@ export const statusSubstituicaoTributariaComEvidencia = (
   tributos: readonly Readonly<{ codigo: string }>[],
 ): boolean | null => tributos.some((tributo) => tributo.codigo === 'ICMS_ST') ? true : null;
 
-const blockedReasons = (facts: EntryTaxFacts): string[] => [
+const blockedReasons = (facts: EntryTaxFacts, taxType: 'ICMS' | 'PIS' | 'COFINS' | 'IBS_UF' | 'IBS_MUN' | 'CBS', pkg: CuratedTaxPackage | null): string[] => [
   ...(facts.factDate === null ? ['FACT_DATE_MISSING'] : []),
   ...(facts.regime === null ? ['REGIME_HISTORY_UNAVAILABLE'] : []),
   ...(facts.originUf === null ? ['ORIGIN_UF_MISSING'] : []),
@@ -49,7 +50,8 @@ const blockedReasons = (facts: EntryTaxFacts): string[] => [
   ...(facts.purpose !== 'RESALE' ? ['PURPOSE_OUTSIDE_COVERAGE'] : []),
   ...(facts.operationType === null ? ['OPERATION_TYPE_UNAVAILABLE'] : []),
   ...(facts.hasSubstitutionTax === null ? ['SUBSTITUTION_TAX_STATUS_UNAVAILABLE'] : []),
-  ...(facts.hasSubstitutionTax ? ['SUBSTITUTION_TAX_OUTSIDE_COVERAGE'] : []),
+  ...(facts.hasSubstitutionTax && (taxType !== 'ICMS' || !pkg?.rules.some((rule) => rule.taxType === 'ICMS' && (rule.cest?.length ?? 0) > 0)) ? ['SUBSTITUTION_TAX_OUTSIDE_COVERAGE'] : []),
+  ...(facts.hasSubstitutionTax && taxType === 'ICMS' && facts.cest === null ? ['TAX_ST_CEST_MISSING'] : []),
   ...(facts.isImport === null ? ['IMPORT_STATUS_UNAVAILABLE'] : []),
   ...(facts.isImport ? ['IMPORT_OUTSIDE_COVERAGE'] : []),
   ...(facts.isMonophase === null ? ['MONOPHASE_STATUS_UNAVAILABLE'] : []),
@@ -69,7 +71,7 @@ export const resolveEntryTax = (
   taxType: 'ICMS' | 'PIS' | 'COFINS' | 'IBS_UF' | 'IBS_MUN' | 'CBS',
   packageHash: string | null,
 ): EntryTaxDecision => {
-  const reasons = blockedReasons(facts);
+  const reasons = blockedReasons(facts, taxType, pkg);
   if (pkg === null) reasons.push('PACKAGE_UNAVAILABLE');
   else if (facts.regime !== null && !pkg.regimes.includes(facts.regime as 'SIMPLES_NACIONAL' | 'LUCRO_PRESUMIDO')) reasons.push('PACKAGE_REGIME_NOT_COVERED');
   else if (facts.factDate !== null && !(pkg.validFrom <= facts.factDate && (pkg.validUntil === null || facts.factDate <= pkg.validUntil))) reasons.push('PACKAGE_NOT_VALID_ON_FACT_DATE');
@@ -85,6 +87,7 @@ export const resolveEntryTax = (
   const candidates = pkg.rules.filter((rule) => rule.taxType === taxType && rule.regime === facts.regime &&
     rule.operationType === facts.operationType && rule.cfop.includes(facts.cfop ?? '') &&
     rule.ncm.includes(facts.ncm ?? '') && rule.cst.includes(facts.cst ?? '') &&
+    (taxType !== 'ICMS' || (rule.cest === undefined && !facts.hasSubstitutionTax) || rule.cest?.includes(facts.cest ?? '') === true) &&
     facts.factDate !== null && rule.validFrom <= facts.factDate && (rule.validUntil === null || facts.factDate <= rule.validUntil));
 
   if (candidates.length !== 1) {

@@ -705,3 +705,18 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 ## Referências
 
 - [`STATUS.md`](STATUS.md) · [`AUDIT.md`](AUDIT.md) · [`TESTING.md`](TESTING.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`FRONTEND.md`](FRONTEND.md)
+
+### Card #29 — `[MVP2][SPEC-027][F27]` ICMS-ST retido em entradas de autopeças em Goiás
+
+- [x] Iniciado em worktree dedicado `codex/f27-issue29`; issue #29 em `proplan:doing`.
+- [x] Migration 0044 preserva CEST original por item, com formato de sete dígitos e sem reescrever snapshots/documentos existentes.
+- [x] Parser fiscal F18 passa a extrair CEST do XML modelo 55; teste sintético confirma CEST/NCM/CST e ICMS-ST declarado por item e documento.
+- [x] Pacote curado aceita selector CEST explícito e resolvedor exige combinação CEST/NCM para ICMS-ST; regras F26 sem CEST seguem compatíveis para entradas sem ST, nunca enquadram ST.
+- [x] Serviço preserva evidência declarada (base, alíquota, valor, CEST/NCM/grupo) e checa presença e fechamento exato em centavos contra total `vST`; ICMS fica `INDETERMINATE` se checagem falha/não executada. PIS/COFINS e demais dimensões seguem independentes.
+- [x] Tela lista CEST, declara valores da NF-e e motivos das checagens; badge sinaliza indeterminação em qualquer dimensão, sem sugerir crédito/apuração.
+- [x] Fontes oficiais pesquisadas incluem Decreto GO 9.108/2017 (autopeças excluídas da ST pelas operações posteriores desde 01/01/2018), Decreto 10.177/2022 (Apêndice CEST) e alterações RCTE 10.690/2025; CEST é identificador, não prova de retenção/regra vigente. Nenhuma regra, par CEST/NCM ou fixture legal foi inventado.
+- [x] Testes domínio 905/905, shared 250/250, API focal 5/5, DB F26 10/10 com migrations 0000–0044 em PostgreSQL 17 isolado `25429`; build 10/10; lint do workspace sem erros (um aviso preexistente em `aba-de-enderecos.tsx`); `impeccable detect` sem achados.
+- [ ] Revisão tributária humana do pacote inicial, regras e fixtures oficiais: bloqueia validação/publicação do pacote e aceite fiscal; sem pacote publicável, não há resultado `APPLICABLE` de F27.
+- [x] E2E autenticado F27 preserva CEST sintético no snapshot `INDETERMINATE`; 6 capturas CLARO/ESCURO em 768/1024/1440; axe WCAG 2.1 A/AA sem violações e sem rolagem horizontal. Fluxo F27 passou; suíte CI E2E 156/156. Capturas no artefato `resultados-e2e`, pasta `e2e/provas/spec-016/`, prefixo `f27-cest-contexto`.
+- [x] Self-check anti-drift/gate, diff check e CI #39471292332 verdes no head `4f9c5b5`; E2E passou. A primeira tentativa de build falhou ao resolver `next/font/google` no Turbopack; rerun seletivo de build passou.
+- [ ] PR #137 aberta (`refs #29`); merge, confirmação do SHA integrado e cerimônia `fechar-card` pendentes. Sem `proplan:done` antes de resolver a revisão/publicação do pacote fiscal oficial.

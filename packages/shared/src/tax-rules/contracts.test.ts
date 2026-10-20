@@ -99,6 +99,12 @@ describe('CuratedTaxPackageSchema (SPEC-026)', () => {
     expect(CuratedTaxPackageSchema.safeParse({ ...pacote, fixtures: [{ ...pacote.fixtures[0], expected: 'QUALQUER' }] }).success).toBe(false);
   });
 
+  it('aceita CEST de sete dígitos na regra e rejeita seletor fora do domínio', () => {
+    const regra = pacote.rules[0];
+    expect(CuratedTaxPackageSchema.safeParse({ ...pacote, rules: [{ ...regra, cest: ['0100100'] }] }).success).toBe(true);
+    expect(CuratedTaxPackageSchema.safeParse({ ...pacote, rules: [{ ...regra, cest: ['100100'] }] }).success).toBe(false);
+  });
+
   it('aceita pacote documental sem regras apenas no contrato de importação', () => {
     const resultado = CuratedTaxPackageSchema.safeParse({ ...pacote, rules: [], fixtures: [] });
     expect(resultado.success).toBe(true);

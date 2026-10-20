@@ -33,6 +33,7 @@ export type CuratedTaxPackage = Readonly<{
     operationType: 'COMPRA_INTERNA_REVENDA' | 'COMPRA_INTERESTADUAL_REVENDA';
     cfop: readonly string[];
     ncm: readonly string[];
+    cest?: readonly string[] | undefined;
     cst: readonly string[];
     validFrom: string;
     validUntil: string | null;
@@ -88,6 +89,7 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
   }
 
   for (const [index, rule] of input.rules.entries()) {
+    if (rule.taxType === 'ICMS' && rule.cest !== undefined && rule.cest.some((cest) => !/^\d{7}$/u.test(cest))) errors.push(`RULE_CEST_INVALID:${rule.id}`);
     if (!input.regimes.includes(rule.regime)) errors.push(`RULE_REGIME_NOT_COVERED:${rule.id}`);
     if (!validDate(rule.validFrom) || (rule.validUntil !== null && (!validDate(rule.validUntil) || rule.validUntil < rule.validFrom))) errors.push(`RULE_VALIDITY_INVALID:${rule.id}`);
     if (rule.validFrom < input.validFrom || (input.validUntil !== null && (rule.validUntil === null || rule.validUntil > input.validUntil))) errors.push(`RULE_OUTSIDE_PACKAGE_VALIDITY:${rule.id}`);

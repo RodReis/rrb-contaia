@@ -29,6 +29,10 @@ const ORIENTACOES_DOS_DADOS: Readonly<Record<string, OrientacaoFiscal>> = {
     campo: 'NCM do item', origem: 'Grupo de produto no XML da NF-e',
     proximoPasso: 'Confira o NCM no XML original; corrija o documento de origem e reprocese se estiver incorreto.',
   },
+  CEST: {
+    campo: 'CEST do item', origem: 'Grupo de produto no XML da NF-e',
+    proximoPasso: 'Confira o CEST no XML original; CEST isolado não comprova enquadramento nem corrige o NCM.',
+  },
   CST_CSOSN: {
     campo: 'CST ou CSOSN do item', origem: 'Grupo ICMS no XML da NF-e',
     proximoPasso: 'Confira o código no XML original; corrija o documento de origem e reprocese se estiver incorreto.',

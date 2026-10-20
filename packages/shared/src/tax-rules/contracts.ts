@@ -245,12 +245,17 @@ const taxPackageRuleSchema = z.strictObject({
   operationType: z.enum(['COMPRA_INTERNA_REVENDA','COMPRA_INTERESTADUAL_REVENDA']),
   cfop: z.array(z.string().regex(/^\d{4}$/u)).min(1).max(100),
   ncm: z.array(z.string().regex(/^\d{8}$/u)).min(1).max(500),
+  cest: z.array(z.string().regex(/^\d{7}$/u)).min(1).max(500).optional(),
   cst: z.array(z.string().regex(/^\d{2,3}$/u)).min(1).max(50),
   validFrom: civilDate, validUntil: civilDate.nullable(),
   treatment: z.enum(['APPLICABLE','NOT_APPLICABLE']),
   creditEligibility: z.enum(['ALLOWED','BLOCKED','NOT_RELEVANT']),
   sourceIds: z.array(z.string().trim().min(1).max(120)).min(1).max(50),
   rationale: z.string().trim().min(1).max(2000),
+}).superRefine((rule, context) => {
+  if (rule.taxType === 'ICMS' && rule.cest !== undefined && rule.cest.length === 0) {
+    context.addIssue({ code: 'custom', message: 'Regra ICMS com seletor CEST exige combinação explícita.', path: ['cest'] });
+  }
 });
 const taxPackageFixtureFactsSchema = z.strictObject({
   factDate: civilDate.nullable(), regime: z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']).nullable(),
@@ -259,6 +264,7 @@ const taxPackageFixtureFactsSchema = z.strictObject({
   operationType: z.enum(['COMPRA_INTERNA_REVENDA','COMPRA_INTERESTADUAL_REVENDA']).nullable(),
   purpose: z.string().nullable(), cfop: z.string().regex(/^\d{4}$/u).nullable(),
   ncm: z.string().regex(/^\d{8}$/u).nullable(), cst: z.string().regex(/^\d{2,3}$/u).nullable(),
+  cest: z.string().regex(/^\d{7}$/u).nullable().optional(),
   hasSubstitutionTax: z.boolean().nullable(), isImport: z.boolean().nullable(), isMonophase: z.boolean().nullable(),
   hasUnmodeledBenefit: z.boolean().nullable(), isReturnOrTransfer: z.boolean().nullable(),
   declaredCents: z.number().int().nonnegative().nullable(),
