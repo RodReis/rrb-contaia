@@ -98,6 +98,11 @@ describe('CuratedTaxPackageSchema (SPEC-026)', () => {
     expect(CuratedTaxPackageSchema.safeParse({ ...pacote, fixtures: [] }).success).toBe(false);
     expect(CuratedTaxPackageSchema.safeParse({ ...pacote, fixtures: [{ ...pacote.fixtures[0], expected: 'QUALQUER' }] }).success).toBe(false);
   });
+
+  it('aceita pacote documental sem regras apenas no contrato de importação', () => {
+    const resultado = CuratedTaxPackageSchema.safeParse({ ...pacote, rules: [], fixtures: [] });
+    expect(resultado.success).toBe(true);
+  });
 });
 
 describe('UpdateTaxRuleSchema', () => {

@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "packageId": "br-go-f26-initial-draft",
+  "semanticVersion": "0.1.0",
+  "jurisdiction": "GO",
+  "regimes": ["SIMPLES_NACIONAL", "LUCRO_PRESUMIDO"],
+  "document": { "model": "55", "direction": "ENTRY", "purpose": "RESALE" },
+  "operations": ["COMPRA_INTERNA_REVENDA", "COMPRA_INTERESTADUAL_REVENDA"],
+  "validFrom": "2026-01-01",
+  "validUntil": null,
+  "consultedOn": "2026-10-20",
+  "coverage": [
+    "Rascunho documental de fontes para NF-e 55 de entrada para revenda em Goiás.",
+    "Nenhuma regra de tratamento ou elegibilidade foi aprovada para publicação.",
+    "Ausência de regra executável é intencional; o resolvedor deve retornar INDETERMINATE."
+  ],
+  "exclusions": [
+    "Pacote não revisado por responsável tributário; não publicar nem usar como orientação fiscal.",
+    "ICMS em operação interna ou interestadual: recorte de CST, CFOP, NCM e RCTE/GO ainda exige curadoria por operação.",
+    "PIS e COFINS: confirmar regime cumulativo, exceções legais, produto sujeito a regime especial e efeitos da LC 214/2025 e LC 227/2026.",
+    "IBS e CBS em 2026: Receita Federal informa ano de testes sem efeitos jurídicos reais de débito/crédito.",
+    "Importação, monofásico, benefícios fiscais, ST, DIFAL, devoluções, transferências, uso, consumo e ativo permanecem fora da cobertura F26."
+  ],
+  "sources": [
+    {
+      "id": "lc123-2006",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 123, de 14 de dezembro de 2006 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",
+      "provision": "Art. 23, caput e §§ 1º a 5º; alterações e produção de efeitos da LC 214/2025 e LC 227/2026 devem ser revistas por responsável tributário antes de qualquer regra.",
+      "publishedOn": "2006-12-14",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2007-07-01",
+      "validUntil": null
+    },
+    {
+      "id": "lc87-1996",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 87, de 13 de setembro de 1996 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm",
+      "provision": "Arts. 19 e 20 e restrições do art. 20, § 1º; aplicação ao contexto Goiás e às alterações da reforma requer curadoria específica.",
+      "publishedOn": "1996-09-13",
+      "consultedOn": "2026-10-20",
+      "validFrom": "1996-11-01",
+      "validUntil": null
+    },
+    {
+      "id": "lei10637-2002",
+      "authority": "Presidência da República",
+      "title": "Lei nº 10.637, de 30 de dezembro de 2002 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10637compilado.htm",
+      "provision": "Arts. 3º e 8º, especialmente art. 8º, II; conferir alterações, exceções e produção de efeitos da LC 214/2025 antes de modelar regra.",
+      "publishedOn": "2002-12-30",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2002-12-30",
+      "validUntil": null
+    },
+    {
+      "id": "lei10833-2003",
+      "authority": "Presidência da República",
+      "title": "Lei nº 10.833, de 29 de dezembro de 2003 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.833compilado.htm",
+      "provision": "Arts. 3º e 10, especialmente art. 10, II; conferir alterações, exceções e produção de efeitos da LC 214/2025 antes de modelar regra.",
+      "publishedOn": "2003-12-29",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2004-02-01",
+      "validUntil": null
+    },
+    {
+      "id": "lc214-2025",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 214, de 16 de janeiro de 2025 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm",
+      "provision": "Regras de IBS/CBS, crédito e opção pelo regime regular; determinar artigos e produção de efeitos aplicáveis a cada regime e data antes de criar regras executáveis.",
+      "publishedOn": "2025-01-16",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2025-01-16",
+      "validUntil": null
+    },
+    {
+      "id": "lc227-2026",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 227, de 2026",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp227.htm",
+      "provision": "Alterações a LC 123/2006 e LC 214/2025; identificar dispositivos e respectivas datas de produção de efeitos antes de modelar regra.",
+      "publishedOn": "2026-01-13",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-01-13",
+      "validUntil": null
+    },
+    {
+      "id": "rfb-comunicado-beta-2025",
+      "authority": "Receita Federal do Brasil",
+      "title": "Comunicado sobre o Ambiente de Produção Beta — versão 1",
+      "url": "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/manuais/reforma-tributaria-do-consumo/comunicado-sobre-o-ambiente-de-producao-beta-versao-1-dezembro25",
+      "provision": "Seção sobre 2026 como ano de testes e ausência de efeitos jurídicos reais para débitos e créditos de IBS/CBS.",
+      "publishedOn": "2025-12-01",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-01-01",
+      "validUntil": "2026-12-31"
+    },
+    {
+      "id": "rfb-cgsn-2026-08",
+      "authority": "Receita Federal do Brasil / Comitê Gestor do Simples Nacional",
+      "title": "CGSN atualiza regras do Simples Nacional para adequação à Reforma Tributária do Consumo",
+      "url": "https://www.gov.br/receitafederal/pt-br/assuntos/noticias/2026/agosto/cgsn-atualiza-regras-do-simples-nacional-para-adequacao-a-reforma-tributaria-do-consumo",
+      "provision": "Notícia institucional sobre Resoluções CGSN nº 190 e 191/2026, créditos e opção pelo recolhimento regular IBS/CBS; usar atos normativos publicados como base da regra final.",
+      "publishedOn": "2026-08-11",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-08-11",
+      "validUntil": null
+    }
+  ],
+  "rules": [],
+  "fixtures": []
+}

@@ -70,8 +70,11 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
   if (input.jurisdiction !== 'BR' && input.jurisdiction !== 'GO') errors.push('JURISDICTION_UNSUPPORTED');
   if (!validDate(input.validFrom) || !validDate(input.consultedOn)) errors.push('PACKAGE_DATE_INVALID');
   if (input.validUntil !== null && (!validDate(input.validUntil) || input.validUntil < input.validFrom)) errors.push('PACKAGE_VALIDITY_INVALID');
-  if (input.regimes.length === 0 || input.rules.length === 0) errors.push('PACKAGE_COVERAGE_EMPTY');
-  if (input.fixtures.length === 0) errors.push('PACKAGE_FIXTURES_EMPTY');
+  if (input.regimes.length === 0) errors.push('PACKAGE_COVERAGE_EMPTY');
+  if (input.rules.length === 0) errors.push('PACKAGE_EXECUTABLE_RULES_EMPTY');
+  if (input.rules.length > 0 && input.fixtures.length === 0) errors.push('PACKAGE_FIXTURES_EMPTY');
+  if (input.sources.length === 0) errors.push('PACKAGE_SOURCES_EMPTY');
+  if (input.coverage.length === 0) errors.push('PACKAGE_COVERAGE_EMPTY');
 
   const sourceIds = new Set<string>();
   for (const source of input.sources) {

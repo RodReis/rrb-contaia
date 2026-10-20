@@ -274,11 +274,14 @@ export const CuratedTaxPackageSchema = z.strictObject({
   coverage: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
   exclusions: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
   sources: z.array(taxPackageSourceSchema).min(1).max(500),
-  rules: z.array(taxPackageRuleSchema).min(1).max(20000),
+  rules: z.array(taxPackageRuleSchema).max(20000),
   fixtures: z.array(z.strictObject({
     id: z.string().min(1).max(120), ruleId: z.string().min(1).max(120),
     taxType, facts: taxPackageFixtureFactsSchema,
     expected: z.enum(['APPLICABLE','NOT_APPLICABLE']),
-  })).min(1).max(5000),
+  })).max(5000),
+}).refine((pkg) => pkg.rules.length === 0 || pkg.fixtures.length > 0, {
+  message: 'Pacote com regras executáveis exige fixtures de conformidade.',
+  path: ['fixtures'],
 });
 export type CuratedTaxPackageInput = z.infer<typeof CuratedTaxPackageSchema>;

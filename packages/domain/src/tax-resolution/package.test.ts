@@ -23,6 +23,11 @@ describe('pacote tributário curado', () => {
     expect(validateTaxPackage({ ...pkg, fixtures: [] }).errors).toContain('PACKAGE_FIXTURES_EMPTY');
   });
 
+  it('aceita pacote curado de fontes sem regras e preserva abstenção por ausência de cobertura', () => {
+    const semRegras = { ...pkg, rules: [], fixtures: [] };
+    expect(validateTaxPackage(semRegras).errors).toContain('PACKAGE_EXECUTABLE_RULES_EMPTY');
+  });
+
   it('executa fixture com fatos independentes contra a regra e recusa expectativa divergente', () => {
     const invalid = { ...pkg, fixtures: [{ ...pkg.fixtures[0]!, facts: { ...fixtureFacts, cfop: '3102' } }] };
     expect(validateTaxPackage(invalid).errors).toContain('FIXTURE_EXPECTATION_MISMATCH:fixture-r1');

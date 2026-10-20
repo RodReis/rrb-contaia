@@ -14,6 +14,37 @@ import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
 const versaoParser = 'f18-1.0.0';
 const chaveMascarada = (value: string | null) => value ? `${value.slice(0, 4)}…${value.slice(-4)}` : null;
 
+export const statusImportacaoPeloCfop = (cfop: string | null): boolean | null => {
+  if (cfop === null || !/^\d{4}$/u.test(cfop)) return null;
+  return cfop.startsWith('3');
+};
+
+export const statusMonofasicoPelosCst = (tributos: readonly Readonly<{ codigo: string; situacao: string | null }>[]): boolean | null => {
+  const situacoes = tributos.filter((tributo) => tributo.codigo === 'PIS' || tributo.codigo === 'COFINS')
+    .map((tributo) => tributo.situacao).filter((situacao): situacao is string => situacao !== null);
+  if (situacoes.some((situacao) => situacao === '04')) return true;
+  if (situacoes.length >= 2 && situacoes.every((situacao) => /^\d{2}$/u.test(situacao) && situacao !== '04')) return false;
+  return null;
+};
+
+export const statusDevolucaoTransferenciaPeloCfop = (cfop: string | null): boolean | null => {
+  if (cfop === null || !/^\d{4}$/u.test(cfop)) return null;
+  const operacao = Number(cfop.slice(1));
+  if ((operacao >= 201 && operacao <= 208) || (operacao >= 410 && operacao <= 411) ||
+      (operacao >= 503 && operacao <= 505) || operacao === 553 || operacao === 555 || operacao === 556 ||
+      (operacao >= 660 && operacao <= 662) || (operacao >= 901 && operacao <= 925)) return true;
+  if (operacao === 101 || operacao === 102) return false;
+  return null;
+};
+
+export const statusStContribuicoesPelosCst = (tributos: readonly Readonly<{ codigo: string; situacao: string | null }>[]): boolean | null => {
+  const situacoes = tributos.filter((tributo) => tributo.codigo === 'PIS' || tributo.codigo === 'COFINS')
+    .map((tributo) => tributo.situacao).filter((situacao): situacao is string => situacao !== null);
+  if (situacoes.some((situacao) => situacao === '05')) return true;
+  if (situacoes.length >= 2 && situacoes.every((situacao) => /^\d{2}$/u.test(situacao) && situacao !== '05')) return false;
+  return null;
+};
+
 @Injectable()
 export class FiscalDocumentsService {
   constructor(private readonly pool: PoolDoBanco, private readonly storage: StorageService,
@@ -117,6 +148,10 @@ export class FiscalDocumentsService {
       const items = source.itens.map((item) => {
         const tributosDoItem = source.tributos.filter((tributo) => tributo.numero_item === item.numero);
         const hasSubstitutionTax = statusSubstituicaoTributariaComEvidencia(tributosDoItem);
+        const isImport = statusImportacaoPeloCfop(item.cfop);
+        const isMonophase = statusMonofasicoPelosCst(tributosDoItem);
+        const hasContributionSubstitution = statusStContribuicoesPelosCst(tributosDoItem);
+        const isReturnOrTransfer = statusDevolucaoTransferenciaPeloCfop(item.cfop);
         const missingInputs = [
           ...(!regime ? ['REGIME_HISTORICO'] : []),
           ...(!resaleItemNumbers.has(item.numero) ? ['FINALIDADE_AQUISICAO'] : []),
@@ -127,7 +162,11 @@ export class FiscalDocumentsService {
           ...(!item.ncm ? ['NCM'] : []),
           ...(!item.cst_csosn ? ['CST_CSOSN'] : []),
           ...(hasSubstitutionTax === null ? ['ST_STATUS'] : []),
-          'IMPORT_STATUS', 'MONOPHASE_STATUS', 'BENEFIT_STATUS', 'RETURN_TRANSFER_STATUS',
+          ...(isImport === null ? ['IMPORT_STATUS'] : []),
+          ...(isMonophase === null ? ['MONOPHASE_STATUS'] : []),
+          ...(hasContributionSubstitution === true ? ['CONTRIBUTION_SUBSTITUTION_OUTSIDE_COVERAGE'] : []),
+          'BENEFIT_STATUS',
+          ...(isReturnOrTransfer === null ? ['RETURN_TRANSFER_STATUS'] : []),
         ];
         const facts = {
           itemNumber: item.numero, parserVersion: item.parser_version, factDate: source.emitido_em,
@@ -148,8 +187,9 @@ export class FiscalDocumentsService {
             item.origem_uf === item.destino_uf ? 'COMPRA_INTERNA_REVENDA' :
               item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA',
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
-          hasSubstitutionTax, isImport: null, isMonophase: null,
-          hasUnmodeledBenefit: null, isReturnOrTransfer: null,
+          hasSubstitutionTax: hasSubstitutionTax === true || hasContributionSubstitution === true ? true : hasSubstitutionTax,
+          isImport, isMonophase,
+          hasUnmodeledBenefit: null, isReturnOrTransfer,
           declaredCents: item.valor === null ? null : (() => {
             const match = /^(\d+)(?:\.(\d{1,2}))?$/u.exec(item.valor!);
             return match ? Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0')) : null;
@@ -175,7 +215,14 @@ export class FiscalDocumentsService {
           ...facts,
           regimeEffectiveDate: regimeHistory?.vigente_desde ?? null,
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null,
-          excludedCasesUnresolved: ['SUBSTITUICAO_TRIBUTARIA','IMPORTACAO','MONOFASICO','BENEFICIO_NAO_MODELADO','DEVOLUCAO_TRANSFERENCIA'],
+          excludedCasesUnresolved: [
+            ...(hasSubstitutionTax === null ? ['SUBSTITUICAO_TRIBUTARIA'] : []),
+            ...(isImport === null ? ['IMPORTACAO'] : []),
+            ...(isMonophase === null ? ['MONOFASICO'] : []),
+            ...(hasContributionSubstitution === null ? ['SUBSTITUICAO_PIS_COFINS'] : []),
+            ...(isReturnOrTransfer === null ? ['DEVOLUCAO_TRANSFERENCIA'] : []),
+            'BENEFICIO_NAO_MODELADO',
+          ],
           missingInputs,
         };
         const hashCanonical = JSON.stringify({ facts: hashFacts, decisions });

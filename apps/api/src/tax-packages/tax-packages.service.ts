@@ -90,6 +90,14 @@ export class TaxPackagesService {
     const current = await this.get(actor, id, correlationId);
     const content = CuratedTaxPackageSchema.parse(current.content);
     const result = validateTaxPackage(content);
+    if (content.rules.length === 0) {
+      return { ...current, validation: { valid: false, errors: ['PACKAGE_EXECUTABLE_RULES_EMPTY'] } };
+    }
+    const fixtureRuleIds = new Set(content.fixtures.map((fixture) => fixture.ruleId));
+    const rulesWithoutFixture = content.rules.filter((rule) => !fixtureRuleIds.has(rule.id));
+    if (rulesWithoutFixture.length > 0) {
+      return { ...current, validation: { valid: false, errors: rulesWithoutFixture.map((rule) => `RULE_FIXTURE_MISSING:${rule.id}`) } };
+    }
     if (await hashTaxPackage(content) !== current.sha256) {
       return { ...current, validation: { valid: false, errors: ['PACKAGE_HASH_MISMATCH'] } };
     }
