@@ -38,15 +38,10 @@ export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proxi
   aoFecharDocumentoExterno: () => void;
   aoPaginar: (page: number) => void; aoCopiar: (value: string, name: string) => void;
 }) => {
-  const [selectedLocal, setSelectedLocal] = useState<string | null>(null);
-  const selected = documentoInicialSelecionado ?? selectedLocal;
-  const setSelected = (id: string | null) => {
-    if (documentoInicialSelecionado !== null) {
-      aoFecharDocumentoExterno();
-      if (id !== null) setSelectedLocal(id);
-      return;
-    }
-    setSelectedLocal(id);
+  const [selected, setSelected] = useState<string | null>(documentoInicialSelecionado);
+  const selecionar = (id: string | null) => {
+    setSelected(id);
+    if (id === null) aoFecharDocumentoExterno();
   };
   const details = useQuery({
     queryKey: ['sessao', 'eu', 'documento-fiscal', empresaId, selected],
@@ -71,24 +66,24 @@ export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proxi
                 <td className="px-md py-sm"><span className="block font-mono text-label-sm text-foreground">{item.nsu ?? '—'}</span><span className="text-label-sm text-muted-foreground">Atividade {dateTime(item.atividade_em)}</span></td>
                 <td className="max-w-48 truncate px-md py-sm">{item.emitente ?? '—'}</td><td className="px-md py-sm text-right tabular-nums">{money(item.total)}</td>
                 <td className="px-md py-sm"><div className="flex items-center gap-xs">
-                  <Button variante="contorno" tamanho="compacto" aria-expanded={selected === item.id} aria-label={busy ? 'Detalhes disponíveis após o processamento' : selected === item.id ? 'Fechar detalhes' : 'Abrir detalhes'} className="min-h-11 min-w-11" disabled={busy} onClick={() => setSelected(selected === item.id ? null : item.id)}>{selected === item.id ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}</Button>
+                  <Button variante="contorno" tamanho="compacto" aria-expanded={selected === item.id} aria-label={busy ? 'Detalhes disponíveis após o processamento' : selected === item.id ? 'Fechar detalhes' : 'Abrir detalhes'} className="min-h-11 min-w-11" disabled={busy} onClick={() => selecionar(selected === item.id ? null : item.id)}>{selected === item.id ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}</Button>
                   <Button variante="contorno" tamanho="compacto" className="min-h-11 min-w-11" aria-label="Verificar integridade" disabled={busy || integrity.isPending} onClick={() => integrity.mutate(item.id)}><Check aria-hidden="true" /></Button>
                   <Button variante="contorno" tamanho="compacto" className="min-h-11 min-w-11" aria-label="Baixar XML original" disabled={busy} onClick={() => void baixarOriginalFiscal(empresaId, item.id).catch(() => toast.error('Download indisponível.'))}><Download aria-hidden="true" /></Button>
                   {podeReprocessar ? <Button variante="contorno" tamanho="compacto" className="min-h-11 min-w-11" aria-label="Reprocessar documento" disabled={busy || somenteLeitura || retry.isPending} onClick={() => retry.mutate(item.id)}><RefreshCw aria-hidden="true" /></Button> : null}
                 </div></td>
               </tr>
-              {selected === item.id ? <tr className="border-t border-border bg-muted/20"><td colSpan={7} className="p-md">
+              {selected === item.id ? <tr className="border-t border-border bg-muted/20"><td colSpan={7} className="p-md"><section aria-label="Documento selecionado na fila tributária">
                 {details.isPending ? <div aria-busy="true"><Skeleton className="h-20 w-full" /></div> : null}
                 {details.isError ? <ErroDeTela titulo="Não foi possível abrir os detalhes" descricao="Tente novamente em instantes." /> : null}
                 {details.data ? <DetalheFiscal empresaId={empresaId} documento={details.data} layout={item.versao_layout} podeResolver={podeResolver && !somenteLeitura} aoCopiar={aoCopiar} /> : null}
-              </td></tr> : null}
+              </section></td></tr> : null}
             </Fragment>;
           })}</tbody>
         </table>
       </div></div>
     )}
     {selected !== null && !items.some((item) => item.id === selected) ? <section className="space-y-sm rounded-lg border border-border bg-muted/20 p-md" aria-label="Documento selecionado na fila tributária">
-      <div className="flex items-center justify-between gap-sm"><h4 className="font-display text-title-sm text-foreground">Documento selecionado na fila</h4><Button variante="contorno" onClick={() => setSelected(null)}>Fechar detalhes</Button></div>
+      <div className="flex items-center justify-between gap-sm"><h4 className="font-display text-title-sm text-foreground">Documento selecionado na fila</h4><Button variante="contorno" onClick={() => selecionar(null)}>Fechar detalhes</Button></div>
       {details.isPending ? <div aria-busy="true"><Skeleton className="h-20 w-full" /></div> : null}
       {details.isError ? <ErroDeTela titulo="Não foi possível abrir os detalhes" descricao="Tente novamente em instantes." /> : null}
       {details.data ? <DetalheFiscal empresaId={empresaId} documento={details.data} layout={null} podeResolver={podeResolver && !somenteLeitura} aoCopiar={aoCopiar} /> : null}

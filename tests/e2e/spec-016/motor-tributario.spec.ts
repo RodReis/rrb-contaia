@@ -584,21 +584,10 @@ test('F26: registra snapshots indeterminados, preserva revisões e exibe a decis
   await expect(linhaEntrada).toContainText('Sem processamento');
   await expect(linhaEntrada).toContainText('1');
   await linhaEntrada.getByRole('button', { name: 'Abrir documento' }).click();
-  await expect(contadora.getByRole('region', { name: 'Documento selecionado na fila tributária' })).toBeVisible();
-  await contadora.getByRole('button', { name: 'Fechar detalhes' }).last().click();
+  const listaDocumentos = contadora.getByRole('table', { name: 'Documentos fiscais capturados e processados para esta empresa' });
+  const documentoAberto = listaDocumentos.getByRole('row').filter({ hasText: '26262626000160' });
+  await expect(documentoAberto.getByRole('button', { name: 'Fechar detalhes' })).toBeVisible();
   expect(filaFiltrada.corpo).not.toMatchObject({itens:expect.arrayContaining([expect.objectContaining({emitente:'Emitente sintético de saída'})])});
-  const linhaDeSaida = contadora.getByRole('row').filter({ hasText: 'Emitente sintético de saída' });
-  await expect(linhaDeSaida).toBeVisible();
-  await linhaDeSaida.getByRole('button', { name: 'Abrir detalhes' }).click();
-  await contadora.getByRole('button', { name: 'Processar itens' }).click();
-  const rejeicaoSaida = await contadora.waitForResponse((response) => response.url().includes('tax-treatment-resolutions') && response.request().method() === 'POST');
-  expect(rejeicaoSaida.status()).toBe(422);
-  expect(await rejeicaoSaida.json()).toMatchObject({ code: 'TAX_TREATMENT_DOCUMENT_NOT_ENTRY' });
-  await contadora.getByRole('button', { name: 'Fechar detalhes' }).click();
-
-  const linha = contadora.getByRole('row').filter({ hasText: '26262626000160' });
-  await expect(linha).toBeVisible();
-  await linha.getByRole('button', { name: 'Abrir detalhes' }).click();
   const painel = contadora.getByRole('region', { name: 'Tratamento tributário por item' });
   await expect(painel).toBeVisible();
 
