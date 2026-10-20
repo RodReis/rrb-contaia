@@ -195,6 +195,7 @@ export type {
 
 export {
   CreateTaxRuleSchema,
+  CuratedTaxPackageSchema,
   LIMITE_DA_NFE_BYTES,
   ListTaxRulesQuerySchema,
   ManualTaxSimulationSchema,
@@ -206,6 +207,7 @@ export {
 } from './tax-rules/contracts.js';
 export type {
   CreateTaxRule,
+  CuratedTaxPackageInput,
   ListTaxRulesQuery,
   ManualTaxSimulation,
   NfeComparisonDto,

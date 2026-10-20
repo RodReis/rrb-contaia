@@ -10,7 +10,8 @@
  */
 'use client';
 
-import { Gavel, Lock, Scale } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, Gavel, Lock, Scale } from 'lucide-react';
 
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { EmptyState } from '@/components/ui/estados';
@@ -19,6 +20,8 @@ import { useSessao } from '../usuarios/queries';
 import { CatalogoDeRegras } from './catalogo-de-regras';
 import { CONSULTA_DO_MOTOR, SIMULACAO_DO_MOTOR, concede } from './permissoes';
 import { Simulador } from './simulador';
+import { listarPacotesTributarios } from '../fiscal-documents/api';
+import { PainelDePacotesCurados } from './pacotes-curados';
 
 const Identidade = () => (
   <section
@@ -50,6 +53,7 @@ const Identidade = () => (
 
 export const AreaDoMotor = () => {
   const sessao = useSessao();
+  const pacotes = useQuery({ queryKey: ['motor-tributario','pacotes-curados'], queryFn: listarPacotesTributarios });
   const permissoes = sessao.data;
   const semConsulta = permissoes !== undefined && !concede(permissoes, CONSULTA_DO_MOTOR);
   const semSimulacao = permissoes !== undefined && !concede(permissoes, SIMULACAO_DO_MOTOR);
@@ -68,6 +72,26 @@ export const AreaDoMotor = () => {
       </header>
 
       <Identidade />
+
+      <section aria-labelledby="titulo-resolucao-goias" className="flex flex-col gap-sm rounded-lg border border-border bg-card p-md">
+        <div className="flex flex-wrap items-center gap-sm">
+          <h2 id="titulo-resolucao-goias" className="font-display text-headline-md text-foreground">
+            Resolução tributária de entradas — Goiás
+          </h2>
+          <StatusBadge tom={pacotes.isError ? 'critico' : pacotes.data?.items.some((pacote)=>pacote.status==='PUBLISHED') ? 'conforme' : 'atencao'} rotulo={pacotes.isPending ? 'Consultando pacotes' : pacotes.isError ? 'Catálogo indisponível' : pacotes.data?.items.some((pacote)=>pacote.status==='PUBLISHED') ? 'Pacote publicado' : 'Sem pacote publicado'} />
+        </div>
+        <p className="max-w-prose text-body-sm text-muted-foreground">
+          F26 cobre NF-e modelo 55 de entrada para revenda, em Goiás, no Simples Nacional e Lucro Presumido. Pacote
+          publicado não garante cobertura do item: regime histórico, finalidade, vigência e fonte precisam coincidir.
+        </p>
+        <p className="flex items-start gap-xs text-body-sm text-muted-foreground">
+          <AlertTriangle className="mt-0.5 size-icon-sm shrink-0 text-secondary" aria-hidden="true" />
+          ST, DIFAL, monofásico, importação, benefício, devolução, transferência e itens sem classificação ficam
+          indeterminados. Valor destacado na NF-e não representa imposto devido nem crédito apropriado.
+        </p>
+      </section>
+
+      <PainelDePacotesCurados />
 
       {semConsulta ? (
         <EmptyState

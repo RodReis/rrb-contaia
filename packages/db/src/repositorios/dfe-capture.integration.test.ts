@@ -188,7 +188,7 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
         logradouro: null, numero: null, complemento: null, bairro: null, codigoMunicipio: null, municipio: null, uf: null,
         cep: null, codigoPais: null, pais: null }], emitidoEm: '2026-06-15', emitente: co.cnpj, destinatario: null, total: '1.00',
       ibsCbsPendente: false, baseIbsCbs: null, totalIbs: null, totalCbs: null,
-      itens: [{ tipo: 'ITEM' as const, codigo: '1', descricao: 'Item v1', quantidade: '1.0000', unidade: 'UN', valor: '1.00', ibs: null, cbs: null }],
+      itens: [{ tipo: 'ITEM' as const, codigo: '1', descricao: 'Item v1', quantidade: '1.0000', unidade: 'UN', valor: '1.00', ibs: null, cbs: null, codigoBeneficio: 'GO123456' }],
       tributos: [{ escopo: 'ITEM' as const, numeroItem: 1, codigo: 'ICMS' as const, baseCalculo: '1.00', aliquota: '0', valor: '0', situacao: '00', classificacao: null }] };
     const firstResult = await tech(co.id, `${correlationId}-v1`, (client) => persistirDocumentoFiscal(client, {
       tenantId: c.tenantA, empresaId: co.id, stagingId, cnpj: co.cnpj, nsu: '1', correlationId: `${correlationId}-v1`,
@@ -202,7 +202,7 @@ describe('repositório de captura DF-e (SPEC-017 §3.5–§3.6)', () => {
     expect(firstResult).toMatchObject({ reused: false, conflict: false, state: 'PROCESSADO' });
     expect(secondResult).toMatchObject({ id: firstResult.id, reused: true, conflict: false, state: 'PROCESSADO' });
     const detail = await tech(co.id, `${correlationId}-detail`, (client) => obterDocumentoFiscal(client, co.id, firstResult.id));
-    expect(detail).toMatchObject({ parser_version: 'f18-v2', itens: [{ descricao: 'Item v2' }], partes: [{ nome: 'Emitente v2' }], tributos: [{ valor: '0.2000000000' }] });
+    expect(detail).toMatchObject({ parser_version: 'f18-v2', itens: [{ descricao: 'Item v2', codigo_beneficio: 'GO123456' }], partes: [{ nome: 'Emitente v2' }], tributos: [{ valor: '0.2000000000' }] });
     const history = await admin.query<{ parser_version: string; descricao: string }>(
       `select parser_version,descricao from app.fiscal_document_item where document_id=$1 order by parser_version`, [firstResult.id]);
     expect(history.rows).toEqual([{ parser_version: 'f18-v1', descricao: 'Item v1' }, { parser_version: 'f18-v2', descricao: 'Item v2' }]);

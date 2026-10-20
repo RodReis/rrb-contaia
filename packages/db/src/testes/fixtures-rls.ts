@@ -102,6 +102,16 @@ const prepararDocumentoFiscal = async (admin: Consultavel, e: Escopo): Promise<R
   return { ...staging, documentId };
 };
 
+const prepararDocumentoParaSnapshot = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const documento = await prepararDocumentoFiscal(admin,e);
+  await admin.query(
+    `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,descricao)
+     values($1,$2,$3,'fixture',1,'ITEM','Item da matriz')`,
+    [e.tenantId,e.empresaId,documento['documentId']],
+  );
+  return documento;
+};
+
 const prepararConfiguracaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const configurationId = await unico(admin,
     `insert into app.fiscal_risk_configuration(tenant_id,empresa_id,versao,limite_centavos,motivo,ator_id)
@@ -1063,5 +1073,24 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.audit_payload_revelation': {
     preparar: async(admin,e) => ({ eventId: await inserirEventoDeAuditoria(admin,e,'d'.repeat(64)) }),
     inserir: (banco,e,r) => unico(banco,"insert into app.audit_payload_revelation(tenant_id,empresa_id,event_id,ator_id,justificativa,correlation_id) values($1,$2,$3,$4,'Justificativa de teste para revelar payload',$5) returning id",[e.tenantId,e.empresaId,r['eventId'],e.autorId,'rls-audit-revelation']),
+  },
+  'app.tax_entry_resolution_snapshot': {
+    preparar: prepararDocumentoParaSnapshot,
+    inserir: (banco, e, r) =>
+      unico(
+        banco,
+        `insert into app.tax_entry_resolution_snapshot
+           (tenant_id,empresa_id,document_id,item_number,parser_version,revision,idempotency_key,input_sha256,facts,decisions,actor_id,correlation_id)
+         values($1,$2,$3,1,'fixture',1,$4,repeat('a',64),'{}'::jsonb,'[]'::jsonb,$5,'rls-f26-fixture') returning id`,
+        [e.tenantId,e.empresaId,r['documentId'],`f26-${e.sufixo}-${proximo()}`,e.autorId],
+      ),
+  },
+  'app.tax_entry_resolution_event': {
+    preparar: prepararDocumentoParaSnapshot,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_entry_resolution_event
+        (tenant_id,empresa_id,document_id,actor_id,correlation_id,action,revision,package_id,item_count,indeterminate_count,idempotency_key)
+       values($1,$2,$3,$4,'rls-f26-event','ABSTAINED',1,null,1,1,$5) returning id`,
+      [e.tenantId,e.empresaId,r['documentId'],e.autorId,`f26-event-${e.sufixo}-${proximo()}`]),
   },
 };

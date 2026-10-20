@@ -21,7 +21,7 @@ export type DocumentoFiscalParseado = Readonly<{
   tributos: readonly TributoFiscalParseado[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
-  total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; ncm: string | null; cfop: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
+  total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; ncm: string | null; cfop: string | null; cstCsosn: string | null; codigoBeneficio: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
 }>;
 
@@ -109,10 +109,13 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     const content = node as Element;
     const product = nfe ? content.getElementsByTagNameNS(namespaceEsperado, 'prod')[0] : content;
     const tax = nfe ? content.getElementsByTagNameNS(namespaceEsperado, 'imposto')[0] : content;
+    const icms = nfe ? tax?.getElementsByTagNameNS(namespaceEsperado, 'ICMS')[0] : undefined;
     return {
       tipo: nfe ? 'ITEM' as const : 'MEDIDA_CARGA' as const,
       codigo: texto(product ?? null, nfe ? 'cProd' : 'cUnid', namespaceEsperado),
       ncm: nfe ? texto(product ?? null, 'NCM', namespaceEsperado) : null, cfop: nfe ? texto(product ?? null, 'CFOP', namespaceEsperado) : null,
+      cstCsosn: nfe ? texto(icms ?? null, 'CST', namespaceEsperado) ?? texto(icms ?? null, 'CSOSN', namespaceEsperado) : null,
+      codigoBeneficio: nfe ? texto(product ?? null, 'cBenef', namespaceEsperado) : null,
       descricao: texto(product ?? null, nfe ? 'xProd' : 'tpMed', namespaceEsperado),
       quantidade: texto(product ?? null, nfe ? 'qCom' : 'qCarga', namespaceEsperado), unidade: texto(product ?? null, nfe ? 'uCom' : 'cUnid', namespaceEsperado),
       // CT-e informa medidas de carga por infQ, mas o valor do frete é total do documento.
@@ -122,7 +125,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   });
   if (cte) {
     const components = Array.from(document.getElementsByTagNameNS(namespaceEsperado, 'Comp')).map((node) => ({
-      tipo: 'COMPONENTE' as const, codigo: null, ncm: null, cfop: null, descricao: texto(node as unknown as XmlContainer, 'xNome', namespaceEsperado),
+      tipo: 'COMPONENTE' as const, codigo: null, ncm: null, cfop: null, cstCsosn: null, codigoBeneficio: null, descricao: texto(node as unknown as XmlContainer, 'xNome', namespaceEsperado),
       quantidade: null, unidade: null, valor: texto(node as unknown as XmlContainer, 'vComp', namespaceEsperado), ibs: null, cbs: null,
     }));
     items.unshift(...components);

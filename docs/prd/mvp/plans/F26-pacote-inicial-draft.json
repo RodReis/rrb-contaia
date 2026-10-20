@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "packageId": "br-go-f26-initial-draft",
+  "semanticVersion": "0.1.0",
+  "jurisdiction": "GO",
+  "regimes": ["SIMPLES_NACIONAL", "LUCRO_PRESUMIDO"],
+  "document": { "model": "55", "direction": "ENTRY", "purpose": "RESALE" },
+  "operations": ["COMPRA_INTERNA_REVENDA", "COMPRA_INTERESTADUAL_REVENDA"],
+  "validFrom": "2026-01-01",
+  "validUntil": null,
+  "consultedOn": "2026-10-20",
+  "coverage": [
+    "Rascunho documental de fontes para NF-e 55 de entrada para revenda em Goiás.",
+    "Nenhuma regra de tratamento ou elegibilidade foi aprovada para publicação.",
+    "Ausência de regra executável é intencional; o resolvedor deve retornar INDETERMINATE."
+  ],
+  "exclusions": [
+    "Pacote não revisado por responsável tributário; não publicar nem usar como orientação fiscal.",
+    "ICMS em operação interna ou interestadual: recorte de CST, CFOP, NCM e RCTE/GO ainda exige curadoria por operação.",
+    "PIS e COFINS: confirmar regime cumulativo, exceções legais, produto sujeito a regime especial e efeitos da LC 214/2025 e LC 227/2026.",
+    "IBS/CBS 2026: ano de teste, sem efeitos reais em regra; descumprimento acessório pode gerar lançamento. Simples tem tratamento próprio. Fora da cobertura.",
+    "Importação, monofásico, benefícios fiscais, ST, DIFAL, devoluções, transferências, uso, consumo e ativo permanecem fora da cobertura F26."
+  ],
+  "sources": [
+    {
+      "id": "lc123-2006",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 123, de 14 de dezembro de 2006 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",
+      "provision": "Art. 23, caput e §§ 1º a 5º; alterações e produção de efeitos da LC 214/2025 e LC 227/2026 devem ser revistas por responsável tributário antes de qualquer regra.",
+      "publishedOn": "2006-12-14",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2007-07-01",
+      "validUntil": null
+    },
+    {
+      "id": "lc87-1996",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 87, de 13 de setembro de 1996 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm",
+      "provision": "Arts. 19 e 20 e restrições do art. 20, § 1º; aplicação ao contexto Goiás e às alterações da reforma requer curadoria específica.",
+      "publishedOn": "1996-09-13",
+      "consultedOn": "2026-10-20",
+      "validFrom": "1996-11-01",
+      "validUntil": null
+    },
+    {
+      "id": "lei10637-2002",
+      "authority": "Presidência da República",
+      "title": "Lei nº 10.637, de 30 de dezembro de 2002 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10637compilado.htm",
+      "provision": "Arts. 3º e 8º, especialmente art. 8º, II; conferir alterações, exceções e produção de efeitos da LC 214/2025 antes de modelar regra.",
+      "publishedOn": "2002-12-30",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2002-12-30",
+      "validUntil": null
+    },
+    {
+      "id": "lei10833-2003",
+      "authority": "Presidência da República",
+      "title": "Lei nº 10.833, de 29 de dezembro de 2003 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.833compilado.htm",
+      "provision": "Arts. 3º e 10, especialmente art. 10, II; conferir alterações, exceções e produção de efeitos da LC 214/2025 antes de modelar regra.",
+      "publishedOn": "2003-12-29",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2004-02-01",
+      "validUntil": null
+    },
+    {
+      "id": "lc214-2025",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 214, de 16 de janeiro de 2025 (texto compilado)",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm",
+      "provision": "Regras de IBS/CBS, crédito e opção pelo regime regular; determinar artigos e produção de efeitos aplicáveis a cada regime e data antes de criar regras executáveis.",
+      "publishedOn": "2025-01-16",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2025-01-16",
+      "validUntil": null
+    },
+    {
+      "id": "lc227-2026",
+      "authority": "Presidência da República",
+      "title": "Lei Complementar nº 227, de 2026",
+      "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp227.htm",
+      "provision": "Alterações a LC 123/2006 e LC 214/2025; identificar dispositivos e respectivas datas de produção de efeitos antes de modelar regra.",
+      "publishedOn": "2026-01-13",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-01-13",
+      "validUntil": null
+    },
+    {
+      "id": "rfb-comunicado-beta-2025",
+      "authority": "Receita Federal do Brasil",
+      "title": "Comunicado sobre o Ambiente de Produção Beta — versão 1",
+      "url": "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/manuais/reforma-tributaria-do-consumo/comunicado-sobre-o-ambiente-de-producao-beta-versao-1-dezembro25",
+      "provision": "Seções 2.3.1 e 4.1: ano de teste; dispensa de recolhimento em regra com cumprimento das obrigações acessórias e sem efeitos jurídicos reais para débitos/créditos IBS/CBS. Seção 4.1.1: tratamento específico do Simples.",
+      "publishedOn": "2025-12-26",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-01-01",
+      "validUntil": "2026-12-31"
+    },
+    {
+      "id": "rfb-cgsn-2026-08",
+      "authority": "Receita Federal do Brasil / Comitê Gestor do Simples Nacional",
+      "title": "CGSN atualiza regras do Simples Nacional para adequação à Reforma Tributária do Consumo",
+      "url": "https://www.gov.br/receitafederal/pt-br/assuntos/noticias/2026/agosto/cgsn-atualiza-regras-do-simples-nacional-para-adequacao-a-reforma-tributaria-do-consumo",
+      "provision": "Notícia institucional (11/08/2026): Res. 190/2026 produz efeitos em regra em 01/01/2027; opção pelo regime regular IBS/CBS tem períodos semestrais. Fonte contextual, não base suficiente para regra fiscal.",
+      "publishedOn": "2026-08-11",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-08-11",
+      "validUntil": null
+    },
+    {
+      "id": "cgsn-190-2026",
+      "authority": "Comitê Gestor do Simples Nacional",
+      "title": "Resolução CGSN nº 190, de 4 de agosto de 2026",
+      "url": "https://www.in.gov.br/web/dou/-/resolucao-cgsn-n-190-de-4-de-agosto-de-2026-724454118",
+      "provision": "Altera a Resolução CGSN nº 140/2018. Efeitos, em regra, a partir de 01/01/2027 (art. 9º); aplicação e exceções por dispositivo exigem revisão normativa antes de regra executável.",
+      "publishedOn": "2026-08-10",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2027-01-01",
+      "validUntil": null
+    },
+    {
+      "id": "cgsn-191-2026",
+      "authority": "Comitê Gestor do Simples Nacional",
+      "title": "Resolução CGSN nº 191, de 4 de agosto de 2026",
+      "url": "https://www.in.gov.br/web/dou/-/resolucao-cgsn-n-191-de-4-de-agosto-de-2026-724399487",
+      "provision": "Altera a Resolução CGSN nº 140/2018; art. 3º prevê efeitos desde publicação para parte dos dispositivos e 01/11/2026 para art. 1º. Recorte exato requer revisão do ato integral.",
+      "publishedOn": "2026-08-10",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-08-10",
+      "validUntil": null
+    },
+    {
+      "id": "go-decreto-10986-2026",
+      "authority": "Secretaria de Estado da Economia de Goiás",
+      "title": "Decreto nº 10.986, de 16 de setembro de 2026",
+      "url": "https://goias.gov.br/economia/categoria/institucional/legislacao/",
+      "provision": "Ato listado como alteração do Anexo IX do Decreto nº 4.852/1997 (RCTE) e do Decreto nº 10.089/2022. O dispositivo e o texto integral devem ser obtidos e associados à regra específica antes de qualquer publicação.",
+      "publishedOn": "2026-09-16",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-09-16",
+      "validUntil": null
+    },
+    {
+      "id": "go-in-1518-2022",
+      "authority": "Secretaria de Estado da Economia de Goiás",
+      "title": "Instrução Normativa nº 1.518/2022-GSE, texto consolidado",
+      "url": "https://appasp.economia.go.gov.br/Legislacao/arquivos/Secretario/IN/IN_1518_2022.htm",
+      "provision": "Art. 1º e Anexo Único: tabela cBenef/CST, inclusive ausência prevista de preenchimento para determinados CSTs; parágrafo único exclui optantes pelo Simples Nacional. Usar a tabela vigente na data do documento e não inferir ausência de benefício sem verificar a hipótese aplicável.",
+      "publishedOn": "2022-02-03",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2023-01-01",
+      "validUntil": null
+    },
+    {
+      "id": "go-in-1615-2025",
+      "authority": "Secretaria de Estado da Economia de Goiás",
+      "title": "Instrução Normativa nº 1.615/2025-GSE",
+      "url": "https://appasp.economia.go.gov.br/Legislacao/arquivos/Secretario/IN/IN_1615_2025.htm",
+      "provision": "Art. 1º e Anexo Único: alterações mais recentes da tabela de códigos de benefícios da IN 1.518/2022-GSE, com efeitos desde a publicação em 22/12/2025.",
+      "publishedOn": "2025-12-18",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2025-12-22",
+      "validUntil": null
+    }
+  ],
+  "rules": [],
+  "fixtures": []
+}

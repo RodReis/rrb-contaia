@@ -335,6 +335,7 @@ export const ManutencaoDaEmpresa = ({
               <AbaCapturaDfe empresaId={visao.id} somenteLeitura={arquivada} podeReprocessar={sessao?.papeis.includes('admin_escritorio') ?? false} />
               <PainelDeDocumentosFiscais empresaId={visao.id} somenteLeitura={arquivada}
                 podeReprocessar={sessao?.papeis.some((papel) => ['admin_escritorio','contador','auxiliar'].includes(papel)) ?? false}
+                podeResolverTributos={sessao?.permissoes.includes('fiscal.motor_tributario.simular') ?? false}
                 permitirDecisao={sessao?.papeis.some((papel)=>['admin_escritorio','contador'].includes(papel))??false} />
               <PainelDeRiscoFiscal empresaId={visao.id} somenteLeitura={arquivada}
                 podeConfigurar={sessao?.papeis.some((papel)=>['admin_escritorio','contador'].includes(papel))??false}/>

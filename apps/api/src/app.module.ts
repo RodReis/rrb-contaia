@@ -61,6 +61,8 @@ import { TaxRulesController } from './tax-rules/tax-rules.controller';
 import { TaxRulesService } from './tax-rules/tax-rules.service';
 import { TaxSimulationsController } from './tax-simulations/tax-simulations.controller';
 import { TaxSimulationsService } from './tax-simulations/tax-simulations.service';
+import { TaxPackagesController } from './tax-packages/tax-packages.controller';
+import { TaxPackagesService } from './tax-packages/tax-packages.service';
 import { DfeCaptureController } from './dfe-capture/dfe-capture.controller';
 import { DfeCaptureService } from './dfe-capture/dfe-capture.service';
 import { PROVEDOR_DA_FILA_DFE_CAPTURE } from './dfe-capture/dfe-capture.queue';
@@ -116,6 +118,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     ConvitesController,
     TaxRulesController,
     TaxSimulationsController,
+    TaxPackagesController,
     DfeCaptureController,
     FiscalDocumentsController,
     FiscalRiskController,
@@ -155,6 +158,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     ConsultaDeCnpjNaCnpja,
     TaxRulesService,
     TaxSimulationsService,
+    TaxPackagesService,
     DfeCaptureService,
     ...PROVEDOR_DA_FILA_DFE_CAPTURE,
     FiscalDocumentsService,

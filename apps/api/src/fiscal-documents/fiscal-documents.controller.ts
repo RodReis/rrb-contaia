@@ -15,6 +15,25 @@ const uuid = z.string().uuid();
 const consultaFiscalSchema = paginaSchema.extend({
   estado: z.enum(['PENDENTE','PROCESSANDO','PROCESSADO','PENDENTE_LAYOUT','PENDENTE_IBS_CBS','XML_INVALIDO','CONFLITO','FALHA']).optional(),
 });
+const resolucaoTributariaSchema = z.strictObject({
+  expectedDocumentRevision: z.string().min(1).max(100),
+  packageId: uuid.optional(),
+  resaleItemNumbers: z.array(z.number().int().positive()).max(1000).refine((items) => new Set(items).size === items.length, 'Itens duplicados não são permitidos.'),
+  idempotencyKey: z.string().uuid(),
+  reprocessingReason: z.string().trim().min(10).max(500).optional(),
+});
+const revisionSchema = z.coerce.number().int().positive();
+const dataCivilQuerySchema=z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).refine((value)=>{
+  const date=new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.valueOf())&&date.toISOString().slice(0,10)===value;
+},'Data civil inválida.');
+const filaResolucaoSchema = paginaSchema.extend({
+  de:dataCivilQuerySchema.optional(),
+  ate:dataCivilQuerySchema.optional(),
+  regime:z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']).optional(),
+  estadoResolucao:z.enum(['SEM_PROCESSAMENTO','INDETERMINADO','RESOLVIDO']).optional(),
+  indeterminados:z.enum(['true','false']).transform((value)=>value==='true').optional(),
+}).refine((query)=>query.de===undefined||query.ate===undefined||query.de<=query.ate,'Período inválido.');
 
 @Controller('companies/:companyId/fiscal-documents')
 @DfeAdminTenantScope()
@@ -27,6 +46,16 @@ export class FiscalDocumentsController {
   listar(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Query() query: unknown) {
     const consulta = analisar(consultaFiscalSchema, query);
     return this.service.listar(tenantDa(request), autorDa(request).usuarioId, companyId, obterCorrelationId(request), consulta.pagina, consulta.estado ?? null);
+  }
+
+  @Get('tax-treatment-resolutions/queue')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarFilaTributaria(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Query() query:unknown) {
+    const filters=analisar(filaResolucaoSchema,query);
+    return this.service.listarFilaTributaria(tenantDa(request),autorDa(request).usuarioId,companyId,obterCorrelationId(request),filters.pagina,{
+      from:filters.de??null,to:filters.ate??null,regime:filters.regime??null,
+      state:filters.estadoResolucao??null,hasIndeterminate:filters.indeterminados??null,
+    });
   }
 
   @Get('acknowledgements')
@@ -56,6 +85,59 @@ export class FiscalDocumentsController {
   @ExigePermissao('empresas.cadastro.consultar')
   obter(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Param('documentId') documentId: string) {
     return this.service.obter(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(uuid, documentId), obterCorrelationId(request));
+  }
+
+  @Post(':documentId/tax-treatment-resolutions')
+  @HttpCode(201)
+  @ExigePermissao('fiscal.motor_tributario.simular')
+  resolverTratamentoTributario(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
+    @Param('documentId') documentId: string, @Body() body: unknown) {
+    const input = analisar(resolucaoTributariaSchema, body);
+    return this.service.resolverTratamentoTributario(tenantDa(request), autorDa(request).usuarioId, companyId,
+      analisar(uuid,documentId), obterCorrelationId(request), input);
+  }
+
+  @Get(':documentId/tax-treatment-resolutions')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarTratamentosTributarios(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
+    @Param('documentId') documentId: string) {
+    return this.service.listarTratamentosTributarios(tenantDa(request), autorDa(request).usuarioId, companyId,
+      analisar(uuid,documentId), obterCorrelationId(request));
+  }
+
+  @Get(':documentId/tax-treatment-resolutions/compare')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  async compararTratamentosTributarios(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
+    @Param('documentId') documentId: string, @Query() query: unknown) {
+    const input = analisar(z.strictObject({ fromRevision: revisionSchema, toRevision: revisionSchema }), query);
+    const [from,to] = await Promise.all([
+      this.service.listarTratamentosTributarios(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,documentId),obterCorrelationId(request),input.fromRevision),
+      this.service.listarTratamentosTributarios(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,documentId),obterCorrelationId(request),input.toRevision),
+    ]);
+    const before = new Map(from.itens.map((row) => [Number(row['item_number']),row]));
+    const after = new Map(to.itens.map((row) => [Number(row['item_number']),row]));
+    const itemNumbers = [...new Set([...before.keys(),...after.keys()])].sort((a,b)=>a-b);
+    const diff = itemNumbers.map((itemNumber) => {
+      const oldRow = before.get(itemNumber);
+      const newRow = after.get(itemNumber);
+      return {
+        itemNumber,
+        changed: oldRow === undefined || newRow === undefined ||
+          JSON.stringify(oldRow['facts']) !== JSON.stringify(newRow['facts']) ||
+          JSON.stringify(oldRow['decisions']) !== JSON.stringify(newRow['decisions']),
+        from: oldRow ?? null,
+        to: newRow ?? null,
+      };
+    });
+    return { fromRevision: input.fromRevision, toRevision: input.toRevision, diff, from: from.itens, to: to.itens };
+  }
+
+  @Get(':documentId/tax-treatment-resolutions/:revision')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarRevisaoDeTratamentoTributario(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
+    @Param('documentId') documentId: string, @Param('revision') revision: string) {
+    return this.service.listarTratamentosTributarios(tenantDa(request),autorDa(request).usuarioId,companyId,
+      analisar(uuid,documentId),obterCorrelationId(request),analisar(revisionSchema,revision));
   }
 
   @Post(':documentId/integrity-checks')
