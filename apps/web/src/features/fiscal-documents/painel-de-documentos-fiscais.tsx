@@ -118,7 +118,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
         <Select rotulo="Estado do processamento" opcoes={opcoesDeEstado} valor={filtro} onValorChange={(valor) => atualizarUrl('documentosEstado', valor, true)} />
       </div>
     </header>
-    <FilaResolucaoTributaria empresaId={empresaId} onAbrirDocumento={setDocumentoSelecionadoNaFila} />
+    <FilaResolucaoTributaria empresaId={empresaId} onAbrirDocumento={(id) => setDocumentoSelecionadoNaFila(id)} />
     <section aria-labelledby="acknowledgements-title" className="flex flex-col gap-sm border-t border-border pt-lg">
       <div><h4 id="acknowledgements-title" className="font-display text-title-md text-foreground">Ciência da Emissão</h4><p className="mt-xs max-w-2xl text-body-sm text-muted-foreground">Resumos de NF-e destinados à empresa, tentativas técnicas e recuperação do XML completo.</p></div>
       {ciencias.isPending?<div aria-busy="true"><Skeleton className="h-20 w-full"/></div>:null}
@@ -128,7 +128,8 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
     </section>
     <ListaDocumentosFiscais empresaId={empresaId} items={documentos.data.itens} pagina={pagina} filtro={filtro} proximaPagina={documentos.data.temProximaPagina}
       somenteLeitura={somenteLeitura} podeReprocessar={podeReprocessar} podeResolver={podeResolverTributos}
-      documentoInicialSelecionado={documentoSelecionadoNaFila} aoPaginar={(page) => atualizarUrl('documentosPagina', String(page))} aoCopiar={copiar} />
+      documentoInicialSelecionado={documentoSelecionadoNaFila} aoFecharDocumentoExterno={() => setDocumentoSelecionadoNaFila(null)}
+      aoPaginar={(page) => atualizarUrl('documentosPagina', String(page))} aoCopiar={copiar} />
     {abaAtual==='captura-dfe'?<InboxDeManifestacoes empresaId={empresaId} permitirDecisao={!somenteLeitura && (permitirDecisao ?? false)} />:null}
   </section>;
 };

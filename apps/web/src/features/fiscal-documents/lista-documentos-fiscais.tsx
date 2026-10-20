@@ -31,15 +31,21 @@ const money = (value: string | null) => {
 };
 
 export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proximaPagina, somenteLeitura, podeReprocessar, podeResolver,
-  documentoInicialSelecionado, aoPaginar, aoCopiar }: {
+  documentoInicialSelecionado, aoFecharDocumentoExterno, aoPaginar, aoCopiar }: {
   empresaId: string; items: readonly DocumentoFiscal[]; pagina: number; filtro: string; proximaPagina: boolean;
   somenteLeitura: boolean; podeReprocessar: boolean; podeResolver: boolean;
   documentoInicialSelecionado: string | null;
+  aoFecharDocumentoExterno: () => void;
   aoPaginar: (page: number) => void; aoCopiar: (value: string, name: string) => void;
 }) => {
   const [selectedLocal, setSelectedLocal] = useState<string | null>(null);
   const selected = documentoInicialSelecionado ?? selectedLocal;
   const setSelected = (id: string | null) => {
+    if (documentoInicialSelecionado !== null) {
+      aoFecharDocumentoExterno();
+      if (id !== null) setSelectedLocal(id);
+      return;
+    }
     setSelectedLocal(id);
   };
   const details = useQuery({
