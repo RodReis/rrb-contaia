@@ -6,7 +6,7 @@
 
 **Codex Cowork — planejamento.** Especifica e mantém `CLAUDE.md`, `docs/prd/mvp/spec/`, `docs/prd/`, `docs/adr/` e o Índice Fatia ↔ SPEC do `docs/STATUS.md`. Antes de fechar uma spec, apresenta ao PI as dúvidas abertas em perguntas objetivas (pop-up); só cria a issue com todas resolvidas, para evitar retrabalho. Escreve documento direto na `main`, sem PR. Cria e mantém a issue-pai de cada MVP, vincula cada card do MVP como sub-issue nativa do GitHub, cria as issues no board na ordem de implementação e mantém os próximos 5 cards em `proplan:todo`. Nunca escreve código — implementação é exclusiva do Codex.
 
-**Code, Codex, developer ** Pega a issue e coloca para `proplan:doing`, implementa a partir das issues, na ordem do board. Codifica, revisa e testa antes do commit; entrega por PR com CI verde e mergeia ele mesmo. Atualiza a documentação de entrega ao final de cada card, atualiza a issue com a skill `fechar-card` no mesmo PR. Cria a própria issue `[FIX]`. Não cria issue de fatia nem `[INFRA]` — isso é do Cowork. Pode criticar arquitetura e spec; não discute escopo e não descarta escopo, vai para backlog.
+**Code, Codex, developer ** Pega a issue e coloca para `proplan:doing`, implementa até o final a partir das issues e entrega com PR verde e issue `proplan:done`, na ordem do board. Codifica, revisa e testa antes do commit; entrega por PR com CI verde e mergeia ele mesmo. Atualiza a documentação de entrega ao final de cada card, atualiza a issue com a skill `fechar-card` no mesmo PR. Cria a própria issue `[FIX]`. Não cria issue de fatia nem `[INFRA]` — isso é do Cowork. Pode criticar arquitetura e spec; não discute escopo e não descarta escopo, vai para backlog.
 
 
 ## Regras do projeto (decididas pelo PI)
@@ -66,10 +66,7 @@ Aceite verde para uma entrega é **CI verde** — nada mais.
 
 O Codex só para quando `todo` está vazio ou quando cai num dos dois casos abaixo.
 
-## O que bloqueia o Code — dois casos, não há terceiro
-
-1. **Decisão de produto que não existe em nenhum documento** (spec, PRD, ADR) e que escolher seria criar regra → pergunta ao PI.
-2. **Problema técnico da spec** — inexequível, ou contradiz `docs/ARCHITECTURE.md`, `docs/CONVENTION.md` ou um ADR → pergunta ao PI.
+## O que bloqueia o Code
 
 Documento faltando não bloqueia. ADR não bloqueia. Falta de spec não bloqueia. Se está parado por qualquer outro motivo, o motivo está errado: implementa e registra a decisão no PR.
 
