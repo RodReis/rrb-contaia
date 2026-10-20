@@ -120,6 +120,28 @@
       "consultedOn": "2026-10-20",
       "validFrom": "2026-09-16",
       "validUntil": null
+    },
+    {
+      "id": "go-in-1518-2022",
+      "authority": "Secretaria de Estado da Economia de Goiás",
+      "title": "Instrução Normativa nº 1.518/2022-GSE, texto consolidado",
+      "url": "https://appasp.economia.go.gov.br/Legislacao/arquivos/Secretario/IN/IN_1518_2022.htm",
+      "provision": "Art. 1º e Anexo Único: tabela cBenef/CST, inclusive ausência prevista de preenchimento para determinados CSTs; parágrafo único exclui optantes pelo Simples Nacional. Usar a tabela vigente na data do documento e não inferir ausência de benefício sem verificar a hipótese aplicável.",
+      "publishedOn": "2022-02-03",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2023-01-01",
+      "validUntil": null
+    },
+    {
+      "id": "go-in-1615-2025",
+      "authority": "Secretaria de Estado da Economia de Goiás",
+      "title": "Instrução Normativa nº 1.615/2025-GSE",
+      "url": "https://appasp.economia.go.gov.br/Legislacao/arquivos/Secretario/IN/IN_1615_2025.htm",
+      "provision": "Art. 1º e Anexo Único: alterações mais recentes da tabela de códigos de benefícios da IN 1.518/2022-GSE, com efeitos desde a publicação em 22/12/2025.",
+      "publishedOn": "2025-12-18",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2025-12-22",
+      "validUntil": null
     }
   ],
   "rules": [],

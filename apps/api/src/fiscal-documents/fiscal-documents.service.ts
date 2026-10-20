@@ -45,6 +45,11 @@ export const statusStContribuicoesPelosCst = (tributos: readonly Readonly<{ codi
   return null;
 };
 
+export const statusBeneficioPeloCBenef = (codigo: string | null): boolean | null => {
+  if (codigo === null || codigo.trim() === '' || codigo.trim().toUpperCase() === 'SEM CBENEF') return null;
+  return true;
+};
+
 @Injectable()
 export class FiscalDocumentsService {
   constructor(private readonly pool: PoolDoBanco, private readonly storage: StorageService,
@@ -151,6 +156,7 @@ export class FiscalDocumentsService {
         const isImport = statusImportacaoPeloCfop(item.cfop);
         const isMonophase = statusMonofasicoPelosCst(tributosDoItem);
         const hasContributionSubstitution = statusStContribuicoesPelosCst(tributosDoItem);
+        const hasUnmodeledBenefit = statusBeneficioPeloCBenef(item.codigo_beneficio);
         const isReturnOrTransfer = statusDevolucaoTransferenciaPeloCfop(item.cfop);
         const missingInputs = [
           ...(!regime ? ['REGIME_HISTORICO'] : []),
@@ -165,7 +171,7 @@ export class FiscalDocumentsService {
           ...(isImport === null ? ['IMPORT_STATUS'] : []),
           ...(isMonophase === null ? ['MONOPHASE_STATUS'] : []),
           ...(hasContributionSubstitution === true ? ['CONTRIBUTION_SUBSTITUTION_OUTSIDE_COVERAGE'] : []),
-          'BENEFIT_STATUS',
+          ...(hasUnmodeledBenefit === null ? ['BENEFIT_STATUS'] : []),
           ...(isReturnOrTransfer === null ? ['RETURN_TRANSFER_STATUS'] : []),
         ];
         const facts = {
@@ -174,7 +180,8 @@ export class FiscalDocumentsService {
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null,
           model: source.modelo, status: source.estado, authorizedProtocolPresent: source.protocolo !== null,
           originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm,
-          cstCsosn: item.cst_csosn, declaredValue: item.valor, missingInputs,
+          cstCsosn: item.cst_csosn, codigoBeneficio: item.codigo_beneficio,
+          declaredValue: item.valor, missingInputs,
           packageSources: selectedPackage?.content.sources ?? [],
           tributos: tributosDoItem,
         };
@@ -189,7 +196,7 @@ export class FiscalDocumentsService {
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
           hasSubstitutionTax: hasSubstitutionTax === true || hasContributionSubstitution === true ? true : hasSubstitutionTax,
           isImport, isMonophase,
-          hasUnmodeledBenefit: null, isReturnOrTransfer,
+          hasUnmodeledBenefit, isReturnOrTransfer,
           declaredCents: item.valor === null ? null : (() => {
             const match = /^(\d+)(?:\.(\d{1,2}))?$/u.exec(item.valor!);
             return match ? Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0')) : null;
@@ -221,7 +228,7 @@ export class FiscalDocumentsService {
             ...(isMonophase === null ? ['MONOFASICO'] : []),
             ...(hasContributionSubstitution === null ? ['SUBSTITUICAO_PIS_COFINS'] : []),
             ...(isReturnOrTransfer === null ? ['DEVOLUCAO_TRANSFERENCIA'] : []),
-            'BENEFICIO_NAO_MODELADO',
+            ...(hasUnmodeledBenefit === null ? ['BENEFICIO_NAO_MODELADO'] : []),
           ],
           missingInputs,
         };

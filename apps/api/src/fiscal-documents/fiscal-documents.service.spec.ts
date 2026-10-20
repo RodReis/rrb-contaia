@@ -4,6 +4,7 @@ import {
   statusImportacaoPeloCfop,
   statusMonofasicoPelosCst,
   statusStContribuicoesPelosCst,
+  statusBeneficioPeloCBenef,
 } from './fiscal-documents.service';
 
 describe('indicadores fiscais derivados com cautela da NF-e', () => {
@@ -30,5 +31,11 @@ describe('indicadores fiscais derivados com cautela da NF-e', () => {
     expect(statusDevolucaoTransferenciaPeloCfop('1202')).toBe(true);
     expect(statusDevolucaoTransferenciaPeloCfop('1102')).toBe(false);
     expect(statusDevolucaoTransferenciaPeloCfop(null)).toBeNull();
+  });
+
+  it('não confunde o literal SEM CBENEF com código de benefício declarado', () => {
+    expect(statusBeneficioPeloCBenef('GO800001')).toBe(true);
+    expect(statusBeneficioPeloCBenef(' SEM CBENEF ')).toBeNull();
+    expect(statusBeneficioPeloCBenef(null)).toBeNull();
   });
 });
