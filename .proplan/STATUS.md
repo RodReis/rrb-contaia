@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-18
+updated: 2026-10-20
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -9,6 +9,7 @@ updated: 2026-10-18
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-026][F26] Resolução tributária de entradas NF-e em Goiás (#28)
 - [MVP2][SPEC-090][F90] Integração financeiro-contábil de títulos e baixas F68 (#122)
 - [MVP2][SPEC-089][F89] Pix Automático para cobrança recorrente F68 (#121)
 - [MVP2][SPEC-088][F88] Iniciação Pix de DAS e FGTS via Open Finance (#119)
@@ -67,12 +68,6 @@ updated: 2026-10-18
 - [MVP2][SPEC-034][F34] Acréscimos legais da reconstrução histórica do ICMS-ST em Goiás (#38)
 - [MVP2][SPEC-033][F33] Reconstrução histórica do ICMS-ST de autopeças em Goiás (#37)
 - [MVP2][SPEC-032][F32] Eventos posteriores no complemento e restituição do ICMS-ST (#36)
-- [MVP2][SPEC-031][F31] Inclusão da NFC-e no complemento e restituição do ICMS-ST de autopeças em Goiás (#35)
-- [MVP2][SPEC-030][F30] Importação e normalização de NFC-e modelo 65 em Goiás (#34)
-- [MVP2][SPEC-029][F29] Complemento e restituição do ICMS-ST de autopeças em Goiás (#33)
-- [MVP2][SPEC-028][F28] ICMS na entrada histórica de autopeças em Goiás (#32)
-- [MVP2][SPEC-027][F27] ICMS-ST retido em entradas de autopeças em Goiás (#29)
-- [MVP2][SPEC-026][F26] Resolução tributária de entradas NF-e em Goiás (#28)
 
 ### Sem épico
 
@@ -84,7 +79,13 @@ updated: 2026-10-18
 
 ## A Fazer
 
-_(vazio)_
+### [MVP2] Fiscal, contábil e financeiro (#31)
+
+- [MVP2][SPEC-031][F31] Inclusão da NFC-e no complemento e restituição do ICMS-ST de autopeças em Goiás (#35)
+- [MVP2][SPEC-030][F30] Importação e normalização de NFC-e modelo 65 em Goiás (#34)
+- [MVP2][SPEC-029][F29] Complemento e restituição do ICMS-ST de autopeças em Goiás (#33)
+- [MVP2][SPEC-028][F28] ICMS na entrada histórica de autopeças em Goiás (#32)
+- [MVP2][SPEC-027][F27] ICMS-ST retido em entradas de autopeças em Goiás (#29)
 
 ## Em Andamento
 
@@ -96,7 +97,7 @@ _(vazio)_
 
 ## Finalizado
 
-### [MVP1] Fundação, captura e controle operacional (#30)
+### #30 (#30)
 
 - [MVP1][SPEC-025][F25] Procuração eletrônica RFB/e-CAC (#27, finalizado em: 2026-10-18)
 - [MVP1][SPEC-024][F24] Auditoria append-only e decisões dos agentes (#26, finalizado em: 2026-10-18)
