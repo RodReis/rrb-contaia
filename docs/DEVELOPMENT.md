@@ -705,3 +705,17 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 ## Referências
 
 - [`STATUS.md`](STATUS.md) · [`AUDIT.md`](AUDIT.md) · [`TESTING.md`](TESTING.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`FRONTEND.md`](FRONTEND.md)
+
+### Card #29 — `[MVP2][SPEC-027][F27]` ICMS-ST retido em entradas de autopeças em Goiás
+
+- [x] Iniciado em worktree dedicado `codex/f27-issue29`; issue #29 em `proplan:doing`.
+- [x] Migration 0044 preserva CEST original por item, com formato de sete dígitos e sem reescrever snapshots/documentos existentes.
+- [x] Parser fiscal F18 passa a extrair CEST do XML modelo 55; teste sintético confirma CEST/NCM/CST e ICMS-ST declarado por item e documento.
+- [x] Pacote curado aceita selector CEST explícito e resolvedor exige combinação CEST/NCM para ICMS-ST; regras F26 sem CEST seguem compatíveis para entradas sem ST, nunca enquadram ST.
+- [x] Serviço preserva evidência declarada (base, alíquota, valor, CEST/NCM/grupo) e checa presença e fechamento exato em centavos contra total `vST`; ICMS fica `INDETERMINATE` se checagem falha/não executada. PIS/COFINS e demais dimensões seguem independentes.
+- [x] Tela lista CEST, declara valores da NF-e e motivos das checagens; badge sinaliza indeterminação em qualquer dimensão, sem sugerir crédito/apuração.
+- [x] Fontes oficiais pesquisadas incluem Decreto GO 9.108/2017 (autopeças excluídas da ST pelas operações posteriores desde 01/01/2018), Decreto 10.177/2022 (Apêndice CEST) e alterações RCTE 10.690/2025; CEST é identificador, não prova de retenção/regra vigente. Nenhuma regra, par CEST/NCM ou fixture legal foi inventado.
+- [x] Testes domínio 900/900 antes dos últimos testes; testes adicionados validação declarativa 3/3, parser 1/1, contratos shared 250/250; DB F26 10/10 com migrations 0000–0044 em PostgreSQL 17 isolado `25429`; build 10/10; lint API/DB/shared limpo e web sem erro (um aviso preexistente em `aba-de-enderecos.tsx`); `impeccable detect` sem achados.
+- [ ] Revisão tributária humana do pacote inicial, regras e fixtures oficiais: bloqueia validação/publicação do pacote e aceite fiscal; sem pacote publicável, não há resultado `APPLICABLE` de F27.
+- [ ] Capturas autenticadas CLARO/ESCURO em 768/1024/1440, axe e fluxo E2E F27: `not_run`; sem fixture de empresa/documento F27 na stack isolada. Regressão parser e domínio executadas.
+- [ ] Rodar self-check anti-drift e suíte completa relevante no SHA final; autorrevisão do diff contra `origin/main`; abrir PR `refs #29`, CI verde, merge e cerimônia `fechar-card` antes de `proplan:done`.

@@ -12,7 +12,7 @@ export type RegistroFiscalPersistido = Readonly<{
   emitidoEm: string | null; emitente: string | null;
   destinatario: string | null; total: string | null; ibsCbsPendente: boolean;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
-  itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null; ncm?: string | null; cfop?: string | null; cstCsosn?: string | null; codigoBeneficio?: string | null }>[];
+  itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; ibs: string | null; cbs: string | null; ncm?: string | null; cest?: string | null; cfop?: string | null; cstCsosn?: string | null; codigoBeneficio?: string | null }>[];
   tributos: readonly Readonly<{ escopo: 'DOCUMENTO' | 'ITEM'; numeroItem: number | null; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS'; baseCalculo: string | null; aliquota: string | null; valor: string | null; situacao: string | null; classificacao: string | null }>[];
 }>;
 
@@ -22,6 +22,7 @@ export type ItemParaResolucaoTributaria = Readonly<{
   descricao: string | null;
   valor: string | null;
   ncm: string | null;
+  cest?: string | null;
   cfop: string | null;
   cst_csosn: string | null;
   codigo_beneficio: string | null;
@@ -40,7 +41,7 @@ export const listarItensParaResolucaoTributaria = async (client: PoolClient, emp
   );
   if (!document.rows[0]) return null;
   const { rows: items } = await client.query<ItemParaResolucaoTributaria>(
-    `select i.numero,i.parser_version,i.descricao,i.valor::text,i.ncm,i.cfop,i.cst_csosn,i.codigo_beneficio,
+    `select i.numero,i.parser_version,i.descricao,i.valor::text,i.ncm,i.cest,i.cfop,i.cst_csosn,i.codigo_beneficio,
             d.modelo,d.estado,d.emitido_em::text,d.protocolo,
             (select uf from app.fiscal_document_party p where p.document_id=d.id and p.parser_version=d.parser_version and p.papel='EMITENTE' limit 1) origem_uf,
             (select uf from app.fiscal_document_party p where p.document_id=d.id and p.parser_version=d.parser_version and p.papel='DESTINATARIO' limit 1) destino_uf
@@ -49,13 +50,13 @@ export const listarItensParaResolucaoTributaria = async (client: PoolClient, emp
     [empresaId,documentId,document.rows[0].parser_version],
   );
   const { rows: tributos } = await client.query<{
-    escopo: 'ITEM'; numero_item: number; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS';
+    escopo: 'DOCUMENTO' | 'ITEM'; numero_item: number | null; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS';
     base_calculo: string | null; aliquota: string | null; valor: string | null; situacao: string | null; classificacao: string | null;
   }>(
     `select escopo,numero_item,codigo,base_calculo::text,aliquota::text,valor::text,situacao,classificacao
        from app.fiscal_document_tax
-      where empresa_id=$1 and document_id=$2 and parser_version=$3 and escopo='ITEM'
-      order by numero_item,codigo`,
+      where empresa_id=$1 and document_id=$2 and parser_version=$3
+      order by escopo,numero_item,codigo`,
     [empresaId,documentId,document.rows[0].parser_version],
   );
   return { ...document.rows[0], origem_uf: items[0]?.origem_uf ?? null, destino_uf: items[0]?.destino_uf ?? null,
@@ -248,7 +249,7 @@ export const obterDocumentoFiscal = async (client: PoolClient, empresaId: string
   if (!document.rows[0]) return null;
   const { estado_apresentado, ...documentData } = document.rows[0];
   const [items,origins,events,references,parties,taxes] = await Promise.all([
-    client.query(`select numero,tipo,codigo,descricao,ncm,cfop,cst_csosn,codigo_beneficio,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 and parser_version=$2 order by numero`, [documentId,documentData.parser_version]),
+    client.query(`select numero,tipo,codigo,descricao,ncm,cest,cfop,cst_csosn,codigo_beneficio,quantidade,unidade,valor,ibs,cbs from app.fiscal_document_item where document_id=$1 and parser_version=$2 order by numero`, [documentId,documentData.parser_version]),
     client.query(`select staging_id,cnpj,nsu,correlation_id,capturado_em from app.fiscal_document_origin where document_id=$1 order by capturado_em`, [documentId]),
     client.query(`select tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ocorrido_em from app.fiscal_document_event where document_id=$1 order by ocorrido_em desc limit 30`, [documentId]),
     client.query(`select tipo,chave from app.fiscal_document_reference where document_id=$1 and parser_version=$2 order by tipo,chave`, [documentId,documentData.parser_version]),
@@ -301,9 +302,9 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   if (precisaNormalizar) {
     for (const [index,item] of input.parsed.itens.entries()) {
       await client.query(
-        `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs,ncm,cfop,cst_csosn,codigo_beneficio)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9::numeric,$10,$11::numeric,$12::numeric,$13::numeric,$14,$15,$16,$17)`,
-        [input.tenantId,input.empresaId,id,input.parserVersion,index+1,item.tipo,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs,item.ncm ?? null,item.cfop ?? null,item.cstCsosn ?? null,item.codigoBeneficio ?? null],
+        `insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,quantidade,unidade,valor,ibs,cbs,ncm,cest,cfop,cst_csosn,codigo_beneficio)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9::numeric,$10,$11::numeric,$12::numeric,$13::numeric,$14,$15,$16,$17,$18)`,
+        [input.tenantId,input.empresaId,id,input.parserVersion,index+1,item.tipo,item.codigo,item.descricao,item.quantidade,item.unidade,item.valor,item.ibs,item.cbs,item.ncm ?? null,item.cest ?? null,item.cfop ?? null,item.cstCsosn ?? null,item.codigoBeneficio ?? null],
       );
     }
     for (const tax of input.parsed.tributos) {

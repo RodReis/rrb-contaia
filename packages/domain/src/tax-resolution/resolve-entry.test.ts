@@ -21,7 +21,7 @@ describe('fatos fiscais da NF-e', () => {
 
 const fatos: EntryTaxFacts = {
   factDate: '2026-09-19', regime: 'LUCRO_PRESUMIDO', originUf: 'GO', destinationUf: 'GO', documentModel: '55',
-  authorized: true, operationType: 'COMPRA_INTERNA_REVENDA', purpose: 'RESALE', cfop: '1102', ncm: '12345678', cst: '00',
+  authorized: true, operationType: 'COMPRA_INTERNA_REVENDA', purpose: 'RESALE', cfop: '1102', ncm: '12345678', cest: '0100100', cst: '00',
   hasSubstitutionTax: false, isImport: false, isMonophase: false, hasUnmodeledBenefit: false, isReturnOrTransfer: false,
   declaredCents: 1200,
 };
@@ -32,6 +32,20 @@ describe('resolveEntryTax', () => {
     expect(result.status).toBe('APPLICABLE');
     expect(result.declaredCents).toBe(1200);
     expect(result.packageHash).toBe('a'.repeat(64));
+  });
+
+  it('exige par CEST/NCM quando regra versionada declara CEST', () => {
+    const regraComCest = { ...pacote, rules: [{ ...pacote.rules[0]!, cest: ['0100100'] }] };
+    expect(resolveEntryTax(regraComCest, fatos, 'ICMS', 'a'.repeat(64)).status).toBe('APPLICABLE');
+    expect(resolveEntryTax(regraComCest, { ...fatos, cest: '0100200' }, 'ICMS', 'a'.repeat(64)).reasonCodes).toContain('NO_APPLICABLE_RULE');
+    expect(resolveEntryTax(regraComCest, { ...fatos, cest: null }, 'ICMS', 'a'.repeat(64)).reasonCodes).toContain('NO_APPLICABLE_RULE');
+  });
+
+  it('só resolve ICMS-ST com regra que contenha seletor CEST explícito', () => {
+    expect(resolveEntryTax(pacote, { ...fatos, hasSubstitutionTax: true }, 'ICMS', 'a'.repeat(64)).reasonCodes).toContain('SUBSTITUTION_TAX_OUTSIDE_COVERAGE');
+    const regraComCest = { ...pacote, rules: [{ ...pacote.rules[0]!, cest: ['0100100'] }] };
+    expect(resolveEntryTax(regraComCest, { ...fatos, hasSubstitutionTax: true }, 'ICMS', 'a'.repeat(64)).status).toBe('APPLICABLE');
+    expect(resolveEntryTax(regraComCest, { ...fatos, hasSubstitutionTax: true }, 'PIS', 'a'.repeat(64)).reasonCodes).toContain('SUBSTITUTION_TAX_OUTSIDE_COVERAGE');
   });
 
   it('abstém para ST e para lacuna de cobertura', () => {

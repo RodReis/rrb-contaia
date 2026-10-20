@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, obterRegimeTributarioHistorico, registrarEventoResolucaoTributaria, listarFilaResolucaoTributaria } from '@contaia/db';
-import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, resolveEntryTax, statusSubstituicaoTributariaComEvidencia, type CuratedTaxPackage } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, decimalDeclaradoParaCentavos, resolveEntryTax, statusSubstituicaoTributariaComEvidencia, validateIcmsStDeclaredEvidence, type CuratedTaxPackage } from '@contaia/domain';
 import { FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from '@contaia/shared';
 import { CuratedTaxPackageSchema } from '@contaia/shared';
 import type { PoolClient } from 'pg';
@@ -179,7 +179,7 @@ export class FiscalDocumentsService {
           regime, regimeEffectiveDate: regimeHistory?.vigente_desde ?? null,
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null,
           model: source.modelo, status: source.estado, authorizedProtocolPresent: source.protocolo !== null,
-          originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm,
+          originUf: item.origem_uf, destinationUf: item.destino_uf, cfop: item.cfop, ncm: item.ncm, cest: item.cest ?? null,
           cstCsosn: item.cst_csosn, codigoBeneficio: item.codigo_beneficio,
           declaredValue: item.valor, missingInputs,
           packageSources: selectedPackage?.content.sources ?? [],
@@ -194,7 +194,7 @@ export class FiscalDocumentsService {
             item.origem_uf === item.destino_uf ? 'COMPRA_INTERNA_REVENDA' :
               item.origem_uf === 'EX' || item.destino_uf === 'EX' ? null : 'COMPRA_INTERESTADUAL_REVENDA',
           purpose: resaleItemNumbers.has(item.numero) ? 'RESALE' : null, cfop: item.cfop, ncm: item.ncm, cst: item.cst_csosn,
-          hasSubstitutionTax: hasSubstitutionTax === true || hasContributionSubstitution === true ? true : hasSubstitutionTax,
+          hasSubstitutionTax: hasContributionSubstitution === true ? true : hasSubstitutionTax,
           isImport, isMonophase,
           hasUnmodeledBenefit, isReturnOrTransfer,
           declaredCents: item.valor === null ? null : (() => {
@@ -202,18 +202,37 @@ export class FiscalDocumentsService {
             return match ? Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0')) : null;
           })(),
         } as const;
+        const icmsStEvidence = tributosDoItem.find((tributo) => tributo.codigo === 'ICMS_ST');
+        const declaredStCents = decimalDeclaradoParaCentavos(icmsStEvidence?.valor ?? null);
         const decisions = (['ICMS','PIS','COFINS','IBS_UF','IBS_MUN','CBS'] as const).map((tax) => {
           const decision = resolveEntryTax(selectedPackage?.content ?? null, resolverFacts, tax, selectedPackage?.sha256 ?? null);
           if (decision.reasonCodes.includes('AMBIGUOUS_RULES')) {
             throw new ErroDeConflito(CODIGOS_DE_ERRO.TAX_TREATMENT_RULE_AMBIGUOUS,
               'Mais de uma regra tributária coincide com os fatos; nenhum snapshot foi concluído.');
           }
-          return {
-            tax, status: decision.status, creditEligibility: decision.creditEligibility, ruleId: decision.ruleId,
-            reasons: [...decision.reasonCodes,
+          const declaredStTotal = source.tributos.find((tributo) => tributo.escopo === 'DOCUMENTO' && tributo.codigo === 'ICMS_ST');
+          const totalCents = decimalDeclaradoParaCentavos(declaredStTotal?.valor ?? null);
+          const itemStTotal = source.itens.reduce((sum, current) => {
+            const evidence = source.tributos.find((tributo) => tributo.numero_item === current.numero && tributo.codigo === 'ICMS_ST');
+            return sum + (decimalDeclaradoParaCentavos(evidence?.valor ?? null) ?? 0);
+          }, 0);
+          const stChecks = tax === 'ICMS' && hasSubstitutionTax === true ? [
+            ...validateIcmsStDeclaredEvidence({ cest: item.cest ?? null, ncm: item.ncm, taxableBaseCents: null, rateBasisPoints: null, retainedAmountCents: declaredStCents }, itemStTotal, totalCents),
+          ] : [];
+          const checksValid = stChecks.every((check) => check.status === 'VALID');
+          const finalStatus = tax === 'ICMS' && hasSubstitutionTax === true && !checksValid ? 'INDETERMINATE' : decision.status;
+          const finalReasons = [...decision.reasonCodes, ...stChecks.flatMap((check) => check.reasons),
               ...(matchingPackages.length > 1 ? ['CURATED_PACKAGE_AMBIGUOUS'] : []),
               ...(!selectedPackage && matchingPackages.length === 0 ? ['CURATED_PACKAGE_UNAVAILABLE'] : []),
-              ...(!regime ? ['REGIME_HISTORY_UNAVAILABLE'] : []), ...(!resaleItemNumbers.has(item.numero) ? ['PURPOSE_UNAVAILABLE'] : [])],
+              ...(!regime ? ['REGIME_HISTORY_UNAVAILABLE'] : []), ...(!resaleItemNumbers.has(item.numero) ? ['PURPOSE_UNAVAILABLE'] : [])];
+          return {
+            tax, status: finalStatus, creditEligibility: finalStatus === 'INDETERMINATE' ? 'INDETERMINATE' : decision.creditEligibility, ruleId: decision.ruleId,
+            reasons: [...new Set(finalReasons)], checks: stChecks, declaredEvidence: tax === 'ICMS' && hasSubstitutionTax === true ? {
+              cest: item.cest ?? null, ncm: item.ncm, taxGroup: item.cst_csosn,
+              taxableBaseCents: decimalDeclaradoParaCentavos(icmsStEvidence?.base_calculo ?? null),
+              ratePercent: icmsStEvidence?.aliquota ?? null, retainedAmountCents: declaredStCents,
+              documentTotalCents: totalCents,
+            } : null,
             missingInputs, sourceIds: decision.sourceIds, packageId: decision.packageId,
             packageSha256: decision.packageHash, rationale: decision.rationale,
           };

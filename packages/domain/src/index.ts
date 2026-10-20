@@ -412,6 +412,8 @@ export {
 
 export { lerDataCivil, type DataCivil } from './datas/data-civil.js';
 
+export { decimalDeclaradoParaCentavos, validateIcmsStDeclaredEvidence, type IcmsStDeclaredCheck, type IcmsStEvidence } from './tax-resolution/validate-icms-st-evidence.js';
+
 export {
   evaluateTaxRule,
   selectApplicableRule,
