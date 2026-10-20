@@ -109,6 +109,17 @@
       "consultedOn": "2026-10-20",
       "validFrom": "2026-08-11",
       "validUntil": null
+    },
+    {
+      "id": "go-decreto-10986-2026",
+      "authority": "Secretaria de Estado da Economia de Goiás",
+      "title": "Decreto nº 10.986, de 16 de setembro de 2026",
+      "url": "https://goias.gov.br/economia/categoria/institucional/legislacao/",
+      "provision": "Ato listado como alteração do Anexo IX do Decreto nº 4.852/1997 (RCTE) e do Decreto nº 10.089/2022. O dispositivo e o texto integral devem ser obtidos e associados à regra específica antes de qualquer publicação.",
+      "publishedOn": "2026-09-16",
+      "consultedOn": "2026-10-20",
+      "validFrom": "2026-09-16",
+      "validUntil": null
     }
   ],
   "rules": [],
