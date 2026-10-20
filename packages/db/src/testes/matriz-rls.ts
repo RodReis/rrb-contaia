@@ -337,7 +337,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
 
     // -- SELECT / INSERT / UPDATE por classe ------------------------------------
 
-    if (tabela === 'app.audit_payload_revelation' || tabela === 'app.audit_export_download' || tabela === 'app.audit_export_job' || tabela === 'app.tax_entry_resolution_event') {
+    if (tabela === 'app.audit_payload_revelation' || tabela === 'app.audit_export_download' || tabela === 'app.audit_export_job' || tabela === 'app.tax_entry_resolution_event' || tabela === 'app.tax_entry_resolution_human_review' || tabela === 'app.tax_entry_resolution_human_review_event') {
       const ownActor = humano(u.naCarteira);
       const scopedEscopo = { ...escopoA1, autorId: u.naCarteira };
       const scopedRefs = await (fixture.preparar?.(admin, scopedEscopo) ?? Promise.resolve({}));

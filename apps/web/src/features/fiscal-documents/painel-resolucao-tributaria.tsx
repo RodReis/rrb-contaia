@@ -10,7 +10,7 @@ import { ErroDeTela, Skeleton } from '@/components/ui/estados';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ErroDaApi } from '@/lib/http';
 import { orientarDadoResolucaoTributaria, orientarMotivoResolucaoTributaria } from './orientacao-resolucao-tributaria';
-import { compararResolucaoTributaria, listarResolucaoTributaria, processarResolucaoTributaria, type DocumentoFiscalDetalhe } from './api';
+import { compararResolucaoTributaria, decidirRevisaoHistorica, listarResolucaoTributaria, processarResolucaoTributaria, submeterRevisaoHistorica, type DocumentoFiscalDetalhe } from './api';
 
 const formatarData = (value: string | null) => value
   ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(`${value.slice(0,10)}T12:00:00-03:00`))
@@ -36,20 +36,24 @@ const fontesDoPacote = (value: unknown): readonly FonteFiscal[] => {
   });
 };
 
-export const PainelResolucaoTributaria = ({ empresaId, documento, podeResolver }: {
+export const PainelResolucaoTributaria = ({ empresaId, documento, podeResolver, podeRevisarHistorico }: {
   empresaId: string;
   documento: DocumentoFiscalDetalhe;
   podeResolver: boolean;
+  podeRevisarHistorico: boolean;
 }) => {
   const [reason, setReason] = useState('');
   const [compareRevisions, setCompareRevisions] = useState<{ de: number; para: number } | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [resaleItems, setResaleItems] = useState<Set<number>>(() => new Set());
+  const [reviewReason, setReviewReason] = useState('');
   const snapshotsQuery = useQuery({
     queryKey: ['sessao', 'eu', 'resolucao-tributaria', empresaId, documento.id],
     queryFn: () => listarResolucaoTributaria(empresaId, documento.id),
   });
   const snapshots = snapshotsQuery.data?.itens ?? [];
+  const reviewSubmission = useMutation({mutationFn:({snapshotId,liabilityKind}:{snapshotId:string;liabilityKind:'ICMS_ST_RECIPIENT_DUE'|'ICMS_ENTRY_ADVANCE'|'ICMS_ST_JOINT_LIABILITY'})=>submeterRevisaoHistorica(empresaId,snapshotId,liabilityKind),onSuccess:()=>{void snapshotsQuery.refetch();toast.success('Revisão humana registrada.')} ,onError:()=>toast.error('Não foi possível solicitar a revisão humana.')});
+  const reviewDecision = useMutation({mutationFn:({reviewId,version,action}:{reviewId:string;version:number;action:'APPROVED'|'REJECTED'})=>decidirRevisaoHistorica(empresaId,reviewId,{expectedVersion:version,action,reason:action==='REJECTED'?reviewReason.trim():null}),onSuccess:()=>{setReviewReason('');void snapshotsQuery.refetch();toast.success('Decisão humana registrada.');},onError:()=>toast.error('Não foi possível registrar a decisão humana.')});
   const processing = useMutation({
     mutationFn: (key: string) => processarResolucaoTributaria(empresaId, documento.id, {
       expectedDocumentRevision: documento.parser_version,
@@ -132,10 +136,16 @@ export const PainelResolucaoTributaria = ({ empresaId, documento, podeResolver }
                 {snapshot.decisions.find((decision) => decision.tax === 'ICMS')?.checks?.map((check) => <p key={check.code} className="mt-xs text-muted-foreground">{check.code}: {check.status}{check.reasons.length ? ` · ${check.reasons.join(', ')}` : ''}</p>)}
               </section> : null}
               {guidance.length ? <ul aria-label={`Dados e próximos passos para item ${snapshot.item_number}`} className="mt-xs space-y-xs rounded-sm bg-muted/40 p-sm text-body-sm text-muted-foreground">{guidance.map((item) => <li key={item.campo}><span className="font-medium text-foreground">{item.campo}</span><p>Origem esperada: {item.origem}</p><p>Próximo passo: {item.proximoPasso}</p></li>)}</ul> : null}
-              <ul className="mt-xs space-y-xs text-body-sm">{snapshot.decisions.map((decision) => <li key={decision.tax} className="border-t border-border/50 pt-xs">
-                <span className="font-medium text-foreground">{decision.tax}</span><span className="ml-xs text-muted-foreground">{decision.status} · crédito {decision.creditEligibility}</span><p className="text-muted-foreground">{decision.rationale}</p>
+              <ul className="mt-xs space-y-xs text-body-sm">{snapshot.decisions.map((decision) => { const review=snapshot.human_reviews?.find((item)=>item.liability_kind===decision.liabilityKind); return <li key={`${decision.tax}-${decision.liabilityKind??'default'}`} className="border-t border-border/50 pt-xs">
+                <span className="font-medium text-foreground">{decision.liabilityKind ? ({ICMS_ST_RECIPIENT_DUE:'ICMS-ST devido pelo destinatário',ICMS_ENTRY_ADVANCE:'Antecipação de ICMS na entrada',ICMS_ST_JOINT_LIABILITY:'Responsabilidade solidária por ICMS-ST'}[decision.liabilityKind]) : decision.tax}</span><span className="ml-xs text-muted-foreground">{decision.status}{decision.tax==='ICMS_HISTORICAL'?` · revisão ${review?.status??'não solicitada'}`:` · crédito ${decision.creditEligibility}`}</span>
+                {decision.amountDueCents ? <p className="text-foreground">Valor calculado: {(Number(decision.amountDueCents)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · depende de aprovação humana.</p> : null}<p className="text-muted-foreground">{decision.rationale}</p>
+                {decision.tax==='ICMS_HISTORICAL'&&decision.status==='APPLICABLE'&&!review&&podeResolver?<Button className="mt-xs" variante="contorno" tamanho="compacto" disabled={reviewSubmission.isPending} onClick={()=>reviewSubmission.mutate({snapshotId:snapshot.id,liabilityKind:decision.liabilityKind!})}>Solicitar revisão humana</Button>:null}
+                {review?.status==='PENDING_REVIEW'?<p role="status" className="mt-xs text-muted-foreground">Aguardando revisão por contador ou administrador do escritório.</p>:null}
+                {review?.status==='APPROVED'?<p role="status" className="mt-xs text-success">Cálculo aprovado por revisão humana em {formatarDataHora(review.decided_at instanceof Date?review.decided_at.toISOString():review.decided_at)}. Efeito financeiro não gerado.</p>:null}
+                {review?.status==='REJECTED'?<p role="status" className="mt-xs text-warning">Cálculo rejeitado: {review.rejection_reason}</p>:null}
+                {review?.status==='PENDING_REVIEW'&&podeRevisarHistorico?<div className="mt-xs flex flex-wrap gap-xs"><Button variante="primaria" tamanho="compacto" disabled={reviewDecision.isPending} onClick={()=>reviewDecision.mutate({reviewId:review.id,version:review.lock_version,action:'APPROVED'})}>Aprovar cálculo</Button><AreaDeTexto rotulo="Motivo da rejeição" value={reviewReason} onValorChange={setReviewReason} maxLength={500}/><Button variante="contorno" tamanho="compacto" disabled={reviewDecision.isPending||reviewReason.trim().length<10} onClick={()=>reviewDecision.mutate({reviewId:review.id,version:review.lock_version,action:'REJECTED'})}>Rejeitar cálculo</Button></div>:null}
                 {decision.sourceIds.map((sourceId) => { const source = sources.find((item) => item.id === sourceId); return source ? <p key={source.id} className="mt-xs text-label-sm"><a className="font-medium text-primary underline" href={source.url} target="_blank" rel="noreferrer">{source.authority} · {source.title} · {source.provision}</a><span className="block text-muted-foreground">Vigência {formatarData(source.validFrom)} a {source.validUntil ? formatarData(source.validUntil) : 'indeterminada'}</span></p> : null; })}
-              </li>)}</ul>
+              </li>;})}</ul>
               {snapshot.package_sha256 ? <p className="mt-xs break-all font-mono text-label-sm text-muted-foreground">Pacote SHA-256: {snapshot.package_sha256}</p> : <p className="mt-xs text-label-sm text-muted-foreground">Sem pacote curado associado.</p>}
             </li>;
           })}</ul>

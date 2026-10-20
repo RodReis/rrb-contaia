@@ -109,6 +109,27 @@ describe('CuratedTaxPackageSchema (SPEC-026)', () => {
     const resultado = CuratedTaxPackageSchema.safeParse({ ...pacote, rules: [], fixtures: [] });
     expect(resultado.success).toBe(true);
   });
+
+  it('aceita contrato de regra e fixture históricos F28 com parâmetros explícitos', () => {
+    const regra = {
+      ...pacote.rules[0], liabilityKind: 'ICMS_ST_RECIPIENT_DUE', relation: 'COEXISTENT',
+      taxSegment: 'AUTO_PARTS', legalDescription: 'Peça de teste', originStates: ['SP'],
+      calculationMethod: 'MVA_ADJUSTED', mvaBasisPoints: 2_000, internalRateBasisPoints: 2_000,
+      interstateRateBasisPoints: 1_000, rounding: 'HALF_UP', formulaVersion: 'TEST_ONLY',
+      dueDate: '2017-07-10', revenueCode: '0000', validFrom: '2010-01-01', validUntil: '2018-02-28',
+    } as const;
+    const historicalFacts = {
+      factDate: '2017-06-15', regime: 'SIMPLES_NACIONAL', documentModel: '55', authorized: true,
+      purpose: 'RESALE', originUf: 'SP', destinationUf: 'GO', operationType: 'COMPRA_INTERESTADUAL_REVENDA',
+      cfop: '2102', ncm: '12345678', cest: '0100100', cst: '10', hasValidRetention: false,
+      operationAmountCents: 10_000, freightAmountCents: 0, insuranceAmountCents: 0,
+      otherExpensesAmountCents: 0, discountAmountCents: 0, ownIcmsAmountCents: 1_000,
+    } as const;
+    const fixture = { ...pacote.fixtures[0], expected: 'APPLICABLE', liabilityKind: 'ICMS_ST_RECIPIENT_DUE',
+      historicalFacts, expectedAmountCents: 1_700 } as const;
+    expect(CuratedTaxPackageSchema.safeParse({ ...pacote, rules: [regra], fixtures: [fixture] }).success).toBe(true);
+    expect(CuratedTaxPackageSchema.safeParse({ ...pacote, rules: [{ ...regra, interstateRateBasisPoints: undefined }], fixtures: [fixture] }).success).toBe(false);
+  });
 });
 
 describe('UpdateTaxRuleSchema', () => {

@@ -412,7 +412,7 @@ export {
 
 export { lerDataCivil, type DataCivil } from './datas/data-civil.js';
 
-export { decimalDeclaradoParaCentavos, validateIcmsStDeclaredEvidence, type IcmsStDeclaredCheck, type IcmsStEvidence } from './tax-resolution/validate-icms-st-evidence.js';
+export { decimalDeclaradoParaCentavos, statusRetencaoIcmsDeclarada, validateIcmsStDeclaredEvidence, type IcmsStDeclaredCheck, type IcmsStEvidence } from './tax-resolution/validate-icms-st-evidence.js';
 
 export {
   evaluateTaxRule,
@@ -440,6 +440,15 @@ export { validateTaxPackage, taxPackageCoversDate, hashTaxPackage } from './tax-
 export type { CuratedTaxPackage, TaxPackageSource, PackageValidation } from './tax-resolution/package.js';
 export { resolveEntryTax, statusSubstituicaoTributariaComEvidencia } from './tax-resolution/resolve-entry.js';
 export type { EntryTaxFacts, EntryTaxDecision } from './tax-resolution/resolve-entry.js';
+export { HISTORICAL_CUTOFF_SOURCE_ID, resolveHistoricalIcms } from './tax-resolution/resolve-historical-icms.js';
+export type {
+  HistoricalIcmsFacts,
+  HistoricalIcmsMemory,
+  HistoricalIcmsObligation,
+  HistoricalIcmsResolution,
+  HistoricalIcmsRule,
+  HistoricalTaxLiabilityKind,
+} from './tax-resolution/resolve-historical-icms.js';
 
 export {
   CAMPOS_DE_EMPREGADO,

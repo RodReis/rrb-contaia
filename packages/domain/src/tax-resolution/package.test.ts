@@ -66,6 +66,21 @@ describe('pacote tributário curado', () => {
     expect(validateTaxPackage(invalid).errors).toContain('PACKAGE_DATE_INVALID');
   });
 
+  it('exige parâmetros legais completos em regra histórica F28', () => {
+    const invalid = {
+      ...pkg,
+      rules: [{ ...pkg.rules[0]!, liabilityKind: 'ICMS_ST_RECIPIENT_DUE' as const,
+        taxSegment: 'AUTO_PARTS' as const, relation: 'COEXISTENT' as const,
+        legalDescription: 'Descrição de teste', originStates: ['SP'], validUntil: '2018-02-28',
+      }],
+    };
+    const errors = validateTaxPackage(invalid).errors;
+    expect(errors).toContain('TAX_MVA_NOT_FOUND:r1');
+    expect(errors).toContain('TAX_RATE_NOT_FOUND:r1');
+    expect(errors).toContain('TAX_DUE_DATE_NOT_FOUND:r1');
+    expect(errors).toContain('TAX_REVENUE_CODE_NOT_FOUND:r1');
+  });
+
   it('recusa fixtures duplicadas ou que apontam para regra inexistente', () => {
     const invalid = { ...pkg, fixtures: [
       { ...pkg.fixtures[0]!, id: 'fixture-a', ruleId: 'missing' },

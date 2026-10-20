@@ -361,6 +361,8 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
     appendOnly: true,
   },
   { tabela: 'app.tax_entry_resolution_event', classe: 'empresa', origem: 'F26 / SPEC-026', appendOnly: true },
+  { tabela: 'app.tax_entry_resolution_human_review', classe: 'empresa', origem: 'F28 / SPEC-028', exigeIndiceEmpresa: true },
+  { tabela: 'app.tax_entry_resolution_human_review_event', classe: 'empresa', origem: 'F28 / SPEC-028', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.rfb_procuracao', classe: 'empresa', origem: 'F25 / SPEC-025', exigirHelperRfbNasEscritas: true },
   { tabela: 'app.rfb_procuracao_evento', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },
   { tabela: 'app.rfb_procuracao_operacao', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },

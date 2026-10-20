@@ -6,6 +6,15 @@ export type IcmsStEvidence = Readonly<{
   retainedAmountCents: number | null;
 }>;
 
+/** Presence/absence evidence only; this helper does not decide tax liability. */
+export const statusRetencaoIcmsDeclarada = (
+  tributos: readonly Readonly<{ codigo: string; situacao?: string | null; valor?: string | null }>[],
+): boolean | null => {
+  if (tributos.some((item) => item.codigo === 'ICMS_ST' && item.valor !== null && item.valor !== undefined)) return true;
+  if (tributos.some((item) => item.codigo === 'ICMS' && item.situacao !== null && item.situacao !== undefined)) return false;
+  return null;
+};
+
 export type IcmsStDeclaredCheck = Readonly<{
   code: string;
   status: 'VALID' | 'INVALID' | 'NOT_CHECKED';

@@ -23,6 +23,14 @@ const resolucaoTributariaSchema = z.strictObject({
   reprocessingReason: z.string().trim().min(10).max(500).optional(),
 });
 const revisionSchema = z.coerce.number().int().positive();
+const historicalLiabilitySchema=z.enum(['ICMS_ST_RECIPIENT_DUE','ICMS_ENTRY_ADVANCE','ICMS_ST_JOINT_LIABILITY']);
+const historicalDecisionSchema=z.strictObject({
+  expectedVersion:z.number().int().positive(),action:z.enum(['APPROVED','REJECTED']),
+  reason:z.string().trim().min(10).max(500).nullable().optional(),
+}).superRefine((input,context)=>{
+  if(input.action==='REJECTED'&&(input.reason===undefined||input.reason===null))
+    context.addIssue({code:'custom',message:'Rejeição exige motivo.',path:['reason']});
+});
 const dataCivilQuerySchema=z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).refine((value)=>{
   const date=new Date(`${value}T00:00:00.000Z`);
   return Number.isFinite(date.valueOf())&&date.toISOString().slice(0,10)===value;
@@ -95,6 +103,29 @@ export class FiscalDocumentsController {
     const input = analisar(resolucaoTributariaSchema, body);
     return this.service.resolverTratamentoTributario(tenantDa(request), autorDa(request).usuarioId, companyId,
       analisar(uuid,documentId), obterCorrelationId(request), input);
+  }
+
+  @Post(':documentId/tax-treatment-resolutions/:snapshotId/historical-reviews')
+  @HttpCode(201)
+  @ExigePermissao('fiscal.motor_tributario.simular')
+  submeterRevisaoHistorica(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,
+    @Param('snapshotId') snapshotId:string,@Body() body:unknown) {
+    const input=analisar(z.strictObject({liabilityKind:historicalLiabilitySchema}),body);
+    return this.service.submeterRevisaoHistorica(tenantDa(request),autorDa(request).usuarioId,companyId,
+      analisar(uuid,snapshotId),input.liabilityKind,obterCorrelationId(request));
+  }
+
+  @Post('tax-treatment-resolutions/historical-reviews/:reviewId/decision')
+  @HttpCode(200)
+  @AcaoLivre()
+  decidirRevisaoHistorica(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,
+    @Param('reviewId') reviewId:string,@Body() body:unknown) {
+    const papeis=request.sessao?.papeis??[];
+    if(!papeis.some((papel)=>(['admin_escritorio','contador'] as readonly string[]).includes(papel)))
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.TAX_REVIEW_DECISION_FORBIDDEN,'Somente contador ou admin_escritorio decide resultado histórico.');
+    const input=analisar(historicalDecisionSchema,body);
+    return this.service.decidirRevisaoHistorica(tenantDa(request),autorDa(request).usuarioId,companyId,
+      analisar(uuid,reviewId),{expectedVersion:input.expectedVersion,action:input.action,reason:input.reason??null},obterCorrelationId(request));
   }
 
   @Get(':documentId/tax-treatment-resolutions')

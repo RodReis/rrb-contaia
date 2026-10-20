@@ -1,4 +1,5 @@
 import { resolveEntryTax, type EntryTaxFacts } from './resolve-entry.js';
+import { resolveHistoricalIcms, type HistoricalIcmsFacts, type HistoricalIcmsRule } from './resolve-historical-icms.js';
 
 export type TaxPackageSource = Readonly<{
   id: string;
@@ -41,8 +42,31 @@ export type CuratedTaxPackage = Readonly<{
     creditEligibility: 'ALLOWED' | 'BLOCKED' | 'NOT_RELEVANT';
     sourceIds: readonly string[];
     rationale: string;
+    /** F28 fields. Their presence activates the historical MVA rule contract. */
+    liabilityKind?: 'ICMS_ST_RECIPIENT_DUE' | 'ICMS_ENTRY_ADVANCE' | 'ICMS_ST_JOINT_LIABILITY';
+    relation?: 'EXCLUSIVE' | 'ALTERNATIVE' | 'COEXISTENT';
+    taxSegment?: 'AUTO_PARTS';
+    legalDescription?: string;
+    originStates?: readonly string[];
+    calculationMethod?: 'MVA_ORIGINAL' | 'MVA_ADJUSTED';
+    mvaBasisPoints?: number | null;
+    internalRateBasisPoints?: number | null;
+    interstateRateBasisPoints?: number | null;
+    rounding?: 'HALF_UP';
+    formulaVersion?: string;
+    dueDate?: string | null;
+    revenueCode?: string | null;
   }>[];
-  fixtures: readonly Readonly<{ id: string; ruleId: string; taxType: CuratedTaxPackage['rules'][number]['taxType']; facts: EntryTaxFacts; expected: 'APPLICABLE' | 'NOT_APPLICABLE' }> [];
+  fixtures: readonly Readonly<{
+    id: string;
+    ruleId: string;
+    taxType: CuratedTaxPackage['rules'][number]['taxType'];
+    facts: EntryTaxFacts;
+    expected: 'APPLICABLE' | 'NOT_APPLICABLE' | 'INDETERMINATE';
+    liabilityKind?: HistoricalIcmsRule['liabilityKind'];
+    historicalFacts?: HistoricalIcmsFacts;
+    expectedAmountCents?: number | null;
+  }>[];
 }>;
 
 export type PackageValidation = Readonly<{ valid: boolean; errors: readonly string[] }>;
@@ -96,6 +120,24 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
     if (rule.sourceIds.length === 0 || rule.sourceIds.some((id) => !sourceIds.has(id))) errors.push(`RULE_SOURCE_MISSING:${rule.id}`);
     if (rule.cfop.length === 0 || rule.ncm.length === 0 || rule.cst.length === 0) errors.push(`RULE_SELECTOR_EMPTY:${rule.id}`);
     if (rule.rationale.trim().length === 0) errors.push(`RULE_RATIONALE_EMPTY:${rule.id}`);
+    if (rule.liabilityKind !== undefined) {
+      if (rule.taxType !== 'ICMS' || rule.taxSegment !== 'AUTO_PARTS' || rule.legalDescription === undefined || rule.legalDescription.trim() === '' ||
+          rule.cest === undefined || rule.cest.length === 0 || rule.ncm.length === 0 || rule.originStates === undefined || rule.originStates.length === 0) {
+        errors.push(`HISTORICAL_RULE_SELECTOR_INCOMPLETE:${rule.id}`);
+      }
+      if (rule.relation === undefined) errors.push(`TAX_LIABILITY_RELATION_MISSING:${rule.id}`);
+      if (rule.calculationMethod === undefined || rule.mvaBasisPoints === null || rule.mvaBasisPoints === undefined) errors.push(`TAX_MVA_NOT_FOUND:${rule.id}`);
+      if (rule.internalRateBasisPoints === null || rule.internalRateBasisPoints === undefined ||
+          (rule.calculationMethod === 'MVA_ADJUSTED' && (rule.interstateRateBasisPoints === null || rule.interstateRateBasisPoints === undefined))) {
+        errors.push(`TAX_RATE_NOT_FOUND:${rule.id}`);
+      }
+      if (rule.rounding !== 'HALF_UP' || rule.formulaVersion === undefined || rule.formulaVersion.trim() === '') errors.push(`TAX_FORMULA_NOT_VERSIONED:${rule.id}`);
+      if (rule.dueDate === null || rule.dueDate === undefined) errors.push(`TAX_DUE_DATE_NOT_FOUND:${rule.id}`);
+      else if (!validDate(rule.dueDate)) errors.push(`TAX_DUE_DATE_INVALID:${rule.id}`);
+      if (rule.revenueCode?.trim() === '' || rule.revenueCode === null || rule.revenueCode === undefined) errors.push(`TAX_REVENUE_CODE_NOT_FOUND:${rule.id}`);
+      if (rule.validUntil === null || rule.validUntil > '2018-02-28') errors.push(`HISTORICAL_RULE_AFTER_COVERAGE:${rule.id}`);
+      for (const state of rule.originStates ?? []) if (!/^[A-Z]{2}$/u.test(state)) errors.push(`HISTORICAL_RULE_ORIGIN_INVALID:${rule.id}`);
+    }
     if (rule.sourceIds.some((id) => {
       const source = input.sources.find((item) => item.id === id);
       return source !== undefined && (rule.validFrom < source.validFrom ||
@@ -104,7 +146,10 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
     for (const other of input.rules.slice(index + 1)) {
       const sameSelector = rule.taxType === other.taxType && rule.regime === other.regime &&
         rule.operationType === other.operationType && rule.cfop.some((value) => other.cfop.includes(value)) &&
-        rule.ncm.some((value) => other.ncm.includes(value)) && rule.cst.some((value) => other.cst.includes(value));
+        rule.ncm.some((value) => other.ncm.includes(value)) && rule.cst.some((value) => other.cst.includes(value)) &&
+        rule.liabilityKind === other.liabilityKind &&
+        ((rule.cest === undefined && other.cest === undefined) ||
+          (rule.cest !== undefined && other.cest !== undefined && rule.cest.some((value) => other.cest?.includes(value))));
       const end = rule.validUntil ?? '9999-12-31';
       const otherEnd = other.validUntil ?? '9999-12-31';
       if (sameSelector && rule.validFrom <= otherEnd && other.validFrom <= end) {
@@ -123,8 +168,41 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
     const rule = input.rules.find((item) => item.id === fixture.ruleId);
     if (rule !== undefined) {
       if (rule.taxType !== fixture.taxType) errors.push(`FIXTURE_TAX_TYPE_MISMATCH:${fixture.id}`);
-      const decision = resolveEntryTax(input, fixture.facts, fixture.taxType, null);
-      if (decision.ruleId !== rule.id || decision.status !== fixture.expected) errors.push(`FIXTURE_EXPECTATION_MISMATCH:${fixture.id}`);
+      if (fixture.liabilityKind !== undefined) {
+        if (fixture.historicalFacts === undefined || rule.liabilityKind !== fixture.liabilityKind) {
+          errors.push(`FIXTURE_HISTORICAL_FACTS_MISSING:${fixture.id}`);
+        } else {
+          const historicalRules: HistoricalIcmsRule[] = input.rules.flatMap((candidate) => {
+            if (candidate.liabilityKind === undefined || candidate.relation === undefined || candidate.taxSegment !== 'AUTO_PARTS' ||
+                candidate.calculationMethod === undefined || candidate.mvaBasisPoints === null || candidate.mvaBasisPoints === undefined ||
+                candidate.internalRateBasisPoints === null || candidate.internalRateBasisPoints === undefined || candidate.rounding !== 'HALF_UP' ||
+                candidate.formulaVersion === undefined || candidate.dueDate === null || candidate.dueDate === undefined ||
+                candidate.revenueCode === null || candidate.revenueCode === undefined || candidate.cest === undefined || candidate.validUntil === null) return [];
+            return [{
+              id: candidate.id, liabilityKind: candidate.liabilityKind, relation: candidate.relation,
+              regime: candidate.regime, operationType: candidate.operationType, cfop: candidate.cfop,
+              ncm: candidate.ncm, cest: candidate.cest, cst: candidate.cst, originStates: candidate.originStates ?? [],
+              validFrom: candidate.validFrom,
+              validUntil: candidate.validUntil,
+              method: candidate.calculationMethod, mvaBasisPoints: candidate.mvaBasisPoints,
+              internalRateBasisPoints: candidate.internalRateBasisPoints,
+              interstateRateBasisPoints: candidate.interstateRateBasisPoints ?? null,
+              rounding: candidate.rounding, formulaVersion: candidate.formulaVersion,
+              dueDate: candidate.dueDate,
+              revenueCode: candidate.revenueCode, sourceIds: candidate.sourceIds,
+            }];
+          });
+          const decision = resolveHistoricalIcms(historicalRules, fixture.historicalFacts);
+          const obligation = decision.obligations.find((item) => item.liabilityKind === fixture.liabilityKind);
+          if (obligation?.ruleId !== rule.id || obligation.status !== fixture.expected ||
+              (fixture.expectedAmountCents !== undefined && obligation.amountDueCents !== fixture.expectedAmountCents)) {
+            errors.push(`FIXTURE_EXPECTATION_MISMATCH:${fixture.id}`);
+          }
+        }
+      } else {
+        const decision = resolveEntryTax(input, fixture.facts, fixture.taxType, null);
+        if (decision.ruleId !== rule.id || decision.status !== fixture.expected) errors.push(`FIXTURE_EXPECTATION_MISMATCH:${fixture.id}`);
+      }
     }
   }
 

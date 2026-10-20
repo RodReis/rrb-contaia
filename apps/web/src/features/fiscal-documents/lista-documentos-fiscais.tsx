@@ -30,10 +30,10 @@ const money = (value: string | null) => {
   return `R$ ${negative ? '-' : ''}${digits},${fraction.padEnd(2, '0')}`;
 };
 
-export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proximaPagina, somenteLeitura, podeReprocessar, podeResolver,
+export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proximaPagina, somenteLeitura, podeReprocessar, podeResolver, podeRevisarHistorico,
   documentoInicialSelecionado, aoFecharDocumentoExterno, aoPaginar, aoCopiar }: {
   empresaId: string; items: readonly DocumentoFiscal[]; pagina: number; filtro: string; proximaPagina: boolean;
-  somenteLeitura: boolean; podeReprocessar: boolean; podeResolver: boolean;
+  somenteLeitura: boolean; podeReprocessar: boolean; podeResolver: boolean; podeRevisarHistorico: boolean;
   documentoInicialSelecionado: string | null;
   aoFecharDocumentoExterno: () => void;
   aoPaginar: (page: number) => void; aoCopiar: (value: string, name: string) => void;
@@ -75,7 +75,7 @@ export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proxi
               {selected === item.id ? <tr className="border-t border-border bg-muted/20"><td colSpan={7} className="p-md"><section aria-label="Documento selecionado na fila tributária">
                 {details.isPending ? <div aria-busy="true"><Skeleton className="h-20 w-full" /></div> : null}
                 {details.isError ? <ErroDeTela titulo="Não foi possível abrir os detalhes" descricao="Tente novamente em instantes." /> : null}
-                {details.data ? <DetalheFiscal empresaId={empresaId} documento={details.data} layout={item.versao_layout} podeResolver={podeResolver && !somenteLeitura} aoCopiar={aoCopiar} /> : null}
+                {details.data ? <DetalheFiscal empresaId={empresaId} documento={details.data} layout={item.versao_layout} podeResolver={podeResolver && !somenteLeitura} podeRevisarHistorico={podeRevisarHistorico && !somenteLeitura} aoCopiar={aoCopiar} /> : null}
               </section></td></tr> : null}
             </Fragment>;
           })}</tbody>
@@ -86,7 +86,7 @@ export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proxi
       <div className="flex items-center justify-between gap-sm"><h4 className="font-display text-title-sm text-foreground">Documento selecionado na fila</h4><Button variante="contorno" onClick={() => selecionar(null)}>Fechar detalhes</Button></div>
       {details.isPending ? <div aria-busy="true"><Skeleton className="h-20 w-full" /></div> : null}
       {details.isError ? <ErroDeTela titulo="Não foi possível abrir os detalhes" descricao="Tente novamente em instantes." /> : null}
-      {details.data ? <DetalheFiscal empresaId={empresaId} documento={details.data} layout={null} podeResolver={podeResolver && !somenteLeitura} aoCopiar={aoCopiar} /> : null}
+      {details.data ? <DetalheFiscal empresaId={empresaId} documento={details.data} layout={null} podeResolver={podeResolver && !somenteLeitura} podeRevisarHistorico={podeRevisarHistorico && !somenteLeitura} aoCopiar={aoCopiar} /> : null}
     </section> : null}
     <nav aria-label="Paginação de documentos fiscais" className="flex items-center justify-between gap-sm">
       <Button variante="contorno" disabled={pagina === 1} onClick={() => aoPaginar(Math.max(1, pagina - 1))}>Página anterior</Button><span aria-live="polite" className="text-body-sm text-muted-foreground">Página {pagina}</span><Button variante="contorno" disabled={!proximaPagina} onClick={() => aoPaginar(pagina + 1)}>Próxima página</Button>
@@ -94,7 +94,7 @@ export const ListaDocumentosFiscais = ({ empresaId, items, pagina, filtro, proxi
   </section>;
 };
 
-const DetalheFiscal = ({ empresaId, documento, layout, podeResolver, aoCopiar }: { empresaId: string; documento: DocumentoFiscalDetalhe; layout: string | null; podeResolver: boolean; aoCopiar: (value: string, name: string) => void }) => (
+const DetalheFiscal = ({ empresaId, documento, layout, podeResolver, podeRevisarHistorico, aoCopiar }: { empresaId: string; documento: DocumentoFiscalDetalhe; layout: string | null; podeResolver: boolean; podeRevisarHistorico: boolean; aoCopiar: (value: string, name: string) => void }) => (
   <div className="space-y-lg">
     <div className="grid gap-lg lg:grid-cols-[1fr_1.3fr]">
       <section><h4 className="font-display text-title-sm text-foreground">Resumo normalizado</h4>
@@ -116,6 +116,6 @@ const DetalheFiscal = ({ empresaId, documento, layout, podeResolver, aoCopiar }:
         {documento.tributos.length ? <div className="mt-md overflow-x-auto"><h5 className="mb-xs text-label-sm text-muted-foreground">Tributos normalizados</h5><table className="w-full min-w-[520px] text-body-sm"><thead className="text-label-sm text-muted-foreground"><tr><th scope="col" className="py-xs text-left">Escopo</th><th scope="col" className="py-xs text-left">Tributo</th><th scope="col" className="py-xs text-right">Base</th><th scope="col" className="py-xs text-right">Alíquota</th><th scope="col" className="py-xs text-right">Valor</th></tr></thead><tbody>{documento.tributos.map((tax, index) => <tr key={`${tax.escopo}-${tax.numero_item ?? 'doc'}-${tax.codigo}-${index}`} className="border-t border-border/60"><td className="py-xs text-muted-foreground">{tax.escopo === 'ITEM' ? `Item ${tax.numero_item}` : 'Documento'}</td><td className="py-xs font-medium text-foreground">{tax.codigo}{tax.situacao ? ` · ${tax.situacao}` : ''}</td><td className="py-xs text-right tabular-nums">{money(tax.base_calculo)}</td><td className="py-xs text-right tabular-nums">{tax.aliquota ? `${tax.aliquota}%` : '—'}</td><td className="py-xs text-right tabular-nums">{money(tax.valor)}</td></tr>)}</tbody></table></div> : null}
       </section>
     </div>
-    <PainelResolucaoTributaria empresaId={empresaId} documento={documento} podeResolver={podeResolver} />
+    <PainelResolucaoTributaria empresaId={empresaId} documento={documento} podeResolver={podeResolver} podeRevisarHistorico={podeRevisarHistorico} />
   </div>
 );
