@@ -35,7 +35,7 @@ ALTER TABLE app.tax_entry_resolution_human_review FORCE ROW LEVEL SECURITY;
 CREATE POLICY tax_entry_human_review_scope ON app.tax_entry_resolution_human_review
   USING (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id))
   WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
-CREATE TRIGGER tax_entry_human_review_scope_immutable BEFORE UPDATE ON app.tax_entry_resolution_human_review
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.tax_entry_resolution_human_review
   FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 
 CREATE TABLE app.tax_entry_resolution_human_review_event (
@@ -65,6 +65,8 @@ ALTER TABLE app.tax_entry_resolution_human_review_event FORCE ROW LEVEL SECURITY
 CREATE POLICY tax_entry_human_review_event_scope ON app.tax_entry_resolution_human_review_event
   USING (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id))
   WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.tax_entry_resolution_human_review_event
+  FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 CREATE TRIGGER tax_entry_human_review_event_append_only BEFORE UPDATE OR DELETE ON app.tax_entry_resolution_human_review_event
   FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 CREATE TRIGGER tax_entry_human_review_event_no_truncate BEFORE TRUNCATE ON app.tax_entry_resolution_human_review_event
