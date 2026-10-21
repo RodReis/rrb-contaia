@@ -15,13 +15,14 @@ export type TributoFiscalParseado = Readonly<{
 }>;
 export type DocumentoFiscalParseado = Readonly<{
   especie: EspecieFiscal; modelo: string; versaoLayout: string; chaveAcesso: string;
-  protocolo: string | null; protocoloRecebidoEm: string | null;
+  protocolo: string | null; protocoloRecebidoEm: string | null; numeroDocumento: string | null; serieDocumento: string | null;
   referencias: readonly Readonly<{ tipo: string; chave: string }>[];
   partes: readonly ParteFiscalParseada[];
   tributos: readonly TributoFiscalParseado[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
+  finalConsumer: boolean | null;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
-  total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; descricao: string | null; ncm: string | null; cest: string | null; cfop: string | null; cstCsosn: string | null; codigoBeneficio: string | null; quantidade: string | null; unidade: string | null; valor: string | null; freight: string | null; insurance: string | null; discount: string | null; otherExpenses: string | null; ibs: string | null; cbs: string | null }>[];
+  total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; gtin: string | null; descricao: string | null; ncm: string | null; cest: string | null; cfop: string | null; cstCsosn: string | null; codigoBeneficio: string | null; quantidade: string | null; unidade: string | null; valor: string | null; freight: string | null; insurance: string | null; discount: string | null; otherExpenses: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
 }>;
 
@@ -35,6 +36,14 @@ const texto = (element: XmlContainer | null, path: string, namespace: string): s
 const existe = (element: XmlContainer | null, path: string, namespace: string): boolean =>
   Boolean(element?.getElementsByTagNameNS(namespace, path).length);
 function erro(codigo: FalhaParseFiscal): never { throw new Error(codigo); }
+const gtinValido = (value: string | null): value is string => {
+  if (value === null || !/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/u.test(value)) return false;
+  const digits = [...value].map(Number);
+  const checkDigit = digits.pop();
+  if (checkDigit === undefined) return false;
+  const sum = digits.reverse().reduce((total, digit, index) => total + digit * (index % 2 === 0 ? 3 : 1), 0);
+  return (10 - sum % 10) % 10 === checkDigit;
+};
 
 const extrairTributosDeGrupo = (scope: XmlContainer, namespace: string, escopo: TributoFiscalParseado['escopo'], numeroItem: number | null): TributoFiscalParseado[] => {
   const resultado: TributoFiscalParseado[] = [];
@@ -51,9 +60,26 @@ const extrairTributosDeGrupo = (scope: XmlContainer, namespace: string, escopo: 
   for (const group of grupos) {
     const node = scope.getElementsByTagNameNS(namespace, group.xml)[0] as Element | undefined;
     if (!node) continue;
-    adicionar({ escopo, numeroItem, codigo: group.codigo, baseCalculo: texto(node, group.base, namespace), aliquota: texto(node, group.aliquota, namespace), valor: texto(node, group.valor, namespace), situacao: texto(node, 'CST', namespace) ?? texto(node, 'CSOSN', namespace), classificacao: null });
-    const valorSt = texto(node, 'vICMSST', namespace);
-    if (group.codigo === 'ICMS' && valorSt !== null) adicionar({ escopo, numeroItem, codigo: 'ICMS_ST', baseCalculo: texto(node, 'vBCST', namespace), aliquota: texto(node, 'pICMSST', namespace), valor: valorSt, situacao: texto(node, 'CST', namespace) ?? texto(node, 'CSOSN', namespace), classificacao: null });
+    const taxNodes = group.xml === 'ICMS'
+      ? Array.from(node.childNodes).filter((child): child is Element => child.nodeType === 1)
+      : [node];
+    for (const taxNode of taxNodes) {
+      const situation = texto(taxNode, 'CST', namespace) ?? texto(taxNode, 'CSOSN', namespace);
+      const normalValue = texto(taxNode, group.valor, namespace);
+      const normalBase = texto(taxNode, group.base, namespace);
+      const normalRate = texto(taxNode, group.aliquota, namespace);
+      if (group.xml !== 'ICMS' || normalValue !== null || normalBase !== null || normalRate !== null) {
+        adicionar({ escopo, numeroItem, codigo: group.codigo, baseCalculo: normalBase, aliquota: normalRate, valor: normalValue, situacao: situation, classificacao: null });
+      }
+      if (group.xml === 'ICMS') {
+        const stValue = texto(taxNode, 'vICMSST', namespace) ?? texto(taxNode, 'vICMSSTRet', namespace);
+        const stBase = texto(taxNode, 'vBCST', namespace) ?? texto(taxNode, 'vBCSTRet', namespace);
+        const stRate = texto(taxNode, 'pICMSST', namespace) ?? texto(taxNode, 'pST', namespace);
+        if (stValue !== null || stBase !== null || stRate !== null) {
+          adicionar({ escopo, numeroItem, codigo: 'ICMS_ST', baseCalculo: stBase, aliquota: stRate, valor: stValue, situacao: situation, classificacao: null });
+        }
+      }
+    }
   }
   const ibscbs = scope.getElementsByTagNameNS(namespace, 'IBSCBS')[0] as Element | undefined;
   const ibscbsGroup = ibscbs?.getElementsByTagNameNS(namespace, 'gIBSCBS')[0] as Element | undefined;
@@ -104,6 +130,11 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   const key = rawId.replace(/^(NFe|CTe)/, '');
   if (!/^\d{44}$/.test(key)) erro('FISCAL_DOCUMENT_IDENTITY_INVALID');
   const emission = texto(document, 'dhEmi', namespaceEsperado) ?? texto(document, 'dEmi', namespaceEsperado) ?? dataEmissao;
+  const finalConsumerValue = nfe ? texto(info as unknown as XmlContainer, 'indFinal', namespaceEsperado) : null;
+  const finalConsumer = finalConsumerValue === '1' ? true : finalConsumerValue === '0' ? false : null;
+  const ide = info.getElementsByTagNameNS(namespaceEsperado, 'ide')[0] as Element | undefined;
+  const numeroDocumento = nfe ? texto(ide ?? null, 'nNF', namespaceEsperado) : texto(ide ?? null, 'nCT', namespaceEsperado);
+  const serieDocumento = texto(ide ?? null, 'serie', namespaceEsperado);
   const itemNodes = Array.from(document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'det' : 'infQ'));
   const items: DocumentoFiscalParseado['itens'][number][] = itemNodes.map((node) => {
     const content = node as Element;
@@ -113,6 +144,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     return {
       tipo: nfe ? 'ITEM' as const : 'MEDIDA_CARGA' as const,
       codigo: texto(product ?? null, nfe ? 'cProd' : 'cUnid', namespaceEsperado),
+      gtin: nfe ? (() => { const value = texto(product ?? null, 'cEAN', namespaceEsperado); return gtinValido(value) ? value : null; })() : null,
       ncm: nfe ? texto(product ?? null, 'NCM', namespaceEsperado) : null, cest: nfe ? texto(product ?? null, 'CEST', namespaceEsperado) : null,
       cfop: nfe ? texto(product ?? null, 'CFOP', namespaceEsperado) : null,
       cstCsosn: nfe ? texto(icms ?? null, 'CST', namespaceEsperado) ?? texto(icms ?? null, 'CSOSN', namespaceEsperado) : null,
@@ -130,7 +162,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   });
   if (cte) {
     const components = Array.from(document.getElementsByTagNameNS(namespaceEsperado, 'Comp')).map((node) => ({
-      tipo: 'COMPONENTE' as const, codigo: null, ncm: null, cest: null, cfop: null, cstCsosn: null, codigoBeneficio: null, descricao: texto(node as unknown as XmlContainer, 'xNome', namespaceEsperado),
+      tipo: 'COMPONENTE' as const, codigo: null, gtin: null, ncm: null, cest: null, cfop: null, cstCsosn: null, codigoBeneficio: null, descricao: texto(node as unknown as XmlContainer, 'xNome', namespaceEsperado),
       quantidade: null, unidade: null, valor: texto(node as unknown as XmlContainer, 'vComp', namespaceEsperado),
       freight: null, insurance: null, discount: null, otherExpenses: null, ibs: null, cbs: null,
     }));
@@ -196,7 +228,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   });
   return {
     especie, modelo: model!, versaoLayout, tributos,
-    chaveAcesso: key, emitidoEm: emission,
+    chaveAcesso: key, emitidoEm: emission, finalConsumer, numeroDocumento, serieDocumento,
     protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado),
     protocoloRecebidoEm: protocolReceivedAt ? new Date(protocolReceivedAt).toISOString() : null, referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),

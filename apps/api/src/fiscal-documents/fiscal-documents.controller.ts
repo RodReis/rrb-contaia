@@ -10,6 +10,7 @@ import { obterCorrelationId } from '../comum/problema';
 import { analisar } from '../escritorio/escritorio.dto';
 import { paginaSchema } from '../empregados/empregados.dto';
 import { FiscalDocumentsService } from './fiscal-documents.service';
+import { IcmsStSettlementsService } from './icms-st-settlements.service';
 
 const uuid = z.string().uuid();
 const consultaFiscalSchema = paginaSchema.extend({
@@ -47,7 +48,56 @@ const filaResolucaoSchema = paginaSchema.extend({
 @DfeAdminTenantScope()
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
 export class FiscalDocumentsController {
-  constructor(private readonly service: FiscalDocumentsService) {}
+  constructor(private readonly service: FiscalDocumentsService, private readonly icmsStService: IcmsStSettlementsService) {}
+
+  @Post('icms-st-settlements')
+  @HttpCode(201)
+  @ExigePermissao('fiscal.motor_tributario.simular')
+  processarApuracaoIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Body() body: unknown) {
+    const input = analisar(z.strictObject({ competence: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/u), idempotencyKey: z.string().uuid(),
+      reprocessingReason: z.string().trim().min(10).max(500).optional() }), body);
+    return this.icmsStService.process(tenantDa(request), autorDa(request).usuarioId, companyId, input.competence,
+      obterCorrelationId(request), input);
+  }
+
+  @Post('icms-st-settlements/:snapshotId/review')
+  @HttpCode(201)
+  @AcaoLivre()
+  revisarApuracaoIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
+    @Param('snapshotId') snapshotId: string, @Body() body: unknown) {
+    const input = analisar(z.strictObject({
+      expectedRevision: z.number().int().positive(), action: z.enum(['SUBMITTED','APPROVED','REJECTED']),
+      reason: z.string().trim().min(10).max(500).nullable().optional(),
+    }).superRefine((value, context) => {
+      const roles = request.sessao?.papeis ?? [];
+      if (value.action === 'REJECTED' && (value.reason === undefined || value.reason === null)) {
+        context.addIssue({ code: 'custom', message: 'Rejeição exige motivo.', path: ['reason'] });
+      }
+      if (value.action === 'SUBMITTED' && (!roles.some((role) => (['admin_escritorio','contador','auxiliar'] as readonly string[]).includes(role)) ||
+          !request.sessao?.permissoes.includes('fiscal.motor_tributario.simular'))) {
+        context.addIssue({ code: 'custom', message: 'Papel sem autorização para submeter apuração.', path: ['action'] });
+      }
+      if ((value.action === 'APPROVED' || value.action === 'REJECTED') && !roles.some((role) => (['admin_escritorio','contador'] as readonly string[]).includes(role))) {
+        context.addIssue({ code: 'custom', message: 'Somente contador ou admin do escritório decide apuração.', path: ['action'] });
+      }
+    }), body);
+    return this.icmsStService.review(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(uuid, snapshotId),
+      input.expectedRevision, input.action, input.reason ?? null, obterCorrelationId(request));
+  }
+
+  @Get('icms-st-settlements/:snapshotId')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  obterApuracaoIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
+    @Param('snapshotId') snapshotId: string, @Query() query: unknown) {
+    const pagina = analisar(paginaSchema, query).pagina;
+    return this.icmsStService.get(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(uuid, snapshotId), obterCorrelationId(request), pagina);
+  }
+
+  @Get('icms-st-settlements')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarApuracoesIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string) {
+    return this.icmsStService.list(tenantDa(request),autorDa(request).usuarioId,companyId,obterCorrelationId(request));
+  }
 
   @Get()
   @ExigePermissao('empresas.cadastro.consultar')

@@ -11,7 +11,7 @@ import { StorageService } from '../comum/storage.service';
 import { FISCAL_DOCUMENTS_API_QUEUE } from './fiscal-documents.queue';
 import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
 
-const versaoParser = 'f18-1.0.0';
+const versaoParser = 'f18-1.1.0';
 const chaveMascarada = (value: string | null) => value ? `${value.slice(0, 4)}…${value.slice(-4)}` : null;
 
 const regrasHistoricasDoPacote = (content: CuratedTaxPackage | null): HistoricalIcmsRule[] =>

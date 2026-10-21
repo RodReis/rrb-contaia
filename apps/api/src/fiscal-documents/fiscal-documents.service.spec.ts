@@ -6,6 +6,7 @@ import {
   statusStContribuicoesPelosCst,
   statusBeneficioPeloCBenef,
 } from './fiscal-documents.service';
+import { settlementCoverageBlocksReview } from './icms-st-settlements.service';
 
 describe('indicadores fiscais derivados com cautela da NF-e', () => {
   it('classifica importação pelo grupo CFOP 3 e deixa código ausente desconhecido', () => {
@@ -37,5 +38,13 @@ describe('indicadores fiscais derivados com cautela da NF-e', () => {
     expect(statusBeneficioPeloCBenef('GO800001')).toBe(true);
     expect(statusBeneficioPeloCBenef(' SEM CBENEF ')).toBeNull();
     expect(statusBeneficioPeloCBenef(null)).toBeNull();
+  });
+});
+
+describe('bloqueios de revisão fiscal F29', () => {
+  it('mantém a submissão bloqueada enquanto houver cobertura ausente no snapshot', () => {
+    expect(settlementCoverageBlocksReview({ blockingReasonCodes: ['OFFICIAL_LAYOUT_UNAVAILABLE'] })).toBe(true);
+    expect(settlementCoverageBlocksReview({ blockingReasonCodes: [] })).toBe(false);
+    expect(settlementCoverageBlocksReview(null)).toBe(false);
   });
 });
