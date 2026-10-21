@@ -13,6 +13,7 @@ import { FiscalDocumentsService } from './fiscal-documents.service';
 import { IcmsStSettlementsService } from './icms-st-settlements.service';
 
 const uuid = z.string().uuid();
+const persistedUuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
 const consultaFiscalSchema = paginaSchema.extend({
   estado: z.enum(['PENDENTE','PROCESSANDO','PROCESSADO','PENDENTE_LAYOUT','PENDENTE_IBS_CBS','XML_INVALIDO','CONFLITO','FALHA']).optional(),
 });
@@ -81,7 +82,7 @@ export class FiscalDocumentsController {
         context.addIssue({ code: 'custom', message: 'Somente contador ou admin do escritório decide apuração.', path: ['action'] });
       }
     }), body);
-    return this.icmsStService.review(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(uuid, snapshotId),
+    return this.icmsStService.review(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(persistedUuid, snapshotId),
       input.expectedRevision, input.action, input.reason ?? null, obterCorrelationId(request));
   }
 
@@ -90,7 +91,7 @@ export class FiscalDocumentsController {
   obterApuracaoIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
     @Param('snapshotId') snapshotId: string, @Query() query: unknown) {
     const pagina = analisar(paginaSchema, query).pagina;
-    return this.icmsStService.get(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(uuid, snapshotId), obterCorrelationId(request), pagina);
+    return this.icmsStService.get(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(persistedUuid, snapshotId), obterCorrelationId(request), pagina);
   }
 
   @Get('icms-st-settlements')
