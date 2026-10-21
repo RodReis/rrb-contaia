@@ -729,7 +729,7 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Suítes locais concluídas: domínio 918/918, API 1.472/1.472, web 1.313/1.313 e banco 547/547; migrations 0000–0051 em PostgreSQL 17 isolado na porta 25439; builds, typechecks, lints e `git diff --check` passaram. Warning React Compiler preexistente em `aba-de-enderecos.tsx`.
 - [x] Smoke E2E autenticado 2/2 com escritório/empresa/usuário sintéticos isolados e removidos na limpeza. Seis capturas do estado bloqueado sem cobertura oficial em CLARO/ESCURO × 768/1024/1440; axe sem violações críticas e sem rolagem horizontal. Evidências em `test-results/SPEC-029/e2e/provas/f29-bloqueio-sem-cobertura-*.png`. Comparação com protótipo específico da apuração permanece indisponível; `impeccable detect --json` sem achados nos arquivos da tela.
 - [ ] Pacote histórico oficial por produto/regime/vigência, vínculos de saída/entrada ou EFD, cobertura verificável de eventos posteriores e leiaute oficial de demonstrativo não estão disponíveis. Não há cálculo aprovável; linhas seguem indeterminadas, revisão e exportação bloqueadas. Não inventar regra, taxa, fonte ou fixture.
-- [ ] CI remota, PR, merge, comentário de encerramento e `proplan:done` pendentes; issue #33 permanece aberta em `proplan:doing`. Último `gh pr list --state open`: nenhuma PR aberta. `origin/main` verificada no SHA `1643ab0e1f0457364b51efd693cf08924de1bad0`.
+- [ ] PR #139 aberta (`refs #33`), CI remota em execução; merge, comentário de encerramento e `proplan:done` pendentes. Issue #33 permanece aberta em `proplan:doing`. `origin/main` verificada no SHA `1643ab0e1f0457364b51efd693cf08924de1bad0`.
 
 ### Card #32 — `[MVP2][SPEC-028][F28]` ICMS na entrada histórica de autopeças em Goiás
 
