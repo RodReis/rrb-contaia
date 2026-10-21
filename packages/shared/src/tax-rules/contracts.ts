@@ -279,6 +279,39 @@ const taxPackageRuleSchema = z.strictObject({
     context.addIssue({ code: 'custom', message: 'MVA ajustada exige alíquota interestadual versionada.', path: ['interstateRateBasisPoints'] });
   }
 });
+const icmsStSettlementRuleSchema = z.strictObject({
+  id: z.string().trim().min(1).max(120), taxSegment: z.literal('AUTO_PARTS'),
+  legalDescription: z.string().trim().min(1).max(1000), destinationUf: z.literal('GO'), finalConsumer: z.literal(true),
+  regime: z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']),
+  ncm: z.array(z.string().regex(/^\d{8}$/u)).min(1).max(500),
+  cest: z.array(z.string().regex(/^\d{7}$/u)).min(1).max(500),
+  cfop: z.array(z.string().regex(/^\d{4}$/u)).min(1).max(100),
+  cstCsosn: z.array(z.string().regex(/^\d{2,3}$/u)).min(1).max(50),
+  validFrom: civilDate, validUntil: civilDate,
+  effectiveBaseFactorBasisPoints: z.number().int().min(0).max(100_000).nullable(),
+  internalRateBasisPoints: z.number().int().min(0).max(10_000).nullable(),
+  effectiveBaseFormula: z.literal('NET_PRODUCT_TIMES_BASE_FACTOR'),
+  effectiveIcmsFormula: z.literal('EFFECTIVE_BASE_TIMES_INTERNAL_RATE'),
+  rounding: z.literal('HALF_UP'), formulaVersion: z.string().trim().min(1).max(80),
+  sourceIds: z.array(z.string().trim().min(1).max(120)).min(1).max(50),
+}).superRefine((rule, context) => {
+  if (rule.validFrom < '2016-10-27' || rule.validUntil > '2018-02-28' || rule.validFrom > rule.validUntil) {
+    context.addIssue({ code: 'custom', message: 'Regra F29 deve respeitar janela histórica aprovada.', path: ['validFrom'] });
+  }
+  if (rule.effectiveBaseFactorBasisPoints === null || rule.internalRateBasisPoints === null) {
+    context.addIssue({ code: 'custom', message: 'Regra F29 exige fator efetivo e alíquota oficial versionados.', path: ['effectiveBaseFactorBasisPoints'] });
+  }
+});
+const icmsStSettlementFixtureSchema = z.strictObject({
+  id: z.string().trim().min(1).max(120), ruleId: z.string().trim().min(1).max(120),
+  factDate: civilDate, regime: z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']),
+  ncm: z.string().regex(/^\d{8}$/u), cest: z.string().regex(/^\d{7}$/u),
+  cfop: z.string().regex(/^\d{4}$/u), cstCsosn: z.string().regex(/^\d{2,3}$/u),
+  outputBaseCents: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  expectedEffectiveBaseCents: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  expectedEffectiveIcmsCents: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  sourceIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20),
+});
 const taxPackageFixtureFactsSchema = z.strictObject({
   factDate: civilDate.nullable(), regime: z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']).nullable(),
   originUf: z.string().length(2).nullable(), destinationUf: z.string().length(2).nullable(),
@@ -315,6 +348,8 @@ export const CuratedTaxPackageSchema = z.strictObject({
   exclusions: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
   sources: z.array(taxPackageSourceSchema).min(1).max(500),
   rules: z.array(taxPackageRuleSchema).max(20000),
+  icmsStSettlementRules: z.array(icmsStSettlementRuleSchema).max(20000).optional(),
+  icmsStSettlementFixtures: z.array(icmsStSettlementFixtureSchema).max(5000).optional(),
   fixtures: z.array(z.strictObject({
     id: z.string().min(1).max(120), ruleId: z.string().min(1).max(120),
     taxType, facts: taxPackageFixtureFactsSchema,

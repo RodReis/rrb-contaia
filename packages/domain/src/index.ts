@@ -449,6 +449,19 @@ export type {
   HistoricalIcmsRule,
   HistoricalTaxLiabilityKind,
 } from './tax-resolution/resolve-historical-icms.js';
+export { calculateIcmsStOutputTax, resolveIcmsStSettlement } from './tax-resolution/resolve-icms-st-settlement.js';
+export type {
+  IcmsStDifferenceKind,
+  IcmsStInputEntry,
+  IcmsStMonthlySettlement,
+  IcmsStOutputLine,
+  IcmsStRecoveryOrigin,
+  IcmsStSettlementInput,
+  IcmsStSettlementFixture,
+  IcmsStSettlementLine,
+  IcmsStSettlementRule,
+  IcmsStSettlementStatus,
+} from './tax-resolution/resolve-icms-st-settlement.js';
 
 export {
   CAMPOS_DE_EMPREGADO,

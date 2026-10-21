@@ -1,5 +1,6 @@
 import { resolveEntryTax, type EntryTaxFacts } from './resolve-entry.js';
 import { resolveHistoricalIcms, type HistoricalIcmsFacts, type HistoricalIcmsRule } from './resolve-historical-icms.js';
+import { calculateIcmsStOutputTax, type IcmsStSettlementFixture, type IcmsStSettlementRule } from './resolve-icms-st-settlement.js';
 
 export type TaxPackageSource = Readonly<{
   id: string;
@@ -57,6 +58,8 @@ export type CuratedTaxPackage = Readonly<{
     dueDate?: string | null;
     revenueCode?: string | null;
   }>[];
+  icmsStSettlementRules?: readonly IcmsStSettlementRule[];
+  icmsStSettlementFixtures?: readonly IcmsStSettlementFixture[];
   fixtures: readonly Readonly<{
     id: string;
     ruleId: string;
@@ -158,6 +161,64 @@ export const validateTaxPackage = (input: CuratedTaxPackage): PackageValidation 
     }
   }
 
+  const settlementRules = input.icmsStSettlementRules ?? [];
+  const settlementFixtures = input.icmsStSettlementFixtures ?? [];
+  const settlementRuleIds = new Set<string>();
+  for (const [index, rule] of settlementRules.entries()) {
+    if (settlementRuleIds.has(rule.id)) errors.push(`SETTLEMENT_RULE_DUPLICATE:${rule.id}`);
+    settlementRuleIds.add(rule.id);
+    if (rule.validFrom < input.validFrom || rule.validFrom < '2016-10-27' || rule.validUntil > '2018-02-28' ||
+        rule.validUntil < rule.validFrom || (input.validUntil !== null && rule.validUntil > input.validUntil)) {
+      errors.push(`SETTLEMENT_RULE_VALIDITY_INVALID:${rule.id}`);
+    }
+    if (rule.sourceIds.length === 0 || rule.sourceIds.some((id) => !sourceIds.has(id))) errors.push(`SETTLEMENT_RULE_SOURCE_MISSING:${rule.id}`);
+    for (const sourceId of rule.sourceIds) {
+      const source = input.sources.find((item) => item.id === sourceId);
+      if (source !== undefined && (rule.validFrom < source.validFrom || (source.validUntil !== null && rule.validUntil > source.validUntil))) {
+        errors.push(`SETTLEMENT_RULE_OUTSIDE_SOURCE_VALIDITY:${rule.id}:${sourceId}`);
+      }
+    }
+    if (rule.formulaVersion.trim() === '' || rule.rounding !== 'HALF_UP' || rule.effectiveBaseFormula.trim()==='' || rule.effectiveIcmsFormula.trim()==='') errors.push(`SETTLEMENT_RULE_FORMULA_UNVERSIONED:${rule.id}`);
+    if (rule.effectiveBaseFactorBasisPoints === null) errors.push(`SETTLEMENT_RULE_BASE_FACTOR_MISSING:${rule.id}`);
+    if (rule.internalRateBasisPoints === null) errors.push(`SETTLEMENT_RULE_INTERNAL_RATE_MISSING:${rule.id}`);
+    for (const other of settlementRules.slice(index + 1)) {
+      const overlaps = rule.regime === other.regime && rule.ncm.some((value) => other.ncm.includes(value)) &&
+        rule.cest.some((value) => other.cest.includes(value)) && rule.cfop.some((value) => other.cfop.includes(value)) &&
+        rule.cstCsosn.some((value) => other.cstCsosn.includes(value)) && rule.validFrom <= other.validUntil && other.validFrom <= rule.validUntil;
+      if (overlaps) errors.push(`SETTLEMENT_RULE_VALIDITY_OVERLAP:${rule.id}:${other.id}`);
+    }
+  }
+  const settlementFixtureIds = new Set<string>();
+  const fixtureRuleIds = new Set<string>();
+  const fixtureKeys = new Set<string>();
+  for (const fixture of settlementFixtures) {
+    if (settlementFixtureIds.has(fixture.id)) errors.push(`SETTLEMENT_FIXTURE_DUPLICATE:${fixture.id}`);
+    settlementFixtureIds.add(fixture.id);
+    fixtureRuleIds.add(fixture.ruleId);
+    const fixtureKey = `${fixture.ruleId}:${fixture.factDate}:${fixture.regime}:${fixture.ncm}:${fixture.cest}:${fixture.cfop}:${fixture.cstCsosn}:${fixture.outputBaseCents}`;
+    if (fixtureKeys.has(fixtureKey)) errors.push(`SETTLEMENT_FIXTURE_DUPLICATE_CASE:${fixture.id}`);
+    fixtureKeys.add(fixtureKey);
+    const rule = settlementRules.find((candidate) => candidate.id === fixture.ruleId);
+    if (rule === undefined) {
+      errors.push(`SETTLEMENT_FIXTURE_RULE_NOT_FOUND:${fixture.id}:${fixture.ruleId}`);
+      continue;
+    }
+    if (fixture.regime !== rule.regime || !rule.ncm.includes(fixture.ncm) || !rule.cest.includes(fixture.cest) ||
+        !rule.cfop.includes(fixture.cfop) || !rule.cstCsosn.includes(fixture.cstCsosn) ||
+        fixture.factDate < rule.validFrom || fixture.factDate > rule.validUntil) {
+      errors.push(`SETTLEMENT_FIXTURE_SELECTOR_MISMATCH:${fixture.id}`);
+    }
+    if (fixture.sourceIds.length===0 || fixture.sourceIds.some((id)=>!rule.sourceIds.includes(id))) errors.push(`SETTLEMENT_FIXTURE_SOURCE_MISSING:${fixture.id}`);
+    if (!rule.sourceIds.some((sourceId) => {
+      const source = input.sources.find((candidate) => candidate.id === sourceId);
+      return source !== undefined && source.validFrom <= fixture.factDate && (source.validUntil === null || fixture.factDate <= source.validUntil);
+    })) errors.push(`SETTLEMENT_FIXTURE_SOURCE_MISSING:${fixture.id}`);
+    const calculated = calculateIcmsStOutputTax(rule, fixture.outputBaseCents);
+    if (calculated === null) errors.push(`SETTLEMENT_FIXTURE_FORMULA_UNIMPLEMENTED:${fixture.id}`);
+    else if (calculated.effectiveBaseCents !== fixture.expectedEffectiveBaseCents ||
+        calculated.effectiveIcmsCents !== fixture.expectedEffectiveIcmsCents) errors.push(`SETTLEMENT_FIXTURE_EXPECTATION_MISMATCH:${fixture.id}`);
+  }
+  for (const rule of settlementRules) if (!fixtureRuleIds.has(rule.id)) errors.push(`SETTLEMENT_RULE_FIXTURE_MISSING:${rule.id}`);
   const ruleIds = new Set(input.rules.map((rule) => rule.id));
   const fixtureIds = new Set<string>();
   for (const fixture of input.fixtures) {

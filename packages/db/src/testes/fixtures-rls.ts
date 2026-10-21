@@ -112,6 +112,16 @@ const prepararDocumentoParaSnapshot = async (admin: Consultavel, e: Escopo): Pro
   return documento;
 };
 
+const prepararSnapshotIcmsSt = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const documento = await prepararDocumentoFiscal(admin, e);
+  const snapshotId = await unico(admin,
+    `insert into app.tax_st_settlement_snapshot
+       (tenant_id,empresa_id,competence,revision,idempotency_key,input_sha256,status,line_count,blocked_line_count,facts,actor_id,correlation_id,processed_at)
+     values($1,$2,'2098-01-01',$3,$4,repeat('c',64),'BLOCKED',0,0,'{}'::jsonb,$5,'f29-rls-fixture',now()) returning id`,
+    [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]);
+  return { ...documento, snapshotId };
+};
+
 const prepararConfiguracaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const configurationId = await unico(admin,
     `insert into app.fiscal_risk_configuration(tenant_id,empresa_id,versao,limite_centavos,motivo,ator_id)
@@ -836,6 +846,37 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,staging_id,tipo,parser_version,correlation_id)
        values($1,$2,$3,$4,'PROCESSADO','fixture','fiscal-rls-fixture') returning id`,
       [e.tenantId,e.empresaId,r['documentId'],r['stagingId']]),
+  },
+  'app.tax_st_settlement_snapshot': {
+    inserir: (banco,e) => unico(banco,
+      `insert into app.tax_st_settlement_snapshot
+         (tenant_id,empresa_id,competence,revision,idempotency_key,input_sha256,status,line_count,blocked_line_count,facts,actor_id,correlation_id,processed_at)
+       values($1,$2,'2098-01-01',$3,$4,repeat('d',64),'BLOCKED',0,0,'{}'::jsonb,$5,'f29-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]),
+  },
+  'app.tax_st_settlement_line': {
+    preparar: prepararSnapshotIcmsSt,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_settlement_line
+         (tenant_id,empresa_id,snapshot_id,output_document_id,output_item_id,difference_kind,facts,calculation,recovery_memory)
+       values($1,$2,$3,$4,$5,'INDETERMINATE','{}'::jsonb,'{}'::jsonb,'{}'::jsonb) returning id`,
+      [e.tenantId,e.empresaId,r['snapshotId'],r['documentId'],`fixture:${proximo()}`]),
+  },
+  'app.tax_st_settlement_event': {
+    preparar: prepararSnapshotIcmsSt,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_settlement_event
+         (tenant_id,empresa_id,snapshot_id,action,actor_id,correlation_id,occurred_at,details)
+       values($1,$2,$3,'BLOCKED',$4,'f29-rls-fixture',now(),'{}'::jsonb) returning id`,
+      [e.tenantId,e.empresaId,r['snapshotId'],e.autorId]),
+  },
+  'app.tax_st_settlement_review_event': {
+    preparar: prepararSnapshotIcmsSt,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_settlement_review_event
+         (tenant_id,empresa_id,snapshot_id,action,actor_id,correlation_id,occurred_at,details)
+       values($1,$2,$3,'SUBMITTED',$4,'f29-rls-fixture',now(),'{}'::jsonb) returning id`,
+      [e.tenantId,e.empresaId,r['snapshotId'],e.autorId]),
   },
   'app.fiscal_acknowledgement': {
     preparar: prepararStagingFiscal,
