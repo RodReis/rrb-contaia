@@ -847,6 +847,44 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
        values($1,$2,$3,$4,'PROCESSADO','fixture','fiscal-rls-fixture') returning id`,
       [e.tenantId,e.empresaId,r['documentId'],r['stagingId']]),
   },
+  'app.fiscal_document_payment': {
+    preparar: prepararDocumentoFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_payment(tenant_id,empresa_id,document_id,parser_version,numero,meio,valor)
+       values($1,$2,$3,'fixture',1,'DINHEIRO',1) returning id`, [e.tenantId,e.empresaId,r['documentId']]),
+  },
+  'app.nfce_import_batch': {
+    inserir: (banco,e) => unico(banco,
+      `insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
+       values($1,$2,$3,'f30-rls-fixture','ERP','PROCESSING',1) returning id`, [e.tenantId,e.empresaId,e.autorId]),
+  },
+  'app.nfce_import_item': {
+    preparar: async (admin,e) => {
+      const batchId=await unico(admin,
+        `insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
+         values($1,$2,$3,'f30-rls-fixture','ERP','PROCESSING',1) returning id`, [e.tenantId,e.empresaId,e.autorId]);
+      return {batchId};
+    },
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.nfce_import_item(tenant_id,empresa_id,batch_id,nome_sanitizado,tamanho_bytes,hash_sha256,original_key,status,parser_version,schema_version,correlation_id)
+       values($1,$2,$3,'fixture.xml',1,$4,$5,'QUEUED','fixture','fixture','f30-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['batchId'],hex64(),`fiscal/nfce/${e.sufixo}/${proximo()}.xml`]),
+  },
+  'app.nfce_import_source': {
+    preparar: async (admin,e) => {
+      const batchId=await unico(admin,
+        `insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
+         values($1,$2,$3,'f30-rls-fixture','ERP','PROCESSING',1) returning id`, [e.tenantId,e.empresaId,e.autorId]);
+      const itemId=await unico(admin,
+        `insert into app.nfce_import_item(tenant_id,empresa_id,batch_id,nome_sanitizado,tamanho_bytes,hash_sha256,original_key,status,parser_version,schema_version,correlation_id)
+         values($1,$2,$3,'fixture.xml',1,$4,$5,'QUEUED','fixture','fixture','f30-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,batchId,hex64(),`fiscal/nfce/${e.sufixo}/${proximo()}.xml`]);
+      return {itemId};
+    },
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.nfce_import_source(tenant_id,empresa_id,item_id,cnpj,origem,correlation_id)
+       values($1,$2,$3,'00000000000000','ERP','f30-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['itemId']]),
+  },
   'app.tax_st_settlement_snapshot': {
     inserir: (banco,e) => unico(banco,
       `insert into app.tax_st_settlement_snapshot

@@ -104,6 +104,7 @@ export class FiscalDocumentsController {
 
   @Post('nfce-imports')
   @HttpCode(202)
+  @AcaoLivre()
   @UseInterceptors(FilesInterceptor('arquivos',10,{limits:{fileSize:10*1024*1024,files:10,fields:1}}))
   importarNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown){
     const actor=autorDa(request);const roles=request.sessao?.papeis??[];

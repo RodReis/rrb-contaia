@@ -64,6 +64,7 @@ CREATE TABLE app.nfce_import_source (
   FOREIGN KEY(item_id,empresa_id,tenant_id) REFERENCES app.nfce_import_item(id,empresa_id,tenant_id),
   FOREIGN KEY(empresa_id,tenant_id) REFERENCES app.empresa(id,tenant_id), UNIQUE(id,empresa_id,tenant_id)
 );
+CREATE INDEX nfce_import_source_scope_idx ON app.nfce_import_source(tenant_id,empresa_id,item_id);
 ALTER TABLE app.fiscal_document_origin ADD COLUMN nfce_source_id uuid;
 ALTER TABLE app.fiscal_document_origin ALTER COLUMN staging_id DROP NOT NULL;
 ALTER TABLE app.fiscal_document_origin ALTER COLUMN cnpj DROP NOT NULL;

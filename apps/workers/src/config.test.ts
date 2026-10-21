@@ -48,6 +48,7 @@ describe('configuração dos workers (falha fechada)', () => {
         usuario: 'usuario',
         senha: 'senha',
       },
+      raizesIcp: null,
     });
   });
 
@@ -93,6 +94,11 @@ describe('configuração dos workers (falha fechada)', () => {
 
     expect(config.armazenamento).toBeNull();
     expect(config.signer).not.toBeNull();
+  });
+
+  it('configura raízes ICP por diretório e falha fechado sem raízes', () => {
+    expect(lerConfig({ ...COMPLETO, COFRE_RAIZES_ICP_DIR: '/run/secrets/raizes-icp' }).raizesIcp).toEqual({diretorio:'/run/secrets/raizes-icp'});
+    expect(lerConfig({ ...COMPLETO, COFRE_RAIZES_ICP_DIR: '' }).raizesIcp).toBeNull();
   });
 
   it('sem nenhum consumidor configurado, recusa subir', () => {
