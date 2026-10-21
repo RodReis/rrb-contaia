@@ -1,4 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
+import { X509Certificate } from 'node:crypto';
 
 import { criarPoolDaAplicacao, criarPoolDoAgendadorDashboard, criarPoolDoAgendadorDfe } from '@contaia/db';
 import { conexaoDoRedis, criarClienteDoSigner } from '@contaia/signer-client';
@@ -9,6 +12,7 @@ import { verificarSaude } from './monitor.js';
 import { iniciarConsumidorDeEmpregados } from './empregados/consumidor.js';
 import { iniciarConsumidorDfeCapture } from './dfe-capture.js';
 import { iniciarConsumidorDeDocumentosFiscais } from './fiscal-documents.js';
+import { iniciarConsumidorNfce } from './nfce.js';
 import { iniciarConsumidorDeRiscoFiscal } from './fiscal-risk.js';
 import { iniciarConsumidorDeExportacoesDeAuditoria } from './audit-export.js';
 import { iniciarConsumidorDeManifestacoesConclusivas } from './fiscal-manifestation.js';
@@ -94,6 +98,14 @@ if (config.armazenamento !== null) {
   ativos.push('documentos fiscais F18');
   fechamentos.push(await iniciarImportacoes(config.armazenamento));
   ativos.push('plano de contas', 'empregados');
+  if(config.raizesIcp){
+    const roots=readdirSync(config.raizesIcp.diretorio).filter(name=>/\.(?:crt|pem)$/iu.test(name)).map(name=>new X509Certificate(readFileSync(path.join(config.raizesIcp!.diretorio,name))));
+    if(roots.length===0)throw new Error('Pacote de raízes ICP-Brasil vazio; importação NFC-e permanece desativada.');
+    const nfce=await iniciarConsumidorNfce({pool,conexao,storage:config.armazenamento,certificateRoots:roots});
+    fechamentos.push(async()=>{await nfce.fechar();});ativos.push('importação NFC-e F30');
+  } else {
+    throw new Error('COFRE_RAIZES_ICP_DIR obrigatório para iniciar o worker com importação NFC-e F30.');
+  }
 }
 const fiscalRisk = await iniciarConsumidorDeRiscoFiscal({pool,conexao});
 fechamentos.push(async()=>{await fiscalRisk.fechar();});

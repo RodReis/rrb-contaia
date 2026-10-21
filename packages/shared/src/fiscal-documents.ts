@@ -13,3 +13,11 @@ export const FiscalDocumentCommandSchema = z.strictObject({
   tenantId: z.string().uuid(), companyId: z.string().uuid(), stagingId: z.string().uuid(), correlationId: z.string().min(8).max(128),
 });
 export type FiscalDocumentCommand = z.infer<typeof FiscalDocumentCommandSchema>;
+
+export const NFCE_IMPORT_QUEUE = 'nfce-import';
+export const NFCE_IMPORT_JOB = 'process-item';
+export const NfceImportCommandSchema = z.strictObject({
+  tenantId: z.string().uuid(), companyId: z.string().uuid(), batchId: z.string().uuid(), itemId: z.string().uuid(),
+  actorId: z.string().uuid(), correlationId: z.string().min(8).max(128),
+});
+export type NfceImportCommand = z.infer<typeof NfceImportCommandSchema>;

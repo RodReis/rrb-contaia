@@ -15,6 +15,7 @@ import { FilaResolucaoTributaria } from './fila-resolucao-tributaria';
 import { ListaDocumentosFiscais } from './lista-documentos-fiscais';
 import { StatusBadge, type TomDoStatus } from '@/components/ui/status-badge';
 import { PainelApuracaoIcmsSt } from './painel-apuracao-icms-st';
+import { ImportacaoNfce } from './importacao-nfce';
 
 const dataHora = (value: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(value)) : '—';
 
@@ -121,6 +122,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
       </div>
     </header>
     <FilaResolucaoTributaria empresaId={empresaId} onAbrirDocumento={setDocumentoSelecionadoNaFila} />
+    <ImportacaoNfce empresaId={empresaId} somenteLeitura={somenteLeitura} />
     <PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar={podeResolverTributos&&!somenteLeitura} podeDecidir={permitirDecisao??false} />
     <section aria-labelledby="acknowledgements-title" className="flex flex-col gap-sm border-t border-border pt-lg">
       <div><h4 id="acknowledgements-title" className="font-display text-title-md text-foreground">Ciência da Emissão</h4><p className="mt-xs max-w-2xl text-body-sm text-muted-foreground">Resumos de NF-e destinados à empresa, tentativas técnicas e recuperação do XML completo.</p></div>

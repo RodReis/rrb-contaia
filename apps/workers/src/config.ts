@@ -30,6 +30,8 @@ export type ConfigDoArmazenamento = Readonly<{
   senha: string;
 }>;
 
+export type ConfigDeRaizesIcp = Readonly<{ diretorio: string }>;
+
 export type ConfigDosWorkers = Readonly<{
   portaDeSaude: number;
   redisUrl: string;
@@ -37,6 +39,7 @@ export type ConfigDosWorkers = Readonly<{
   signer: ConfigDoSigner | null;
   /** Nulo: sem o storage, os consumidores da validação (plano de contas e empregados) não sobem. */
   armazenamento: ConfigDoArmazenamento | null;
+  raizesIcp: ConfigDeRaizesIcp | null;
 }>;
 
 const INTERVALO_MINIMO_DO_MONITOR_MS = 1_000;
@@ -143,6 +146,7 @@ export const lerConfig = (env: NodeJS.ProcessEnv): ConfigDosWorkers => {
     redisUrl,
     signer: lerConfigDoSigner(env),
     armazenamento: lerConfigDoArmazenamento(env),
+    raizesIcp: presente(env,'COFRE_RAIZES_ICP_DIR') ? {diretorio:obrigatoria(env,'COFRE_RAIZES_ICP_DIR')} : null,
   };
 
   if (config.signer === null && config.armazenamento === null) {

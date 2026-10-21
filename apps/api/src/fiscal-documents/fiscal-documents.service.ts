@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { createHash as createFileHash } from 'node:crypto';
+import { criarLoteNfce, consultarLoteNfce, listarItensLoteNfceCsv, obterOriginalNfce } from '@contaia/db';
+import { NFCE_IMPORT_JOB, NfceImportCommandSchema } from '@contaia/shared';
 import type { Queue } from 'bullmq';
 import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, submeterRevisaoResolucaoTributaria, decidirRevisaoResolucaoTributaria, obterRegimeTributarioHistorico, registrarEventoResolucaoTributaria, listarFilaResolucaoTributaria } from '@contaia/db';
 import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, decimalDeclaradoParaCentavos, HISTORICAL_CUTOFF_SOURCE_ID, resolveEntryTax, resolveHistoricalIcms, statusRetencaoIcmsDeclarada, statusSubstituicaoTributariaComEvidencia, validateIcmsStDeclaredEvidence, type CuratedTaxPackage, type HistoricalIcmsRule } from '@contaia/domain';
@@ -7,12 +10,43 @@ import { FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentComma
 import { CuratedTaxPackageSchema } from '@contaia/shared';
 import type { PoolClient } from 'pg';
 import { PoolDoBanco } from '../banco/pool.provider';
-import { StorageService } from '../comum/storage.service';
+import { StorageService, type ArquivoRecebido } from '../comum/storage.service';
+import * as yauzl from 'yauzl';
+import { Readable } from 'node:stream';
 import { FISCAL_DOCUMENTS_API_QUEUE } from './fiscal-documents.queue';
 import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
+import { NFCE_IMPORT_API_QUEUE } from './nfce-import.queue';
 
 const versaoParser = 'f18-1.1.0';
 const chaveMascarada = (value: string | null) => value ? `${value.slice(0, 4)}…${value.slice(-4)}` : null;
+
+const expandirNfce = async (files:readonly ArquivoRecebido[]):Promise<readonly ArquivoRecebido[]>=>{
+  const result:ArquivoRecebido[]=[];let aggregate=0;
+  for(const file of files){
+    if(file.nomeOriginal.toLocaleLowerCase('en-US').endsWith('.zip')){
+      const zip=await yauzl.fromBufferPromise(file.conteudo,{lazyEntries:true,validateEntrySizes:true,strictFileNames:true});
+      try{
+        let count=0;
+        for await(const entry of zip.eachEntry()){
+          count++;if(count>10000)throw new Error('NFCE_BATCH_LIMIT_EXCEEDED');
+          const name=entry.fileName;
+          if(entry.isEncrypted()||name.startsWith('/')||name.startsWith('\\')||/^[a-z]:/iu.test(name)||name.split(/[\\/]/u).includes('..')||name.includes('\\')||((entry.externalFileAttributes>>>16)&0o170000)===0o120000)throw new Error('NFCE_ARCHIVE_UNSAFE');
+          if(name.endsWith('/'))continue;
+          if(!name.toLocaleLowerCase('en-US').endsWith('.xml')||entry.uncompressedSize>10*1024*1024||entry.compressedSize===0||entry.uncompressedSize/entry.compressedSize>100)throw new Error('NFCE_ARCHIVE_UNSAFE');
+          aggregate+=entry.uncompressedSize;if(aggregate>100*1024*1024)throw new Error('NFCE_BATCH_LIMIT_EXCEEDED');
+          const stream=await zip.openReadStreamPromise(entry);const chunks:Buffer[]=[];let size=0;
+          for await(const raw of stream as Readable){const chunk=Buffer.from(raw);size+=chunk.length;if(size>10*1024*1024)throw new Error('NFCE_ARCHIVE_UNSAFE');chunks.push(chunk);}
+          result.push({nomeOriginal:name,tipoConteudo:'application/xml',conteudo:Buffer.concat(chunks)});
+        }
+      }finally{zip.close();}
+    }else{
+      aggregate+=file.conteudo.byteLength;if(aggregate>100*1024*1024||file.conteudo.byteLength>10*1024*1024)throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE,'Limite de arquivo ou lote NFC-e excedido.');
+      result.push(file);
+    }
+  }
+  if(result.length===0)throw new ErroDeDominio(CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO,'Nenhum XML foi encontrado no lote.');
+  return result;
+};
 
 const regrasHistoricasDoPacote = (content: CuratedTaxPackage | null): HistoricalIcmsRule[] =>
   (content?.rules ?? []).flatMap((rule) => {
@@ -73,7 +107,42 @@ export const statusBeneficioPeloCBenef = (codigo: string | null): boolean | null
 export class FiscalDocumentsService {
   agora: () => Date = () => new Date();
   constructor(private readonly pool: PoolDoBanco, private readonly storage: StorageService,
-    @Inject(FISCAL_DOCUMENTS_API_QUEUE) private readonly queue: Queue | null) {}
+    @Inject(FISCAL_DOCUMENTS_API_QUEUE) private readonly queue: Queue | null,
+    @Inject(NFCE_IMPORT_API_QUEUE) private readonly nfceQueue: Queue | null) {}
+
+  async importarNfce(tenantId:string,userId:string,companyId:string,correlationId:string,source:'PORTAL_GO'|'ERP'|'EMISSOR',files:readonly ArquivoRecebido[]){
+    if(!this.nfceQueue)throw new ErroDeDominio(CODIGOS_DE_ERRO.FILA_INDISPONIVEL,'Fila de importação NFC-e indisponível.');
+    if(files.length<1||files.length>10000)throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_ACIMA_DO_LIMITE,'O lote deve conter de 1 a 10.000 arquivos XML.');
+    const expanded=await expandirNfce(files);
+    const preparados=expanded.map((file)=>{const hash=createFileHash('sha256').update(file.conteudo).digest('hex');const name=Array.from(file.nomeOriginal,value=>{const code=value.codePointAt(0)??0;return value==='/'||value==='\\'||code<32||code===127?'_':value;}).join('').slice(0,180);return{name,size:file.conteudo.byteLength,hash,key:`${tenantId}/${companyId}/nfce-original/${hash}.xml`,bytes:file.conteudo};});
+    for(const item of preparados)await this.storage.enviarComChave(item.key,item.bytes,'application/xml');
+    const created=await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      return criarLoteNfce(client,{tenantId,companyId,actorId:userId,correlationId,source,items:preparados});
+    });
+    if(!created.reused)for(const itemId of created.itemIds){const command=NfceImportCommandSchema.parse({tenantId,companyId,batchId:created.batchId,itemId,actorId:userId,correlationId});await this.nfceQueue.add(NFCE_IMPORT_JOB,command,{jobId:`nfce-${itemId}`,attempts:4,backoff:{type:'exponential',delay:1000},removeOnComplete:{count:500},removeOnFail:false});}
+    return{batchId:created.batchId,status:'QUEUED' as const,reused:created.reused};
+  }
+
+  async obterLoteNfce(tenantId:string,userId:string,companyId:string,batchId:string,correlationId:string){return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+    const company=await getDfeCaptureCompany(client,companyId);if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+    const result=await consultarLoteNfce(client,companyId,batchId);if(!result)throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL,'Lote não encontrado.');return result;
+  });}
+
+  async relatorioLoteNfce(tenantId:string,userId:string,companyId:string,batchId:string,correlationId:string){
+    const rows=await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{const company=await getDfeCaptureCompany(client,companyId);if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');if(!await consultarLoteNfce(client,companyId,batchId))throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL,'Lote não encontrado.');return(await listarItensLoteNfceCsv(client,companyId,batchId)).rows;});
+    const quote=(value:unknown)=>{const raw=value===null||value===undefined?'':String(value);const safe=/^[=+\-@\t\r]/u.test(raw)?`'${raw}`:raw;return /[;"\r\n]/u.test(safe)?`"${safe.replaceAll('"','""')}"`:safe;};
+    const headers=['arquivo','estado','codigo','detalhe','modelo','versao_layout','ambiente','chave_acesso','document_id','hash_sha256','tamanho_bytes','processado_em'];
+    return '\uFEFF'+[headers,...rows.map((row)=>headers.map((key)=>row[key]))].map((values)=>values.map(quote).join(';')).join('\r\n')+'\r\n';
+  }
+
+  async originalNfce(tenantId:string,userId:string,companyId:string,documentId:string,correlationId:string){
+    const record=await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{const company=await getDfeCaptureCompany(client,companyId);if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');return obterOriginalNfce(client,companyId,documentId);});
+    if(!record)throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL,'Original NFC-e não encontrado.');
+    const file=await this.storage.obter(String(record.original_key));const hash=createHash('sha256').update(file.conteudo).digest('hex');
+    await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},client=>registrarEventoDocumentoFiscal(client,{tenantId,empresaId:companyId,documentId,stagingId:null,nfceSourceId:String(record.source_id),tipo:hash===record.hash_sha256?'ORIGINAL_BAIXADO':'ORIGINAL_DIVERGENTE',codigo:hash===record.hash_sha256?'OK':'FISCAL_DOCUMENT_INTEGRITY_MISMATCH',detalhe:hash===record.hash_sha256?'Download de original NFC-e com hash verificado.':'Hash do original NFC-e divergente.',parserVersion:'f30-1.0.0',hashSha256:hash,atorId:userId,correlationId}));
+    if(hash!==record.hash_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_INTEGRITY_MISMATCH,'Hash do original NFC-e divergente.');return file;
+  }
 
   async listarCiencias(tenantId:string,userId:string,companyId:string,correlationId:string){
     return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{

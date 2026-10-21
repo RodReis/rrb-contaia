@@ -93,6 +93,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      COFRE_RAIZES_ICP_DIR: /run/secrets/raizes-icp
+      COFRE_RAIZES_ICP_DIR: /run/secrets/raizes-icp
     ports:
       - '127.0.0.1:${MINIO_API_PORT}:9000'
       - '127.0.0.1:${MINIO_CONSOLE_PORT}:9001'
@@ -292,6 +294,8 @@ services:
       - ./.vault-local/pki-mtls/signer.crt.pem:/run/secrets/signer.crt.pem:ro
       - ./.vault-local/pki-mtls/signer.key.pem:/run/secrets/signer.key.pem:ro
       - ./.vault-local/pki-mtls/ca-interna.pem:/run/secrets/ca-interna.pem:ro
+      - ./.vault-local/raizes-icp:/run/secrets/raizes-icp:ro
+      - ./.vault-local/pki-icp-brasil:/run/secrets/raizes-icp:ro
       - ./.vault-local/pki-mtls/ca-dubles.pem:/run/secrets/ca-dubles.pem:ro
       - ./.vault-local/signer-pepper:/run/secrets/signer-pepper:ro
       - ./.vault-local/token-signer-leitura:/run/secrets/token-signer-leitura:ro
@@ -412,10 +416,12 @@ services:
       S3_BUCKET: ${S3_BUCKET}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      COFRE_RAIZES_ICP_DIR: /run/secrets/raizes-icp
     volumes:
       - ./.vault-local/pki-mtls/worker.crt.pem:/run/secrets/worker.crt.pem:ro
       - ./.vault-local/pki-mtls/worker.key.pem:/run/secrets/worker.key.pem:ro
       - ./.vault-local/pki-mtls/ca-interna.pem:/run/secrets/ca-interna.pem:ro
+      - ./.vault-local/raizes-icp:/run/secrets/raizes-icp:ro
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:$${WORKERS_PORT}/health']
       interval: 5s

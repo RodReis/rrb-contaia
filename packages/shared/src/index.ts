@@ -1,5 +1,7 @@
 export type { HealthStatus, ServiceName } from './health.js';
 export { health } from './health.js';
+export { digitoVerificadorDaChaveNfeValido, NAMESPACE_NFE, normalizarNfceGoias, normalizarEventoCancelamentoNfce, TAMANHO_MAXIMO_XML_NFCE } from './nfce.js';
+export type { CodigoDeRejeicaoNfce, NfceNormalizada } from './nfce.js';
 export { AUDIT_EXPORT_QUEUE, AUDIT_EXPORT_JOB, AUDIT_EXPORT_EXPIRY_JOB, AUDIT_EXPORT_TTL_MS, AuditExportCommandSchema, AuditExportExpiryCommandSchema } from './audit-export.js';
 export type { AuditExportCommand, AuditExportExpiryCommand } from './audit-export.js';
 export type { ProblemDetails } from './problem.js';
@@ -293,6 +295,8 @@ export type {
 } from './tabela.js';
 export { FISCAL_DOCUMENTS_QUEUE, FISCAL_DOCUMENTS_DLQ, FISCAL_DOCUMENTS_JOB, FISCAL_DOCUMENTS_JOB_OPTIONS, FiscalDocumentCommandSchema } from './fiscal-documents.js';
 export type { FiscalDocumentCommand } from './fiscal-documents.js';
+export { NFCE_IMPORT_QUEUE, NFCE_IMPORT_JOB, NfceImportCommandSchema } from './fiscal-documents.js';
+export type { NfceImportCommand } from './fiscal-documents.js';
 export { FISCAL_ACKNOWLEDGEMENT_QUEUE, FISCAL_ACKNOWLEDGEMENT_DLQ, FISCAL_ACKNOWLEDGEMENT_JOB, FISCAL_ACKNOWLEDGEMENT_JOB_OPTIONS, FiscalAcknowledgementCommandSchema, ESTADOS_DA_CIENCIA, classificarResumoParaCiencia, ehResumoNfe, proximoEstadoDaCiencia, tempoDeRetryDaCiencia } from './fiscal-acknowledgement.js';
 export type { FiscalAcknowledgementCommand, ElegibilidadeDaCiencia, EstadoDaCiencia } from './fiscal-acknowledgement.js';
 

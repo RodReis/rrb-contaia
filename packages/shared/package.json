@@ -18,6 +18,10 @@
     "./fiscal-acknowledgement": {
       "types": "./dist/fiscal-acknowledgement.d.ts",
       "default": "./dist/fiscal-acknowledgement.js"
+    },
+    "./nfce": {
+      "types": "./dist/nfce.d.ts",
+      "default": "./dist/nfce.js"
     }
   },
   "scripts": {

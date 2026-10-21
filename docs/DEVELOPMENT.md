@@ -721,6 +721,14 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Self-check anti-drift/gate, diff check e CI #39471292332 verdes no head `4f9c5b5`; E2E passou. A primeira tentativa de build falhou ao resolver `next/font/google` no Turbopack; rerun seletivo de build passou.
 - [ ] PR #137 aberta (`refs #29`); merge, confirmação do SHA integrado e cerimônia `fechar-card` pendentes. Sem `proplan:done` antes de resolver a revisão/publicação do pacote fiscal oficial.
 
+### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
+
+- [x] Upload assíncrono XML/ZIP, limites de expansão, armazenamento por hash, consulta de lote, CSV e download original com hash/auditoria.
+- [x] Parser de NFC-e GO 3.10/4.00, schema versionado, chave/modelo/emitente/protocolo, normalização de itens/tributos/pagamentos e integração inicial com F18/F29.
+- [x] Migrations 0052 aplicadas do zero em PostgreSQL 17 isolado; regressão cobre RLS/carteira, idempotência concorrente por conjunto completo, duplicata intralote e estados de lote. Build total, typechecks, lints, shared 256/256 e tela 1.313/1.313 passaram; warning React Compiler preexistente em `aba-de-enderecos.tsx`.
+- [ ] Completar validação de cadeia XMLDSig, schema/evento oficial, persistência/vínculo/reconciliação de cancelamento e reprocessamento técnico auditado.
+- [ ] Completar critérios de normalização, provas de API/worker e E2E, comparação visual e evidência CLARO/ESCURO × 768/1024/1440; CI remota ainda não executada.
+
 ### Card #33 — `[MVP2][SPEC-029][F29]` Complemento e restituição de ICMS-ST de autopeças em Goiás
 
 - [x] Domínio e contratos versionados calculam base/ICMS efetivos com decimal exato, rateio de vínculo direto e média ponderada limitada às entradas elegíveis; package validator rejeita regras sem fixture concordante, duplicidade e sobreposição. Sem parâmetro oficial, pacote não publica.

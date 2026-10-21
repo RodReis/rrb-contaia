@@ -76,7 +76,8 @@ export class IcmsStSettlementsService {
   async get(tenantId: string, userId: string, companyId: string, snapshotId: string, correlationId: string, page = 1) {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
       const snapshot = await client.query(`select s.id,s.competence,s.regime,s.revision,
-          case when rev.action='APPROVED' then 'APPROVED' when rev.action='REJECTED' then 'REJECTED' else s.status end status,
+          case when exists(select 1 from app.tax_st_settlement_event changed where changed.snapshot_id=s.id and changed.action='DOCUMENT_SET_CHANGED') then 'STALE'
+               when rev.action='APPROVED' then 'APPROVED' when rev.action='REJECTED' then 'REJECTED' else s.status end status,
           s.gross_restitution_cents,s.gross_complement_cents,s.net_amount_cents,s.line_count,s.blocked_line_count,s.facts,s.processed_at,rev.action review_action
           from app.tax_st_settlement_snapshot s left join lateral(select e.action,e.occurred_at,e.id from app.tax_st_settlement_review_event e where e.snapshot_id=s.id order by e.occurred_at desc,e.id desc limit 1) rev on true
           where s.tenant_id=$1 and s.empresa_id=$2 and s.id=$3`,
@@ -270,10 +271,12 @@ export class IcmsStSettlementsService {
 
   async list(tenantId: string, userId: string, companyId: string, correlationId: string) {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
-      const { rows } = await client.query(`select s.id,s.competence,s.revision,case when rev.action='APPROVED' then 'APPROVED' when rev.action='REJECTED' then 'REJECTED' else s.status end status,
+      const { rows } = await client.query(`select s.id,s.competence,s.revision,
+          case when exists(select 1 from app.tax_st_settlement_event changed where changed.snapshot_id=s.id and changed.action='DOCUMENT_SET_CHANGED') then 'STALE'
+               when rev.action='APPROVED' then 'APPROVED' when rev.action='REJECTED' then 'REJECTED' else s.status end status,
           s.gross_restitution_cents,s.gross_complement_cents,s.net_amount_cents,s.line_count,s.blocked_line_count,s.processed_at,rev.action review_action
         from app.tax_st_settlement_snapshot s left join lateral(select e.action from app.tax_st_settlement_review_event e where e.snapshot_id=s.id order by e.occurred_at desc,e.id desc limit 1) rev on true
-        where s.tenant_id=$1 and s.empresa_id=$2 order by s.competence desc,s.revision desc limit 50`,
+          where s.tenant_id=$1 and s.empresa_id=$2 order by s.competence desc,s.revision desc limit 50`,
       [tenantId,companyId]);
       return { itens: rows };
     });
@@ -287,6 +290,7 @@ export class IcmsStSettlementsService {
           where tenant_id=$1 and empresa_id=$2 and id=$3`, [tenantId,companyId,snapshotId]);
       const facts = coverage.rows[0]?.facts;
       if (!coverage.rows[0] || coverage.rows[0].status !== 'PENDING_REVIEW' || coverage.rows[0].blocked_line_count !== 0 ||
+          (await client.query(`select 1 from app.tax_st_settlement_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3 and action='DOCUMENT_SET_CHANGED' limit 1`,[tenantId,companyId,snapshotId])).rows.length>0 ||
           settlementCoverageBlocksReview(facts) || action === 'APPROVED') {
         throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_SETTLEMENT_NOT_APPROVABLE,
           'A cobertura da competência ou o demonstrativo oficial ainda não permite submeter ou decidir a apuração.');
