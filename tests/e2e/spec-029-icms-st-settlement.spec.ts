@@ -16,6 +16,7 @@ import {
   type Pessoa,
 } from './fixtures/ambiente';
 import { provarVisualmente, type AchadosVisuais } from './fixtures/plano-contas';
+import { ResultadoApuracaoIcmsStSchema } from '../../apps/web/src/features/fiscal-documents/api';
 
 const PREFIXO = `e2e-f29-${randomUUID()}`;
 const ADMIN: Pessoa = { usuario: PREFIXO, senha: `${PREFIXO}-senha-123456`, nome: 'Contadora F29' };
@@ -65,6 +66,12 @@ test('F29 mantém apuração e revisão bloqueadas sem pacote/documentos; prova 
   await page.getByRole('button', { name: 'Apurar competência' }).click();
   const respostaProcessamento = await processamento;
   expect(respostaProcessamento.ok(), `API F29 recusou processamento: ${respostaProcessamento.status()}`).toBeTruthy();
+  const corpoProcessamento: unknown = await respostaProcessamento.json();
+  const resultadoProcessamento = ResultadoApuracaoIcmsStSchema.safeParse(corpoProcessamento);
+  expect(resultadoProcessamento.success,
+    `Resposta da API F29 não corresponde ao contrato: ${JSON.stringify({ corpo: corpoProcessamento,
+      issues: resultadoProcessamento.success ? [] : resultadoProcessamento.error.issues })}`,
+  ).toBeTruthy();
   const aviso = page.locator('[data-sonner-toast]');
   await expect(aviso).toBeVisible({ timeout: 5_000 });
   await expect(aviso).toContainText('Apuração bloqueada');
