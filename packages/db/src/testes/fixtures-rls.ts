@@ -125,6 +125,12 @@ const prepararCancelamentoTributario = async (admin: Consultavel, e: Escopo): Pr
     [e.tenantId,e.empresaId,sourceItemId,sourceId,accessKey,documento['cnpj'],protocol,eventHash,`fiscal/${e.sufixo}/cancelamento.xml`]);
   await admin.query(`update app.fiscal_document set especie='NFCE_65',modelo='65',chave_acesso=$2,emitido_em='2017-01-01',estado='CANCELLED',cancelado_em='2017-02-01T12:00:00Z',protocolo_cancelamento=$3 where id=$1`,
     [documento['documentId'],accessKey,protocol]);
+  const forgedEventId=await unico(admin,
+    `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,parser_version,hash_sha256,ator_id,correlation_id)
+     values($1,$2,$3,$4,'CANCELAMENTO','110111','fixture',repeat('e',64),$5,'f32-cancellation-invalid-fixture') returning id`,
+    [e.tenantId,e.empresaId,documento['documentId'],sourceId,e.autorId]);
+  const forged=await admin.query(`select 1 from app.tax_st_authorized_cancellation where source_event_id=$1`,[forgedEventId]);
+  if(forged.rows.length)throw new Error('trigger F32 aceitou hash de evento diferente da origem validada');
   const sourceEventId = await unico(admin,
     `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,parser_version,hash_sha256,ator_id,correlation_id)
      values($1,$2,$3,$4,'CANCELAMENTO','110111','fixture',$5,$6,'f32-rls-fixture') returning id`,
