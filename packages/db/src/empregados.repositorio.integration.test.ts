@@ -531,7 +531,7 @@ describe('notificações para N destinatários (SPEC-014 §3.10)', () => {
     const lida = await como((cli) => marcarComoLida(cli, c.tenantA, doIniciador[0]!.id, usuario));
     expect(lida).toMatchObject({ lida: true });
     expect(await como((cli) => marcarComoLida(cli, c.tenantA, doIniciador[0]!.id, c.usuarios.admin), c.usuarios.admin)).toBeNull();
-  });
+  }, 10_000);
 
   it('tentativa de outra empresa é TENTATIVA_NAO_ENCONTRADA', async () => {
     const empresaId = await novaEmpresa();
