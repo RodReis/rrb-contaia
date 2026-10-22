@@ -137,9 +137,16 @@ const processNfce=(pool:Pool,storage:ConfigDoArmazenamento,roots:readonly X509Ce
           }
           await client.query(`insert into app.nfce_import_event(tenant_id,empresa_id,item_id,source_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,tamanho_bytes,correlation_id)
             values($1,$2,$3,$4,$5,$6,$7,'110111',$8,$9,$10,$11,$12,$13) on conflict(tenant_id,empresa_id,chave_acesso,tipo,sequencia,protocolo) do nothing`,[command.tenantId,command.companyId,item.id,item.source_id,parsedEvent.chaveAcesso,parsedEvent.cnpjEmitente,parsedEvent.ambiente,parsedEvent.sequencia,parsedEvent.protocolo,digest,item.original_key,bytes.byteLength,command.correlationId]);
-          const matchingDocument=await client.query<{id:string;emitido_em:string|null}>(`select d.id,d.emitido_em from app.fiscal_document d join app.fiscal_document_origin o on o.document_id=d.id join app.nfce_import_source s on s.id=o.nfce_source_id join app.nfce_import_item i on i.id=s.item_id where d.tenant_id=$1 and d.empresa_id=$2 and d.especie='NFCE_65' and d.chave_acesso=$3 and s.cnpj=$4 and i.ambiente=$5 for update of d`,[command.tenantId,command.companyId,parsedEvent.chaveAcesso,parsedEvent.cnpjEmitente,parsedEvent.ambiente]);
-          const linked=matchingDocument.rows[0];
-          if(linked){
+          const matchingDocument=await client.query<{id:string;emitido_em:string|null}>(`select d.id,d.emitido_em from app.fiscal_document d join app.fiscal_document_origin o on o.document_id=d.id join app.nfce_import_source s on s.id=o.nfce_source_id join app.nfce_import_item i on i.id=s.item_id where d.tenant_id=$1 and d.empresa_id=$2 and d.especie='NFCE_65' and d.chave_acesso=$3 and s.cnpj=$4 and i.ambiente=$5`,[command.tenantId,command.companyId,parsedEvent.chaveAcesso,parsedEvent.cnpjEmitente,parsedEvent.ambiente]);
+          const candidate=matchingDocument.rows[0];
+          if(candidate){
+            if(candidate.emitido_em)await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`icms-st:${command.tenantId}:${command.companyId}:${candidate.emitido_em.slice(0,7)}`]);
+            const lockedDocument=await client.query<{id:string;emitido_em:string|null}>(`select d.id,d.emitido_em from app.fiscal_document d where d.id=$1 and d.tenant_id=$2 and d.empresa_id=$3 and d.especie='NFCE_65' for update`,[candidate.id,command.tenantId,command.companyId]);
+            const linked=lockedDocument.rows[0];
+            if(!linked){
+              await client.query(`update app.nfce_import_item set status='PENDING_LINK',codigo='NFCE_EVENT_ORPHAN',detalhe_sanitizado='Evento de cancelamento validado; aguardando documento correspondente.',modelo='65',versao_layout='1.00',ambiente=$1,chave_acesso=$2,processado_em=now() where id=$3 and tenant_id=$4 and empresa_id=$5`,[parsedEvent.ambiente,parsedEvent.chaveAcesso,item.id,command.tenantId,command.companyId]);
+              return {ok:true};
+            }
             await client.query(`update app.fiscal_document set estado='CANCELLED',cancelado_em=now(),protocolo_cancelamento=$2,atualizado_em=now() where id=$1 and estado<>'CANCELLED'`,[linked.id,parsedEvent.protocolo]);
             await client.query(`insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ator_id,correlation_id) values($1,$2,$3,$4,'CANCELAMENTO','110111','Evento de cancelamento autorizado e conciliado.','f30-1.0.0',$5,$6,$7)`,[command.tenantId,command.companyId,linked.id,item.source_id,digest,command.actorId,command.correlationId]);
             await client.query(`update app.nfce_import_item set status='IMPORTED',codigo=null,detalhe_sanitizado='Evento de cancelamento vinculado ao documento.',modelo='65',versao_layout='1.00',ambiente=$1,chave_acesso=$2,document_id=$3,processado_em=now() where id=$4`,[parsedEvent.ambiente,parsedEvent.chaveAcesso,linked.id,item.id]);

@@ -22,6 +22,8 @@ export type DocumentoFiscalParseado = Readonly<{
   tributos: readonly TributoFiscalParseado[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   finalConsumer: boolean | null;
+  destinationIndicator: string | null;
+  finalConsumerIndicator: string | null;
   pagamentos: readonly PagamentoFiscalParseado[];
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
   total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; gtin: string | null; descricao: string | null; ncm: string | null; cest: string | null; cfop: string | null; cstCsosn: string | null; codigoBeneficio: string | null; quantidade: string | null; unidade: string | null; valor: string | null; freight: string | null; insurance: string | null; discount: string | null; otherExpenses: string | null; ibs: string | null; cbs: string | null }>[];
@@ -132,9 +134,10 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   const key = rawId.replace(/^(NFe|CTe)/, '');
   if (!/^\d{44}$/.test(key)) erro('FISCAL_DOCUMENT_IDENTITY_INVALID');
   const emission = texto(document, 'dhEmi', namespaceEsperado) ?? texto(document, 'dEmi', namespaceEsperado) ?? dataEmissao;
+  const ide = info.getElementsByTagNameNS(namespaceEsperado, 'ide')[0] as Element | undefined;
   const finalConsumerValue = nfe ? texto(info as unknown as XmlContainer, 'indFinal', namespaceEsperado) : null;
   const finalConsumer = finalConsumerValue === '1' ? true : finalConsumerValue === '0' ? false : null;
-  const ide = info.getElementsByTagNameNS(namespaceEsperado, 'ide')[0] as Element | undefined;
+  const destinationIndicator = nfe ? texto(ide ?? null, 'idDest', namespaceEsperado) : null;
   const numeroDocumento = nfe ? texto(ide ?? null, 'nNF', namespaceEsperado) : texto(ide ?? null, 'nCT', namespaceEsperado);
   const serieDocumento = texto(ide ?? null, 'serie', namespaceEsperado);
   const itemNodes = Array.from(document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'det' : 'infQ'));
@@ -235,7 +238,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   });
   return {
     especie, modelo: model!, versaoLayout, tributos, pagamentos,
-    chaveAcesso: key, emitidoEm: emission, finalConsumer, numeroDocumento, serieDocumento,
+    chaveAcesso: key, emitidoEm: emission, finalConsumer, destinationIndicator, finalConsumerIndicator: finalConsumerValue, numeroDocumento, serieDocumento,
     protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado),
     protocoloRecebidoEm: protocolReceivedAt ? new Date(protocolReceivedAt).toISOString() : null, referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),

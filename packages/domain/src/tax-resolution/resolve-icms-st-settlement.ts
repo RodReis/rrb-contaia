@@ -44,6 +44,7 @@ export type IcmsStSettlementFixture = Readonly<{
 export type IcmsStOutputLine = Readonly<{
   id: string;
   documentId: string;
+  accessKey?: string;
   itemNumber: number;
   documentModel: string;
   documentAuthorized: boolean;
@@ -53,6 +54,9 @@ export type IcmsStOutputLine = Readonly<{
   sellerUf: string | null;
   destinationUf: string | null;
   finalConsumer: boolean | null;
+  destinationIndicator?: string | null;
+  finalConsumerIndicator?: string | null;
+  destinationIdentifier?: string | null;
   regime: 'SIMPLES_NACIONAL' | 'LUCRO_PRESUMIDO' | null;
   productId: string | null;
   ncm: string | null;
@@ -252,11 +256,19 @@ const resolveLine = (
     if (lerDataCivil(output.factDate) !== output.factDate) return emptyLine(output, ['OUTPUT_FACT_DATE_INVALID']);
   } catch { return emptyLine(output, ['OUTPUT_FACT_DATE_INVALID']); }
   if (output.factDate < WINDOW_START || output.factDate > WINDOW_END) return emptyLine(output, ['OUTPUT_DATE_OUT_OF_SCOPE']);
-  if (output.documentModel !== '55' || !output.documentAuthorized) return emptyLine(output, ['OUTPUT_DOCUMENT_NOT_ELIGIBLE']);
+  if ((output.documentModel !== '55' && output.documentModel !== '65') || !output.documentAuthorized) return emptyLine(output, ['OUTPUT_DOCUMENT_NOT_ELIGIBLE']);
+  if (output.documentCanceled) return emptyLine(output, ['OUTPUT_DOCUMENT_CANCELLED']);
   if (output.canceledAfterSale === null) return emptyLine(output, ['OUTPUT_POST_SALE_EVENTS_UNVERIFIED']);
   if (output.canceledAfterSale) return emptyLine(output, ['OUTPUT_CANCELED_AFTER_SALE']);
   if (output.sellerUf !== 'GO') return emptyLine(output, ['COMPANY_SELLER_NOT_IN_GO']);
-  if (output.destinationUf !== 'GO' || output.finalConsumer !== true) return emptyLine(output, ['OUTPUT_OPERATION_NOT_COVERED']);
+  if (output.documentModel === '65') {
+    if (output.destinationIndicator === null || output.destinationIndicator === undefined ||
+        output.finalConsumerIndicator === null || output.finalConsumerIndicator === undefined) return emptyLine(output, ['OUTPUT_INDICATOR_MISSING']);
+    if (output.destinationIndicator !== '1' || output.finalConsumerIndicator !== '1' ||
+        output.destinationUf !== null && output.destinationUf !== 'GO' || output.finalConsumer !== true) {
+      return emptyLine(output, ['OUTPUT_INDICATOR_CONTRADICTORY']);
+    }
+  } else if (output.destinationUf !== 'GO' || output.finalConsumer !== true) return emptyLine(output, ['OUTPUT_OPERATION_NOT_COVERED']);
   if (output.regime === null || output.regime === undefined) return emptyLine(output, ['COMPANY_REGIME_UNSUPPORTED']);
   if (output.productId === null || output.ncm === null || output.cest === null || output.cfop === null || output.cstCsosn === null || output.unit === null ||
       output.quantityScaled === null || output.quantityScale !== 10 || output.quantityScaled <= 0n || !safeCents(output.outputBaseCents)) {

@@ -18,7 +18,9 @@ import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
 
 type PackageRow = Readonly<{ id: string; content: unknown; content_sha256: string }>;
 type OutputRow = Readonly<{
-  document_id: string; document_state: string; model: string; protocol: string | null; fact_date: string | null;
+  document_id: string; access_key: string; document_state: string; model: string; protocol: string | null; fact_date: string | null;
+  destination_indicator: string | null; final_consumer_indicator: string | null;
+  destination_identifier: string | null;
   seller_uf: string | null; destination_uf: string | null; final_consumer: boolean | null;
   item_number: number; gtin: string | null; ncm: string | null; cest: string | null; cfop: string | null; cst_csosn: string | null;
   unit: string | null; quantity: string | null; value: string | null; freight: string | null; insurance: string | null;
@@ -73,7 +75,7 @@ export class IcmsStSettlementsService {
   agora: () => Date = () => new Date();
   constructor(private readonly pool: PoolDoBanco) {}
 
-  async get(tenantId: string, userId: string, companyId: string, snapshotId: string, correlationId: string, page = 1) {
+  async get(tenantId: string, userId: string, companyId: string, snapshotId: string, correlationId: string, page = 1, model?: '55' | '65') {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
       const snapshot = await client.query(`select s.id,s.competence,s.regime,s.revision,
           case when exists(select 1 from app.tax_st_settlement_event changed where changed.snapshot_id=s.id and changed.action='DOCUMENT_SET_CHANGED') then 'STALE'
@@ -85,15 +87,18 @@ export class IcmsStSettlementsService {
       if (!snapshot.rows[0]) throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_SETTLEMENT_NOT_FOUND, 'Apuração não encontrada.');
       const pageSize = 50;
       const offset = (page - 1) * pageSize;
-      const lines = await client.query(`select output_document_id,output_item_id,difference_kind,restitution_cents,complement_cents,facts,calculation,recovery_memory,source_ids,blocking_reason_codes
-          from app.tax_st_settlement_line where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3 order by output_document_id,output_item_id limit $4 offset $5`,
-        [tenantId, companyId, snapshotId, pageSize, offset]);
+      const lines = await client.query(`select l.output_document_id,l.output_item_id,l.difference_kind,l.restitution_cents,l.complement_cents,l.facts,l.calculation,l.recovery_memory,l.source_ids,l.blocking_reason_codes
+          from app.tax_st_settlement_line l join app.fiscal_document d on d.id=l.output_document_id and d.tenant_id=l.tenant_id and d.empresa_id=l.empresa_id
+         where l.tenant_id=$1 and l.empresa_id=$2 and l.snapshot_id=$3 and ($4::text is null or d.modelo=$4)
+         order by l.output_document_id,l.output_item_id limit $5 offset $6`, [tenantId,companyId,snapshotId,model??null,pageSize,offset]);
+      const lineCount = await client.query<{ count: string }>(`select count(*)::text count from app.tax_st_settlement_line l join app.fiscal_document d on d.id=l.output_document_id and d.tenant_id=l.tenant_id and d.empresa_id=l.empresa_id
+         where l.tenant_id=$1 and l.empresa_id=$2 and l.snapshot_id=$3 and ($4::text is null or d.modelo=$4)`,[tenantId,companyId,snapshotId,model??null]);
       const events = await client.query(`select action,occurred_at,details from app.tax_st_settlement_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3
         union all select action,occurred_at,details from app.tax_st_settlement_review_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3 order by occurred_at`,
         [tenantId, companyId, snapshotId]);
-      const lineCount = Number(snapshot.rows[0].line_count);
-      return { ...snapshot.rows[0], lines: lines.rows, events: events.rows, line_page: page, line_page_size: pageSize,
-        line_total_pages: Math.ceil(lineCount / pageSize) };
+      const filteredLineCount = Number(lineCount.rows[0]?.count ?? 0);
+      return { ...snapshot.rows[0], line_count: filteredLineCount, lines: lines.rows, events: events.rows, line_page: page, line_page_size: pageSize,
+        line_total_pages: Math.ceil(filteredLineCount / pageSize) };
     });
   }
 
@@ -115,9 +120,11 @@ export class IcmsStSettlementsService {
         throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada ou inativa.');
       }
       const monthStart = `${competence}-01`;
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st:${tenantId}:${companyId}:${competence}`]);
       const outputQuery = await client.query<OutputRow>(
-        `select d.id document_id,d.estado document_state,d.modelo model,d.protocolo protocol,
+        `select d.id document_id,d.chave_acesso access_key,d.estado document_state,d.modelo model,d.protocolo protocol,
                 to_char(d.emitido_em,'YYYY-MM-DD') fact_date,emit.uf seller_uf,dest.uf destination_uf,d.consumidor_final final_consumer,
+                d.id_dest destination_indicator,d.ind_final final_consumer_indicator,dest.identificador destination_identifier,
                 i.numero item_number,i.gtin,i.ncm,i.cest,i.cfop,i.cst_csosn,i.unidade unit,i.quantidade::text quantity,
                 i.valor::text value,i.frete::text freight,i.seguro::text insurance,i.outras_despesas::text other_expenses,
                 i.desconto::text discount,
@@ -127,17 +134,22 @@ export class IcmsStSettlementsService {
                     (conflict_event.tipo in ('REUTILIZADO','REPROCESSADO') and conflict_event.codigo in ('CONFLITO','FALHA','XML_INVALIDO')))) has_document_conflict
            from app.fiscal_document d
            join app.fiscal_document_party emit on emit.document_id=d.id and emit.parser_version=d.parser_version and emit.papel='EMITENTE'
-           join app.fiscal_document_party dest on dest.document_id=d.id and dest.parser_version=d.parser_version and dest.papel='DESTINATARIO'
+           left join app.fiscal_document_party dest on dest.document_id=d.id and dest.parser_version=d.parser_version and dest.papel='DESTINATARIO'
            join app.fiscal_document_item i on i.document_id=d.id and i.parser_version=d.parser_version and i.tipo='ITEM'
            left join lateral (
              select CASE WHEN bool_or(lower(e.tipo) like '%cancel%' OR lower(coalesce(e.codigo,'')) like '%cancel%') THEN TRUE ELSE NULL END post_sale_event_state
                from app.fiscal_document_event e where e.document_id=d.id and e.tipo='EVENTO_SEFAZ'
            ) ev on true
-          where d.tenant_id=$1 and d.empresa_id=$2 and d.especie='NFE_55' and d.emitido_em >= $3::date
-            and d.emitido_em < ($3::date + interval '1 month') and emit.identificador=$4 and dest.identificador<>$4
+          where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.estado<>'CANCELLED' and d.emitido_em >= $3::date
+            and d.emitido_em < ($3::date + interval '1 month') and emit.identificador=$4 and (dest.identificador is null or dest.identificador<>$4)
           order by d.emitido_em,d.id,i.numero`,
         [tenantId, companyId, monthStart, company.cnpj.replace(/\D/gu, '')],
       );
+      const cancelledOutputs = await client.query<{id:string;access_key:string;model:string;cancelled_at:string|null}>(
+        `select id,chave_acesso access_key,modelo model,cancelado_em::text cancelled_at from app.fiscal_document
+          where tenant_id=$1 and empresa_id=$2 and especie in ('NFE_55','NFCE_65') and estado='CANCELLED'
+            and emitido_em >= $3::date and emitido_em < ($3::date + interval '1 month') order by id`,
+        [tenantId,companyId,monthStart]);
       const entryQuery = await client.query<EntryRow>(
         `select d.id document_id,d.protocolo protocol,to_char(d.emitido_em,'YYYY-MM-DD') fact_date,d.estado document_state,
                 exists(select 1 from app.fiscal_document_event conflict_event
@@ -178,11 +190,12 @@ export class IcmsStSettlementsService {
         const rulesForDate = packagesForDate.flatMap((selected) => selected.rules);
         rulesByDate.set(row.fact_date ?? '', rulesForDate);
         outputs.push({
-          id: `${row.document_id}:${row.item_number}`, documentId: row.document_id, itemNumber: row.item_number, documentModel: row.model,
+          id: `${row.document_id}:${row.item_number}`, documentId: row.document_id, accessKey: row.access_key, itemNumber: row.item_number, documentModel: row.model,
           documentAuthorized: row.document_state === 'PROCESSADO' && row.protocol !== null && !row.has_document_conflict,
           documentCanceled: row.canceled_before_processing, canceledAfterSale: row.post_sale_event_state,
           factDate: row.fact_date ?? '', sellerUf: row.seller_uf, destinationUf: row.destination_uf,
-          finalConsumer: row.final_consumer, regime: itemRegime, productId: row.gtin,
+          finalConsumer: row.final_consumer, destinationIndicator: row.destination_indicator,
+          finalConsumerIndicator: row.final_consumer_indicator, destinationIdentifier: row.destination_identifier, regime: itemRegime, productId: row.gtin,
           ncm: row.ncm, cest: row.cest, cfop: row.cfop, cstCsosn: row.cst_csosn, unit: row.unit,
           quantityScaled: toQuantityScaled(row.quantity), quantityScale: 10, outputBaseCents: itemBaseCents(row), ruleId: null,
         });
@@ -202,11 +215,11 @@ export class IcmsStSettlementsService {
       const packageSelections = [...selectedPackages.values()];
       const pkg = packageSelections.length === 1 ? packageSelections[0] ?? null : null;
       const result = resolveIcmsStSettlement({ companyId, competence, regime: consistentRegime, outputs, entries, rules: applicableRules });
-      const inputHash = createHash('sha256').update(jsonText({ result, packageId: pkg?.id ?? null, packageSha256: pkg?.hash ?? null,
+      const documentSetHash = createHash('sha256').update(jsonText({ outputs: outputRows, cancelledOutputs: cancelledOutputs.rows, entries: entryRows })).digest('hex');
+      const inputHash = createHash('sha256').update(jsonText({ result, documentSetHash, packageId: pkg?.id ?? null, packageSha256: pkg?.hash ?? null,
         regimeHistory: effectiveRegimeHistory, company: { id: company.id, cnpj: company.cnpj, active: company.active },
         outputs, entries, outputFacts: outputRows, inputFacts: entryRows })).digest('hex');
 
-      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st:${tenantId}:${companyId}:${competence}`]);
       const existing = await client.query<{ id: string; revision: number; input_sha256: string; status: string }>(
         `select id,revision,input_sha256,status from app.tax_st_settlement_snapshot
           where tenant_id=$1 and empresa_id=$2 and competence=$3::date and idempotency_key=$4`,
@@ -242,9 +255,11 @@ export class IcmsStSettlementsService {
         formulaVersion: null, sourceIds: [], recoveryDocumentIds: [], blockingReasonCodes: [...new Set([...line.blockingReasonCodes,...coverageReasons])] })) : result.lines;
       const blockedLineCount = storedLines.filter((line) => line.differenceKind === 'INDETERMINATE').length;
       const status = result.status === 'BLOCKED' || coverageBlocked ? 'BLOCKED' : 'PENDING_REVIEW';
-      const facts = { regimeHistory: [...new Set(competenceOutputs.map((line) => line.regime))], packageId: pkg?.id ?? null, packageSha256: pkg?.hash ?? null,
+      const facts = { documentSetHash, regimeHistory: [...new Set(competenceOutputs.map((line) => line.regime))], packageId: pkg?.id ?? null, packageSha256: pkg?.hash ?? null,
         layout: 'OFFICIAL_UNMAPPED',
-        outputDocumentIds: [...new Set(outputs.map((line) => line.documentId))].sort(), sourceDocuments: [...new Set(entries.map((line) => line.documentId).filter((id): id is string => id !== null))].sort(),
+        outputDocumentIds: [...new Set(outputs.map((line) => line.documentId))].sort(),
+        excludedCancelledOutputDocuments: cancelledOutputs.rows.map(({id,access_key,model,cancelled_at})=>({id,accessKey:access_key,model,cancelledAt:cancelled_at})),
+        sourceDocuments: [...new Set(entries.map((line) => line.documentId).filter((id): id is string => id !== null))].sort(),
         blockingReasonCodes: [...new Set([...result.blockingReasonCodes,...coverageReasons])] };
       const processedAt = this.agora();
       const payload = {
@@ -269,15 +284,17 @@ export class IcmsStSettlementsService {
     });
   }
 
-  async list(tenantId: string, userId: string, companyId: string, correlationId: string) {
+  async list(tenantId: string, userId: string, companyId: string, correlationId: string, model?: '55' | '65') {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
       const { rows } = await client.query(`select s.id,s.competence,s.revision,
           case when exists(select 1 from app.tax_st_settlement_event changed where changed.snapshot_id=s.id and changed.action='DOCUMENT_SET_CHANGED') then 'STALE'
                when rev.action='APPROVED' then 'APPROVED' when rev.action='REJECTED' then 'REJECTED' else s.status end status,
-          s.gross_restitution_cents,s.gross_complement_cents,s.net_amount_cents,s.line_count,s.blocked_line_count,s.processed_at,rev.action review_action
+          s.gross_restitution_cents,s.gross_complement_cents,s.net_amount_cents,
+          case when $3::text is null then s.line_count else (select count(*)::int from app.tax_st_settlement_line fl join app.fiscal_document fd on fd.id=fl.output_document_id where fl.snapshot_id=s.id and fd.modelo=$3) end line_count,
+          s.blocked_line_count,s.processed_at,rev.action review_action
         from app.tax_st_settlement_snapshot s left join lateral(select e.action from app.tax_st_settlement_review_event e where e.snapshot_id=s.id order by e.occurred_at desc,e.id desc limit 1) rev on true
-          where s.tenant_id=$1 and s.empresa_id=$2 order by s.competence desc,s.revision desc limit 50`,
-      [tenantId,companyId]);
+          where s.tenant_id=$1 and s.empresa_id=$2 and ($3::text is null or exists(select 1 from app.tax_st_settlement_line fl join app.fiscal_document fd on fd.id=fl.output_document_id where fl.snapshot_id=s.id and fd.modelo=$3))
+          order by s.competence desc,s.revision desc limit 50`, [tenantId,companyId,model??null]);
       return { itens: rows };
     });
   }
