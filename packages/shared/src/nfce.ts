@@ -60,8 +60,9 @@ export const normalizarEventoCancelamentoNfce = (bytes: Uint8Array): Readonly<{ 
   const signature=document.getElementsByTagNameNS('http://www.w3.org/2000/09/xmldsig#','Signature');
   const key=texto(info??null,'chNFe'); const cnpj=texto(info??null,'CNPJ'); const tpAmb=texto(info??null,'tpAmb'); const seq=texto(info??null,'nSeqEvento');
   if(!info||texto(info,'tpEvento')!=='110111'||!key||!digitoVerificadorDaChaveNfeValido(key)||key.slice(0,2)!=='52'||key.slice(20,22)!=='65'||!cnpjValido(cnpj??'')||cnpj!==key.slice(6,20)||!seq||!/^\d{1,2}$/u.test(seq)||signature.length!==1||(tpAmb!=='1'&&tpAmb!=='2')) erro('NFCE_PROTOCOL_INVALID');
-  const protocol=texto(document,'nProt');
-  if(!protocol||texto(document,'cStat')!=='135'||texto(document,'chNFe')!==key) erro('NFCE_PROTOCOL_INVALID');
+  const returned=document.getElementsByTagNameNS(NAMESPACE_NFE,'retEvento')[0]?.getElementsByTagNameNS(NAMESPACE_NFE,'infEvento')[0];
+  const protocol=texto(returned??null,'nProt');
+  if(!protocol||texto(returned??null,'cStat')!=='135'||texto(returned??null,'chNFe')!==key||texto(returned??null,'tpEvento')!=='110111'||texto(returned??null,'nSeqEvento')!==seq||texto(returned??null,'tpAmb')!==tpAmb) erro('NFCE_PROTOCOL_INVALID');
   return {chaveAcesso:key,cnpjEmitente:cnpj!,protocolo:protocol,ambiente:tpAmb==='1'?'PRODUCAO':'HOMOLOGACAO',sequencia:seq!};
 };
 

@@ -35,6 +35,17 @@ describe('repositório F30 de NFC-e',()=>{
     expect(denied).toBeNull();
     const source=await comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.naCarteira,correlationId:'f30-db-test-source'}),client=>client.query<{id:string}>('select id from app.nfce_import_source where item_id=$1',[batch.itemIds[0]]));
     expect(source.rows).toHaveLength(1);
+    const staleSignal=await comContexto(app,contextoTecnico({identidadeTecnica:'worker-nfce',finalidade:'IMPORTACAO_NFCE',tenantId:c.tenantA,empresaId:co.id,correlationId:'f30-db-test-stale'}),client=>client.query<{count:number}>(`select app.tax_st_settlement_mark_stale($1,'2026-10-01',$2,'f30-db-test-stale',$3)::integer as count`,[co.id,c.usuarios.admin,'00000000-0000-4000-8000-000000000001']));
+    expect(staleSignal.rows[0]?.count).toBe(0);
+    await comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.naCarteira,correlationId:'f30-db-test-event-insert'}),client=>client.query(`insert into app.nfce_import_event(tenant_id,empresa_id,item_id,source_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,tamanho_bytes,correlation_id)
+      values($1,$2,$3,$4,repeat('1',44),$5,'PRODUCAO','110111','1','152260000000001',$6,$7,1,'f30-db-test-event')`,[c.tenantA,co.id,batch.itemIds[0],source.rows[0]?.id,co.cnpj,'c'.repeat(64),key]));
+    const visibleEvent=await comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.naCarteira,correlationId:'f30-db-test-event-read'}),client=>client.query('select id from app.nfce_import_event where item_id=$1',[batch.itemIds[0]]));
+    expect(visibleEvent.rows).toHaveLength(1);
+    await expect(comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.naCarteira,correlationId:'f30-db-test-event-duplicate'}),client=>client.query(`insert into app.nfce_import_event(tenant_id,empresa_id,item_id,source_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,tamanho_bytes,correlation_id)
+      values($1,$2,$3,$4,repeat('1',44),$5,'PRODUCAO','110111','1','152260000000001',$6,$7,1,'f30-db-test-event-duplicate')`,[c.tenantA,co.id,batch.itemIds[0],source.rows[0]?.id,co.cnpj,'d'.repeat(64),key]))).rejects.toMatchObject({code:'23505'});
+    const deniedEvent=await comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.fora,correlationId:'f30-db-test-event-deny'}),client=>client.query('select id from app.nfce_import_event where item_id=$1',[batch.itemIds[0]]));
+    expect(deniedEvent.rows).toHaveLength(0);
+    await expect(comContexto(app,contextoTecnico({identidadeTecnica:'worker-nfce',finalidade:'IMPORTACAO_NFCE',tenantId:c.tenantA,empresaId:co.id,correlationId:'f30-db-test-event-delete'}),client=>client.query('delete from app.nfce_import_event where item_id=$1',[batch.itemIds[0]]))).rejects.toMatchObject({code:'42501'});
     await expect(comContexto(app,contextoTecnico({identidadeTecnica:'worker-nfce',finalidade:'IMPORTACAO_NFCE',tenantId:c.tenantA,empresaId:co.id,correlationId:'f30-db-test-delete'}),client=>client.query(`delete from app.fiscal_document_event where nfce_source_id=$1`,[source.rows[0]?.id]))).rejects.toMatchObject({code:'42501'});
   });
 });

@@ -77,6 +77,7 @@ export const gravarResultadoItemNfce = async (client: PoolClient, input: Readonl
   let resolved={...input};
   const candidate=resolved.parsed;
   if(candidate){
+    await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`${resolved.tenantId}:${resolved.companyId}:${candidate.chaveAcesso}`]);
     const existing=await client.query<{id:string;hash_sha256:string}>(`select id,hash_sha256 from app.fiscal_document where tenant_id=$1 and empresa_id=$2 and especie='NFCE_65' and chave_acesso=$3 for update`,[resolved.tenantId,resolved.companyId,candidate.chaveAcesso]);
     if(existing.rows[0]&&existing.rows[0].hash_sha256!==resolved.hash){const {parsed:discarded,...withoutParsed}=resolved;void discarded;resolved={...withoutParsed,status:'CONFLICT',code:'NFCE_DOCUMENT_CONFLICT',detail:'Chave já vinculada a conteúdo divergente.'};}
     else if(existing.rows[0])resolved={...resolved,status:'REUSED'};
@@ -96,6 +97,21 @@ export const gravarResultadoItemNfce = async (client: PoolClient, input: Readonl
     for(const tax of parsed.tributos) await client.query(`insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,parser_version,escopo,numero_item,codigo,base_calculo,aliquota,valor,situacao,classificacao) values($1,$2,$3,'f30-1.0.0',$4,$5,$6,$7::numeric,$8::numeric,$9::numeric,$10,$11) on conflict do nothing`,[input.tenantId,input.companyId,documentId,tax.escopo,tax.numeroItem,tax.codigo,tax.baseCalculo,tax.aliquota,tax.valor,tax.situacao,tax.classificacao]);
     for(const [index,payment] of parsed.pagamentos.entries()) await client.query(`insert into app.fiscal_document_payment(tenant_id,empresa_id,document_id,parser_version,numero,indicador,meio,valor,integracao,bandeira,autorizacao) values($1,$2,$3,'f30-1.0.0',$4,$5,$6,$7::numeric,$8,$9,$10) on conflict do nothing`,[input.tenantId,input.companyId,documentId,index+1,payment.indicador,payment.meio,payment.valor,payment.integracao,payment.bandeira,payment.autorizacao]);
     for(const party of parsed.partes) await client.query(`insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,parser_version,papel,identificador,nome,inscricao_estadual,logradouro,numero,complemento,bairro,codigo_municipio,municipio,uf,cep,codigo_pais,pais) values($1,$2,$3,'f30-1.0.0',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) on conflict do nothing`,[input.tenantId,input.companyId,documentId,party.papel,party.identificador,party.nome,party.inscricaoEstadual,party.logradouro,party.numero,party.complemento,party.bairro,party.codigoMunicipio,party.municipio,party.uf,party.cep,party.codigoPais,party.pais]);
+  }
+  const pendingEvents=await client.query<{id:string;item_id:string;source_id:string;hash_sha256:string;protocolo:string;original_key:string;tamanho_bytes:string}>(
+    `select e.id,e.item_id,e.source_id,e.hash_sha256,e.protocolo,e.original_key,e.tamanho_bytes from app.nfce_import_event e
+      join app.nfce_import_item i on i.id=e.item_id and i.tenant_id=e.tenant_id and i.empresa_id=e.empresa_id
+      where e.tenant_id=$1 and e.empresa_id=$2 and e.chave_acesso=$3 and e.ambiente=$4 and e.cnpj=$5 and i.status='PENDING_LINK'
+      order by e.criado_em,e.id for update of e`,[input.tenantId,input.companyId,parsed.chaveAcesso,input.ambiente,parsed.partes.find(p=>p.papel==='EMITENTE')?.identificador??'']);
+  if(pendingEvents.rows.length){
+    await client.query(`update app.fiscal_document set estado='CANCELLED',cancelado_em=now(),protocolo_cancelamento=$2,atualizado_em=now() where id=$1 and estado<>'CANCELLED'`,[documentId,pendingEvents.rows.at(-1)!.protocolo]);
+    for(const event of pendingEvents.rows){
+      await client.query(`insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,detalhe_sanitizado,parser_version,hash_sha256,ator_id,correlation_id)
+        values($1,$2,$3,$4,'CANCELAMENTO','110111','Evento de cancelamento autorizado e conciliado.','f30-1.0.0',$5,$6,$7)
+        on conflict do nothing`,[input.tenantId,input.companyId,documentId,event.source_id,event.hash_sha256,input.actorId,input.correlationId]);
+      await client.query(`update app.nfce_import_item set status='IMPORTED',codigo=null,detalhe_sanitizado='Evento de cancelamento vinculado ao documento.',document_id=$2,processado_em=now() where id=$1 and status='PENDING_LINK'`,[event.item_id,documentId]);
+      if(parsed.emitidoEm)await client.query(`select app.tax_st_settlement_mark_stale($1,$2::date,$3,$4,$5)`,[input.companyId,`${parsed.emitidoEm.slice(0,7)}-01`,input.actorId,input.correlationId,documentId]);
+    }
   }
   await client.query(`insert into app.fiscal_document_origin(tenant_id,empresa_id,document_id,nfce_source_id,correlation_id,capturado_em) values($1,$2,$3,(select id from app.nfce_import_source where item_id=$4),$5,now()) on conflict do nothing`,[input.tenantId,input.companyId,documentId,input.itemId,input.correlationId]);
   await client.query(`insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,parser_version,hash_sha256,ator_id,correlation_id) values($1,$2,$3,(select id from app.nfce_import_source where item_id=$4),$5,$6,'f30-1.0.0',$7,$8,$9)`,[input.tenantId,input.companyId,documentId,input.itemId,found.rows[0]?'REUTILIZADO':'PROCESSADO',found.rows[0]?'REUTILIZADO':'PROCESSADO',input.hash,input.actorId,input.correlationId]);

@@ -885,6 +885,25 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       `insert into app.nfce_import_source(tenant_id,empresa_id,item_id,cnpj,origem,correlation_id)
        values($1,$2,$3,'00000000000000','ERP','f30-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['itemId']]),
   },
+  'app.nfce_import_event': {
+    preparar: async (admin,e) => {
+      const batchId=await unico(admin,
+        `insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
+         values($1,$2,$3,'f30-rls-fixture','ERP','PROCESSING',1) returning id`, [e.tenantId,e.empresaId,e.autorId]);
+      const itemId=await unico(admin,
+        `insert into app.nfce_import_item(tenant_id,empresa_id,batch_id,nome_sanitizado,tamanho_bytes,hash_sha256,original_key,status,parser_version,schema_version,correlation_id)
+         values($1,$2,$3,'evento.xml',1,$4,$5,'PENDING_LINK','fixture','fixture','f30-rls-fixture') returning id`,
+        [e.tenantId,e.empresaId,batchId,hex64(),`fiscal/nfce/${e.sufixo}/${proximo()}.xml`]);
+      const sourceId=await unico(admin,
+        `insert into app.nfce_import_source(tenant_id,empresa_id,item_id,cnpj,origem,correlation_id)
+         values($1,$2,$3,'11222333000181','ERP','f30-rls-fixture') returning id`,[e.tenantId,e.empresaId,itemId]);
+      return {itemId,sourceId};
+    },
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.nfce_import_event(tenant_id,empresa_id,item_id,source_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,tamanho_bytes,correlation_id)
+       values($1,$2,$3,$4,lpad($5::text,44,'1'),'11222333000181','PRODUCAO','110111','1','135260000000001',$6,$7,1,'f30-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['itemId'],r['sourceId'],proximo(),hex64(),`fiscal/nfce/${e.sufixo}/${proximo()}.xml`]),
+  },
   'app.tax_st_settlement_snapshot': {
     inserir: (banco,e) => unico(banco,
       `insert into app.tax_st_settlement_snapshot

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { digitoVerificadorDaChaveNfeValido, normalizarNfceGoias } from './nfce.js';
+import { digitoVerificadorDaChaveNfeValido, normalizarEventoCancelamentoNfce, normalizarNfceGoias } from './nfce.js';
 
 const chaveBase = '5226101234567800019565001000000123100000001';
 const dv = (base: string): string => {
@@ -29,6 +29,8 @@ const criarXml = (version: '3.10' | '4.00' = '4.00', overrides: Readonly<{
     '</nfeProc>',
   ].join('');
 };
+
+const criarEventoCancelamento = (status='135') => `<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><evento versao="1.00"><infEvento Id="ID110111${chave}01"><cOrgao>52</cOrgao><tpAmb>1</tpAmb><CNPJ>${cnpj}</CNPJ><chNFe>${chave}</chNFe><dhEvento>2026-10-21T12:00:00-03:00</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>152260000000001</nProt><xJust>Documento emitido indevidamente</xJust></detEvento></infEvento><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo/><SignatureValue>c2lnbmF0dXJl</SignatureValue></Signature></evento><retEvento versao="1.00"><infEvento><tpAmb>1</tpAmb><verAplic>fixture</verAplic><cOrgao>52</cOrgao><cStat>${status}</cStat><xMotivo>Evento registrado</xMotivo><chNFe>${chave}</chNFe><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><dhRegEvento>2026-10-21T12:01:00-03:00</dhRegEvento><nProt>152260000000099</nProt></infEvento></retEvento></procEventoNFe>`;
 
 describe('normalizarNfceGoias', () => {
   it.each(['3.10', '4.00'] as const)('normaliza layout %s sem inferir validação criptográfica', (version) => {
@@ -62,5 +64,16 @@ describe('normalizarNfceGoias', () => {
   it('rejeita DTD antes de abrir o XML', () => {
     expect(() => normalizarNfceGoias(new TextEncoder().encode('<!DOCTYPE x [<!ENTITY a "x">]>' + criarXml()), cnpj))
       .toThrow('NFCE_XML_UNSAFE');
+  });
+});
+
+describe('normalizarEventoCancelamentoNfce',()=>{
+  it('lê o protocolo de registro do retEvento e preserva identidade assinada',()=>{
+    expect(normalizarEventoCancelamentoNfce(new TextEncoder().encode(criarEventoCancelamento()))).toEqual({
+      chaveAcesso:chave,cnpjEmitente:cnpj,protocolo:'152260000000099',ambiente:'PRODUCAO',sequencia:'1',
+    });
+  });
+  it('rejeita evento sem protocolo SEFAZ de cancelamento autorizado',()=>{
+    expect(()=>normalizarEventoCancelamentoNfce(new TextEncoder().encode(criarEventoCancelamento('573')))).toThrow('NFCE_PROTOCOL_INVALID');
   });
 });

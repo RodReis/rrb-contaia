@@ -375,6 +375,7 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.nfce_import_batch', classe: 'empresa', origem: 'F30 / SPEC-030' },
   { tabela: 'app.nfce_import_item', classe: 'empresa', origem: 'F30 / SPEC-030' },
   { tabela: 'app.nfce_import_source', classe: 'empresa', origem: 'F30 / SPEC-030' },
+  { tabela: 'app.nfce_import_event', classe: 'empresa', origem: 'F30 / SPEC-030', appendOnly: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

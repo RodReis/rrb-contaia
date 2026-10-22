@@ -725,9 +725,13 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 
 - [x] Upload assíncrono XML/ZIP, limites de expansão, armazenamento por hash, consulta de lote, CSV e download original com hash/auditoria.
 - [x] Parser de NFC-e GO 3.10/4.00, schema versionado, chave/modelo/emitente/protocolo, normalização de itens/tributos/pagamentos e integração inicial com F18/F29.
-- [x] Migrations 0052 aplicadas do zero em PostgreSQL 17 isolado; regressão cobre RLS/carteira, idempotência concorrente por conjunto completo, duplicata intralote e estados de lote. Build total, typechecks, lints, shared 256/256 e tela 1.313/1.313 passaram; warning React Compiler preexistente em `aba-de-enderecos.tsx`.
-- [ ] Completar validação de cadeia XMLDSig, schema/evento oficial, persistência/vínculo/reconciliação de cancelamento e reprocessamento técnico auditado.
-- [ ] Completar critérios de normalização, provas de API/worker e E2E, comparação visual e evidência CLARO/ESCURO × 768/1024/1440; CI remota ainda não executada.
+- [x] Migrations 0053–0056 adicionam persistência append-only de eventos de cancelamento órfãos, RLS, unicidade por identidade, estado `CANCELLED`, trigger `escopo_imutavel` e contexto técnico restrito ao `worker-nfce`; invalidação F29 aceita worker autorizado com ator humano ativo.
+- [x] Worker valida schema oficial do envelope e do detalhe 110111, XMLDSig com referência única ao `infEvento`/`infNFe` sem IDs repetidos, empresa e ambiente; evento com documento existente cancela na transação, evento órfão fica `PENDING_LINK` e concilia ao importar a NFC-e.
+- [x] Parser distingue protocolo do evento em `retEvento/infEvento`; prova shared 7/7 e worker XSD oficial 2/2. Typechecks/lints de shared, DB e workers; DB focal + matriz RLS + anti drift 23/23 após migrations 0000–0056 em PostgreSQL 17 isolado iniciado do zero; `git diff --check`.
+- [x] Validade do certificado de assinatura e dos emissores CA aceitos é conferida no instante de `dhEvento`/recebimento do protocolo; assinatura exige caminho até raiz configurada e referência única ao alvo assinado.
+- [ ] Não há verificação de revogação CRL/OCSP, fixture criptográfica confiável de evento nem teste worker de assinatura/vínculo antes/depois da nota.
+- [ ] Ainda faltam reprocessamento técnico auditado, endpoint autorizado/auditado de original para evento, conciliação/reuso/conflito concorrente comprovados e grupos de normalização que ainda não foram cobertos por fixture.
+- [ ] Completar regressão de armazenamento/falha técnica, segurança ZIP/XML, performance, provas de API/worker e E2E, comparação com protótipo e evidência CLARO/ESCURO × 768/1024/1440. CI verde anterior era do head `343e815`; este novo head precisa de CI própria.
 
 ### Card #33 — `[MVP2][SPEC-029][F29]` Complemento e restituição de ICMS-ST de autopeças em Goiás
 
