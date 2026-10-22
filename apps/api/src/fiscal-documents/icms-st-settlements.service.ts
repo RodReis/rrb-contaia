@@ -104,17 +104,20 @@ export class IcmsStSettlementsService {
         if(approver.rows[0]?.allowed!==true)throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Vínculo manual exige aprovação de contador/admin.');
         await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st-return:${tenantId}:${companyId}:${input.originalLineId}`]);
         await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st-return-identity:${tenantId}:${companyId}:${input.returnDocumentIdentity}:${input.returnItemIdentity}:${input.eventDate}`]);
-        const previous=await client.query<{id:string;evidence_sha256:string;competence:string;returned_quantity_scaled:string;remaining_quantity_scaled:string;reversed_restitution_cents:string;reversed_complement_cents:string;original_line_id:string;normalized_unit:string;requested_quantity:string}>(
+        const previous=await client.query<{id:string;evidence_sha256:string;competence:string;returned_quantity_scaled:string;remaining_quantity_scaled:string;reversed_restitution_cents:string;reversed_complement_cents:string;original_line_id:string;normalized_unit:string;requested_quantity:string;origin:string;return_document_identity:string;return_item_identity:string;event_date:string}>(
           `select e.id,e.evidence_sha256,to_char(r.competence,'YYYY-MM-DD') competence,r.returned_quantity_scaled::text,
                   r.remaining_quantity_scaled::text,r.reversed_restitution_cents::text,r.reversed_complement_cents::text
-                  ,e.original_line_id,e.normalized_unit,e.returned_quantity_scaled::text requested_quantity
+                  ,e.original_line_id,e.normalized_unit,e.returned_quantity_scaled::text requested_quantity,e.origin,
+                  e.return_document_identity,e.return_item_identity,to_char(e.event_date,'YYYY-MM-DD') event_date
              from app.tax_st_return_event e join app.tax_st_return_reversal r on r.event_id=e.id
             where e.tenant_id=$1 and e.empresa_id=$2 and (e.idempotency_key=$3 or
               (e.origin='MANUAL_DOCUMENT' and e.return_document_identity=$4 and e.return_item_identity=$5 and e.event_date=$6::date))`,
           [tenantId,companyId,input.idempotencyKey,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate]);
         const priorEvent=previous.rows[0];
         if(priorEvent){
-          if(priorEvent.evidence_sha256!==sha256||priorEvent.original_line_id!==input.originalLineId||priorEvent.normalized_unit!==input.unit||priorEvent.requested_quantity!==input.returnedQuantityScaled)
+          if(priorEvent.origin!=='MANUAL_DOCUMENT'||priorEvent.evidence_sha256!==sha256||priorEvent.original_line_id!==input.originalLineId||
+             priorEvent.normalized_unit!==input.unit||priorEvent.requested_quantity!==input.returnedQuantityScaled||
+             priorEvent.return_document_identity!==input.returnDocumentIdentity||priorEvent.return_item_identity!==input.returnItemIdentity||priorEvent.event_date!==input.eventDate)
             throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Identidade do evento reutilizada com conteúdo divergente.');
           return {id:priorEvent.id,competence:priorEvent.competence,returnedQuantityScaled:priorEvent.returned_quantity_scaled,
             remainingQuantityScaled:priorEvent.remaining_quantity_scaled,reversedRestitutionCents:Number(priorEvent.reversed_restitution_cents),
