@@ -6,7 +6,7 @@
 
 **Codex Cowork — planejamento.** Especifica e mantém `CLAUDE.md`, `docs/prd/mvp/spec/`, `docs/prd/`, `docs/adr/` e o Índice Fatia ↔ SPEC do `docs/STATUS.md`. Antes de fechar uma spec, apresenta ao PI as dúvidas abertas em perguntas objetivas (pop-up); só cria a issue com todas resolvidas, para evitar retrabalho. Escreve documento direto na `main`, sem PR. Cria e mantém a issue-pai de cada MVP, vincula cada card do MVP como sub-issue nativa do GitHub, cria as issues no board na ordem de implementação e mantém os próximos 5 cards em `proplan:todo`. Nunca escreve código — implementação é exclusiva do Codex.
 
-**Code, Codex, developer ** Pega a issue e coloca para `proplan:doing`, implementa a partir das issues, na ordem do board. Codifica, revisa e testa antes do commit; entrega por PR com CI verde e mergeia ele mesmo. Atualiza a documentação de entrega ao final de cada card, atualiza a issue com a skill `fechar-card` no mesmo PR. Cria a própria issue `[FIX]`. Não cria issue de fatia nem `[INFRA]` — isso é do Cowork. Pode criticar arquitetura e spec; não discute escopo e não descarta escopo, vai para backlog.
+**Code, Codex, developer, você ** Pega a issue e coloca para `proplan:doing`, implementa até o final a partir das issues e entrega com PR verde e issue `proplan:done`, na ordem do board. Codifica, revisa e testa antes do commit; entrega por PR com CI verde e mergeia ele mesmo. Atualiza a documentação de entrega ao final de cada card, atualiza a issue com a skill `fechar-card` no mesmo PR. **IMPORTANTE**, não quero paralização durante a implementação da issue, a implementação, teste e review é direto sem a participação do PI, o code começa  e termina a issue ate o final, é so pode parar quando a issue esta PR verde + merge + issue done, Cria a própria issue `[FIX]`. Não cria issue de fatia nem `[INFRA]` — isso é do Cowork. Pode criticar arquitetura e spec; não discute escopo e não descarta escopo, vai para backlog. Se a isse esta `proplan:finalizado`, é proibido voltar para `proplan:done`.
 
 
 ## Regras do projeto (decididas pelo PI)
@@ -60,24 +60,13 @@ Não existe label `proplan:next`/`proplan:proximo`: ao terminar um card, o Code 
 
 Depois do merge confirmado na origem e **antes** de aplicar `proplan:done`, o Codex publica na issue do card um comentário de encerramento com três seções: **Resumo da implementação**, **Aprendizado** e **Imprevistos**. Formato, regras de conteúdo e comandos: skill `fechar-card`.
 
-`proplan:done` só pode ser aplicada se esse comentário existir — issue em `proplan:done` sem comentário de encerramento é violação de processo e o PI devolve o card. Seção sem conteúdo real recebe "Nenhum": ninguém inventa aprendizado nem imprevisto para preencher template. Aprendizado só entra com fonte verificável (doc oficial, commit, log, comando). O comentário na issue é a fonte de verdade da entrega; o resumo no chat só aponta para ele. A seção **Aprendizado** é consolidada pelo Cowork em `docs/APRENDIZADOS.md` no fecho de cada MVP — protocolo no cabeçalho daquele arquivo.
+Se a PR esta verde codex é obrigado a aplicar o Encerramento de card `proplan:done` só pode ser aplicada se esse comentário existir — issue em `proplan:done` sem comentário de encerramento é violação de processo e o PI devolve o card. Seção sem conteúdo real recebe "Nenhum": ninguém inventa aprendizado nem imprevisto para preencher template. Aprendizado só entra com fonte verificável (doc oficial, commit, log, comando). O comentário na issue é a fonte de verdade da entrega; o resumo no chat só aponta para ele. A seção **Aprendizado** é consolidada pelo Cowork em `docs/APRENDIZADOS.md` no fecho de cada MVP — protocolo no cabeçalho daquele arquivo.
 
 Aceite verde para uma entrega é **CI verde** — nada mais.
 
-### Regra de continuidade do Code
+O Codex só para quando `todo` está vazio ou quando cai num dos dois casos abaixo.
 
-Ao assumir um card `proplan:doing`, o Codex Code mantém o trabalho ativo até concluir o ciclo: implementação, revisão, testes e provas aplicáveis; PR aberta com `refs #N`; CI verde no HEAD atual; merge confirmado na origem; comentário obrigatório de encerramento publicado; card movido para `proplan:done`.
-
-Não encerra a execução nem devolve o card ao PI em etapas intermediárias (código pronto, commit/push feito, PR aberta, CI verde antes do merge, ou merge antes do comentário e de `proplan:done`). Se uma validação falhar, corrige e repete. Se houver trabalho independente do bloqueio, continua esse trabalho.
-
-Só interrompe o ciclo quando: (a) `todo` estiver vazio depois de concluir o card; ou (b) surgir um dos dois bloqueios abaixo que exija decisão do PI. Nesse caso, apresenta a pergunta objetiva com contexto e alternativas, registra o bloqueio e avança no trabalho independente possível. Não pede autorização para decisões técnicas reversíveis que pertencem ao Code.
-
-`proplan:done` é o status de entrega do Code; não fecha a issue nem marca `finalizado`. O PI mantém exclusivamente o aceite final e o fechamento, conforme a tabela de transições.
-
-## O que bloqueia o Code — dois casos, não há terceiro
-
-1. **Decisão de produto que não existe em nenhum documento** (spec, PRD, ADR) e que escolher seria criar regra → pergunta ao PI.
-2. **Problema técnico da spec** — inexequível, ou contradiz `docs/ARCHITECTURE.md`, `docs/CONVENTION.md` ou um ADR → pergunta ao PI.
+## O que bloqueia o Code
 
 Documento faltando não bloqueia. ADR não bloqueia. Falta de spec não bloqueia. Se está parado por qualquer outro motivo, o motivo está errado: implementa e registra a decisão no PR.
 
