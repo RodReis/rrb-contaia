@@ -728,8 +728,10 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] F29 inclui NFC-e no conjunto mensal, exclui canceladas antes do snapshot e registra hash/lista de canceladas. Importação, cancelamento e apuração serializam pela mesma trava da competência; mudança documental invalida também revisão ainda não submetida.
 - [x] API filtra histórico/detalhe por modelo e UI identifica modelo/chave, consumidor sem identificador e revisão desatualizada com ação explícita de reprocessamento.
 - [x] Provas locais: build 10/10; typecheck shared/domain/DB/API/workers/web; parser 1/1, domínio 6/6 e tela 6/6; lint shared/domain/DB/API e lint web sem erros (aviso React Compiler preexistente em `aba-de-enderecos.tsx`); `git diff --check`.
-- [ ] PostgreSQL/migrations 0000–0057, integração DB, E2E autenticado do fluxo importar → apurar → cancelar → STALE → reprocessar e capturas CLARO/ESCURO × 768/1024/1440: `not_run`; Docker Desktop retorna HTTP 500 no engine local. Reexecutar no CI/ambiente funcional antes de merge.
-- [ ] PR, CI verde no head final, merge confirmado, comentário `fechar-card` e `proplan:done` pendentes.
+- [x] CI do head `aa3cbd2ab7d62229b0765ee0e98af440e22d5efa`: build, quality, regras, banco, tela, E2E e gate passaram (run `39780017320`); PR #141 mergeada em `0690fbb24a89aaea9b573576837a2c9ca961458e`.
+- [ ] E2E autenticado específico F30 → F31 → aprovação/rascunho → cancelamento → `STALE` → reprocessamento não existe. E2E da CI cobriu regressão F29 (2 testes), sem provar essa jornada F31. O trecho de aprovação depende de cobertura oficial publicada da F29; sem ela o resultado permanece `INDETERMINATE`, sem regra ou valor inventado.
+- [ ] Capturas F31 CLARO/ESCURO × 768/1024/1440 e comparação visual correspondente não têm evidência rastreável anexada. `not_run`; `test-tela` verde não substitui captura visual.
+- [ ] Comentário com evidências publicado na issue #35; `proplan:done` aguarda resolução do gate E2E da SPEC-031 e decisão do PI sobre a cobertura oficial necessária.
 
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
 
