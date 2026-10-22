@@ -102,6 +102,15 @@ const prepararDocumentoFiscal = async (admin: Consultavel, e: Escopo): Promise<R
   return { ...staging, documentId };
 };
 
+const prepararCancelamentoTributario = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const documento = await prepararDocumentoFiscal(admin, e);
+  await admin.query(
+    `update app.fiscal_document set emitido_em='2017-01-01',estado='CANCELLED',cancelado_em='2017-02-01T12:00:00Z',protocolo_cancelamento='135260000000001' where id=$1`,
+    [documento['documentId']],
+  );
+  return documento;
+};
+
 const prepararDocumentoParaSnapshot = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const documento = await prepararDocumentoFiscal(admin,e);
   await admin.query(
@@ -121,6 +130,20 @@ const prepararSnapshotIcmsSt = async (admin: Consultavel, e: Escopo): Promise<Re
     [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]);
   return { ...documento, snapshotId };
 };
+
+const prepararDevolucaoIcmsSt = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const base = await prepararSnapshotIcmsSt(admin, e);
+  const lineId = await unico(admin,
+    `insert into app.tax_st_settlement_line(tenant_id,empresa_id,snapshot_id,output_document_id,output_item_id,difference_kind,facts,calculation,recovery_memory)
+     values($1,$2,$3,$4,$5,'RESTITUTION','{}'::jsonb,'{}'::jsonb,'{}'::jsonb) returning id`,
+    [e.tenantId,e.empresaId,base['snapshotId'],base['documentId'],`fixture:${e.sufixo}`]);
+  return { ...base, lineId };
+};
+
+const inserirEventoDevolucaoIcmsSt = async (admin: Consultavel, e: Escopo, r: Referencias): Promise<string> => unico(admin,
+  `insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,actor_id,correlation_id,occurred_at)
+   values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,'2017-02-01',$7,'UN',1,repeat('f',64),$8,'f32-rls-fixture',now()) returning id`,
+  [e.tenantId,e.empresaId,r['snapshotId'],r['lineId'],`return-event-${randomUUID()}`,`item-event-${randomUUID()}`,randomUUID(),e.autorId]);
 
 const prepararConfiguracaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const configurationId = await unico(admin,
@@ -910,6 +933,30 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
          (tenant_id,empresa_id,competence,revision,idempotency_key,input_sha256,status,line_count,blocked_line_count,facts,actor_id,correlation_id,processed_at)
        values($1,$2,'2098-01-01',$3,$4,repeat('d',64),'BLOCKED',0,0,'{}'::jsonb,$5,'f29-rls-fixture',now()) returning id`,
       [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]),
+  },
+  'app.tax_st_authorized_cancellation': {
+    preparar: prepararCancelamentoTributario,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_authorized_cancellation(tenant_id,empresa_id,output_document_id,source_event_id,output_competence,authorized_at,evidence_sha256,actor_id,correlation_id,occurred_at)
+       values($1,$2,$3,$4,'2017-01-01','2017-02-01T12:00:00Z',repeat('e',64),$5,'f32-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,r['documentId'],randomUUID(),e.autorId]),
+  },
+  'app.tax_st_return_event': {
+    preparar: prepararDevolucaoIcmsSt,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,actor_id,correlation_id,occurred_at)
+       values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,'2017-02-02',$7,'UN',1,repeat('e',64),$8,'f32-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,r['snapshotId'],r['lineId'],`return-${randomUUID()}`,`item-${randomUUID()}`,randomUUID(),e.autorId]),
+  },
+  'app.tax_st_return_reversal': {
+    preparar: async (admin,e) => {
+      const base = await prepararDevolucaoIcmsSt(admin,e);
+      return { ...base, eventId: await inserirEventoDevolucaoIcmsSt(admin,e,base) };
+    },
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_return_reversal(tenant_id,empresa_id,event_id,original_snapshot_id,original_line_id,competence,returned_quantity_scaled,remaining_quantity_scaled,reversed_restitution_cents,reversed_complement_cents,formula_version,source_ids,actor_id,correlation_id,occurred_at)
+       values($1,$2,$3,$4,$5,'2017-02-01',1,0,0,0,'fixture',array['fixture']::text[],$6,'f32-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,r['eventId'],r['snapshotId'],r['lineId'],e.autorId]),
   },
   'app.tax_st_settlement_line': {
     preparar: prepararSnapshotIcmsSt,

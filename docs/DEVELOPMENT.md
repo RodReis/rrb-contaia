@@ -743,7 +743,9 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] API registra devolução manual somente sobre linha aprovada e não obsoleta, serializa saldo por linha, exige anexo privado e registra hash SHA-256; moeda não é recebida pela API.
 - [x] Tela mostra vínculo causal e valores separados de restituição/complemento, com ação disponível apenas para linha aprovada.
 - [x] Testes de domínio e tela adicionados; build global, typecheck e lint dos pacotes afetados passaram em execução local.
-- [ ] Cancelamento posterior NF-e 55, ingestão direta de devolução NF-e/EFD, revisão imutável da competência do evento, demonstrativo C002, RLS/append-only de integração, E2E e capturas CLARO/ESCURO × 768/1024/1440 pendentes.
+- [x] Migrations 0059/0060 persistem eventos oficiais de cancelamento vinculados a NF-e/NFC-e, invalidam revisões submetidas/aprovadas na competência original e completam índices independentes por empresa; aplicadas no Compose compartilhado `contaia`.
+- [x] Matriz RLS (100%, 5 testes) e anti-drift do catálogo (17 testes) passaram após as migrations 0059/0060; fixtures F32 cobrem evento, estorno e cancelamento.
+- [ ] Ingestão oficial de cancelamento NF-e 55, ingestão direta de devolução NF-e/EFD, revisão imutável da competência do evento, demonstrativo C002, E2E e capturas CLARO/ESCURO × 768/1024/1440 pendentes.
 - [ ] Comentário de encerramento e `proplan:done` pendentes até concluir SPEC-032, obter CI verde e confirmar merge.
 
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
