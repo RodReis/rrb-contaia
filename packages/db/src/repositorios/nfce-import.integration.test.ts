@@ -3,7 +3,7 @@ import { afterAll,beforeAll,describe,expect,it } from 'vitest';
 import { criarPool,criarPoolDaAplicacao } from '../client.js';
 import { comContexto } from '../contexto.js';
 import { limparCenario,montarCenario,type Cenario } from '../testes/cenario-rls.js';
-import { criarLoteNfce,consultarLoteNfce,finalizarLoteNfce } from './nfce-import.js';
+import { criarLoteNfce,consultarLoteNfce,finalizarLoteNfce,obterOriginalEventoCancelamentoNfce } from './nfce-import.js';
 
 const admin=criarPool();const app=criarPoolDaAplicacao();let c:Cenario;
 beforeAll(async()=>{c=await montarCenario(admin);},60_000);
@@ -41,6 +41,8 @@ describe('repositório F30 de NFC-e',()=>{
       values($1,$2,$3,$4,repeat('1',44),$5,'PRODUCAO','110111','1','152260000000001',$6,$7,1,'f30-db-test-event')`,[c.tenantA,co.id,batch.itemIds[0],source.rows[0]?.id,co.cnpj,'c'.repeat(64),key]));
     const visibleEvent=await comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.naCarteira,correlationId:'f30-db-test-event-read'}),client=>client.query('select id from app.nfce_import_event where item_id=$1',[batch.itemIds[0]]));
     expect(visibleEvent.rows).toHaveLength(1);
+    const eventOriginal=await comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.naCarteira,correlationId:'f30-db-test-event-original'}),client=>obterOriginalEventoCancelamentoNfce(client,co.id,batch.itemIds[0]!));
+    expect(eventOriginal).toMatchObject({original_key:key,hash_sha256:'c'.repeat(64),source_id:source.rows[0]?.id,document_id:null});
     await expect(comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.naCarteira,correlationId:'f30-db-test-event-duplicate'}),client=>client.query(`insert into app.nfce_import_event(tenant_id,empresa_id,item_id,source_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,tamanho_bytes,correlation_id)
       values($1,$2,$3,$4,repeat('1',44),$5,'PRODUCAO','110111','1','152260000000001',$6,$7,1,'f30-db-test-event-duplicate')`,[c.tenantA,co.id,batch.itemIds[0],source.rows[0]?.id,co.cnpj,'d'.repeat(64),key]))).rejects.toMatchObject({code:'23505'});
     const deniedEvent=await comContexto(app,contextoHumano({tenantId:c.tenantA,usuarioId:c.usuarios.fora,correlationId:'f30-db-test-event-deny'}),client=>client.query('select id from app.nfce_import_event where item_id=$1',[batch.itemIds[0]]));

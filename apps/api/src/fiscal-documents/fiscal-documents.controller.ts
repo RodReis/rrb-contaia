@@ -126,6 +126,12 @@ export class FiscalDocumentsController {
     const csv=await this.service.relatorioLoteNfce(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,batchId),obterCorrelationId(request));response.status(200).type('text/csv; charset=utf-8').setHeader('Content-Disposition','attachment; filename="nfce-importacao.csv"').setHeader('Cache-Control','private, no-store').send(csv);
   }
 
+  @Get('nfce-imports/items/:itemId/original')
+  @ExigePermissao('empresas.cadastro.consultar')
+  async originalEventoNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('itemId') itemId:string,@Res() response:Response){
+    const file=await this.service.originalEventoNfce(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,itemId),obterCorrelationId(request));response.status(200).type('application/xml').setHeader('Content-Disposition','attachment; filename="nfce-evento-original.xml"').setHeader('Cache-Control','private, no-store').send(file.conteudo);
+  }
+
   @Get(':documentId/nfce-original')
   @ExigePermissao('empresas.cadastro.consultar')
   async originalNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('documentId') documentId:string,@Res() response:Response){

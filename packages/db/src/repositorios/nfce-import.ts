@@ -68,6 +68,14 @@ export const obterOriginalNfce=async(client:PoolClient,companyId:string,document
   const {rows}=await client.query(`select d.original_key,d.hash_sha256,d.tamanho_bytes,s.id source_id from app.fiscal_document d join app.fiscal_document_origin o on o.document_id=d.id join app.nfce_import_source s on s.id=o.nfce_source_id where d.empresa_id=$1 and d.id=$2 and d.especie='NFCE_65' limit 1`,[companyId,documentId]);return rows[0]??null;
 };
 
+export const obterOriginalEventoCancelamentoNfce=async(client:PoolClient,companyId:string,itemId:string)=>{
+  const {rows}=await client.query(`select e.original_key,e.hash_sha256,s.id source_id,
+      (select fe.document_id from app.fiscal_document_event fe where fe.nfce_source_id=s.id and fe.tipo='CANCELAMENTO' and fe.hash_sha256=e.hash_sha256 order by fe.ocorrido_em desc limit 1) document_id
+    from app.nfce_import_event e join app.nfce_import_source s on s.id=e.source_id and s.empresa_id=e.empresa_id and s.tenant_id=e.tenant_id
+    join app.nfce_import_item i on i.id=e.item_id and i.empresa_id=e.empresa_id and i.tenant_id=e.tenant_id
+    where e.empresa_id=$1 and i.id=$2 limit 1`,[companyId,itemId]);return rows[0]??null;
+};
+
 export const listarItensLoteNfceCsv=async(client:PoolClient,companyId:string,batchId:string)=>client.query(`select nome_sanitizado,status,codigo,detalhe_sanitizado,modelo,versao_layout,ambiente,chave_acesso,document_id,hash_sha256,tamanho_bytes,processado_em from app.nfce_import_item where empresa_id=$1 and batch_id=$2 order by criado_em,id`,[companyId,batchId]);
 
 export const gravarResultadoItemNfce = async (client: PoolClient, input: Readonly<{

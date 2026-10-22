@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash as createFileHash } from 'node:crypto';
-import { criarLoteNfce, consultarLoteNfce, listarItensLoteNfceCsv, obterOriginalNfce } from '@contaia/db';
+import { criarLoteNfce, consultarLoteNfce, listarItensLoteNfceCsv, obterOriginalNfce, obterOriginalEventoCancelamentoNfce } from '@contaia/db';
 import { NFCE_IMPORT_JOB, NfceImportCommandSchema } from '@contaia/shared';
 import type { Queue } from 'bullmq';
 import { comContextoHumano, getDfeCaptureCompany, listarDocumentosFiscais, obterDocumentoFiscal, registrarEventoDocumentoFiscal, listarResumoCienciasDaEmissao, obterCienciaDaEmissao, listarHistoricoDaCiencia, listarTentativasDaCiencia, retomarCienciaDaEmissao, listarItensParaResolucaoTributaria, persistirSnapshotsResolucaoTributaria, listarSnapshotsResolucaoTributaria, submeterRevisaoResolucaoTributaria, decidirRevisaoResolucaoTributaria, obterRegimeTributarioHistorico, registrarEventoResolucaoTributaria, listarFilaResolucaoTributaria } from '@contaia/db';
@@ -142,6 +142,17 @@ export class FiscalDocumentsService {
     const file=await this.storage.obter(String(record.original_key));const hash=createHash('sha256').update(file.conteudo).digest('hex');
     await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},client=>registrarEventoDocumentoFiscal(client,{tenantId,empresaId:companyId,documentId,stagingId:null,nfceSourceId:String(record.source_id),tipo:hash===record.hash_sha256?'ORIGINAL_BAIXADO':'ORIGINAL_DIVERGENTE',codigo:hash===record.hash_sha256?'OK':'FISCAL_DOCUMENT_INTEGRITY_MISMATCH',detalhe:hash===record.hash_sha256?'Download de original NFC-e com hash verificado.':'Hash do original NFC-e divergente.',parserVersion:'f30-1.0.0',hashSha256:hash,atorId:userId,correlationId}));
     if(hash!==record.hash_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_INTEGRITY_MISMATCH,'Hash do original NFC-e divergente.');return file;
+  }
+
+  async originalEventoNfce(tenantId:string,userId:string,companyId:string,itemId:string,correlationId:string){
+    const record=await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      const company=await getDfeCaptureCompany(client,companyId);if(!company||company.tenantId!==tenantId)throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA,'Empresa não encontrada.');
+      return obterOriginalEventoCancelamentoNfce(client,companyId,itemId);
+    });
+    if(!record)throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INDISPONIVEL,'Original do evento NFC-e não encontrado.');
+    const file=await this.storage.obter(String(record.original_key));const hash=createHash('sha256').update(file.conteudo).digest('hex');
+    await comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},client=>registrarEventoDocumentoFiscal(client,{tenantId,empresaId:companyId,documentId:record.document_id===null?null:String(record.document_id),nfceSourceId:String(record.source_id),tipo:hash===record.hash_sha256?'ORIGINAL_BAIXADO':'ORIGINAL_DIVERGENTE',codigo:hash===record.hash_sha256?'OK':'FISCAL_DOCUMENT_INTEGRITY_MISMATCH',detalhe:hash===record.hash_sha256?'Download do original de evento NFC-e com hash verificado.':'Hash do original de evento NFC-e divergente.',parserVersion:'f30-1.0.0',hashSha256:hash,atorId:userId,correlationId}));
+    if(hash!==record.hash_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.FISCAL_DOCUMENT_INTEGRITY_MISMATCH,'Hash do original de evento NFC-e divergente.');return file;
   }
 
   async listarCiencias(tenantId:string,userId:string,companyId:string,correlationId:string){

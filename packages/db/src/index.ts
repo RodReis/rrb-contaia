@@ -450,7 +450,7 @@ export { listarDocumentosFiscais, obterDocumentoFiscal, persistirDocumentoFiscal
 export { arquivarRegraDeObrigacao, criarRegraDeObrigacao, gerarOcorrenciasPublicadas, listarAgenda, listarAlertasDaObrigacao, listarEventosDaObrigacao, listarFeriados, listarRegrasDeObrigacao, obterOcorrencia, publicarRegraDeObrigacao, registrarBaixaDaObrigacao, registrarReaberturaDaObrigacao, salvarCoberturaDoCalendario, salvarFeriado } from './repositorios/obligations.js';
 export type { FiltroAgenda, OcorrenciaPersistida, RegraPersistida } from './repositorios/obligations.js';
 export type { RegistroFiscalPersistido } from './repositorios/fiscal-documents.js';
-export { criarLoteNfce, consultarLoteNfce, finalizarLoteNfce, gravarResultadoItemNfce, obterOriginalNfce, listarItensLoteNfceCsv } from './repositorios/nfce-import.js';
+export { criarLoteNfce, consultarLoteNfce, finalizarLoteNfce, gravarResultadoItemNfce, obterOriginalNfce, obterOriginalEventoCancelamentoNfce, listarItensLoteNfceCsv } from './repositorios/nfce-import.js';
 export type { NfceBatchInput } from './repositorios/nfce-import.js';
 export { iniciarCienciaDaEmissao, listarCienciasPendentes, listarHistoricoDaCiencia, listarResumoCienciasDaEmissao, listarTentativasDaCiencia, obterCienciaDaEmissao, preservarXmlCompletoRecuperado, registrarResumoImpedido, registrarXmlCompletoJaDisponivel, registrarTentativaDaCiencia, retomarCienciaDaEmissao, transicionarCienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';
 export type { CienciaDaEmissao } from './repositorios/fiscal-acknowledgement.js';
