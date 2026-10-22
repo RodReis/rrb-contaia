@@ -95,9 +95,9 @@ export class FiscalDocumentsController {
   registrarDevolucaoIcmsSt(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,
     @UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown) {
     const roles=request.sessao?.papeis??[];
-    if(!roles.some(role=>(['admin_escritorio','contador','auxiliar'] as readonly string[]).includes(role))||
+    if(!roles.some(role=>(['admin_escritorio','contador'] as readonly string[]).includes(role))||
        !request.sessao?.permissoes.includes('fiscal.motor_tributario.simular'))
-      throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Papel sem autorização para registrar devolução.');
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Registro manual exige contador/admin com permissão para simular.');
     const input=analisar(z.strictObject({originalSnapshotId:persistedUuid,originalLineId:persistedUuid,
       returnDocumentIdentity:z.string().trim().min(1).max(120),returnItemIdentity:z.string().trim().min(1).max(80),
       eventDate:dataCivilQuerySchema,unit:z.string().trim().min(1).max(20),returnedQuantityScaled:z.string().regex(/^\d{1,38}$/u),

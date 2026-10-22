@@ -112,7 +112,7 @@ export const PainelApuracaoIcmsSt = ({empresaId,podeProcessar,podeDecidir}:{empr
                 <td className="whitespace-nowrap p-sm tabular-nums"><span className="block">{moeda(calculation['effectiveIcmsCents'])}</span><span className="block text-label-sm text-muted-foreground">Base efetiva {moeda(calculation['effectiveBaseCents'])}</span></td>
                 <td className="whitespace-nowrap p-sm tabular-nums"><span className="block">{kind==='RESTITUTION'?moeda(calculation['restitutionCents']):kind==='COMPLEMENT'?moeda(calculation['complementCents']):kind==='NONE'?moeda(0):'—'}</span><span className="text-label-sm text-muted-foreground">{kindLabel(kind)}</span></td>
                 <td className="min-w-44 p-sm"><span>{blocks.length||kind==='INDETERMINATE'?'Indeterminado':'Conferido'}</span>{blocks.map((code)=><span key={code} className="mt-xs block text-label-sm text-muted-foreground">{rotuloMotivo(code)}</span>)}</td>
-                <td className="p-sm">{currentStatus==='APPROVED'&&podeProcessar&&kind!=='INDETERMINATE'?<Button variante="contorno" tamanho="compacto" onClick={()=>setReturnLine({id:texto(line['id']),unit:texto(rowFacts['unit'],'')})}>Registrar devolução</Button>:<span className="text-label-sm text-muted-foreground">—</span>}</td>
+                <td className="p-sm">{currentStatus==='APPROVED'&&podeDecidir&&kind!=='INDETERMINATE'?<Button variante="contorno" tamanho="compacto" onClick={()=>setReturnLine({id:texto(line['id']),unit:texto(rowFacts['unit'],'')})}>Registrar devolução</Button>:<span className="text-label-sm text-muted-foreground">—</span>}</td>
               </tr>;
             })}</tbody>
           </table>
