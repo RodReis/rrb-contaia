@@ -6,10 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApuracaoIcmsStSchema } from './api';
 import { PainelApuracaoIcmsSt } from './painel-apuracao-icms-st';
 
-const api = vi.hoisted(() => ({ listar: vi.fn(), obter: vi.fn() }));
+const api = vi.hoisted(() => ({ listar: vi.fn(), obter: vi.fn(), registrar: vi.fn() }));
 vi.mock('./api', async (importOriginal) => {
   const original = await importOriginal<typeof import('./api')>();
-  return { ...original, listarApuracoesIcmsSt: api.listar, obterApuracaoIcmsSt: api.obter };
+  return { ...original, listarApuracoesIcmsSt: api.listar, obterApuracaoIcmsSt: api.obter, registrarDevolucaoIcmsSt: api.registrar };
 });
 
 const empresaId = '00000000-0000-4000-8000-000000000033';
@@ -104,6 +104,19 @@ describe('Painel de apuração F29', () => {
     expect(screen.getAllByText('NFC-e 65').length).toBeGreaterThan(0);
     expect(screen.getByText('Consumidor não identificado')).toBeInTheDocument();
     expect(screen.getByText('3'.repeat(44))).toBeInTheDocument();
+  });
+
+  it('abre formulário de devolução somente em linha aprovada e limita campos ao documento e quantidade', async () => {
+    api.obter.mockResolvedValue({ ...snapshot(1), status: 'APPROVED', blocked_line_count: 0,
+      lines: [{ ...snapshot(1).lines[0]!, id: '00000000-0000-4000-8000-000000000036', difference_kind: 'RESTITUTION',
+        facts: { itemNumber: 1, quantityScaled: '25000000000', quantityScale: 10, unit: 'UN' }, blocking_reason_codes: [] }] });
+    render(<PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar podeDecidir />, { wrapper: Envolvido });
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Registrar devolução' }));
+    const form=await screen.findByRole('form', { name: 'Registrar devolução manual' });
+    expect(form).toBeInTheDocument();
+    expect(screen.getByText(/Valores tributários vêm da linha aprovada/u)).toBeInTheDocument();
+    expect(within(form).queryByLabelText(/valor.*tributário|imposto|restituição/u)).not.toBeInTheDocument();
   });
 
   it('marca revisão desatualizada e exige motivo antes de reprocessar', async () => {

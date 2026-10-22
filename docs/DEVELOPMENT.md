@@ -736,6 +736,16 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [ ] Capturas F31 CLARO/ESCURO × 768/1024/1440 e comparação visual correspondente não têm evidência rastreável anexada. `not_run`; `test-tela` verde não substitui captura visual.
 - [ ] Comentário com evidências publicado na issue #35; `proplan:done` aguarda pacote tributário oficial F29 publicado/revisado, E2E completo da SPEC-031 e capturas visuais rastreáveis.
 
+### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
+
+- [x] Domínio calcula estorno proporcional cumulativo em centavos inteiros; última devolução absorve resíduo de arredondamento, sem exceder valor ou quantidade original.
+- [x] Migration 0058 cria evidência manual e linhas de estorno append-only, com RLS por tenant/empresa, índices e FKs compostas para preservar vínculo da linha com revisão original.
+- [x] API registra devolução manual somente sobre linha aprovada e não obsoleta, serializa saldo por linha, exige anexo privado e registra hash SHA-256; moeda não é recebida pela API.
+- [x] Tela mostra vínculo causal e valores separados de restituição/complemento, com ação disponível apenas para linha aprovada.
+- [x] Testes de domínio e tela adicionados; build global, typecheck e lint dos pacotes afetados passaram em execução local.
+- [ ] Cancelamento posterior NF-e 55, ingestão direta de devolução NF-e/EFD, revisão imutável da competência do evento, demonstrativo C002, RLS/append-only de integração, E2E e capturas CLARO/ESCURO × 768/1024/1440 pendentes.
+- [ ] Comentário de encerramento e `proplan:done` pendentes até concluir SPEC-032, obter CI verde e confirmar merge.
+
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
 
 - [x] Upload assíncrono XML/ZIP, limites de expansão, armazenamento por hash, consulta de lote, CSV e download original com hash/auditoria.

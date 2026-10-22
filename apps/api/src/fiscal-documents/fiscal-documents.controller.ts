@@ -88,6 +88,26 @@ export class FiscalDocumentsController {
       input.expectedRevision, input.action, input.reason ?? null, obterCorrelationId(request));
   }
 
+  @Post('icms-st-returns')
+  @HttpCode(201)
+  @AcaoLivre()
+  @UseInterceptors(FilesInterceptor('arquivo',1,{limits:{fileSize:10*1024*1024,files:1,fields:8}}))
+  registrarDevolucaoIcmsSt(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,
+    @UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown) {
+    const roles=request.sessao?.papeis??[];
+    if(!roles.some(role=>(['admin_escritorio','contador','auxiliar'] as readonly string[]).includes(role))||
+       !request.sessao?.permissoes.includes('fiscal.motor_tributario.simular'))
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Papel sem autorização para registrar devolução.');
+    const input=analisar(z.strictObject({originalSnapshotId:persistedUuid,originalLineId:persistedUuid,
+      returnDocumentIdentity:z.string().trim().min(1).max(120),returnItemIdentity:z.string().trim().min(1).max(80),
+      eventDate:dataCivilQuerySchema,unit:z.string().trim().min(1).max(20),returnedQuantityScaled:z.string().regex(/^\d{1,38}$/u),
+      idempotencyKey:uuid}),body);
+    const file=files?.[0];
+    if(!file)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Anexo comprobatório obrigatório.');
+    return this.icmsStService.registerManualReturn(tenantDa(request),autorDa(request).usuarioId,companyId,input,
+      {nomeOriginal:file.originalname,tipoConteudo:file.mimetype,conteudo:file.buffer},obterCorrelationId(request));
+  }
+
   @Get('icms-st-settlements/:snapshotId')
   @ExigePermissao('fiscal.motor_tributario.consultar')
   obterApuracaoIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,

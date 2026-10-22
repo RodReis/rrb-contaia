@@ -6,6 +6,7 @@ import {
   ErroDeConflito,
   ErroDeDominio,
   decimalDeclaradoParaCentavos,
+  calculateIcmsStReturnReversal,
   resolveIcmsStSettlement,
   type IcmsStInputEntry,
   type IcmsStOutputLine,
@@ -15,6 +16,7 @@ import { CuratedTaxPackageSchema } from '@contaia/shared';
 
 import { PoolDoBanco } from '../banco/pool.provider';
 import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
+import { StorageService, type ArquivoRecebido } from '../comum/storage.service';
 
 type PackageRow = Readonly<{ id: string; content: unknown; content_sha256: string }>;
 type OutputRow = Readonly<{
@@ -73,7 +75,87 @@ const packageRules = (rows: readonly PackageRow[], date: string, regime: string 
 @Injectable()
 export class IcmsStSettlementsService {
   agora: () => Date = () => new Date();
-  constructor(private readonly pool: PoolDoBanco) {}
+  constructor(private readonly pool: PoolDoBanco, private readonly storage: StorageService) {}
+
+  async registerManualReturn(tenantId: string, userId: string, companyId: string, input: Readonly<{
+    originalSnapshotId: string; originalLineId: string; returnDocumentIdentity: string; returnItemIdentity: string;
+    eventDate: string; unit: string; returnedQuantityScaled: string; idempotencyKey: string;
+  }>, file: ArquivoRecebido, correlationId: string) {
+    if (file.conteudo.byteLength < 1 || file.conteudo.byteLength > 10 * 1024 * 1024 ||
+        !['application/pdf','application/xml','text/xml','image/jpeg','image/png'].includes(file.tipoConteudo)) {
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID, 'Anexe PDF, XML, PNG ou JPEG de até 10 MB.');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/u.test(input.eventDate) || Number.isNaN(Date.parse(`${input.eventDate}T00:00:00Z`)) ||
+        new Date(`${input.eventDate}T00:00:00Z`).toISOString().slice(0,10)!==input.eventDate ||
+        !/^\d+$/u.test(input.returnedQuantityScaled) || BigInt(input.returnedQuantityScaled) <= 0n ||
+        !/^[0-9a-f]{8}-[0-9a-f-]{27}$/iu.test(input.idempotencyKey)) {
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID, 'Dados de devolução inválidos.');
+    }
+    const sha256 = createHash('sha256').update(file.conteudo).digest('hex');
+    const storageKey = `${tenantId}/icms_st_return/${sha256}`;
+    return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
+        await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st-return:${tenantId}:${companyId}:${input.originalLineId}`]);
+        await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st-return-identity:${tenantId}:${companyId}:${input.returnDocumentIdentity}:${input.returnItemIdentity}:${input.eventDate}`]);
+        const previous=await client.query<{id:string;evidence_sha256:string;competence:string;returned_quantity_scaled:string;remaining_quantity_scaled:string;reversed_restitution_cents:string;reversed_complement_cents:string;original_line_id:string;normalized_unit:string;requested_quantity:string}>(
+          `select e.id,e.evidence_sha256,to_char(r.competence,'YYYY-MM-DD') competence,r.returned_quantity_scaled::text,
+                  r.remaining_quantity_scaled::text,r.reversed_restitution_cents::text,r.reversed_complement_cents::text
+                  ,e.original_line_id,e.normalized_unit,e.returned_quantity_scaled::text requested_quantity
+             from app.tax_st_return_event e join app.tax_st_return_reversal r on r.event_id=e.id
+            where e.tenant_id=$1 and e.empresa_id=$2 and (e.idempotency_key=$3 or
+              (e.origin='MANUAL_DOCUMENT' and e.return_document_identity=$4 and e.return_item_identity=$5 and e.event_date=$6::date))`,
+          [tenantId,companyId,input.idempotencyKey,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate]);
+        const priorEvent=previous.rows[0];
+        if(priorEvent){
+          if(priorEvent.evidence_sha256!==sha256||priorEvent.original_line_id!==input.originalLineId||priorEvent.normalized_unit!==input.unit||priorEvent.requested_quantity!==input.returnedQuantityScaled)
+            throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Identidade do evento reutilizada com conteúdo divergente.');
+          return {id:priorEvent.id,competence:priorEvent.competence,returnedQuantityScaled:priorEvent.returned_quantity_scaled,
+            remainingQuantityScaled:priorEvent.remaining_quantity_scaled,reversedRestitutionCents:Number(priorEvent.reversed_restitution_cents),
+            reversedComplementCents:Number(priorEvent.reversed_complement_cents),evidenceSha256:priorEvent.evidence_sha256,reused:true};
+        }
+        const original = await client.query<{ kind:string; restitution:string|null; complement:string|null; facts:unknown; unit:string|null; source_ids:string[]; snapshot_id:string; revision:number; approved:boolean; stale:boolean }>(
+          `select l.difference_kind kind,l.restitution_cents::text restitution,l.complement_cents::text complement,l.facts,l.source_ids,
+                  l.facts->>'unit' unit,l.snapshot_id,s.revision,
+                  exists(select 1 from app.tax_st_settlement_review_event r where r.snapshot_id=s.id and r.action='APPROVED') approved,
+                  exists(select 1 from app.tax_st_settlement_event e where e.snapshot_id=s.id and e.action='DOCUMENT_SET_CHANGED') stale
+             from app.tax_st_settlement_line l join app.tax_st_settlement_snapshot s on s.id=l.snapshot_id
+            where l.tenant_id=$1 and l.empresa_id=$2 and l.snapshot_id=$3 and l.id=$4 for update of l`,
+          [tenantId,companyId,input.originalSnapshotId,input.originalLineId]);
+        const line=original.rows[0];
+        if (!line) throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_LINK_NOT_FOUND,'Linha original não encontrada.');
+        if (!line.approved || line.stale) throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_REVISION_STALE,'Revisão original sem aprovação vigente.');
+        if (line.unit !== input.unit) throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_RETURN_UNIT_INCOMPATIBLE,'Unidade da devolução difere da saída original.');
+        const facts=typeof line.facts==='object'&&line.facts!==null?line.facts as Record<string,unknown>:{};
+        const total=typeof facts['quantityScaled']==='string'?BigInt(facts['quantityScaled']):0n;
+        const prior=await client.query<{quantity:string}>(`select coalesce(sum(returned_quantity_scaled),0)::text quantity from app.tax_st_return_reversal
+          where tenant_id=$1 and empresa_id=$2 and original_line_id=$3`,[tenantId,companyId,input.originalLineId]);
+        const result=calculateIcmsStReturnReversal({differenceKind:line.kind as 'RESTITUTION'|'COMPLEMENT'|'NONE'|'INDETERMINATE',
+          originalQuantityScaled:total,previouslyReturnedQuantityScaled:BigInt(prior.rows[0]?.quantity??'0'),returnedQuantityScaled:BigInt(input.returnedQuantityScaled),
+          originalRestitutionCents:line.restitution===null?null:Number(line.restitution),originalComplementCents:line.complement===null?null:Number(line.complement)});
+        if (!result.ok) throw new ErroDeDominio(result.reasonCode==='ICMS_ST_RETURN_QUANTITY_EXCEEDED'?CODIGOS_DE_ERRO.ICMS_ST_RETURN_QUANTITY_EXCEEDED:CODIGOS_DE_ERRO.ICMS_ST_ORIGINAL_CALCULATION_UNAVAILABLE,'Quantidade excede saldo ou cálculo original indisponível.');
+        const competence=`${input.eventDate.slice(0,7)}-01`;
+        await this.storage.enviarComChave(storageKey,file.conteudo,file.tipoConteudo);
+        const inserted=await client.query<{id:string}>(`insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,
+          return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,evidence_facts,actor_id,correlation_id,occurred_at)
+          values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,$7::date,$8::uuid,$9,$10::numeric,$11,jsonb_build_object('storageKey',$12,'mimeType',$13),$14,$15,$16)
+          on conflict(tenant_id,empresa_id,origin,return_document_identity,return_item_identity,event_date) do nothing returning id`,
+          [tenantId,companyId,input.originalSnapshotId,input.originalLineId,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate,input.idempotencyKey,input.unit,
+           input.returnedQuantityScaled,sha256,storageKey,file.tipoConteudo,userId,correlationId,this.agora()]);
+        const eventId=inserted.rows[0]?.id;
+        if (!eventId) throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Evento fiscal já registrado com esta identidade.');
+        await client.query(`insert into app.tax_st_return_reversal(tenant_id,empresa_id,event_id,original_snapshot_id,original_line_id,competence,
+          returned_quantity_scaled,remaining_quantity_scaled,reversed_restitution_cents,reversed_complement_cents,formula_version,source_ids,actor_id,correlation_id,occurred_at)
+          values($1,$2,$3,$4,$5,$6::date,$7::numeric,$8::numeric,$9,$10,'F29_CUMULATIVE_HALF_UP_V1',$11,$12,$13,$14)`,
+          [tenantId,companyId,eventId,input.originalSnapshotId,input.originalLineId,competence,input.returnedQuantityScaled,result.remainingQuantityScaled.toString(),
+           result.reversedRestitutionCents,result.reversedComplementCents,[input.originalLineId,...line.source_ids],userId,correlationId,this.agora()]);
+        await client.query(`insert into app.tax_st_settlement_event(tenant_id,empresa_id,snapshot_id,action,actor_id,correlation_id,occurred_at,details)
+          select s.tenant_id,s.empresa_id,s.id,'DOCUMENT_SET_CHANGED',$4,$5,$6,jsonb_build_object('source','F32_RETURN','eventId',$3::text)
+            from app.tax_st_settlement_snapshot s where s.tenant_id=$1 and s.empresa_id=$2 and s.competence=$7::date
+              and not exists(select 1 from app.tax_st_settlement_event prior where prior.snapshot_id=s.id and prior.details->>'eventId'=$3::text)`,
+          [tenantId,companyId,eventId,userId,correlationId,this.agora(),competence]);
+        return {id:eventId,competence,returnedQuantityScaled:input.returnedQuantityScaled,remainingQuantityScaled:result.remainingQuantityScaled.toString(),
+          reversedRestitutionCents:result.reversedRestitutionCents,reversedComplementCents:result.reversedComplementCents,evidenceSha256:sha256};
+    });
+  }
 
   async get(tenantId: string, userId: string, companyId: string, snapshotId: string, correlationId: string, page = 1, model?: '55' | '65') {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
@@ -87,7 +169,7 @@ export class IcmsStSettlementsService {
       if (!snapshot.rows[0]) throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_SETTLEMENT_NOT_FOUND, 'Apuração não encontrada.');
       const pageSize = 50;
       const offset = (page - 1) * pageSize;
-      const lines = await client.query(`select l.output_document_id,l.output_item_id,l.difference_kind,l.restitution_cents,l.complement_cents,l.facts,l.calculation,l.recovery_memory,l.source_ids,l.blocking_reason_codes
+      const lines = await client.query(`select l.id,l.output_document_id,l.output_item_id,l.difference_kind,l.restitution_cents,l.complement_cents,l.facts,l.calculation,l.recovery_memory,l.source_ids,l.blocking_reason_codes
           from app.tax_st_settlement_line l join app.fiscal_document d on d.id=l.output_document_id and d.tenant_id=l.tenant_id and d.empresa_id=l.empresa_id
          where l.tenant_id=$1 and l.empresa_id=$2 and l.snapshot_id=$3 and ($4::text is null or d.modelo=$4)
          order by l.output_document_id,l.output_item_id limit $5 offset $6`, [tenantId,companyId,snapshotId,model??null,pageSize,offset]);
@@ -96,8 +178,14 @@ export class IcmsStSettlementsService {
       const events = await client.query(`select action,occurred_at,details from app.tax_st_settlement_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3
         union all select action,occurred_at,details from app.tax_st_settlement_review_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3 order by occurred_at`,
         [tenantId, companyId, snapshotId]);
+      const returnEvents=await client.query(`select e.id,e.origin,e.return_document_identity,e.return_item_identity,to_char(e.event_date,'YYYY-MM-DD') event_date,
+          e.normalized_unit,e.returned_quantity_scaled::text returned_quantity_scaled,e.evidence_sha256,r.competence::text competence,
+          r.reversed_restitution_cents::text reversed_restitution_cents,r.reversed_complement_cents::text reversed_complement_cents,
+          r.remaining_quantity_scaled::text remaining_quantity_scaled,r.original_line_id
+        from app.tax_st_return_event e join app.tax_st_return_reversal r on r.event_id=e.id
+       where e.tenant_id=$1 and e.empresa_id=$2 and e.original_snapshot_id=$3 order by e.event_date,e.occurred_at,e.id`,[tenantId,companyId,snapshotId]);
       const filteredLineCount = Number(lineCount.rows[0]?.count ?? 0);
-      return { ...snapshot.rows[0], line_count: filteredLineCount, lines: lines.rows, events: events.rows, line_page: page, line_page_size: pageSize,
+      return { ...snapshot.rows[0], line_count: filteredLineCount, lines: lines.rows, events: events.rows, returnEvents:returnEvents.rows, line_page: page, line_page_size: pageSize,
         line_total_pages: Math.ceil(filteredLineCount / pageSize) };
     });
   }
