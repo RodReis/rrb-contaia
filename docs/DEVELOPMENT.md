@@ -721,6 +721,16 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Self-check anti-drift/gate, diff check e CI #39471292332 verdes no head `4f9c5b5`; E2E passou. A primeira tentativa de build falhou ao resolver `next/font/google` no Turbopack; rerun seletivo de build passou.
 - [ ] PR #137 aberta (`refs #29`); merge, confirmação do SHA integrado e cerimônia `fechar-card` pendentes. Sem `proplan:done` antes de resolver a revisão/publicação do pacote fiscal oficial.
 
+### Card #35 — `[MVP2][SPEC-031][F31]` Inclusão da NFC-e no complemento e restituição do ICMS-ST
+
+- [x] Iniciado em worktree dedicada `codex/f31-issue35`; issue #35 em `proplan:doing`, sub-issue nativa de #31.
+- [x] Parser e persistência preservam `idDest`/`indFinal` originais. A NFC-e 65 sem identificador do consumidor só passa pelo domínio com `idDest=1` e `indFinal=1`; indicadores ausentes ou contraditórios permanecem indeterminados.
+- [x] F29 inclui NFC-e no conjunto mensal, exclui canceladas antes do snapshot e registra hash/lista de canceladas. Importação, cancelamento e apuração serializam pela mesma trava da competência; mudança documental invalida também revisão ainda não submetida.
+- [x] API filtra histórico/detalhe por modelo e UI identifica modelo/chave, consumidor sem identificador e revisão desatualizada com ação explícita de reprocessamento.
+- [x] Provas locais: build 10/10; typecheck shared/domain/DB/API/workers/web; parser 1/1, domínio 6/6 e tela 6/6; lint shared/domain/DB/API e lint web sem erros (aviso React Compiler preexistente em `aba-de-enderecos.tsx`); `git diff --check`.
+- [ ] PostgreSQL/migrations 0000–0057, integração DB, E2E autenticado do fluxo importar → apurar → cancelar → STALE → reprocessar e capturas CLARO/ESCURO × 768/1024/1440: `not_run`; Docker Desktop retorna HTTP 500 no engine local. Reexecutar no CI/ambiente funcional antes de merge.
+- [ ] PR, CI verde no head final, merge confirmado, comentário `fechar-card` e `proplan:done` pendentes.
+
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
 
 - [x] Upload assíncrono XML/ZIP, limites de expansão, armazenamento por hash, consulta de lote, CSV e download original com hash/auditoria.

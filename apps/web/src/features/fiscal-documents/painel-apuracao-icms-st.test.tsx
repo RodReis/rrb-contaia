@@ -33,13 +33,18 @@ const Envolvido = ({ children }: { children: ReactNode }) => (
 
 describe('Painel de apuração F29', () => {
   beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    Element.prototype.hasPointerCapture = vi.fn(() => false);
+    Element.prototype.releasePointerCapture = vi.fn();
+    Element.prototype.setPointerCapture = vi.fn();
+    vi.stubGlobal('PointerEvent', MouseEvent);
     api.listar.mockResolvedValue({ itens: [{ id: snapshotId, competence: '2018-02-01', revision: 1, status: 'BLOCKED',
       processed_at: '2026-10-21T12:00:00.000Z', gross_restitution_cents: null, gross_complement_cents: null,
       net_amount_cents: null, line_count: 51, blocked_line_count: 51, review_action: null }] });
     api.obter.mockImplementation(async (_empresaId: string, _snapshotId: string, page: number) => snapshot(page));
   });
 
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => { vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
   it('mostra memória e indeterminação por linha sem inventar valores', async () => {
     render(<PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar={false} podeDecidir={false} />, { wrapper: Envolvido });
@@ -56,7 +61,7 @@ describe('Painel de apuração F29', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
     await screen.findByRole('table', { name: /Comparação por item/u });
     await userEvent.click(screen.getByRole('button', { name: 'Próxima' }));
-    await waitFor(() => expect(api.obter).toHaveBeenLastCalledWith(empresaId, snapshotId, 2));
+    await waitFor(() => expect(api.obter).toHaveBeenLastCalledWith(empresaId, snapshotId, 2, undefined));
     expect(await screen.findByText((_content, element) => element?.textContent === '51 item(ns) · página 2 de 2')).toBeInTheDocument();
   });
 
@@ -81,5 +86,35 @@ describe('Painel de apuração F29', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
     expect(await screen.findByRole('status')).toHaveTextContent(/Decisão suspensa/u);
     expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+  });
+
+  it('filtra NFC-e 65 e identifica chave e consumidor sem documento', async () => {
+    api.obter.mockImplementation(async (_empresaId: string, _snapshotId: string, page: number) => {
+      const result = snapshot(page);
+      const line = result.lines[0]!;
+      return { ...result, line_count: 1, line_total_pages: 1,
+        lines: [{ ...line, facts: { ...(line['facts'] as Record<string, unknown>), documentModel: '65', accessKey: '3'.repeat(44), destinationIdentifier: null } }],
+      };
+    });
+    render(<PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar={false} podeDecidir={false} />, { wrapper: Envolvido });
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Modelo' }));
+    await userEvent.click(screen.getByRole('option', { name: 'NFC-e 65' }));
+    await waitFor(() => expect(api.obter).toHaveBeenLastCalledWith(empresaId, snapshotId, 1, '65'));
+    expect(screen.getAllByText('NFC-e 65').length).toBeGreaterThan(0);
+    expect(screen.getByText('Consumidor não identificado')).toBeInTheDocument();
+    expect(screen.getByText('3'.repeat(44))).toBeInTheDocument();
+  });
+
+  it('marca revisão desatualizada e exige motivo antes de reprocessar', async () => {
+    api.listar.mockResolvedValue({ itens: [{ id: snapshotId, competence: '2018-02-01', revision: 1, status: 'STALE',
+      processed_at: '2026-10-21T12:00:00.000Z', gross_restitution_cents: null, gross_complement_cents: null,
+      net_amount_cents: null, line_count: 51, blocked_line_count: 51, review_action: null }] });
+    api.obter.mockResolvedValue({ ...snapshot(1), status: 'STALE', events: [{ action: 'DOCUMENT_SET_CHANGED', occurred_at: '2026-10-21T12:01:00.000Z', details: {} }] });
+    render(<PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar podeDecidir={false} />, { wrapper: Envolvido });
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
+    expect(await screen.findByText(/O conjunto de NFC-e mudou/u)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reprocessar competência' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: /Motivo do reprocessamento/u })).toBeInTheDocument();
   });
 });

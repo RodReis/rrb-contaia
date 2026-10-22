@@ -49,4 +49,23 @@ describe('resolveIcmsStSettlement', () => {
     const result = resolve([entry({ corroborated: false })]);
     expect(result).toMatchObject({ status: 'BLOCKED', grossRestitutionCents: null, grossComplementCents: null, netAmountCents: null });
   });
+
+  it('aceita NFC-e sem destinatário quando idDest e indFinal comprovam venda interna a consumidor final', () => {
+    const nfce: IcmsStOutputLine = { ...output, documentId: 'nfce', id: 'nfce:1', documentModel: '65', destinationUf: null,
+      destinationIndicator: '1', finalConsumerIndicator: '1' };
+    const result = resolveIcmsStSettlement({ companyId: 'company', competence: '2017-06', regime: 'SIMPLES_NACIONAL',
+      outputs: [nfce], entries: [entry({ linkedOutputLineIds: ['nfce:1'] })], rules: [rule] });
+    expect(result.lines[0]).toMatchObject({ differenceKind: 'COMPLEMENT', outputDocumentId: 'nfce' });
+  });
+
+  it('não infere indicadores ausentes ou contraditórios em NFC-e', () => {
+    const base: IcmsStOutputLine = { ...output, documentId: 'nfce', id: 'nfce:1', documentModel: '65', destinationUf: null,
+      destinationIndicator: null, finalConsumerIndicator: '1' };
+    const missing = resolveIcmsStSettlement({ companyId: 'company', competence: '2017-06', regime: 'SIMPLES_NACIONAL',
+      outputs: [base], entries: [entry({ linkedOutputLineIds: ['nfce:1'] })], rules: [rule] });
+    expect(missing.lines[0]?.blockingReasonCodes).toContain('OUTPUT_INDICATOR_MISSING');
+    const contradictory = resolveIcmsStSettlement({ companyId: 'company', competence: '2017-06', regime: 'SIMPLES_NACIONAL',
+      outputs: [{ ...base, destinationIndicator: '2', finalConsumerIndicator: '0' }], entries: [entry({ linkedOutputLineIds: ['nfce:1'] })], rules: [rule] });
+    expect(contradictory.lines[0]?.blockingReasonCodes).toContain('OUTPUT_INDICATOR_CONTRADICTORY');
+  });
 });

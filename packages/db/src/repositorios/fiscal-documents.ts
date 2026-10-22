@@ -11,6 +11,7 @@ export type RegistroFiscalPersistido = Readonly<{
     logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; codigoMunicipio: string | null;
     municipio: string | null; uf: string | null; cep: string | null; codigoPais: string | null; pais: string | null }>[];
   emitidoEm: string | null; emitente: string | null; finalConsumer?: boolean | null;
+  destinationIndicator?: string | null; finalConsumerIndicator?: string | null;
   destinatario: string | null; total: string | null; ibsCbsPendente: boolean;
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
   itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; gtin?: string | null; descricao: string | null; quantidade: string | null; unidade: string | null; valor: string | null; freight?: string | null; insurance?: string | null; discount?: string | null; otherExpenses?: string | null; ibs: string | null; cbs: string | null; ncm?: string | null; cest?: string | null; cfop?: string | null; cstCsosn?: string | null; codigoBeneficio?: string | null }>[];
@@ -345,14 +346,14 @@ export const persistirDocumentoFiscal = async (client: PoolClient, input: Readon
   const precisaNormalizar = !existing || existing.parser_version !== input.parserVersion || ['FALHA','XML_INVALIDO','PENDENTE_LAYOUT'].includes(existing.estado);
   if (!existing) {
     await client.query(
-      `insert into app.fiscal_document(id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,numero_documento,serie_documento,emitente,destinatario,consumidor_final,total,base_ibs_cbs,total_ibs,total_cbs,estado,parser_version)
-       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::timestamptz,$14::date,$15,$16,$17,$18,$19,$20::numeric,$21::numeric,$22::numeric,$23::numeric,$24,$25)`,
-      [id,input.tenantId,input.empresaId,input.stagingId,input.parsed.especie,input.parsed.chaveAcesso,input.parsed.hashSha256,input.originalKey,input.parsed.tamanho,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.numeroDocumento,input.parsed.serieDocumento,input.parsed.emitente,input.parsed.destinatario,input.parsed.finalConsumer ?? null,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,state,input.parserVersion],
+      `insert into app.fiscal_document(id,tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,original_key,tamanho_bytes,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,numero_documento,serie_documento,emitente,destinatario,consumidor_final,id_dest,ind_final,total,base_ibs_cbs,total_ibs,total_cbs,estado,parser_version)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::timestamptz,$14::date,$15,$16,$17,$18,$19,$20,$21,$22::numeric,$23::numeric,$24::numeric,$25::numeric,$26,$27)`,
+      [id,input.tenantId,input.empresaId,input.stagingId,input.parsed.especie,input.parsed.chaveAcesso,input.parsed.hashSha256,input.originalKey,input.parsed.tamanho,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.numeroDocumento,input.parsed.serieDocumento,input.parsed.emitente,input.parsed.destinatario,input.parsed.finalConsumer ?? null,input.parsed.destinationIndicator ?? null,input.parsed.finalConsumerIndicator ?? null,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,state,input.parserVersion],
     );
   } else if (precisaNormalizar) {
     await client.query(
-      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,protocolo=$4,protocolo_recebido_em=$5::timestamptz,emitido_em=$6::date,numero_documento=$7,serie_documento=$8,emitente=$9,destinatario=$10,consumidor_final=$11,total=$12::numeric,base_ibs_cbs=$13::numeric,total_ibs=$14::numeric,total_cbs=$15::numeric,parser_version=$16,atualizado_em=now() where id=$17`,
-      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.numeroDocumento,input.parsed.serieDocumento,input.parsed.emitente,input.parsed.destinatario,input.parsed.finalConsumer ?? null,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,input.parserVersion,id],
+      `update app.fiscal_document set estado=$1,modelo=$2,versao_layout=$3,protocolo=$4,protocolo_recebido_em=$5::timestamptz,emitido_em=$6::date,numero_documento=$7,serie_documento=$8,emitente=$9,destinatario=$10,consumidor_final=$11,id_dest=$12,ind_final=$13,total=$14::numeric,base_ibs_cbs=$15::numeric,total_ibs=$16::numeric,total_cbs=$17::numeric,parser_version=$18,atualizado_em=now() where id=$19`,
+      [state,input.parsed.modelo,input.parsed.versaoLayout,input.parsed.protocolo,input.parsed.protocoloRecebidoEm,input.parsed.emitidoEm?.slice(0,10) ?? null,input.parsed.numeroDocumento,input.parsed.serieDocumento,input.parsed.emitente,input.parsed.destinatario,input.parsed.finalConsumer ?? null,input.parsed.destinationIndicator ?? null,input.parsed.finalConsumerIndicator ?? null,input.parsed.total,input.parsed.baseIbsCbs,input.parsed.totalIbs,input.parsed.totalCbs,input.parserVersion,id],
     );
   }
   if (precisaNormalizar) {

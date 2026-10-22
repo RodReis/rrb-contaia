@@ -92,14 +92,15 @@ export class FiscalDocumentsController {
   @ExigePermissao('fiscal.motor_tributario.consultar')
   obterApuracaoIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string,
     @Param('snapshotId') snapshotId: string, @Query() query: unknown) {
-    const pagina = analisar(paginaSchema, query).pagina;
-    return this.icmsStService.get(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(persistedUuid, snapshotId), obterCorrelationId(request), pagina);
+    const input = analisar(paginaSchema.extend({ modelo: z.enum(['55','65']).optional() }), query);
+    return this.icmsStService.get(tenantDa(request), autorDa(request).usuarioId, companyId, analisar(persistedUuid, snapshotId), obterCorrelationId(request), input.pagina, input.modelo);
   }
 
   @Get('icms-st-settlements')
   @ExigePermissao('fiscal.motor_tributario.consultar')
-  listarApuracoesIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string) {
-    return this.icmsStService.list(tenantDa(request),autorDa(request).usuarioId,companyId,obterCorrelationId(request));
+  listarApuracoesIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Query() query: unknown) {
+    const input=analisar(z.strictObject({modelo:z.enum(['55','65']).optional()}),query);
+    return this.icmsStService.list(tenantDa(request),autorDa(request).usuarioId,companyId,obterCorrelationId(request),input.modelo);
   }
 
   @Post('nfce-imports')
