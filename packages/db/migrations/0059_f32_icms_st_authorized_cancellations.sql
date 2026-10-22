@@ -28,7 +28,7 @@ CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.tax_st_authorized_cancellati
 CREATE TRIGGER tax_st_authorized_cancellation_append_only BEFORE UPDATE OR DELETE ON app.tax_st_authorized_cancellation FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 CREATE TRIGGER tax_st_authorized_cancellation_no_truncate BEFORE TRUNCATE ON app.tax_st_authorized_cancellation FOR EACH STATEMENT EXECUTE FUNCTION app.rejeitar_truncate_tax_resolution();
 REVOKE ALL ON app.tax_st_authorized_cancellation FROM PUBLIC,contaia_app;
-GRANT SELECT,INSERT ON app.tax_st_authorized_cancellation TO contaia_app;
+GRANT SELECT ON app.tax_st_authorized_cancellation TO contaia_app;
 
 CREATE FUNCTION app.tax_st_capture_authorized_cancellation()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=app,public,pg_temp AS $$
@@ -36,7 +36,12 @@ DECLARE doc app.fiscal_document%ROWTYPE; month_start date;
 BEGIN
   IF NEW.tipo IS DISTINCT FROM 'CANCELAMENTO' OR NEW.codigo IS DISTINCT FROM '110111' THEN RETURN NEW; END IF;
   SELECT * INTO doc FROM app.fiscal_document WHERE id=NEW.document_id AND tenant_id=NEW.tenant_id AND empresa_id=NEW.empresa_id;
-  IF NOT FOUND OR doc.especie NOT IN ('NFE_55','NFCE_65') OR doc.estado<>'CANCELLED' OR doc.protocolo_cancelamento IS NULL OR NEW.hash_sha256 IS NULL THEN RETURN NEW; END IF;
+  IF NOT FOUND OR doc.especie<>'NFCE_65' OR doc.estado<>'CANCELLED' OR doc.protocolo_cancelamento IS NULL OR NEW.hash_sha256 IS NULL OR NEW.nfce_source_id IS NULL THEN RETURN NEW; END IF;
+  IF NOT EXISTS(SELECT 1 FROM app.nfce_import_event event
+       JOIN app.nfce_import_item item ON item.id=event.item_id AND item.tenant_id=event.tenant_id AND item.empresa_id=event.empresa_id
+       WHERE event.source_id=NEW.nfce_source_id AND event.tenant_id=NEW.tenant_id AND event.empresa_id=NEW.empresa_id AND event.chave_acesso=doc.chave_acesso
+         AND event.tipo='110111' AND event.protocolo=doc.protocolo_cancelamento AND event.hash_sha256=NEW.hash_sha256
+         AND item.status='IMPORTED' AND item.document_id=NEW.document_id) THEN RETURN NEW; END IF;
   month_start:=date_trunc('month',doc.emitido_em)::date;
   INSERT INTO app.tax_st_authorized_cancellation(tenant_id,empresa_id,output_document_id,source_event_id,output_competence,
     authorized_at,evidence_sha256,actor_id,correlation_id,occurred_at)

@@ -104,11 +104,35 @@ const prepararDocumentoFiscal = async (admin: Consultavel, e: Escopo): Promise<R
 
 const prepararCancelamentoTributario = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const documento = await prepararDocumentoFiscal(admin, e);
-  await admin.query(
-    `update app.fiscal_document set emitido_em='2017-01-01',estado='CANCELLED',cancelado_em='2017-02-01T12:00:00Z',protocolo_cancelamento='135260000000001' where id=$1`,
-    [documento['documentId']],
-  );
-  return documento;
+  const snapshotId=await unico(admin,
+    `insert into app.tax_st_settlement_snapshot(tenant_id,empresa_id,competence,revision,idempotency_key,input_sha256,status,line_count,blocked_line_count,facts,actor_id,correlation_id,processed_at)
+     values($1,$2,'2017-01-01',$3,$4,repeat('c',64),'BLOCKED',0,0,'{}'::jsonb,$5,'f32-cancellation-fixture',now()) returning id`,
+    [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]);
+  await admin.query(`insert into app.tax_st_settlement_review_event(tenant_id,empresa_id,snapshot_id,action,actor_id,correlation_id,occurred_at,details)
+    values($1,$2,$3,'SUBMITTED',$4,'f32-cancellation-fixture',now(),'{}'::jsonb)`,[e.tenantId,e.empresaId,snapshotId,e.autorId]);
+  const accessKey=String(proximo()).padStart(44,'1').slice(-44);
+  const protocol='135260000000001';
+  const eventHash='d'.repeat(64);
+  const sourceBatchId=await unico(admin,`insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
+    values($1,$2,$3,'f32-cancellation-fixture','ERP','COMPLETED',1) returning id`,[e.tenantId,e.empresaId,e.autorId]);
+  const sourceItemId=await unico(admin,`insert into app.nfce_import_item(tenant_id,empresa_id,batch_id,nome_sanitizado,tamanho_bytes,hash_sha256,original_key,status,document_id,parser_version,schema_version,correlation_id)
+    values($1,$2,$3,'cancelamento.xml',1,$4,$5,'IMPORTED',$6,'fixture','fixture','f32-cancellation-fixture') returning id`,
+    [e.tenantId,e.empresaId,sourceBatchId,eventHash,`fiscal/${e.sufixo}/cancelamento.xml`,documento['documentId']]);
+  const sourceId=await unico(admin,`insert into app.nfce_import_source(tenant_id,empresa_id,item_id,cnpj,origem,correlation_id)
+    values($1,$2,$3,$4,'ERP','f32-cancellation-fixture') returning id`,[e.tenantId,e.empresaId,sourceItemId,documento['cnpj']]);
+  await admin.query(`insert into app.nfce_import_event(tenant_id,empresa_id,item_id,source_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,tamanho_bytes,correlation_id)
+    values($1,$2,$3,$4,$5,$6,'PRODUCAO','110111','1',$7,$8,$9,1,'f32-cancellation-fixture')`,
+    [e.tenantId,e.empresaId,sourceItemId,sourceId,accessKey,documento['cnpj'],protocol,eventHash,`fiscal/${e.sufixo}/cancelamento.xml`]);
+  await admin.query(`update app.fiscal_document set especie='NFCE_65',modelo='65',chave_acesso=$2,emitido_em='2017-01-01',estado='CANCELLED',cancelado_em='2017-02-01T12:00:00Z',protocolo_cancelamento=$3 where id=$1`,
+    [documento['documentId'],accessKey,protocol]);
+  const sourceEventId = await unico(admin,
+    `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,parser_version,hash_sha256,ator_id,correlation_id)
+     values($1,$2,$3,$4,'CANCELAMENTO','110111','fixture',$5,$6,'f32-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,documento['documentId'],sourceId,eventHash,e.autorId]);
+  const cancellation=await admin.query<{id:string}>(`select id from app.tax_st_authorized_cancellation where source_event_id=$1`,[sourceEventId]);
+  const stale=await admin.query<{id:string}>(`select id from app.tax_st_settlement_event where snapshot_id=$1 and action='DOCUMENT_SET_CHANGED' and details->>'eventId'=$2`,[snapshotId,sourceEventId]);
+  if(!cancellation.rows[0]||!stale.rows[0])throw new Error('trigger F32 não registrou cancelamento autorizado e invalidação da revisão');
+  return { ...documento, sourceEventId, cancellationId:cancellation.rows[0].id };
 };
 
 const prepararDocumentoParaSnapshot = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
@@ -936,10 +960,14 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   },
   'app.tax_st_authorized_cancellation': {
     preparar: prepararCancelamentoTributario,
-    inserir: (banco,e,r) => unico(banco,
-      `insert into app.tax_st_authorized_cancellation(tenant_id,empresa_id,output_document_id,source_event_id,output_competence,authorized_at,evidence_sha256,actor_id,correlation_id,occurred_at)
-       values($1,$2,$3,$4,'2017-01-01','2017-02-01T12:00:00Z',repeat('e',64),$5,'f32-rls-fixture',now()) returning id`,
-      [e.tenantId,e.empresaId,r['documentId'],randomUUID(),e.autorId]),
+    inserir: async (banco,e,r) => {
+      const role=await banco.query<{name:string}>('select current_user name');
+      if(role.rows[0]?.name==='contaia_app')return unico(banco,
+        `insert into app.tax_st_authorized_cancellation(tenant_id,empresa_id,output_document_id,source_event_id,output_competence,authorized_at,evidence_sha256,actor_id,correlation_id,occurred_at)
+         values($1,$2,$3,$4,'2017-01-01','2017-02-01T12:00:00Z',repeat('e',64),$5,'f32-rls-fixture',now()) returning id`,
+        [e.tenantId,e.empresaId,r['documentId'],r['sourceEventId'],e.autorId]);
+      return r['cancellationId']!;
+    },
   },
   'app.tax_st_return_event': {
     preparar: prepararDevolucaoIcmsSt,
