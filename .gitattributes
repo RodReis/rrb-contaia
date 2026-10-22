@@ -13,3 +13,5 @@ packages/planilhas/fixtures/*.xlsx binary
 packages/planilhas/fixtures/*.ods binary
 packages/planilhas/fixtures/*.xls binary
 packages/planilhas/fixtures/*.csv -text
+# XSDs oficiais são mantidos byte a byte, inclusive espaços de documentação do pacote de origem.
+packages/shared/src/nfce/schemas/**/*.xsd -text whitespace=-blank-at-eol,-blank-at-eof

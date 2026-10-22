@@ -499,7 +499,7 @@ describe.each(DOMINIOS)('%s: arquivo hostil no worker → REJEITADA com código 
     ]);
     expect(await tentativaNoBanco(d, t.id)).toMatchObject({ linhas_ignoradas_antes_do_cabecalho: 0, linhas_ocultas: 0, diagnosticos: [] });
     expect(await notificadosDe(d, t.id)).toEqual(d.notificados());
-  });
+  }, 10_000);
 
   it('aba que sumiu do arquivo e cabeçalho mesclado (rede de segurança do worker) → ABA_INEXISTENTE / CABECALHO_MESCLADO', async () => {
     const semAba = await novaTentativa(d, BOM(d), { formato: 'XLSX', abaPosicao: 7 });

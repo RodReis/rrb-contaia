@@ -20,9 +20,12 @@
     "@contaia/planilhas": "workspace:*",
     "@contaia/shared": "workspace:*",
     "@contaia/signer-client": "workspace:*",
+    "@xmldom/xmldom": "0.8.15",
     "bullmq": "6.3.11",
     "ioredis": "5.11.1",
-    "pg": "8.23.0"
+    "libxml2-wasm": "^0.7.2",
+    "pg": "8.23.0",
+    "xml-crypto": "6.3.3"
   },
   "devDependencies": {
     "@contaia/config": "workspace:*",

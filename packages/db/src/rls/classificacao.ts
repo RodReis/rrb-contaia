@@ -371,6 +371,11 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.rfb_procuracao_evento', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },
   { tabela: 'app.rfb_procuracao_operacao', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },
   { tabela: 'app.rfb_procuracao_notificacao', classe: 'empresa', origem: 'F25 / SPEC-025' },
+  { tabela: 'app.fiscal_document_payment', classe: 'empresa', origem: 'F30 / SPEC-030', appendOnly: true },
+  { tabela: 'app.nfce_import_batch', classe: 'empresa', origem: 'F30 / SPEC-030' },
+  { tabela: 'app.nfce_import_item', classe: 'empresa', origem: 'F30 / SPEC-030' },
+  { tabela: 'app.nfce_import_source', classe: 'empresa', origem: 'F30 / SPEC-030' },
+  { tabela: 'app.nfce_import_event', classe: 'empresa', origem: 'F30 / SPEC-030', appendOnly: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

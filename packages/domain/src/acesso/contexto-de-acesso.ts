@@ -27,7 +27,7 @@ export const FINALIDADES_ADMINISTRATIVAS = ['ADMIN_ACESSO', 'LOCALIZACAO_BASICA_
  * Finalidade de job técnico: uma por tipo de trabalho, sempre presa a um tenant e
  * a uma empresa. Cada fatia que introduzir um worker acrescenta a sua aqui.
  */
-export const FINALIDADES_TECNICAS = ['PROCESSAMENTO_DE_EMPRESA'] as const;
+export const FINALIDADES_TECNICAS = ['PROCESSAMENTO_DE_EMPRESA', 'IMPORTACAO_NFCE'] as const;
 
 /**
  * Finalidade de serviço: trabalho global, sem tenant nem empresa (SPEC-012 §3.10 — o monitor do

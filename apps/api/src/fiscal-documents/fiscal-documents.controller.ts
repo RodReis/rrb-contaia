@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
@@ -11,6 +11,8 @@ import { analisar } from '../escritorio/escritorio.dto';
 import { paginaSchema } from '../empregados/empregados.dto';
 import { FiscalDocumentsService } from './fiscal-documents.service';
 import { IcmsStSettlementsService } from './icms-st-settlements.service';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { z as zod } from 'zod';
 
 const uuid = z.string().uuid();
 const persistedUuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
@@ -98,6 +100,42 @@ export class FiscalDocumentsController {
   @ExigePermissao('fiscal.motor_tributario.consultar')
   listarApuracoesIcmsSt(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string) {
     return this.icmsStService.list(tenantDa(request),autorDa(request).usuarioId,companyId,obterCorrelationId(request));
+  }
+
+  @Post('nfce-imports')
+  @HttpCode(202)
+  @AcaoLivre()
+  @UseInterceptors(FilesInterceptor('arquivos',10,{limits:{fileSize:10*1024*1024,files:10,fields:1}}))
+  importarNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown){
+    const actor=autorDa(request);const roles=request.sessao?.papeis??[];
+    if(!roles.some(role=>(['admin_escritorio','contador','auxiliar'] as readonly string[]).includes(role)))throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Papel sem autorização para importar NFC-e.');
+    const input=analisar(zod.strictObject({origem:zod.enum(['PORTAL_GO','ERP','EMISSOR'])}),body);
+    const received=(files??[]).map(file=>({nomeOriginal:file.originalname,tipoConteudo:file.mimetype,conteudo:file.buffer}));
+    return this.service.importarNfce(tenantDa(request),actor.usuarioId,companyId,obterCorrelationId(request),input.origem,received);
+  }
+
+  @Get('nfce-imports/:batchId')
+  @ExigePermissao('empresas.cadastro.consultar')
+  obterLoteNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('batchId') batchId:string){
+    return this.service.obterLoteNfce(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,batchId),obterCorrelationId(request));
+  }
+
+  @Get('nfce-imports/:batchId/report')
+  @ExigePermissao('empresas.cadastro.consultar')
+  async relatorioLoteNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('batchId') batchId:string,@Res() response:Response){
+    const csv=await this.service.relatorioLoteNfce(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,batchId),obterCorrelationId(request));response.status(200).type('text/csv; charset=utf-8').setHeader('Content-Disposition','attachment; filename="nfce-importacao.csv"').setHeader('Cache-Control','private, no-store').send(csv);
+  }
+
+  @Get('nfce-imports/items/:itemId/original')
+  @ExigePermissao('empresas.cadastro.consultar')
+  async originalEventoNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('itemId') itemId:string,@Res() response:Response){
+    const file=await this.service.originalEventoNfce(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,itemId),obterCorrelationId(request));response.status(200).type('application/xml').setHeader('Content-Disposition','attachment; filename="nfce-evento-original.xml"').setHeader('Cache-Control','private, no-store').send(file.conteudo);
+  }
+
+  @Get(':documentId/nfce-original')
+  @ExigePermissao('empresas.cadastro.consultar')
+  async originalNfce(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('documentId') documentId:string,@Res() response:Response){
+    const file=await this.service.originalNfce(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(uuid,documentId),obterCorrelationId(request));response.status(200).type('application/xml').setHeader('Content-Disposition','attachment; filename="nfce-original.xml"').setHeader('Cache-Control','private, no-store').send(file.conteudo);
   }
 
   @Get()

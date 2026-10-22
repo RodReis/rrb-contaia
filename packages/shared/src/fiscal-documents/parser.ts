@@ -1,7 +1,7 @@
 import { DOMParser } from '@xmldom/xmldom';
 
 export const TAMANHO_MAXIMO_XML_FISCAL = 10 * 1024 * 1024;
-export type EspecieFiscal = 'NFE_55' | 'CTE';
+export type EspecieFiscal = 'NFE_55' | 'NFCE_65' | 'CTE';
 export type FalhaParseFiscal = 'FISCAL_XML_INVALID' | 'FISCAL_XML_UNSAFE' | 'FISCAL_XML_TOO_LARGE' | 'FISCAL_LAYOUT_UNSUPPORTED' | 'FISCAL_DOCUMENT_TYPE_MISMATCH' | 'FISCAL_DOCUMENT_IDENTITY_INVALID' | 'FISCAL_IBS_CBS_INCOMPLETE';
 export type ParteFiscalParseada = Readonly<{
   papel: 'EMITENTE' | 'DESTINATARIO'; identificador: string | null; nome: string | null; inscricaoEstadual: string | null;
@@ -13,6 +13,7 @@ export type TributoFiscalParseado = Readonly<{
   escopo: 'DOCUMENTO' | 'ITEM'; numeroItem: number | null; codigo: 'ICMS' | 'ICMS_ST' | 'IPI' | 'II' | 'PIS' | 'COFINS' | 'IBS' | 'CBS';
   baseCalculo: string | null; aliquota: string | null; valor: string | null; situacao: string | null; classificacao: string | null;
 }>;
+export type PagamentoFiscalParseado = Readonly<{ indicador: string|null; meio: string|null; valor: string|null; integracao: string|null; bandeira: string|null; autorizacao: string|null }>;
 export type DocumentoFiscalParseado = Readonly<{
   especie: EspecieFiscal; modelo: string; versaoLayout: string; chaveAcesso: string;
   protocolo: string | null; protocoloRecebidoEm: string | null; numeroDocumento: string | null; serieDocumento: string | null;
@@ -21,6 +22,7 @@ export type DocumentoFiscalParseado = Readonly<{
   tributos: readonly TributoFiscalParseado[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
   finalConsumer: boolean | null;
+  pagamentos: readonly PagamentoFiscalParseado[];
   baseIbsCbs: string | null; totalIbs: string | null; totalCbs: string | null;
   total: string | null; itens: readonly Readonly<{ tipo: 'ITEM' | 'COMPONENTE' | 'MEDIDA_CARGA'; codigo: string | null; gtin: string | null; descricao: string | null; ncm: string | null; cest: string | null; cfop: string | null; cstCsosn: string | null; codigoBeneficio: string | null; quantidade: string | null; unidade: string | null; valor: string | null; freight: string | null; insurance: string | null; discount: string | null; otherExpenses: string | null; ibs: string | null; cbs: string | null }>[];
   ibsCbsPendente: boolean; tamanho: number;
@@ -113,16 +115,16 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   const nfe = rootName === 'nfeProc' || rootName === 'NFe';
   const cte = rootName === 'cteProc' || rootName === 'CTe';
   if (!nfe && !cte) erro('FISCAL_LAYOUT_UNSUPPORTED');
-  const especie: EspecieFiscal = nfe ? 'NFE_55' : 'CTE';
-  if (especie !== especieEsperada) erro('FISCAL_DOCUMENT_TYPE_MISMATCH');
   const namespaceEsperado = nfe ? 'http://www.portalfiscal.inf.br/nfe' : 'http://www.portalfiscal.inf.br/cte';
+  const model = nfe ? texto(document, 'mod', namespaceEsperado) : '57';
+  const especie: EspecieFiscal = !nfe ? 'CTE' : model === '65' ? 'NFCE_65' : 'NFE_55';
+  if (especie !== especieEsperada) erro('FISCAL_DOCUMENT_TYPE_MISMATCH');
   if (document.documentElement.namespaceURI !== namespaceEsperado) erro('FISCAL_LAYOUT_UNSUPPORTED');
   const info = document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'infNFe' : 'infCte')[0];
   if (!info) erro('FISCAL_LAYOUT_UNSUPPORTED');
-  const model = nfe ? texto(document, 'mod', namespaceEsperado) : '57';
-  if ((nfe && model !== '55') || (cte && model !== '57')) erro('FISCAL_LAYOUT_UNSUPPORTED');
+  if ((nfe && model !== '55' && model !== '65') || (cte && model !== '57')) erro('FISCAL_LAYOUT_UNSUPPORTED');
   const versaoLayout = info.getAttribute('versao') ?? document.documentElement.getAttribute('versao') ?? 'desconhecida';
-  if (versaoLayout !== '4.00') erro('FISCAL_LAYOUT_UNSUPPORTED');
+  if (versaoLayout !== '4.00' && !(especie === 'NFCE_65' && versaoLayout === '3.10')) erro('FISCAL_LAYOUT_UNSUPPORTED');
   if (!existe(info as unknown as XmlContainer, 'ide', namespaceEsperado) || !existe(info as unknown as XmlContainer, 'emit', namespaceEsperado)) erro('FISCAL_LAYOUT_UNSUPPORTED');
   if (nfe && (!document.getElementsByTagNameNS(namespaceEsperado, 'det').length || !texto(info as unknown as XmlContainer, 'vNF', namespaceEsperado))) erro('FISCAL_LAYOUT_UNSUPPORTED');
   if (cte && (!texto(info as unknown as XmlContainer, 'vTPrest', namespaceEsperado) || !existe(info as unknown as XmlContainer, 'infCarga', namespaceEsperado))) erro('FISCAL_LAYOUT_UNSUPPORTED');
@@ -169,6 +171,11 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     items.unshift(...components);
   }
   const tributos: TributoFiscalParseado[] = [];
+  const pagamentos: PagamentoFiscalParseado[] = nfe ? Array.from(document.getElementsByTagNameNS(namespaceEsperado,'detPag')).map((node)=>({
+    indicador:texto(node as unknown as XmlContainer,'indPag',namespaceEsperado),meio:texto(node as unknown as XmlContainer,'tPag',namespaceEsperado),
+    valor:texto(node as unknown as XmlContainer,'vPag',namespaceEsperado),integracao:texto(node as unknown as XmlContainer,'tpIntegra',namespaceEsperado),
+    bandeira:texto(node as unknown as XmlContainer,'tBand',namespaceEsperado),autorizacao:texto(node as unknown as XmlContainer,'cAut',namespaceEsperado),
+  })) : [];
   if (nfe) {
     itemNodes.forEach((node, index) => {
       const item = node as Element;
@@ -227,7 +234,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
     }];
   });
   return {
-    especie, modelo: model!, versaoLayout, tributos,
+    especie, modelo: model!, versaoLayout, tributos, pagamentos,
     chaveAcesso: key, emitidoEm: emission, finalConsumer, numeroDocumento, serieDocumento,
     protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado),
     protocoloRecebidoEm: protocolReceivedAt ? new Date(protocolReceivedAt).toISOString() : null, referencias, partes,
@@ -249,7 +256,7 @@ export const ehDocumentoFiscalElegivel = (bytes: Uint8Array, especie: EspecieFis
   try {
     const document = new DOMParser({ errorHandler: () => undefined }).parseFromString(source, 'application/xml');
     const root = document.documentElement?.localName;
-    if (especie === 'NFE_55') return !['resNFe','procEventoNFe','retEvento'].includes(root ?? '');
+    if (especie === 'NFE_55' || especie === 'NFCE_65') return !['resNFe','procEventoNFe','retEvento'].includes(root ?? '');
     return !['resCTe','procEventoCTe','resEvento','retEvento'].includes(root ?? '');
   } catch { return true; }
 };

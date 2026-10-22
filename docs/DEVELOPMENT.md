@@ -721,6 +721,18 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Self-check anti-drift/gate, diff check e CI #39471292332 verdes no head `4f9c5b5`; E2E passou. A primeira tentativa de build falhou ao resolver `next/font/google` no Turbopack; rerun seletivo de build passou.
 - [ ] PR #137 aberta (`refs #29`); merge, confirmação do SHA integrado e cerimônia `fechar-card` pendentes. Sem `proplan:done` antes de resolver a revisão/publicação do pacote fiscal oficial.
 
+### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
+
+- [x] Upload assíncrono XML/ZIP, limites de expansão, armazenamento por hash, consulta de lote, CSV e download original com hash/auditoria.
+- [x] Parser de NFC-e GO 3.10/4.00, schema versionado, chave/modelo/emitente/protocolo, normalização de itens/tributos/pagamentos e integração inicial com F18/F29.
+- [x] Migrations 0053–0056 adicionam persistência append-only de eventos de cancelamento órfãos, RLS, unicidade por identidade, estado `CANCELLED`, trigger `escopo_imutavel` e contexto técnico restrito ao `worker-nfce`; invalidação F29 aceita worker autorizado com ator humano ativo.
+- [x] Worker valida schema oficial do envelope e do detalhe 110111, XMLDSig com referência única ao `infEvento`/`infNFe` sem IDs repetidos, empresa e ambiente; evento com documento existente cancela na transação, evento órfão fica `PENDING_LINK` e concilia ao importar a NFC-e.
+- [x] Parser distingue protocolo do evento em `retEvento/infEvento`; prova shared 7/7 e worker XSD oficial 2/2. Typechecks/lints de shared, DB e workers; DB focal + matriz RLS + anti drift 23/23 após migrations 0000–0056 em PostgreSQL 17 isolado iniciado do zero; `git diff --check`.
+- [x] Validade do certificado de assinatura e dos emissores CA aceitos é conferida no instante de `dhEvento`/recebimento do protocolo; assinatura exige caminho até raiz configurada e referência única ao alvo assinado.
+- [ ] Não há verificação de revogação CRL/OCSP, fixture criptográfica confiável de evento nem teste worker de assinatura/vínculo antes/depois da nota.
+- [ ] Ainda faltam reprocessamento técnico auditado, endpoint autorizado/auditado de original para evento, conciliação/reuso/conflito concorrente comprovados e grupos de normalização que ainda não foram cobertos por fixture.
+- [ ] Completar regressão de armazenamento/falha técnica, segurança ZIP/XML, performance, provas de API/worker e E2E, comparação com protótipo e evidência CLARO/ESCURO × 768/1024/1440. CI verde anterior era do head `343e815`; este novo head precisa de CI própria.
+
 ### Card #33 — `[MVP2][SPEC-029][F29]` Complemento e restituição de ICMS-ST de autopeças em Goiás
 
 - [x] Domínio e contratos versionados calculam base/ICMS efetivos com decimal exato, rateio de vínculo direto e média ponderada limitada às entradas elegíveis; package validator rejeita regras sem fixture concordante, duplicidade e sobreposição. Sem parâmetro oficial, pacote não publica.
