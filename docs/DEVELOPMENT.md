@@ -18,37 +18,40 @@ Do MVP-1 ao MVP-4, existe somente o ambiente Docker local definido na [ADR-012](
 | Docker + Compose | corrente (validado em 29.8.0) |
 | Python | fixado em `services/ai/.python-version` (serviço ainda não criado) |
 
-### 1.2 Primeira subida
+### 1.2 Instância local compartilhada
+
+Usar sempre o projeto Compose `contaia` definido em `infra/docker/compose.yml`, a partir de `C:\Desenv\Projetos\rrb-contaia`. A mesma instância, portas e volumes persistem entre cards, branches e worktrees. Antes de subir, conferir `.env` e `COMPOSE_PROJECT_NAME`: manter `contaia`; se a instância já existir, apenas iniciá-la. Não copiar `.env` de novo, trocar portas ou criar outro projeto Compose por issue.
+
+Somente na instalação inicial, quando a instância `contaia` ainda não existir:
 
 ```bash
 pnpm install
-cp .env.example .env            # portas e credenciais locais, todas sintéticas
+cp .env.example .env            # somente se .env ainda não existir
 pnpm docker:up                  # postgres, redis, keycloak e storage S3
 pnpm db:migrate
 pnpm dev
 ```
 
-Portas reservadas para este projeto, verificadas como livres antes da primeira
+Portas reservadas para a instância compartilhada, verificadas como livres antes da instalação inicial
 subida: Web `15100`, API `15101`, workers `15102` (saúde, só dentro da rede),
 PostgreSQL `15432`, Redis `16379`, Keycloak `18080`, storage `19000` e console
 `19001`. Todas publicadas apenas em `127.0.0.1`. A F7 acrescenta o Mailpit, que
 captura o e-mail do convite: SMTP `11025` e interface `18025` (`MAILPIT_SMTP_PORT`
-e `MAILPIT_UI_PORT`). Quem já tem outra instância local sobe o Mailpit com portas
-novas pelo `.env`, sem reutilizar as de outro projeto.
+e `MAILPIT_UI_PORT`). Manter as portas da instância `contaia` entre cards.
 
 O **Signer não publica porta**: vive na rede privada do Compose (`contaia_privada`,
 `internal`) e só as identidades de serviço o alcançam. `pnpm docker:up` agora também
 prepara os segredos de teste e sobe a API, os workers, o Signer e os dublês mTLS (exige
 `pnpm cofre:pki-teste` antes e o banco já migrado; ver o Card #14).
 
-Para parar e limpar **somente** os volumes deste projeto:
+Para parar os contêineres preservando os volumes e cadastros:
 
 ```bash
 pnpm docker:down
-docker volume rm contaia_postgres contaia_redis contaia_minio
 ```
 
-- **Autorizado a subir o Docker se estiver parado.** Na primeira vez, **criar instância nova com portas novas** — nunca reutilizar as portas já configuradas de outro projeto (`CLAUDE.md`).
+- **Autorizado a subir o Docker se estiver parado.** Reutilizar sempre a instância `contaia` existente. Não executar `down --volumes`, `docker volume rm` nem comandos equivalentes como limpeza rotineira.
+- **Recriação excepcional:** antes de remover contêiner ou volume, identificar todos os dados persistentes da instância (PostgreSQL, Redis, MinIO e Vault), fazer backup e validar arquivos e procedimento de restauração. Só então remover a instância afetada, recriar o projeto `contaia`, restaurar o backup e conferir dados e acesso. Falha no backup impede a remoção. Registrar o procedimento e a verificação na entrega correspondente.
 - **No ambiente local, está previamente autorizado o uso de qualquer dado real necessário.** Produção continua fora dos MVPs 1–4 ([ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md)).
 
 ### 1.3 Comandos
