@@ -220,7 +220,10 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   await panel.getByRole('button',{name:'Importar e conferir hashes'}).click();
   expect((await imported).ok()).toBeTruthy();
   await expect(panel.getByText(new RegExp(`E2E-${PREFIXO}.*IMPORTED`,'u'))).toBeVisible();
+  const reviewedPackage=page.waitForResponse(response=>response.url().includes('/icms-st-legal-rule-packages/')&&response.url().endsWith('/review')&&response.request().method()==='POST');
   await panel.getByRole('button',{name:'Aprovar pacote'}).click();
+  const packageReviewResponse=await reviewedPackage;
+  expect(packageReviewResponse.ok(),await packageReviewResponse.text()).toBeTruthy();
   await expect(panel.getByText(new RegExp(`E2E-${PREFIXO}.*APPROVED`,'u'))).toBeVisible();
   await panel.getByLabel('Data de referência').fill('2017-02-28');
   await panel.getByLabel('Pacote normativo aprovado').selectOption({label:new RegExp(`E2E-${PREFIXO}`,'u')});
