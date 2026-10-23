@@ -13,9 +13,10 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { Pool } from 'pg';
+import { cnpjValido } from './fixtures/ambiente';
 
-/** CNPJ exclusivo desta suíte, para não colidir com as outras. */
-const CNPJ = '19131243000197';
+/** CNPJ exclusivo desta suíte; não reutilizar os usados por SPEC-002/009/013/014. */
+const CNPJ = cnpjValido('299293490004');
 
 let empresaId = '';
 
@@ -139,6 +140,30 @@ test.beforeAll(async () => {
       where empresa_id in (select id from app.empresa where cnpj = $1)`,
     [CNPJ],
   );
+  const limpezaObrigacoes = await pool.connect();
+  try {
+    await limpezaObrigacoes.query('begin');
+    await limpezaObrigacoes.query('alter table app.obligation_event disable trigger obligation_event_append_only');
+    await limpezaObrigacoes.query(`delete from app.obligation_in_app_notification
+      where empresa_id in (select id from app.empresa where cnpj = $1)`, [CNPJ]);
+    await limpezaObrigacoes.query(`delete from app.obligation_channel_outbox
+      where empresa_id in (select id from app.empresa where cnpj = $1)`, [CNPJ]);
+    await limpezaObrigacoes.query(`delete from app.obligation_alert_recipient
+      where empresa_id in (select id from app.empresa where cnpj = $1)`, [CNPJ]);
+    await limpezaObrigacoes.query(`delete from app.obligation_alert
+      where empresa_id in (select id from app.empresa where cnpj = $1)`, [CNPJ]);
+    await limpezaObrigacoes.query(`delete from app.obligation_event
+      where empresa_id in (select id from app.empresa where cnpj = $1)`, [CNPJ]);
+    await limpezaObrigacoes.query(`delete from app.obligation_occurrence
+      where empresa_id in (select id from app.empresa where cnpj = $1)`, [CNPJ]);
+    await limpezaObrigacoes.query('alter table app.obligation_event enable trigger obligation_event_append_only');
+    await limpezaObrigacoes.query('commit');
+  } catch (erro) {
+    await limpezaObrigacoes.query('rollback');
+    throw erro;
+  } finally {
+    limpezaObrigacoes.release();
+  }
   // O vínculo de carteira sai antes da empresa (FK composta, SPEC-009).
   await pool.query(
     `delete from app.carteira_vinculo

@@ -197,6 +197,7 @@ describe('SinoDeNotificacoes', () => {
         expect.objectContaining({ method: 'PUT' }),
       ),
     );
+    await waitFor(() => expect(screen.queryByTestId('badge-nao-lidas')).not.toBeInTheDocument());
   });
 
   it('checkbox Todas seleciona os itens visíveis e marca em lote', async () => {
