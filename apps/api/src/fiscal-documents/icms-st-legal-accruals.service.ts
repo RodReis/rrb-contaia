@@ -66,8 +66,16 @@ export class IcmsStLegalAccrualsService {
   async aprovarFonte(tenantId:string,userId:string,companyId:string,packageId:string,correlationId:string){
     return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/source/${tenantId}/${companyId}/${packageId}`]);
-      const source=await client.query<{id:string;status:string;content_sha256:string;canonical_json:unknown;source_revision_ids:string[]}>('select id,status,content_sha256,canonical_json,source_revision_ids from app.tax_st_history_package where id=$1 and tenant_id=$2 and empresa_id=$3 and app.empresa_autorizada(empresa_id) for share',[packageId,tenantId,companyId]);
-      const row=source.rows[0];if(!row)throw this.naoEncontrado('Pacote F33 não encontrado.');
+      const source=await client.query<{id:string;status:string;content_sha256:string;canonical_json:unknown;source_revision_ids:string[];regime:string;period_start:string;period_end:string;contract_version:number}>(
+        'select id,status,content_sha256,canonical_json,source_revision_ids,regime,period_start::text,period_end::text,contract_version from app.tax_st_history_package where id=$1 and tenant_id=$2 and empresa_id=$3 and app.empresa_autorizada(empresa_id)',
+        [packageId,tenantId,companyId]);
+      let row=source.rows[0];if(!row)throw this.naoEncontrado('Pacote F33 não encontrado.');
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[
+        `${tenantId}/${companyId}/${row.regime}/${row.period_start.slice(0,7)}/${row.period_end.slice(0,7)}/${row.contract_version}`]);
+      const current=await client.query<typeof row>(
+        'select id,status,content_sha256,canonical_json,source_revision_ids,regime,period_start::text,period_end::text,contract_version from app.tax_st_history_package where id=$1 and tenant_id=$2 and empresa_id=$3 and app.empresa_autorizada(empresa_id)',
+        [packageId,tenantId,companyId]);
+      row=current.rows[0];if(!row)throw this.naoEncontrado('Pacote F33 não encontrado.');
       const payload=object(row.canonical_json);
       const hashMaterial={...payload};delete hashMaterial['contentSha256'];
       if(!['READY_FOR_INTERNAL_REVIEW','BLOQUEADO_POR_ACRESCIMOS_LEGAIS'].includes(row.status)||payload['periodComplete']!==true||
