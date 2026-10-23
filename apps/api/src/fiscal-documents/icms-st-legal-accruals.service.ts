@@ -138,7 +138,7 @@ export class IcmsStLegalAccrualsService {
       const row=await client.query<{id:string;canonical_json:unknown;content_sha256:string}>('select id,canonical_json,content_sha256 from app.tax_st_legal_rule_package where id=$1 and tenant_id=$2 and empresa_id=$3 and app.empresa_autorizada(empresa_id)',[packageId,tenantId,companyId]);
       if(!row.rows[0])throw this.naoEncontrado('Pacote normativo não encontrado.');
       const canonical=object(row.rows[0].canonical_json);
-      if(action==='APPROVED'&&(sha(json(canonical))!==row.rows[0].content_sha256||!Array.isArray(canonical['sources'])||!Array.isArray(canonical['rules'])))
+      if(action==='APPROVED'&&(sha(canonicalizarJson(canonical))!==row.rows[0].content_sha256||!Array.isArray(canonical['sources'])||!Array.isArray(canonical['rules'])))
         throw this.indeterminado('Hash ou conteúdo canônico do pacote normativo divergente.');
       const previous=await client.query<{action:string}>('select action from app.tax_st_legal_rule_package_event where package_id=$1 order by occurred_at desc,id desc limit 1',[packageId]);
       if(previous.rows[0]?.action!=='IMPORTED')throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_RULE_PACKAGE_NOT_APPROVED,'Pacote normativo já recebeu decisão.');
