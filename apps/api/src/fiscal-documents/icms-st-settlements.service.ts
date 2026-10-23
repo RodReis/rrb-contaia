@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { PoolClient } from 'pg';
 import { Injectable } from '@nestjs/common';
 import { comContextoHumano, getDfeCaptureCompany, listarHistoricoRegimeTributario } from '@contaia/db';
 import {
@@ -7,6 +8,7 @@ import {
   ErroDeDominio,
   decimalDeclaradoParaCentavos,
   calculateIcmsStReturnReversal,
+  renderIcmsStC002,
   resolveIcmsStSettlement,
   type IcmsStInputEntry,
   type IcmsStOutputLine,
@@ -84,7 +86,9 @@ export class IcmsStSettlementsService {
 
   async registerManualReturn(tenantId: string, userId: string, companyId: string, input: Readonly<{
     originalSnapshotId: string; originalLineId: string; returnDocumentIdentity: string; returnItemIdentity: string;
-    eventDate: string; unit: string; returnedQuantityScaled: string; idempotencyKey: string;
+    eventDate: string; unit: string; returnedQuantityScaled: string; returnedQuantity:string; returnDocumentNumber:string; returnAccessKey:string;
+    returnModel:'55'|'65';returnSeries:string;returnCfop:string;ncm:string|null;productCode:string;productDescription:string;
+    unitPrice:string;total:string;efdDate:string|null;idempotencyKey: string;
   }>, file: ArquivoRecebido, correlationId: string) {
     if (file.conteudo.byteLength < 1 || file.conteudo.byteLength > 10 * 1024 * 1024 ||
         !['application/pdf','application/xml','text/xml','image/jpeg','image/png'].includes(file.tipoConteudo)) {
@@ -93,23 +97,32 @@ export class IcmsStSettlementsService {
     if (!/^\d{4}-\d{2}-\d{2}$/u.test(input.eventDate) || Number.isNaN(Date.parse(`${input.eventDate}T00:00:00Z`)) ||
         new Date(`${input.eventDate}T00:00:00Z`).toISOString().slice(0,10)!==input.eventDate ||
         !/^\d+$/u.test(input.returnedQuantityScaled) || BigInt(input.returnedQuantityScaled) <= 0n ||
+        toQuantityScaled(input.returnedQuantity.replace(',', '.'))?.toString()!==input.returnedQuantityScaled ||
+        !/^\d{1,20}$/u.test(input.returnDocumentNumber)||!/^[0-9]{44}$/u.test(input.returnAccessKey)||input.returnDocumentIdentity!==input.returnAccessKey||
+        !/^[1-9]\d{0,2}$/u.test(input.returnItemIdentity)||!/^\d{4}$/u.test(input.returnCfop)||
+        (input.ncm!==null&&!/^\d{8}$/u.test(input.ncm))||
         !/^[0-9a-f]{8}-[0-9a-f-]{27}$/iu.test(input.idempotencyKey)) {
       throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID, 'Dados de devolução inválidos.');
     }
-    const sha256 = createHash('sha256').update(file.conteudo).digest('hex');
-    const storageKey = `${tenantId}/icms_st_return/${sha256}`;
+    const fileSha256 = createHash('sha256').update(file.conteudo).digest('hex');
+    const sha256 = createHash('sha256').update(jsonText({fileSha256,returnDocumentIdentity:input.returnDocumentIdentity,returnItemIdentity:input.returnItemIdentity,
+      eventDate:input.eventDate,unit:input.unit,returnedQuantityScaled:input.returnedQuantityScaled,returnDocumentNumber:input.returnDocumentNumber,
+      returnAccessKey:input.returnAccessKey,returnModel:input.returnModel,returnSeries:input.returnSeries,returnCfop:input.returnCfop,ncm:input.ncm,
+      productCode:input.productCode,productDescription:input.productDescription,unitPrice:input.unitPrice,total:input.total,efdDate:input.efdDate})).digest('hex');
+    const storageKey = `${tenantId}/icms_st_return/${fileSha256}`;
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
-        const approver=await client.query<{allowed:boolean}>(`select exists(select 1 from app.usuario u join app.usuario_papel p on p.usuario_id=u.id and p.tenant_id=u.tenant_id
-          where u.id=$1 and u.tenant_id=$2 and u.estado='ATIVO' and p.removido_em is null and p.papel in ('admin_escritorio','contador')) allowed`,[userId,tenantId]);
-        if(approver.rows[0]?.allowed!==true)throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Vínculo manual exige aprovação de contador/admin.');
+        const submitter=await client.query<{allowed:boolean}>(`select exists(select 1 from app.usuario u join app.usuario_papel p on p.usuario_id=u.id and p.tenant_id=u.tenant_id
+          where u.id=$1 and u.tenant_id=$2 and u.estado='ATIVO' and p.removido_em is null and p.papel in ('admin_escritorio','contador','auxiliar')) allowed`,[userId,tenantId]);
+        if(submitter.rows[0]?.allowed!==true)throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Papel sem autorização para submeter evidência de devolução.');
         await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st-return:${tenantId}:${companyId}:${input.originalLineId}`]);
         await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`icms-st-return-identity:${tenantId}:${companyId}:${input.returnDocumentIdentity}:${input.returnItemIdentity}:${input.eventDate}`]);
-        const previous=await client.query<{id:string;evidence_sha256:string;competence:string;returned_quantity_scaled:string;remaining_quantity_scaled:string;reversed_restitution_cents:string;reversed_complement_cents:string;original_line_id:string;normalized_unit:string;requested_quantity:string;origin:string;return_document_identity:string;return_item_identity:string;event_date:string}>(
+        const previous=await client.query<{id:string;evidence_sha256:string;competence:string|null;returned_quantity_scaled:string|null;remaining_quantity_scaled:string|null;reversed_restitution_cents:string|null;reversed_complement_cents:string|null;original_line_id:string;normalized_unit:string;requested_quantity:string;origin:string;return_document_identity:string;return_item_identity:string;event_date:string;review_action:string|null}>(
           `select e.id,e.evidence_sha256,to_char(r.competence,'YYYY-MM-DD') competence,r.returned_quantity_scaled::text,
                   r.remaining_quantity_scaled::text,r.reversed_restitution_cents::text,r.reversed_complement_cents::text
                   ,e.original_line_id,e.normalized_unit,e.returned_quantity_scaled::text requested_quantity,e.origin,
-                  e.return_document_identity,e.return_item_identity,to_char(e.event_date,'YYYY-MM-DD') event_date
-             from app.tax_st_return_event e join app.tax_st_return_reversal r on r.event_id=e.id
+                  e.return_document_identity,e.return_item_identity,to_char(e.event_date,'YYYY-MM-DD') event_date,review.action review_action
+             from app.tax_st_return_event e left join app.tax_st_return_reversal r on r.event_id=e.id
+             left join lateral(select action from app.tax_st_return_review_event where return_event_id=e.id order by occurred_at desc,id desc limit 1) review on true
             where e.tenant_id=$1 and e.empresa_id=$2 and (e.idempotency_key=$3 or
               (e.origin='MANUAL_DOCUMENT' and e.return_document_identity=$4 and e.return_item_identity=$5 and e.event_date=$6::date))`,
           [tenantId,companyId,input.idempotencyKey,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate]);
@@ -119,16 +132,18 @@ export class IcmsStSettlementsService {
              priorEvent.normalized_unit!==input.unit||priorEvent.requested_quantity!==input.returnedQuantityScaled||
              priorEvent.return_document_identity!==input.returnDocumentIdentity||priorEvent.return_item_identity!==input.returnItemIdentity||priorEvent.event_date!==input.eventDate)
             throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Identidade do evento reutilizada com conteúdo divergente.');
-          return {id:priorEvent.id,competence:priorEvent.competence,returnedQuantityScaled:priorEvent.returned_quantity_scaled,
-            remainingQuantityScaled:priorEvent.remaining_quantity_scaled,reversedRestitutionCents:Number(priorEvent.reversed_restitution_cents),
-            reversedComplementCents:Number(priorEvent.reversed_complement_cents),evidenceSha256:priorEvent.evidence_sha256,reused:true};
+          return {id:priorEvent.id,status:priorEvent.review_action??'SUBMITTED',competence:priorEvent.competence,
+            returnedQuantityScaled:priorEvent.returned_quantity_scaled,remainingQuantityScaled:priorEvent.remaining_quantity_scaled,
+            reversedRestitutionCents:priorEvent.reversed_restitution_cents===null?null:Number(priorEvent.reversed_restitution_cents),
+            reversedComplementCents:priorEvent.reversed_complement_cents===null?null:Number(priorEvent.reversed_complement_cents),evidenceSha256:priorEvent.evidence_sha256,reused:true};
         }
-        const original = await client.query<{ kind:string; restitution:string|null; complement:string|null; facts:unknown; calculation:unknown; unit:string|null; source_ids:string[]; snapshot_id:string; revision:number; approved:boolean; stale:boolean }>(
+        const original = await client.query<{ kind:string; restitution:string|null; complement:string|null; facts:unknown; calculation:unknown; unit:string|null; source_ids:string[]; snapshot_id:string; revision:number; approved:boolean; stale:boolean; document_number:string|null; access_key:string|null; fact_date:string|null }>(
           `select l.difference_kind kind,l.restitution_cents::text restitution,l.complement_cents::text complement,l.facts,l.calculation,l.source_ids,
-                  l.facts->>'unit' unit,l.snapshot_id,s.revision,
+                  l.facts->>'unit' unit,l.snapshot_id,s.revision,d.numero_documento::text document_number,d.chave_acesso access_key,to_char(d.emitido_em,'YYYY-MM-DD') fact_date,
                   exists(select 1 from app.tax_st_settlement_review_event r where r.snapshot_id=s.id and r.action='APPROVED') approved,
                   exists(select 1 from app.tax_st_settlement_event e where e.snapshot_id=s.id and e.action='DOCUMENT_SET_CHANGED') stale
              from app.tax_st_settlement_line l join app.tax_st_settlement_snapshot s on s.id=l.snapshot_id
+             join app.fiscal_document d on d.id=l.output_document_id and d.tenant_id=l.tenant_id and d.empresa_id=l.empresa_id
             where l.tenant_id=$1 and l.empresa_id=$2 and l.snapshot_id=$3 and l.id=$4 for update of l`,
           [tenantId,companyId,input.originalSnapshotId,input.originalLineId]);
         const line=original.rows[0];
@@ -151,28 +166,156 @@ export class IcmsStSettlementsService {
           originalRestitutionCents:restitution,originalComplementCents:complement});
         if (!result.ok) throw new ErroDeDominio(result.reasonCode==='ICMS_ST_RETURN_QUANTITY_EXCEEDED'?CODIGOS_DE_ERRO.ICMS_ST_RETURN_QUANTITY_EXCEEDED:CODIGOS_DE_ERRO.ICMS_ST_ORIGINAL_CALCULATION_UNAVAILABLE,'Quantidade excede saldo ou cálculo original indisponível.');
         const competence=`${input.eventDate.slice(0,7)}-01`;
+        const originalNumber=line.document_number;
+        const originalAccessKey=line.access_key;
+        const originalDate=line.fact_date;
+        if(originalNumber===null||originalAccessKey===null||originalDate===null)
+          throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ORIGINAL_CALCULATION_UNAVAILABLE,'Documento original sem campos obrigatórios para o registro C002.');
         await this.storage.enviarComChave(storageKey,file.conteudo,file.tipoConteudo);
         const inserted=await client.query<{id:string}>(`insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,
           return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,evidence_facts,actor_id,correlation_id,occurred_at)
-          values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,$7::date,$8::uuid,$9,$10::numeric,$11,jsonb_build_object('storageKey',$12,'mimeType',$13,'linkApprovedBy',$14),$15,$16,$17)
+          values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,$7::date,$8::uuid,$9,$10::numeric,$11,$12::jsonb,$13,$14,$15)
           on conflict(tenant_id,empresa_id,origin,return_document_identity,return_item_identity,event_date) do nothing returning id`,
           [tenantId,companyId,input.originalSnapshotId,input.originalLineId,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate,input.idempotencyKey,input.unit,
-           input.returnedQuantityScaled,sha256,storageKey,file.tipoConteudo,userId,userId,correlationId,this.agora()]);
+           input.returnedQuantityScaled,sha256,jsonText({storageKey,fileSha256,mimeType:file.tipoConteudo,formulaVersion,originalQuantityScaled:total.toString(),
+             originalRestitutionCents:restitution,originalComplementCents:complement,differenceKind:line.kind,sourceIds:[input.originalLineId,...line.source_ids],
+             returnDocumentNumber:input.returnDocumentNumber,returnAccessKey:input.returnAccessKey,returnModel:input.returnModel,returnSeries:input.returnSeries,
+             returnCfop:input.returnCfop,ncm:input.ncm,productCode:input.productCode,productDescription:input.productDescription,
+             returnedQuantity:input.returnedQuantity.replace(',', '.'),unitPrice:input.unitPrice.replace(',', '.'),total:input.total.replace(',', '.'),efdDate:input.efdDate,
+             originalDocumentNumber:originalNumber,originalAccessKey,originalDate}),userId,correlationId,this.agora()]);
         const eventId=inserted.rows[0]?.id;
         if (!eventId) throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Evento fiscal já registrado com esta identidade.');
-        await client.query(`insert into app.tax_st_return_reversal(tenant_id,empresa_id,event_id,original_snapshot_id,original_line_id,competence,
-          returned_quantity_scaled,remaining_quantity_scaled,reversed_restitution_cents,reversed_complement_cents,formula_version,source_ids,actor_id,correlation_id,occurred_at)
-          values($1,$2,$3,$4,$5,$6::date,$7::numeric,$8::numeric,$9,$10,$11,$12,$13,$14,$15)`,
-          [tenantId,companyId,eventId,input.originalSnapshotId,input.originalLineId,competence,input.returnedQuantityScaled,result.remainingQuantityScaled.toString(),
-           result.reversedRestitutionCents,result.reversedComplementCents,formulaVersion,[input.originalLineId,...line.source_ids],userId,correlationId,this.agora()]);
+        await client.query('select app.tax_st_return_review($1::uuid,$2::uuid,$3::uuid,$4::timestamptz,$5::text,$6::text,$7::text)',
+          [eventId,companyId,userId,this.agora(),'SUBMITTED',null,correlationId]);
         await client.query(`insert into app.tax_st_settlement_event(tenant_id,empresa_id,snapshot_id,action,actor_id,correlation_id,occurred_at,details)
           select s.tenant_id,s.empresa_id,s.id,'DOCUMENT_SET_CHANGED',$4,$5,$6,jsonb_build_object('source','F32_RETURN','eventId',$3::text)
             from app.tax_st_settlement_snapshot s where s.tenant_id=$1 and s.empresa_id=$2 and s.competence=$7::date
               and not exists(select 1 from app.tax_st_settlement_event prior where prior.snapshot_id=s.id and prior.details->>'eventId'=$3::text)`,
           [tenantId,companyId,eventId,userId,correlationId,this.agora(),competence]);
-        return {id:eventId,competence,returnedQuantityScaled:input.returnedQuantityScaled,remainingQuantityScaled:result.remainingQuantityScaled.toString(),
-          reversedRestitutionCents:result.reversedRestitutionCents,reversedComplementCents:result.reversedComplementCents,evidenceSha256:sha256};
+        return {id:eventId,status:'SUBMITTED',competence,returnedQuantityScaled:input.returnedQuantityScaled,
+          remainingQuantityScaled:result.remainingQuantityScaled.toString(),reversedRestitutionCents:null,reversedComplementCents:null,evidenceSha256:sha256};
     });
+  }
+
+  async reviewManualReturn(tenantId:string,userId:string,companyId:string,eventId:string,action:'APPROVED'|'REJECTED',reason:string|null,correlationId:string) {
+    return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`icms-st-return-review:${tenantId}:${companyId}:${eventId}`]);
+      const selected=await client.query<{original_snapshot_id:string;original_line_id:string;return_item_identity:string;event_date:string;returned_quantity_scaled:string;normalized_unit:string;evidence_facts:unknown}>(
+        `select original_snapshot_id,original_line_id,return_item_identity,to_char(event_date,'YYYY-MM-DD') event_date,returned_quantity_scaled::text,normalized_unit,evidence_facts
+           from app.tax_st_return_event where id=$1 and tenant_id=$2 and empresa_id=$3 for update`,[eventId,tenantId,companyId]);
+      const event=selected.rows[0];
+      if(!event)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_LINK_NOT_FOUND,'Devolução não encontrada.');
+      if(action==='REJECTED'&&(reason===null||reason.trim().length<10))throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Rejeição exige motivo com ao menos 10 caracteres.');
+      if(action==='REJECTED'){
+        try {
+          await client.query('select app.tax_st_return_review($1::uuid,$2::uuid,$3::uuid,$4::timestamptz,$5::text,$6::text,$7::text)',
+            [eventId,companyId,userId,this.agora(),action,reason,correlationId]);
+        } catch(error) {
+          const message=error instanceof Error?error.message:'';
+          if(message.includes('ICMS_ST_RETURN_REVIEW_FORBIDDEN'))throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Somente contador/admin pode decidir a devolução.');
+          if(message.includes('ICMS_ST_RETURN_REVIEW_CONFLICT'))throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Devolução já decidida ou revisão superada.');
+          if(message.includes('ICMS_ST_RETURN_NOT_FOUND'))throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_LINK_NOT_FOUND,'Devolução não encontrada.');
+          throw error;
+        }
+        return {eventId,action};
+      }
+      const facts=typeof event.evidence_facts==='object'&&event.evidence_facts!==null?event.evidence_facts as Record<string,unknown>:{};
+      const total=typeof facts['originalQuantityScaled']==='string'?BigInt(facts['originalQuantityScaled']):0n;
+      const restitution=typeof facts['originalRestitutionCents']==='number'?facts['originalRestitutionCents']:null;
+      const complement=typeof facts['originalComplementCents']==='number'?facts['originalComplementCents']:null;
+      const previous=await client.query<{quantity:string}>(`select coalesce(sum(returned_quantity_scaled),0)::text quantity from app.tax_st_return_reversal
+        where tenant_id=$1 and empresa_id=$2 and original_line_id=$3`,[tenantId,companyId,event.original_line_id]);
+      const differenceKind=facts['differenceKind'];
+      if(differenceKind!=='RESTITUTION'&&differenceKind!=='COMPLEMENT'&&differenceKind!=='NONE')
+        throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ORIGINAL_CALCULATION_UNAVAILABLE,'Tipo de diferença original indisponível.');
+      const result=calculateIcmsStReturnReversal({differenceKind,
+        originalQuantityScaled:total,previouslyReturnedQuantityScaled:BigInt(previous.rows[0]?.quantity??'0'),returnedQuantityScaled:BigInt(event.returned_quantity_scaled),
+        originalRestitutionCents:restitution,originalComplementCents:complement});
+      if(!result.ok)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_RETURN_QUANTITY_EXCEEDED,'Saldo devolvível indisponível ou quantidade excedida.');
+      const competence=`${event.event_date.slice(0,7)}-01`;
+      const textFact=(key:string):string|null=>typeof facts[key]==='string'?facts[key] as string:null;
+      const model=textFact('returnModel');
+      if(model!=='55'&&model!=='65')throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Modelo fiscal da devolução inválido.');
+      const c002=renderIcmsStC002({competence:competence.slice(0,7),returnDate:event.event_date,efdDate:textFact('efdDate'),
+        returnDocumentNumber:textFact('returnDocumentNumber')??'',returnAccessKey:textFact('returnAccessKey')??'',returnModel:model,
+        returnSeries:textFact('returnSeries')??'',returnCfop:textFact('returnCfop')??'',ncm:textFact('ncm'),itemNumber:Number(event.return_item_identity),
+        productCode:textFact('productCode')??'',productDescription:textFact('productDescription')??'',unit:event.normalized_unit,
+        quantity:textFact('returnedQuantity')??'',unitPrice:textFact('unitPrice')??'',total:textFact('total')??'',
+        originalDocumentNumber:textFact('originalDocumentNumber'),originalAccessKey:textFact('originalAccessKey'),originalDate:textFact('originalDate'),
+        reversedRestitutionCents:result.reversedRestitutionCents,reversedComplementCents:result.reversedComplementCents});
+      if(c002===null)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Evidência incompleta para linha C002; estorno não aprovado.');
+      try {
+        await client.query('select app.tax_st_return_review($1::uuid,$2::uuid,$3::uuid,$4::timestamptz,$5::text,$6::text,$7::text)',
+          [eventId,companyId,userId,this.agora(),action,reason,correlationId]);
+      } catch(error) {
+        const message=error instanceof Error?error.message:'';
+        if(message.includes('ICMS_ST_RETURN_REVIEW_FORBIDDEN'))throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Somente contador/admin pode decidir a devolução.');
+        if(message.includes('ICMS_ST_RETURN_REVIEW_CONFLICT'))throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Devolução já decidida ou revisão superada.');
+        if(message.includes('ICMS_ST_RETURN_NOT_FOUND'))throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_LINK_NOT_FOUND,'Devolução não encontrada.');
+        throw error;
+      }
+      const inserted=await client.query<{id:string}>(`select app.tax_st_return_finalize($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::date,
+        $6::numeric,$7::numeric,$8::bigint,$9::bigint,$10::text,$11::timestamptz) id`,
+        [eventId,tenantId,companyId,userId,competence,event.returned_quantity_scaled,result.remainingQuantityScaled.toString(),
+          result.reversedRestitutionCents,result.reversedComplementCents,correlationId,this.agora()]);
+      if(!inserted.rows[0])throw new Error('Estorno F32 não persistido após aprovação.');
+      const snapshot=await this.composeReturnSnapshot(client,{tenantId,userId,companyId,competence,correlationId});
+      return {eventId,action,competence,remainingQuantityScaled:result.remainingQuantityScaled.toString(),
+        reversedRestitutionCents:result.reversedRestitutionCents,reversedComplementCents:result.reversedComplementCents,c002,
+        snapshotId:snapshot.id,revision:snapshot.revision};
+    });
+  }
+
+  private async composeReturnSnapshot(client:PoolClient,input:Readonly<{
+    tenantId:string;userId:string;companyId:string;competence:string;correlationId:string;
+  }>):Promise<{id:string;revision:number}> {
+    const month=input.competence.slice(0,7);
+    await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`icms-st:${input.tenantId}:${input.companyId}:${month}`]);
+    const selected=await client.query<{event_id:string;event_date:string;event_competence:string;quantity:string;unit:string;item_identity:string;
+      restitution:string;complement:string;evidence_sha256:string;evidence_facts:unknown;regime:string|null}>(
+      `select e.id event_id,to_char(e.event_date,'YYYY-MM-DD') event_date,to_char(r.competence,'YYYY-MM-DD') event_competence,
+          e.returned_quantity_scaled::text quantity,e.normalized_unit unit,e.return_item_identity item_identity,
+          r.reversed_restitution_cents::text restitution,r.reversed_complement_cents::text complement,e.evidence_sha256,e.evidence_facts,s.regime
+         from app.tax_st_return_reversal r join app.tax_st_return_event e on e.id=r.event_id and e.tenant_id=r.tenant_id and e.empresa_id=r.empresa_id
+         join app.tax_st_settlement_snapshot s on s.id=e.original_snapshot_id and s.tenant_id=e.tenant_id and s.empresa_id=e.empresa_id
+        where r.tenant_id=$1 and r.empresa_id=$2 and r.competence=$3::date order by e.event_date,e.id`,[input.tenantId,input.companyId,input.competence]);
+    if(selected.rows.length===0)throw new Error('Nenhuma devolução aprovada para compor revisão F32.');
+    const rows=selected.rows.map((event)=>{
+      const evidence=typeof event.evidence_facts==='object'&&event.evidence_facts!==null?event.evidence_facts as Record<string,unknown>:{};
+      const field=(key:string):string|null=>typeof evidence[key]==='string'?evidence[key] as string:null;
+      const model=field('returnModel');
+      const restitution=centavosSeguros(event.restitution);const complement=centavosSeguros(event.complement);
+      if((model!=='55'&&model!=='65')||restitution===null||complement===null)
+        throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Devolução aprovada sem dados C002 ou estorno verificável.');
+      const c002=renderIcmsStC002({competence:month,returnDate:event.event_date,efdDate:field('efdDate'),returnDocumentNumber:field('returnDocumentNumber')??'',
+        returnAccessKey:field('returnAccessKey')??'',returnModel:model,returnSeries:field('returnSeries')??'',returnCfop:field('returnCfop')??'',ncm:field('ncm'),
+        itemNumber:Number(event.item_identity),productCode:field('productCode')??'',productDescription:field('productDescription')??'',unit:event.unit,
+        quantity:field('returnedQuantity')??'',unitPrice:field('unitPrice')??'',total:field('total')??'',originalDocumentNumber:field('originalDocumentNumber'),
+        originalAccessKey:field('originalAccessKey'),originalDate:field('originalDate'),reversedRestitutionCents:restitution,reversedComplementCents:complement});
+      if(c002===null)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Linha C002 não pode ser composta com evidência incompleta.');
+      return {eventId:event.event_id,eventDate:event.event_date,evidenceSha256:event.evidence_sha256,c002,restitution,complement,regime:event.regime};
+    });
+    const inputHash=createHash('sha256').update(jsonText(rows)).digest('hex');
+    const idempotencyKey=`f32-return-${inputHash}`;
+    const revisionRow=await client.query<{revision:number|null}>(`select max(revision)::int revision from app.tax_st_settlement_snapshot
+      where tenant_id=$1 and empresa_id=$2 and competence=$3::date`,[input.tenantId,input.companyId,input.competence]);
+    const revision=(revisionRow.rows[0]?.revision??0)+1;
+    const grossRestitution=rows.reduce((sum,row)=>sum+row.restitution,0);
+    const grossComplement=rows.reduce((sum,row)=>sum+row.complement,0);
+    if(!Number.isSafeInteger(grossRestitution)||!Number.isSafeInteger(grossComplement))
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ORIGINAL_CALCULATION_UNAVAILABLE,'Totais C002 excedem o intervalo seguro.');
+    const processedAt=this.agora();
+    const c002Lines=rows.map((row)=>row.c002);
+    const facts={source:'F32_RETURN',layout:'C002',blockingReasonCodes:[],c002Lines,c002Sha256:createHash('sha256').update(c002Lines.join('\n')).digest('hex'),
+      eventIds:rows.map((row)=>row.eventId),evidenceHashes:rows.map((row)=>row.evidenceSha256),inputSha256:inputHash};
+    const payload={snapshot:{tenant_id:input.tenantId,empresa_id:input.companyId,competence:input.competence,regime:rows[0]?.regime??null,
+      revision,idempotency_key:idempotencyKey,input_sha256:inputHash,package_id:null,package_sha256:null,status:'PENDING_REVIEW',
+      gross_restitution_cents:grossRestitution,gross_complement_cents:grossComplement,net_amount_cents:grossRestitution-grossComplement,
+      line_count:rows.length,blocked_line_count:0,facts,reprocessing_reason:'Revisão por devolução F32',actor_id:input.userId,
+      correlation_id:input.correlationId,processed_at:processedAt},lines:[],event_details:{source:'F32_RETURN',inputSha256:inputHash,eventIds:rows.map((row)=>row.eventId)}};
+    const created=await client.query<{snapshot_id:string}>('select app.tax_st_settlement_process($1::jsonb) snapshot_id',[jsonText(payload)]);
+    if(!created.rows[0]?.snapshot_id)throw new Error('Revisão imutável da competência do evento não foi persistida.');
+    return {id:created.rows[0].snapshot_id,revision};
   }
 
   async get(tenantId: string, userId: string, companyId: string, snapshotId: string, correlationId: string, page = 1, model?: '55' | '65') {
@@ -196,16 +339,46 @@ export class IcmsStSettlementsService {
       const events = await client.query(`select action,occurred_at,details from app.tax_st_settlement_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3
         union all select action,occurred_at,details from app.tax_st_settlement_review_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3 order by occurred_at`,
         [tenantId, companyId, snapshotId]);
-      const returnEvents=await client.query(`select e.id,e.origin,e.return_document_identity,e.return_item_identity,to_char(e.event_date,'YYYY-MM-DD') event_date,
+      const returnEvents=await client.query<{id:string;origin:string;return_document_identity:string;return_item_identity:string;event_date:string;normalized_unit:string;
+        returned_quantity_scaled:string;evidence_sha256:string;competence:string|null;reversed_restitution_cents:string|null;reversed_complement_cents:string|null;
+        remaining_quantity_scaled:string|null;original_line_id:string;review_action:string|null;review_details:unknown;evidence_facts:unknown}>(`select e.id,e.origin,e.return_document_identity,e.return_item_identity,to_char(e.event_date,'YYYY-MM-DD') event_date,
           e.normalized_unit,e.returned_quantity_scaled::text returned_quantity_scaled,e.evidence_sha256,r.competence::text competence,
           r.reversed_restitution_cents::text reversed_restitution_cents,r.reversed_complement_cents::text reversed_complement_cents,
-          r.remaining_quantity_scaled::text remaining_quantity_scaled,r.original_line_id
-        from app.tax_st_return_event e join app.tax_st_return_reversal r on r.event_id=e.id
+          r.remaining_quantity_scaled::text remaining_quantity_scaled,r.original_line_id,review.action review_action,review.details review_details,e.evidence_facts
+        from app.tax_st_return_event e left join app.tax_st_return_reversal r on r.event_id=e.id
+        left join lateral(select action,details from app.tax_st_return_review_event where return_event_id=e.id order by occurred_at desc,id desc limit 1) review on true
        where e.tenant_id=$1 and e.empresa_id=$2 and (e.original_snapshot_id=$3 or r.competence=(select competence from app.tax_st_settlement_snapshot where id=$3))
        order by e.event_date,e.occurred_at,e.id`,[tenantId,companyId,snapshotId]);
+      const returnRows=returnEvents.rows.map((event)=>{
+        const evidence=typeof event.evidence_facts==='object'&&event.evidence_facts!==null?event.evidence_facts as Record<string,unknown>:{};
+        const textFact=(key:string):string|null=>typeof evidence[key]==='string'?evidence[key] as string:null;
+        const centsFact=(value:string|null):number|null=>centavosSeguros(value);
+        const model=textFact('returnModel');
+        const c002=event.review_action==='APPROVED'&&event.competence!==null&&event.reversed_restitution_cents!==null&&event.reversed_complement_cents!==null&&
+          (model==='55'||model==='65')&&textFact('returnDocumentNumber')!==null&&textFact('returnAccessKey')!==null&&textFact('returnSeries')!==null&&
+          textFact('returnCfop')!==null&&textFact('productCode')!==null&&textFact('productDescription')!==null&&textFact('returnedQuantity')!==null&&textFact('unitPrice')!==null&&textFact('total')!==null&&
+          textFact('originalDocumentNumber')!==null&&textFact('originalAccessKey')!==null&&textFact('originalDate')!==null&&
+          centsFact(event.reversed_restitution_cents)!==null&&centsFact(event.reversed_complement_cents)!==null
+          ?renderIcmsStC002({competence:event.competence.slice(0,7),returnDate:event.event_date,efdDate:textFact('efdDate'),
+            returnDocumentNumber:textFact('returnDocumentNumber')!,returnAccessKey:textFact('returnAccessKey')!,returnModel:model,returnSeries:textFact('returnSeries')!,
+            returnCfop:textFact('returnCfop')!,ncm:textFact('ncm'),itemNumber:Number(event.return_item_identity),productCode:textFact('productCode')!,
+            productDescription:textFact('productDescription')!,unit:event.normalized_unit,quantity:textFact('returnedQuantity')!,unitPrice:textFact('unitPrice')!,
+            total:textFact('total')!,originalDocumentNumber:textFact('originalDocumentNumber'),originalAccessKey:textFact('originalAccessKey'),
+            originalDate:textFact('originalDate'),reversedRestitutionCents:centsFact(event.reversed_restitution_cents)!,
+            reversedComplementCents:centsFact(event.reversed_complement_cents)!}):null;
+        return {id:event.id,origin:event.origin,return_document_identity:event.return_document_identity,return_item_identity:event.return_item_identity,
+          event_date:event.event_date,normalized_unit:event.normalized_unit,returned_quantity_scaled:event.returned_quantity_scaled,evidence_sha256:event.evidence_sha256,
+          competence:event.competence,reversed_restitution_cents:event.reversed_restitution_cents,reversed_complement_cents:event.reversed_complement_cents,
+          remaining_quantity_scaled:event.remaining_quantity_scaled,original_line_id:event.original_line_id,review_action:event.review_action,
+          rejection_reason:typeof event.review_details==='object'&&event.review_details!==null&&'reason' in event.review_details?event.review_details.reason:null,c002};
+      });
       const filteredLineCount = Number(lineCount.rows[0]?.count ?? 0);
-      return { ...snapshot.rows[0], line_count: filteredLineCount, lines: lines.rows, events: events.rows, returnEvents:returnEvents.rows, line_page: page, line_page_size: pageSize,
-        line_total_pages: Math.ceil(filteredLineCount / pageSize) };
+      const isReturnSnapshot=typeof snapshot.rows[0].facts==='object'&&snapshot.rows[0].facts!==null&&
+        'source' in snapshot.rows[0].facts&&(snapshot.rows[0].facts as {source?:unknown}).source==='F32_RETURN';
+      const visibleLineCount=isReturnSnapshot?returnRows.filter((event)=>event.c002!==null).length:filteredLineCount;
+      return { ...snapshot.rows[0], line_count: visibleLineCount, lines: lines.rows, events: events.rows, returnEvents:returnRows,
+        c002Lines:returnRows.map((event)=>event.c002).filter((line):line is string=>line!==null),line_page: page, line_page_size: pageSize,
+        line_total_pages: Math.ceil(visibleLineCount / pageSize) };
     });
   }
 
@@ -397,10 +570,12 @@ export class IcmsStSettlementsService {
           case when exists(select 1 from app.tax_st_settlement_event changed where changed.snapshot_id=s.id and changed.action='DOCUMENT_SET_CHANGED') then 'STALE'
                when rev.action='APPROVED' then 'APPROVED' when rev.action='REJECTED' then 'REJECTED' else s.status end status,
           s.gross_restitution_cents,s.gross_complement_cents,s.net_amount_cents,
-          case when $3::text is null then s.line_count else (select count(*)::int from app.tax_st_settlement_line fl join app.fiscal_document fd on fd.id=fl.output_document_id where fl.snapshot_id=s.id and fd.modelo=$3) end line_count,
+          case when s.facts->>'source'='F32_RETURN' then coalesce(jsonb_array_length(s.facts->'c002Lines'),0)
+               when $3::text is null then s.line_count else (select count(*)::int from app.tax_st_settlement_line fl join app.fiscal_document fd on fd.id=fl.output_document_id where fl.snapshot_id=s.id and fd.modelo=$3) end line_count,
           s.blocked_line_count,s.processed_at,rev.action review_action
         from app.tax_st_settlement_snapshot s left join lateral(select e.action from app.tax_st_settlement_review_event e where e.snapshot_id=s.id order by e.occurred_at desc,e.id desc limit 1) rev on true
-          where s.tenant_id=$1 and s.empresa_id=$2 and ($3::text is null or exists(select 1 from app.tax_st_settlement_line fl join app.fiscal_document fd on fd.id=fl.output_document_id where fl.snapshot_id=s.id and fd.modelo=$3))
+          where s.tenant_id=$1 and s.empresa_id=$2 and ($3::text is null or exists(select 1 from app.tax_st_settlement_line fl join app.fiscal_document fd on fd.id=fl.output_document_id where fl.snapshot_id=s.id and fd.modelo=$3)
+            or (s.facts->>'source'='F32_RETURN' and exists(select 1 from app.tax_st_return_event re where re.tenant_id=s.tenant_id and re.empresa_id=s.empresa_id and re.evidence_facts->>'returnModel'=$3 and re.event_date=s.competence)))
           order by s.competence desc,s.revision desc limit 50`, [tenantId,companyId,model??null]);
       return { itens: rows };
     });
@@ -409,13 +584,18 @@ export class IcmsStSettlementsService {
   async review(tenantId: string, userId: string, companyId: string, snapshotId: string, expectedRevision: number,
     action: 'SUBMITTED' | 'APPROVED' | 'REJECTED', reason: string | null, correlationId: string) {
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
-      const coverage = await client.query<{ status: string; facts: unknown; blocked_line_count: number }>(
-        `select status,facts,blocked_line_count from app.tax_st_settlement_snapshot
+      const coverage = await client.query<{ status: string; facts: unknown; blocked_line_count: number; line_count:number }>(
+        `select status,facts,blocked_line_count,line_count from app.tax_st_settlement_snapshot
           where tenant_id=$1 and empresa_id=$2 and id=$3`, [tenantId,companyId,snapshotId]);
       const facts = coverage.rows[0]?.facts;
+      const factRecord=typeof facts==='object'&&facts!==null?facts as Record<string,unknown>:{};
+      const c002Lines=Array.isArray(factRecord['c002Lines'])?factRecord['c002Lines']:[];
+      const validReturnSnapshot=factRecord['source']==='F32_RETURN'&&factRecord['layout']==='C002'&&
+        c002Lines.length===coverage.rows[0]?.line_count&&c002Lines.every((line)=>typeof line==='string')&&
+        typeof factRecord['c002Sha256']==='string'&&factRecord['c002Sha256']===createHash('sha256').update(c002Lines.join('\n')).digest('hex');
       if (!coverage.rows[0] || coverage.rows[0].status !== 'PENDING_REVIEW' || coverage.rows[0].blocked_line_count !== 0 ||
           (await client.query(`select 1 from app.tax_st_settlement_event where tenant_id=$1 and empresa_id=$2 and snapshot_id=$3 and action='DOCUMENT_SET_CHANGED' limit 1`,[tenantId,companyId,snapshotId])).rows.length>0 ||
-          settlementCoverageBlocksReview(facts) || action === 'APPROVED') {
+          settlementCoverageBlocksReview(facts) || (action==='APPROVED'&&!validReturnSnapshot)) {
         throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_SETTLEMENT_NOT_APPROVABLE,
           'A cobertura da competência ou o demonstrativo oficial ainda não permite submeter ou decidir a apuração.');
       }

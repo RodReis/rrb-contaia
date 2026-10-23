@@ -741,11 +741,14 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Domínio calcula estorno proporcional cumulativo em centavos inteiros; última devolução absorve resíduo de arredondamento, sem exceder valor ou quantidade original.
 - [x] Migration 0058 cria evidência manual e linhas de estorno append-only, com RLS por tenant/empresa, índices e FKs compostas para preservar vínculo da linha com revisão original.
 - [x] API registra devolução manual somente sobre linha aprovada e não obsoleta, serializa saldo por linha, exige anexo privado e registra hash SHA-256; moeda não é recebida pela API.
-- [x] Tela mostra vínculo causal e valores separados de restituição/complemento, com ação disponível apenas para linha aprovada.
-- [x] Testes de domínio e tela adicionados; build global, typecheck e lint dos pacotes afetados passaram em execução local.
+- [x] Submissão de evidência aceita auxiliar; decisão separada por contador/admin fica append-only. Estorno exige aprovação e passa por função restrita `SECURITY DEFINER`; `INSERT` direto da aplicação foi revogado.
+- [x] Tela mostra vínculo causal, evidência submetida, decisão contador/admin e valores separados; ação só aparece para alçada correspondente.
+- [x] Aprovação compõe revisão imutável na competência do evento e linha C002 com hash; histórico e filtro por modelo incluem snapshots F32.
+- [x] Testes focais locais: API 4/4, domínio 6/6, tela 7/7, typecheck API, lint dos pacotes afetados, RLS 5/5, anti-drift 17/17 e `git diff --check`.
 - [x] Migrations 0059/0061/0062/0063 registram cancelamento NFC-e somente quando origem, item importado, chave, protocolo e hash coincidem; a API não insere cancelamento diretamente. O evento invalida revisão submetida/aprovada da competência original; migrations F32 aplicadas no Compose compartilhado `contaia`.
 - [x] Matriz RLS (100%, 5 testes) e anti-drift do catálogo (17 testes) passaram após as migrations 0059/0060; fixtures F32 cobrem evento, estorno e cancelamento.
-- [ ] Ingestão oficial de cancelamento NF-e 55, ingestão direta de devolução NF-e/EFD, revisão imutável da competência do evento, demonstrativo C002, E2E e capturas CLARO/ESCURO × 768/1024/1440 pendentes.
+- [ ] Integração de cancelamento NF-e 55 e ingestão direta NF-e/EFD pendentes: a base atual não persiste evento autorizado NF-e 55 nem importação EFD verificável. Ingestão manual está disponível; não foi criado evento substituto sem fonte verificável.
+- [ ] E2E autenticado F32 e capturas CLARO/ESCURO × 768/1024/1440 com comparação do protótipo pendentes. Os testes focais não substituem essas provas.
 - [ ] Comentário de encerramento e `proplan:done` pendentes até concluir SPEC-032, obter CI verde e confirmar merge.
 
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás

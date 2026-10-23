@@ -95,17 +95,39 @@ export class FiscalDocumentsController {
   registrarDevolucaoIcmsSt(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,
     @UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown) {
     const roles=request.sessao?.papeis??[];
-    if(!roles.some(role=>(['admin_escritorio','contador'] as readonly string[]).includes(role))||
+    if(!roles.some(role=>(['admin_escritorio','contador','auxiliar'] as readonly string[]).includes(role))||
        !request.sessao?.permissoes.includes('fiscal.motor_tributario.simular'))
-      throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Registro manual exige contador/admin com permissão para simular.');
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Registro de evidência exige papel autorizado e permissão para simular.');
     const input=analisar(z.strictObject({originalSnapshotId:persistedUuid,originalLineId:persistedUuid,
-      returnDocumentIdentity:z.string().trim().min(1).max(120),returnItemIdentity:z.string().trim().min(1).max(80),
+      returnDocumentIdentity:z.string().regex(/^\d{44}$/u),returnItemIdentity:z.string().regex(/^[1-9]\d{0,2}$/u),
       eventDate:dataCivilQuerySchema,unit:z.string().trim().min(1).max(20),returnedQuantityScaled:z.string().regex(/^\d{1,38}$/u),
+      returnedQuantity:z.string().regex(/^\d+(?:[.,]\d{1,10})?$/u),returnDocumentNumber:z.string().regex(/^\d{1,20}$/u),
+      returnAccessKey:z.string().regex(/^\d{44}$/u),returnModel:z.enum(['55','65']),returnSeries:z.string().trim().min(1).max(20),
+      returnCfop:z.string().regex(/^\d{4}$/u),ncm:z.string().regex(/^\d{8}$/u).nullable(),productCode:z.string().trim().min(1).max(60),
+      productDescription:z.string().trim().min(1).max(120),unitPrice:z.string().regex(/^\d+(?:[.,]\d{1,3})?$/u),
+      total:z.string().regex(/^\d+(?:[.,]\d{1,2})?$/u),efdDate:dataCivilQuerySchema.nullable(),
       idempotencyKey:uuid}),body);
     const file=files?.[0];
     if(!file)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Anexo comprobatório obrigatório.');
     return this.icmsStService.registerManualReturn(tenantDa(request),autorDa(request).usuarioId,companyId,input,
       {nomeOriginal:file.originalname,tipoConteudo:file.mimetype,conteudo:file.buffer},obterCorrelationId(request));
+  }
+
+  @Post('icms-st-returns/:eventId/review')
+  @HttpCode(201)
+  @AcaoLivre()
+  revisarDevolucaoIcmsSt(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,
+    @Param('eventId') eventId:string,@Body() body:unknown) {
+    const input=analisar(z.strictObject({action:z.enum(['APPROVED','REJECTED']),reason:z.string().trim().min(10).max(500).nullable().optional()})
+      .superRefine((value,context)=>{
+        const roles=request.sessao?.papeis??[];
+        if(!roles.some(role=>(['admin_escritorio','contador'] as readonly string[]).includes(role)))
+          context.addIssue({code:'custom',message:'Somente contador ou admin pode decidir devolução.',path:['action']});
+        if(value.action==='REJECTED'&&(value.reason===undefined||value.reason===null))
+          context.addIssue({code:'custom',message:'Rejeição exige motivo.',path:['reason']});
+      }),body);
+    return this.icmsStService.reviewManualReturn(tenantDa(request),autorDa(request).usuarioId,companyId,analisar(persistedUuid,eventId),
+      input.action,input.reason??null,obterCorrelationId(request));
   }
 
   @Get('icms-st-settlements/:snapshotId')

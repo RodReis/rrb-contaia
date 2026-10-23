@@ -72,7 +72,7 @@ describe('Painel de apuração F29', () => {
       lines: pending.lines.map((line) => ({ ...line, difference_kind: 'NONE', blocking_reason_codes: [] })) });
     render(<PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar podeDecidir />, { wrapper: Envolvido });
     await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
-    expect(await screen.findByRole('button', { name: /Submissão indisponível/u })).toBeDisabled();
+    expect(await screen.findByText(/Apuração F29 permanece bloqueada/u)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rejeitar' })).not.toBeInTheDocument();
   });
@@ -84,7 +84,7 @@ describe('Painel de apuração F29', () => {
       events: [{ action: 'SUBMITTED', occurred_at: '2026-10-21T12:01:00.000Z', details: {} }] });
     render(<PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar podeDecidir />, { wrapper: Envolvido });
     await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
-    expect(await screen.findByRole('status')).toHaveTextContent(/Decisão suspensa/u);
+    expect(await screen.findByText(/Apuração F29 permanece bloqueada/u)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
   });
 

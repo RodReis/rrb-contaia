@@ -175,6 +175,13 @@ const inserirEventoDevolucaoIcmsSt = async (admin: Consultavel, e: Escopo, r: Re
    values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,'2017-02-01',$7,'UN',1,repeat('f',64),$8,'f32-rls-fixture',now()) returning id`,
   [e.tenantId,e.empresaId,r['snapshotId'],r['lineId'],`return-event-${randomUUID()}`,`item-event-${randomUUID()}`,randomUUID(),e.autorId]);
 
+const prepararRevisaoDevolucaoIcmsSt = async (admin:Consultavel,e:Escopo,r:Referencias):Promise<Referencias> => {
+  const eventId=await inserirEventoDevolucaoIcmsSt(admin,e,r);
+  const reviewId=await unico(admin,`insert into app.tax_st_return_review_event(tenant_id,empresa_id,return_event_id,action,actor_id,occurred_at,correlation_id)
+    values($1,$2,$3,'APPROVED',$4,now(),'f32-rls-fixture') returning id`,[e.tenantId,e.empresaId,eventId,e.autorId]);
+  return {...r,eventId,reviewId};
+};
+
 const prepararConfiguracaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const configurationId = await unico(admin,
     `insert into app.fiscal_risk_configuration(tenant_id,empresa_id,versao,limite_centavos,motivo,ator_id)
@@ -985,12 +992,21 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.tax_st_return_reversal': {
     preparar: async (admin,e) => {
       const base = await prepararDevolucaoIcmsSt(admin,e);
-      return { ...base, eventId: await inserirEventoDevolucaoIcmsSt(admin,e,base) };
+      return await prepararRevisaoDevolucaoIcmsSt(admin,e,base);
     },
     inserir: (banco,e,r) => unico(banco,
       `insert into app.tax_st_return_reversal(tenant_id,empresa_id,event_id,original_snapshot_id,original_line_id,competence,returned_quantity_scaled,remaining_quantity_scaled,reversed_restitution_cents,reversed_complement_cents,formula_version,source_ids,actor_id,correlation_id,occurred_at)
        values($1,$2,$3,$4,$5,'2017-02-01',1,0,0,0,'fixture',array['fixture']::text[],$6,'f32-rls-fixture',now()) returning id`,
       [e.tenantId,e.empresaId,r['eventId'],r['snapshotId'],r['lineId'],e.autorId]),
+  },
+  'app.tax_st_return_review_event': {
+    preparar:async(admin,e)=>{
+      const base=await prepararDevolucaoIcmsSt(admin,e);
+      const eventId=await inserirEventoDevolucaoIcmsSt(admin,e,base);
+      return {...base,eventId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_return_review_event(tenant_id,empresa_id,return_event_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'SUBMITTED',$4,now(),'f32-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['eventId'],e.autorId]),
   },
   'app.tax_st_settlement_line': {
     preparar: prepararSnapshotIcmsSt,
