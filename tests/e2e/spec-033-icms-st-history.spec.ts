@@ -226,7 +226,8 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   expect(packageReviewResponse.ok(),await packageReviewResponse.text()).toBeTruthy();
   await expect(panel.getByText(new RegExp(`E2E-${PREFIXO}.*APPROVED`,'u'))).toBeVisible();
   await panel.getByLabel('Data de referência').fill('2017-02-28');
-  await panel.getByLabel('Pacote normativo aprovado').selectOption({label:`E2E-${PREFIXO}`});
+  await panel.getByRole('combobox',{name:'Pacote normativo aprovado'}).click();
+  await page.getByRole('option',{name:new RegExp(`E2E-${PREFIXO}`,'u')}).click();
 
   const calculate=async()=>{
     const response=page.waitForResponse(value=>value.url().includes('/icms-st-legal-accruals')&&!value.url().includes('/review')&&value.request().method()==='POST');
