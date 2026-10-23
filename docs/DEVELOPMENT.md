@@ -744,12 +744,14 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Submissão de evidência aceita auxiliar; decisão separada por contador/admin fica append-only. Estorno exige aprovação e passa por função restrita `SECURITY DEFINER`; `INSERT` direto da aplicação foi revogado.
 - [x] Tela mostra vínculo causal, evidência submetida, decisão contador/admin e valores separados; ação só aparece para alçada correspondente.
 - [x] Aprovação compõe revisão imutável na competência do evento e linha C002 com hash; histórico e filtro por modelo incluem snapshots F32.
-- [x] Testes locais: API focal 4/4, domínio 6/6, tela 7/7, E2E autenticado 2/2, banco F32 + anti-drift 18/18, typecheck/lint dos pacotes afetados e `git diff --check`.
+- [x] Testes locais: API focal 6/6, domínio e shared aprovados; tela 7/7; banco F32, matriz RLS e anti-drift 23/23; typecheck/lint dos pacotes afetados e `git diff --check`.
 - [x] Migrations 0059/0061/0062/0063 registram cancelamento NFC-e somente quando origem, item importado, chave, protocolo e hash coincidem; a API não insere cancelamento diretamente. A migration 0068 invalida snapshots afetados por evidência nova de devolução; migrations aplicadas no Compose compartilhado `contaia`.
 - [x] Matriz RLS (100%, 5 testes) e anti-drift do catálogo (17 testes) passaram após as migrations 0059/0060; fixtures F32 cobrem evento, estorno e cancelamento.
-- [ ] Integração de cancelamento NF-e 55 e ingestão direta NF-e/EFD pendentes: a base atual não persiste evento autorizado NF-e 55 nem importação EFD verificável. Ingestão manual está disponível; não foi criado evento substituto sem fonte verificável.
-  - [x] E2E autenticado F32 (submissão manual, aprovação humana, estorno, snapshot e linha C002); capturas do formulário em CLARO/ESCURO × 768/1024/1440; axe sem violações críticas e sem rolagem horizontal. Referência comparada: tela de apuração fiscal do protótipo; a tela executada fica na Resolução tributária da empresa.
-- [ ] Comentário de encerramento e `proplan:done` pendentes até concluir SPEC-032, obter CI verde e confirmar merge.
+- [x] Ingestão EFD e NF-e normalizada identifica devoluções por referência, validade da competência e hash; origem manual rejeita valores fiscais declarados pelo usuário.
+- [x] Worker valida evento autorizado de cancelamento NF-e 55 (XSD, XMLDSig, cadeia ICP na data do evento e protocolo); persiste proveniência verificada e concilia evento órfão ao documento correspondente.
+- [ ] E2E autenticado local: `not_run`; Vault da composição compartilhada permaneceu sealed e o bootstrap retornou HTTP 400. Não houve recriação nem remoção de volumes. E2E da CI para o head `c090bdc` em execução.
+- [ ] Capturas autenticadas novas para essa revisão em CLARO/ESCURO × 768/1024/1440: `not_run` localmente pelo bloqueio do Vault; capturas preexistentes não são apresentadas como evidência desta revisão.
+- [ ] Comentário de encerramento, merge confirmado e `proplan:done` pendentes de CI verde e integração da PR #143.
 
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
 

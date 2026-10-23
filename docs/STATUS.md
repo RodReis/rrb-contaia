@@ -77,7 +77,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-2 | F29 | SPEC-029 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Complemento e restituição do ICMS-ST de autopeças em Goiás | #33 | `proplan:backlog` |
 | MVP-2 | F30 | SPEC-030 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Importação e normalização de NFC-e modelo 65 em Goiás | #34 | `proplan:backlog` |
 | MVP-2 | F31 | SPEC-031 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Inclusão da NFC-e no complemento e restituição do ICMS-ST de autopeças em Goiás | #35 | `proplan:backlog` |
-| MVP-2 | F32 | SPEC-032 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Eventos posteriores no complemento e restituição do ICMS-ST | #36 | `proplan:backlog` |
+| MVP-2 | F32 | SPEC-032 | PRD §§3, 5.3, 6.1, 6.5, 12, 14, 15 e 16 | Eventos posteriores no complemento e restituição do ICMS-ST | #36 | `proplan:doing` |
 | MVP-2 | F33 | SPEC-033 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Reconstrução histórica do ICMS-ST de autopeças em Goiás | #37 | `proplan:backlog` |
 | MVP-2 | F34 | SPEC-034 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Acréscimos legais da reconstrução histórica do ICMS-ST em Goiás | #38 | `proplan:backlog` |
 | MVP-2 | F35 | SPEC-035 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Dossiê interno de decisão do ICMS-ST histórico | #39 | `proplan:backlog` |
