@@ -191,6 +191,8 @@ test('F33 não apresenta violações críticas nem rolagem horizontal nas provas
 test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem atribuir validade legal ao fixture',async()=>{
   test.setTimeout(180_000);
   mkdirSync(CAMINHO,{recursive:true});
+  await page.reload();
+  await expect(page.getByRole('tab',{name:'Captura DF-e'})).toHaveAttribute('data-state','active');
   const panel=page.getByRole('region',{name:'Acréscimos legais do ICMS-ST histórico'});
   await expect(panel.getByRole('heading',{name:'Acréscimos legais do ICMS-ST histórico'})).toBeVisible();
   await panel.getByLabel('Pacote F33').selectOption(f34PackageId);
