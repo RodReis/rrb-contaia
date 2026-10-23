@@ -99,6 +99,7 @@ test('F32 registra devolução, exige decisão humana e compõe revisão C002; p
   await form.getByRole('combobox',{name:'Origem da evidência'}).click();
   await page.getByRole('option',{name:'Arquivo EFD'}).click();
   await form.getByLabel('Data da devolução (AAAA-MM-DD)').fill('2019-02-03');
+  await form.getByLabel('Data EFD (se escriturada)').fill('2019-02-04');
   await form.getByLabel('Chave de acesso da devolução').fill(CHAVE_DEVOLUCAO);
   await form.getByLabel('Número do documento').fill('789');
   await form.getByLabel('Série').fill('1');
@@ -111,7 +112,7 @@ test('F32 registra devolução, exige decisão humana e compõe revisão C002; p
   const efd=[
     '|0190|UN|Unidade|',
     '|0200|SKU-F32|Autopeça sintética||SKU-F32|UN|00|12345678|||||1234567|',
-    `|C100|0|0|PART|55|00|1|789|${CHAVE_DEVOLUCAO}|03022019||10,00|`,
+    `|C100|0|0|PART|55|00|1|789|${CHAVE_DEVOLUCAO}|03022019|04022019|10,00|`,
     `|C113|0|1|PART|55|1||456|15012017|${CHAVE_ORIGINAL}|00|`,
     '|C170|1|SKU-F32|Autopeça sintética|1,00000|UN|10,00|0|0|00|1202|NAT|0|0|0|0|0|0|0|',
     '|C990|5|',
