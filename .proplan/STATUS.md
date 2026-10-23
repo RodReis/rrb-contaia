@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-22
+updated: 2026-10-23
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -63,6 +63,7 @@ updated: 2026-10-22
 
 ### Sem épico
 
+- [FIX] isolar fixtures E2E de empresa e notificações (#145)
 - [MVP1][SPEC-015][FIX] Seguimentos menores do leitor ODS, da auditoria e da suíte E2E (#114)
 - [MVP1][SPEC-014][FIX] Suítes de banco com e-mails fixos quebram depois de uma rodada interrompida (#112)
 - [MVP1][SPEC-014][FIX] Falha determinística na preparação da validação deixa a tentativa em RECEBIDA sem FALHA (#111)
@@ -78,8 +79,6 @@ updated: 2026-10-22
 - [MVP2][SPEC-036][F36] Apuração mensal e guias prévias para comércio de autopeças em Goiás (#41)
 - [MVP2][SPEC-035][F35] Dossiê interno de decisão do ICMS-ST histórico (#39)
 - [MVP2][SPEC-034][F34] Acréscimos legais da reconstrução histórica do ICMS-ST em Goiás (#38)
-- [MVP2][SPEC-033][F33] Reconstrução histórica do ICMS-ST de autopeças em Goiás (#37)
-- [MVP2][SPEC-032][F32] Eventos posteriores no complemento e restituição do ICMS-ST (#36)
 
 ## Em Andamento
 
@@ -93,6 +92,8 @@ _(vazio)_
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-032][F32] Eventos posteriores no complemento e restituição do ICMS-ST (#36, finalizado em: 2026-10-23)
+- [MVP2][SPEC-033][F33] Reconstrução histórica do ICMS-ST de autopeças em Goiás (#37, finalizado em: 2026-10-23)
 - [MVP2][SPEC-031][F31] Inclusão da NFC-e no complemento e restituição do ICMS-ST de autopeças em Goiás (#35, finalizado em: 2026-10-22)
 - [MVP2][SPEC-029][F29] Complemento e restituição do ICMS-ST de autopeças em Goiás (#33, finalizado em: 2026-10-22)
 - [MVP2][SPEC-030][F30] Importação e normalização de NFC-e modelo 65 em Goiás (#34, finalizado em: 2026-10-22)
