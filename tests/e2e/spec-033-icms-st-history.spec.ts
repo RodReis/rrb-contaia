@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Pool } from 'pg';
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { canonicalizarJson } from '@contaia/shared';
+import { canonicalizarJson } from '../../packages/shared/src/canonical-json';
 import { cnpjValido, criarEmpresa, criarEscritorio, criarIdentidade, criarUsuario, entrarComo, limparEscritorios, removerIdentidadesComPrefixo, vincular, type Pessoa } from './fixtures/ambiente';
 import { provarVisualmente, type AchadosVisuais } from './fixtures/plano-contas';
 import { FIXTURES } from '../../packages/db/src/testes/fixtures-rls';
