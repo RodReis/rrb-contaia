@@ -113,8 +113,7 @@ const prepararCancelamentoTributario = async (admin: Consultavel, e: Escopo): Pr
   const accessKey=String(proximo()).padStart(44,'1').slice(-44);
   const protocol='135260000000001';
   const eventHash='d'.repeat(64);
-  const sourceBatchId=await unico(admin,`insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
-    values($1,$2,$3,'f32-cancellation-fixture','ERP','COMPLETED',1) returning id`,[e.tenantId,e.empresaId,e.autorId]);
+  const sourceBatchId=await unico(admin,`insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total) values($1,$2,$3,'f32-cancellation-fixture','ERP','COMPLETED',1) returning id`,[e.tenantId,e.empresaId,e.autorId]);
   const sourceItemId=await unico(admin,`insert into app.nfce_import_item(tenant_id,empresa_id,batch_id,nome_sanitizado,tamanho_bytes,hash_sha256,original_key,status,document_id,parser_version,schema_version,correlation_id)
     values($1,$2,$3,'cancelamento.xml',1,$4,$5,'IMPORTED',$6,'fixture','fixture','f32-cancellation-fixture') returning id`,
     [e.tenantId,e.empresaId,sourceBatchId,eventHash,`fiscal/${e.sufixo}/cancelamento.xml`,documento['documentId']]);
@@ -922,7 +921,7 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     preparar: async (admin,e) => {
       const batchId=await unico(admin,
         `insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
-         values($1,$2,$3,'f30-rls-fixture','ERP','PROCESSING',1) returning id`, [e.tenantId,e.empresaId,e.autorId]);
+          values($1,$2,$3,'f30-rls-fixture','ERP','PROCESSING',1) returning id`, [e.tenantId,e.empresaId,e.autorId]);
       return {batchId};
     },
     inserir: (banco,e,r) => unico(banco,
@@ -1014,6 +1013,37 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     },
     inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_return_review_event(tenant_id,empresa_id,return_event_id,action,actor_id,occurred_at,correlation_id)
       values($1,$2,$3,'SUBMITTED',$4,now(),'f32-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['eventId'],e.autorId]),
+  },
+  'app.tax_st_history_package': {
+    preparar: prepararDocumentoParaSnapshot,
+    inserir: (banco,e) => unico(banco,
+      `insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
+       values($1,$2,'SIMPLES_NACIONAL','2017-01-01','2017-01-01',1,md5($4)||md5($4||'selection'),md5($4||'content')||md5($4||'payload'),'BLOQUEADO_POR_ACRESCIMOS_LEGAIS','{}'::uuid[],'[]'::jsonb,'{}'::jsonb,$3,now(),'f33-rls-fixture') returning id`,[e.tenantId,e.empresaId,e.autorId,`${e.sufixo}/${randomUUID()}`]),
+  },
+  'app.tax_st_history_package_line': {
+    preparar: async(admin,e) => {
+      const base=await prepararDevolucaoIcmsSt(admin,e);
+      const packageId=await unico(admin,
+        `insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
+         values($1,$2,'SIMPLES_NACIONAL','2017-01-01','2017-01-01',1,md5($5||$6)||md5($5||$6||'selection'),md5($5||$6||'content')||md5($5||$6||'payload'),'BLOQUEADO_POR_ACRESCIMOS_LEGAIS',ARRAY[$3]::uuid[],'[]'::jsonb,'{}'::jsonb,$4,now(),'f33-rls-line-fixture') returning id`,[e.tenantId,e.empresaId,base['snapshotId'],e.autorId,`${e.sufixo}/${randomUUID()}`,e.autorId]);
+      return {...base,packageId};
+    },
+    inserir:(banco,e,r)=>unico(banco,
+      `insert into app.tax_st_history_package_line(tenant_id,empresa_id,package_id,source_kind,source_revision_id,source_line_id,competence,document_id,item_id,document_model,access_key,source_ids,rule_id,formula_version,memory_sha256,document_sha256,restitution_principal_cents,complement_principal_cents,facts)
+       values($1,$2,$3,'APPROVED_SETTLEMENT',$4,$5,'2017-01-01',$6,'fixture','55',repeat('1',44),ARRAY['fixture'],'fixture','fixture',repeat('e',64),repeat('f',64),0,0,'{}'::jsonb) returning id`,
+      [e.tenantId,e.empresaId,r['packageId'],r['snapshotId'],r['lineId'],r['documentId']]),
+  },
+  'app.tax_st_history_package_event': {
+    preparar: async(admin,e) => {
+      const doc=await prepararDocumentoParaSnapshot(admin,e);
+      const packageId=await unico(admin,
+        `insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
+         values($1,$2,'SIMPLES_NACIONAL','2017-01-01','2017-01-01',1,md5($4||$5)||md5($4||$5||'selection'),md5($4||$5||'content')||md5($4||$5||'payload'),'BLOQUEADO_POR_ACRESCIMOS_LEGAIS','{}'::uuid[],'[]'::jsonb,'{}'::jsonb,$3,now(),'f33-rls-event-fixture') returning id`,[e.tenantId,e.empresaId,e.autorId,`${e.sufixo}/${randomUUID()}`,e.autorId]);
+      return {...doc,packageId};
+    },
+    inserir:(banco,e,r)=>unico(banco,
+      `insert into app.tax_st_history_package_event(tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id,details)
+       values($1,$2,$3,'GENERATED',$4,now(),'f33-rls-event-fixture','{}'::jsonb) returning id`,[e.tenantId,e.empresaId,r['packageId'],e.autorId]),
   },
   'app.tax_st_settlement_line': {
     preparar: prepararSnapshotIcmsSt,

@@ -54,6 +54,8 @@ const statusPorCodigo: Partial<Record<CodigoDeErro, number>> = {
   // Empresa de outro escritório responde igual a empresa inexistente: 404 sem
   // distinguir os dois casos, para não revelar a existência de dado alheio.
   [CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.ICMS_ST_HISTORY_PACKAGE_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [CODIGOS_DE_ERRO.ICMS_ST_HISTORY_REGIME_MISMATCH]: HttpStatus.CONFLICT,
   [CODIGOS_DE_ERRO.TENANT_DIVERGENTE]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.CADASTRO_INCOMPLETO]: HttpStatus.FORBIDDEN,
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: HttpStatus.FORBIDDEN,

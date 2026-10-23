@@ -32,6 +32,7 @@ const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
  */
 const CABECALHOS_DEVOLVIDOS = [
   'content-disposition',
+  'x-content-sha256',
   'x-correlation-id',
   'x-content-type-options',
   'cache-control',

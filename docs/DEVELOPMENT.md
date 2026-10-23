@@ -736,6 +736,16 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [ ] Capturas F31 CLARO/ESCURO × 768/1024/1440 e comparação visual correspondente não têm evidência rastreável anexada. `not_run`; `test-tela` verde não substitui captura visual.
 - [ ] Comentário com evidências publicado na issue #35; `proplan:done` aguarda pacote tributário oficial F29 publicado/revisado, E2E completo da SPEC-031 e capturas visuais rastreáveis.
 
+### Card #37 — `[MVP2][SPEC-033][F33]` Reconstrução histórica do ICMS-ST de autopeças em Goiás
+
+- [x] Iniciado em worktree dedicada `codex/f33-issue37`; issue #37 em `proplan:doing`, sub-issue nativa de #31.
+- [x] Domínio consolida somente revisões aprovadas e não obsoletas, preserva principal bruto/estornos/saldo, memória causal e hashes; fatos originais fora de 27/10/2016–28/02/2018 não entram.
+- [x] Migration 0071 cria pacotes, linhas e eventos append-only com RLS/índices/FKs compostas; API gera/reproduz por seleção e contrato, audita downloads/superação e serve PDF/CSV/JSON privados. Uso externo bloqueado até F34/SPEC-034.
+- [x] Painel fiscal com seleção de regime/período, totais, competências excluídas e downloads; regras completas do domínio 934/934 e da API 1.479/1.479, telas completas 1.322/1.322, matriz RLS 5/5 e anti-drift 17/17.
+- [x] E2E autenticado 2/2: geração/reuso, PDF/CSV/JSON com SHA-256, superação por revisão nova, axe sem violações críticas e sem rolagem horizontal; capturas CLARO/ESCURO em 768/1024/1440. Typecheck/build e lint da API e Web passaram; lint Web manteve warning preexistente em `aba-de-enderecos.tsx`.
+- [ ] Suíte DB integral local `not_run` como validação conclusiva: a execução paralela teve 14 falhas de colisão/timeouts; a serial teve 500 testes aprovados/49 ignorados e 3 arquivos bloqueados por usuários de fixtures estáticas deixados no Compose compartilhado após a primeira execução. Matriz RLS e anti-drift focados passaram; CI limpa ainda é gate obrigatório.
+- [ ] Revisão final, PR, CI, merge confirmado, comentário de encerramento e `proplan:done` pendentes.
+
 ### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
 
 - [x] Domínio calcula estorno proporcional cumulativo em centavos inteiros; última devolução absorve resíduo de arredondamento, sem exceder valor ou quantidade original.
@@ -749,9 +759,8 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Matriz RLS (100%, 5 testes) e anti-drift do catálogo (17 testes) passaram após as migrations 0059/0060; fixtures F32 cobrem evento, estorno e cancelamento.
 - [x] Ingestão EFD e NF-e normalizada identifica devoluções por referência, validade da competência e hash; origem manual rejeita valores fiscais declarados pelo usuário.
 - [x] Worker valida evento autorizado de cancelamento NF-e 55 (XSD, XMLDSig, cadeia ICP na data do evento e protocolo); persiste proveniência verificada e concilia evento órfão ao documento correspondente.
-- [ ] E2E autenticado local: `not_run`; Vault da composição compartilhada permaneceu sealed e o bootstrap retornou HTTP 400. Não houve recriação nem remoção de volumes. E2E da CI para o head `c090bdc` em execução.
-- [ ] Capturas autenticadas novas para essa revisão em CLARO/ESCURO × 768/1024/1440: `not_run` localmente pelo bloqueio do Vault; capturas preexistentes não são apresentadas como evidência desta revisão.
-- [ ] Comentário de encerramento, merge confirmado e `proplan:done` pendentes de CI verde e integração da PR #143.
+- [x] PR #143 integrada por squash no SHA `ababe945b44a9f4e12f5f8e9236ad3e3cac1a794`; CI do head `4d72917b25da9aa343a7bb749626239c7695e807` verde (run `39946224492`), incluindo `e2e` e gate; issue #36 aberta em `proplan:done`, aguardando aceite do PI.
+- [ ] E2E autenticado local e capturas CLARO/ESCURO × 768/1024/1440: `not_run` no ambiente local anterior, cujo bootstrap do Vault retornou HTTP 400. Nenhum volume foi recriado ou removido.
 
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
 
