@@ -90,14 +90,15 @@ test('F32 registra devolução, exige decisão humana e compõe revisão C002; p
   await expect(page.getByText('Restituição',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Registrar devolução'})).toBeVisible();
   await page.getByRole('button',{name:'Registrar devolução'}).click();
-  await expect(page.getByRole('form',{name:'Registrar devolução manual'})).toBeVisible();
+  await expect(page.getByRole('form',{name:'Registrar devolução'})).toBeVisible();
   achados=await provarVisualmente(page,CAMINHO,'f32-devolucao-formulario',{
-    pronto:(alvo)=>alvo.getByRole('form',{name:'Registrar devolução manual'}),semToasts:true,
-    recorte:(alvo)=>alvo.getByRole('form',{name:'Registrar devolução manual'}),
+    pronto:(alvo)=>alvo.getByRole('form',{name:'Registrar devolução'}),semToasts:true,
+    recorte:(alvo)=>alvo.getByRole('form',{name:'Registrar devolução'}),
   });
-  const form=page.getByRole('form',{name:'Registrar devolução manual'});
+  const form=page.getByRole('form',{name:'Registrar devolução'});
+  await form.getByRole('combobox',{name:'Origem da evidência'}).click();
+  await page.getByRole('option',{name:'Arquivo EFD'}).click();
   await form.getByLabel('Data da devolução (AAAA-MM-DD)').fill('2019-02-03');
-  await form.getByLabel('Data EFD (se escriturada)').fill('2019-02-03');
   await form.getByLabel('Chave de acesso da devolução').fill(CHAVE_DEVOLUCAO);
   await form.getByLabel('Número do documento').fill('789');
   await form.getByLabel('Série').fill('1');
@@ -107,9 +108,15 @@ test('F32 registra devolução, exige decisão humana e compõe revisão C002; p
   await form.getByLabel('NCM (8 dígitos, se comprovado)').fill('12345678');
   await form.getByLabel('Código do produto').fill('SKU-F32');
   await form.getByLabel('Descrição do produto').fill('Autopeça sintética');
-  await form.getByLabel('Valor unitário do item (até 3 casas)').fill('10');
-  await form.getByLabel('Valor total do item (até 2 casas)').fill('10');
-  await form.locator('input[type="file"]').setInputFiles({name:'devolucao.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 fixture')});
+  const efd=[
+    '|0190|UN|Unidade|',
+    '|0200|SKU-F32|Autopeça sintética||SKU-F32|UN|00|12345678|||||1234567|',
+    `|C100|0|0|PART|55|00|1|789|${CHAVE_DEVOLUCAO}|03022019||10,00|`,
+    `|C113|0|1|PART|55|1||456|15012017|${CHAVE_ORIGINAL}|00|`,
+    '|C170|1|SKU-F32|Autopeça sintética|1,00000|UN|10,00|0|0|00|1202|NAT|0|0|0|0|0|0|0|',
+    '|C990|5|',
+  ].join('\r\n');
+  await form.locator('input[type="file"]').setInputFiles({name:'devolucao.txt',mimeType:'text/plain',buffer:Buffer.from(efd)});
   const submission=page.waitForResponse(response=>response.url().includes('/fiscal-documents/icms-st-returns')&&response.request().method()==='POST');
   await form.getByRole('button',{name:'Submeter devolução'}).click();
   const submissionResponse=await submission;

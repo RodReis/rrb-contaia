@@ -15,6 +15,8 @@ import {
   type IcmsStSettlementRule,
 } from '@contaia/domain';
 import { CuratedTaxPackageSchema } from '@contaia/shared';
+import { localizarDevolucaoEfd } from '@contaia/shared/efd-return';
+import { parsearDocumentoFiscal } from './fiscal-document.parser.js';
 
 import { PoolDoBanco } from '../banco/pool.provider';
 import { noCatalogoTributario } from '../tax-rules/catalogo-contexto';
@@ -55,6 +57,12 @@ const centavosSeguros = (value:string|null):number|null => {
   try { const integer=BigInt(value); return integer>=0n&&integer<=BigInt(Number.MAX_SAFE_INTEGER)?Number(integer):null; }
   catch { return null; }
 };
+const precoUnitarioEfd = (total:string,quantity:string):string|null => {
+  const cents=decimalDeclaradoParaCentavos(total),scaled=toQuantityScaled(quantity);
+  if(cents===null||scaled===null||scaled<=0n)return null;
+  const milli=(BigInt(cents)*10n*10_000_000_000n+scaled/2n)/scaled;
+  return String(milli/1000n)+'.'+String(milli%1000n).padStart(3,'0');
+};
 
 const itemBaseCents = (row: OutputRow): number | null => {
   const values = [row.value, row.discount ?? '0'];
@@ -88,11 +96,18 @@ export class IcmsStSettlementsService {
     originalSnapshotId: string; originalLineId: string; returnDocumentIdentity: string; returnItemIdentity: string;
     eventDate: string; unit: string; returnedQuantityScaled: string; returnedQuantity:string; returnDocumentNumber:string; returnAccessKey:string;
     returnModel:'55'|'65';returnSeries:string;returnCfop:string;ncm:string|null;productCode:string;productDescription:string;
-    unitPrice:string;total:string;efdDate:string|null;idempotencyKey: string;
+    unitPrice:string;total:string;efdDate:string|null;evidenceOrigin:'MANUAL_DOCUMENT'|'EFD'|'NORMALIZED_NFE';idempotencyKey: string;
   }>, file: ArquivoRecebido, correlationId: string) {
+    const isEfd=input.evidenceOrigin==='EFD';
+    const isNormalizedNfe=input.evidenceOrigin==='NORMALIZED_NFE';
+    const isManual=input.evidenceOrigin==='MANUAL_DOCUMENT';
     if (file.conteudo.byteLength < 1 || file.conteudo.byteLength > 10 * 1024 * 1024 ||
-        !['application/pdf','application/xml','text/xml','image/jpeg','image/png'].includes(file.tipoConteudo)) {
-      throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID, 'Anexe PDF, XML, PNG ou JPEG de até 10 MB.');
+        !(isEfd
+          ? file.nomeOriginal.toLowerCase().endsWith('.txt')&&['text/plain','application/octet-stream'].includes(file.tipoConteudo)
+          : isNormalizedNfe
+            ? file.nomeOriginal.toLowerCase().endsWith('.xml')&&['application/xml','text/xml'].includes(file.tipoConteudo)
+            : ['application/pdf','application/xml','text/xml','image/jpeg','image/png'].includes(file.tipoConteudo))) {
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID, 'Anexe EFD TXT, XML NF-e normalizada ou evidência manual PDF/XML/PNG/JPEG de até 10 MB.');
     }
     if (!/^\d{4}-\d{2}-\d{2}$/u.test(input.eventDate) || Number.isNaN(Date.parse(`${input.eventDate}T00:00:00Z`)) ||
         new Date(`${input.eventDate}T00:00:00Z`).toISOString().slice(0,10)!==input.eventDate ||
@@ -100,16 +115,17 @@ export class IcmsStSettlementsService {
         toQuantityScaled(input.returnedQuantity.replace(',', '.'))?.toString()!==input.returnedQuantityScaled ||
         !/^\d{1,20}$/u.test(input.returnDocumentNumber)||!/^[0-9]{44}$/u.test(input.returnAccessKey)||input.returnDocumentIdentity!==input.returnAccessKey||
         !/^[1-9]\d{0,2}$/u.test(input.returnItemIdentity)||!/^\d{4}$/u.test(input.returnCfop)||
+        (isManual&&(input.unitPrice!==''||input.total!==''||input.productCode.trim()!==''||input.productDescription.trim()!==''||input.ncm!==null))||
         (input.ncm!==null&&!/^\d{8}$/u.test(input.ncm))||
         !/^[0-9a-f]{8}-[0-9a-f-]{27}$/iu.test(input.idempotencyKey)) {
       throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID, 'Dados de devolução inválidos.');
     }
     const fileSha256 = createHash('sha256').update(file.conteudo).digest('hex');
-    const sha256 = createHash('sha256').update(jsonText({fileSha256,returnDocumentIdentity:input.returnDocumentIdentity,returnItemIdentity:input.returnItemIdentity,
+    const sha256 = createHash('sha256').update(jsonText({evidenceOrigin:input.evidenceOrigin,fileSha256,returnDocumentIdentity:input.returnDocumentIdentity,returnItemIdentity:input.returnItemIdentity,
       eventDate:input.eventDate,unit:input.unit,returnedQuantityScaled:input.returnedQuantityScaled,returnDocumentNumber:input.returnDocumentNumber,
       returnAccessKey:input.returnAccessKey,returnModel:input.returnModel,returnSeries:input.returnSeries,returnCfop:input.returnCfop,ncm:input.ncm,
       productCode:input.productCode,productDescription:input.productDescription,unitPrice:input.unitPrice,total:input.total,efdDate:input.efdDate})).digest('hex');
-    const storageKey = `${tenantId}/icms_st_return/${fileSha256}`;
+    const storageKey = `${tenantId}/icms_st_return/${input.evidenceOrigin}/${fileSha256}`;
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
         const submitter=await client.query<{allowed:boolean}>(`select exists(select 1 from app.usuario u join app.usuario_papel p on p.usuario_id=u.id and p.tenant_id=u.tenant_id
           where u.id=$1 and u.tenant_id=$2 and u.estado='ATIVO' and p.removido_em is null and p.papel in ('admin_escritorio','contador','auxiliar')) allowed`,[userId,tenantId]);
@@ -124,11 +140,11 @@ export class IcmsStSettlementsService {
              from app.tax_st_return_event e left join app.tax_st_return_reversal r on r.event_id=e.id
              left join lateral(select action from app.tax_st_return_review_event where return_event_id=e.id order by occurred_at desc,id desc limit 1) review on true
             where e.tenant_id=$1 and e.empresa_id=$2 and (e.idempotency_key=$3 or
-              (e.origin='MANUAL_DOCUMENT' and e.return_document_identity=$4 and e.return_item_identity=$5 and e.event_date=$6::date))`,
-          [tenantId,companyId,input.idempotencyKey,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate]);
+              (e.origin=$7 and e.return_document_identity=$4 and e.return_item_identity=$5 and e.event_date=$6::date))`,
+          [tenantId,companyId,input.idempotencyKey,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate,input.evidenceOrigin]);
         const priorEvent=previous.rows[0];
         if(priorEvent){
-          if(priorEvent.origin!=='MANUAL_DOCUMENT'||priorEvent.evidence_sha256!==sha256||priorEvent.original_line_id!==input.originalLineId||
+          if(priorEvent.origin!==input.evidenceOrigin||priorEvent.evidence_sha256!==sha256||priorEvent.original_line_id!==input.originalLineId||
              priorEvent.normalized_unit!==input.unit||priorEvent.requested_quantity!==input.returnedQuantityScaled||
              priorEvent.return_document_identity!==input.returnDocumentIdentity||priorEvent.return_item_identity!==input.returnItemIdentity||priorEvent.event_date!==input.eventDate)
             throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Identidade do evento reutilizada com conteúdo divergente.');
@@ -171,17 +187,72 @@ export class IcmsStSettlementsService {
         const originalDate=line.fact_date;
         if(originalNumber===null||originalAccessKey===null||originalDate===null)
           throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ORIGINAL_CALCULATION_UNAVAILABLE,'Documento original sem campos obrigatórios para o registro C002.');
-        await this.storage.enviarComChave(storageKey,file.conteudo,file.tipoConteudo);
-        const inserted=await client.query<{id:string}>(`insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,
+        let efdFacts:unknown=null;
+        let unitPrice=input.unitPrice.replace(',','.');
+        let documentTotal=input.total.replace(',','.');
+        let ncm=input.ncm;
+        let normalizedReturnDocumentId:string|null=null;
+        let evidenceStorageKey=storageKey;
+        if(isEfd){
+          let record:ReturnType<typeof localizarDevolucaoEfd>;
+          try{record=localizarDevolucaoEfd(file.conteudo,{accessKey:input.returnAccessKey,itemNumber:input.returnItemIdentity,originalOutputAccessKey:originalAccessKey});}
+          catch(error){
+            const code=error instanceof Error&&error.message.startsWith('EFD_')?error.message:'EFD_FILE_INVALID';
+            throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,`Arquivo EFD sem registro verificável (${code}).`);
+          }
+          const parsedQuantity=toQuantityScaled(record.quantity);
+          const declaredTotal=decimalDeclaradoParaCentavos(record.total);
+          const submittedTotal=declaredTotal;
+          if(input.returnModel!=='55'||record.documentNumber!==input.returnDocumentNumber||record.series!==input.returnSeries||
+             record.date!==input.eventDate||record.efdDate!==input.efdDate||record.cfop!==input.returnCfop||
+             record.unit!==input.unit||
+             parsedQuantity?.toString()!==input.returnedQuantityScaled||
+             declaredTotal===null||submittedTotal!==declaredTotal)
+            throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Dados informados divergem do registro C100/C113/C170 da EFD.');
+          const derived=precoUnitarioEfd(record.total,record.quantity);
+          if(!derived)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Quantidade/valor EFD não permite compor C002 com precisão declarada.');
+          unitPrice=derived;documentTotal=record.total;
+          ncm=record.ncm;
+          efdFacts={sourceRecords:['C100','C113','C170','0190','0200'],eventDate:record.efdDate??record.date,documentDate:record.date,
+            returnAccessKey:record.accessKey,returnItemNumber:record.itemNumber,originalAccessKey,productCode:record.productCode,
+            ncm:record.ncm,cest:record.cest,unit:record.unit,quantity:record.quantity,total:record.total,cfop:record.cfop};
+        }else if(isNormalizedNfe){
+          let parsed:ReturnType<typeof parsearDocumentoFiscal>;
+          try{parsed=parsearDocumentoFiscal(file.conteudo,'NFE_55');}
+          catch{throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'XML não é NF-e de devolução normalizável.');}
+          const itemNumber=Number(input.returnItemIdentity);
+          const item=parsed.itens[itemNumber-1];
+          if(parsed.finality!=='4'||parsed.protocolo===null||parsed.emitidoEm===null||parsed.emitidoEm.slice(0,10)!==input.eventDate||
+             !parsed.referencias.some(reference=>reference.tipo==='NFE'&&reference.chave===originalAccessKey)||
+             parsed.chaveAcesso!==input.returnAccessKey||parsed.numeroDocumento!==input.returnDocumentNumber||parsed.serieDocumento!==input.returnSeries||
+             !item||item.tipo!=='ITEM'||item.cfop!==input.returnCfop||item.unidade!==input.unit||toQuantityScaled(item.quantidade)?.toString()!==input.returnedQuantityScaled||
+             input.efdDate!==null||!item.valor)
+            throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'NF-e precisa estar autorizada no F18, ser devolução e referenciar a saída/item informado.');
+          const stored=await client.query<{id:string;original_key:string;hash_sha256:string}>(`select id,original_key,hash_sha256 from app.fiscal_document
+            where tenant_id=$1 and empresa_id=$2 and especie='NFE_55' and chave_acesso=$3 and hash_sha256=$4 and estado='PROCESSADO' and protocolo=$5`,
+            [tenantId,companyId,parsed.chaveAcesso,parsed.hashSha256,parsed.protocolo]);
+          const source=stored.rows[0];
+          if(!source)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'NF-e não consta normalizada e autorizada no repositório fiscal F18.');
+          const derived=precoUnitarioEfd(item.valor,item.quantidade??'');
+          if(!derived)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Quantidade/valor NF-e não permite compor C002 com precisão declarada.');
+          unitPrice=derived;documentTotal=item.valor;ncm=item.ncm;normalizedReturnDocumentId=source.id;
+          evidenceStorageKey=source.original_key;
+          efdFacts={sourceRecords:['F18:fiscal_document','fiscal_document_item','fiscal_document_reference'],eventDate:parsed.emitidoEm.slice(0,10),
+            returnAccessKey:parsed.chaveAcesso,returnItemNumber:itemNumber,originalAccessKey,productCode:item.codigo,ncm:item.ncm,cest:item.cest,
+            unit:item.unidade,quantity:item.quantidade,total:item.valor,cfop:item.cfop,finality:parsed.finality,documentId:source.id,originalKey:source.original_key};
+        }
+        if(isNormalizedNfe&&normalizedReturnDocumentId===null)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Documento fiscal normalizado ausente.');
+        if(!isNormalizedNfe)await this.storage.enviarComChave(storageKey,file.conteudo,file.tipoConteudo);
+        const inserted=await client.query<{id:string}>(`insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,return_document_id,
           return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,evidence_facts,actor_id,correlation_id,occurred_at)
-          values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,$7::date,$8::uuid,$9,$10::numeric,$11,$12::jsonb,$13,$14,$15)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9::date,$10::uuid,$11,$12::numeric,$13,$14::jsonb,$15,$16,$17)
           on conflict(tenant_id,empresa_id,origin,return_document_identity,return_item_identity,event_date) do nothing returning id`,
-          [tenantId,companyId,input.originalSnapshotId,input.originalLineId,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate,input.idempotencyKey,input.unit,
-           input.returnedQuantityScaled,sha256,jsonText({storageKey,fileSha256,mimeType:file.tipoConteudo,formulaVersion,originalQuantityScaled:total.toString(),
-             originalRestitutionCents:restitution,originalComplementCents:complement,differenceKind:line.kind,sourceIds:[input.originalLineId,...line.source_ids],
+          [tenantId,companyId,input.originalSnapshotId,input.originalLineId,input.evidenceOrigin,normalizedReturnDocumentId,input.returnDocumentIdentity,input.returnItemIdentity,input.eventDate,input.idempotencyKey,input.unit,
+           input.returnedQuantityScaled,sha256,jsonText({storageKey:evidenceStorageKey,fileSha256,mimeType:file.tipoConteudo,formulaVersion,originalQuantityScaled:total.toString(),
+             originalRestitutionCents:restitution,originalComplementCents:complement,differenceKind:line.kind,sourceIds:[input.originalLineId,...line.source_ids,...(normalizedReturnDocumentId?[normalizedReturnDocumentId]:[])],
              returnDocumentNumber:input.returnDocumentNumber,returnAccessKey:input.returnAccessKey,returnModel:input.returnModel,returnSeries:input.returnSeries,
-             returnCfop:input.returnCfop,ncm:input.ncm,productCode:input.productCode,productDescription:input.productDescription,
-             returnedQuantity:input.returnedQuantity.replace(',', '.'),unitPrice:input.unitPrice.replace(',', '.'),total:input.total.replace(',', '.'),efdDate:input.efdDate,
+             returnCfop:input.returnCfop,ncm,productCode:input.productCode,productDescription:input.productDescription,
+             returnedQuantity:input.returnedQuantity.replace(',', '.'),unitPrice,total:documentTotal,efdDate:input.efdDate,evidenceOrigin:input.evidenceOrigin,efdFacts,
              originalDocumentNumber:originalNumber,originalAccessKey,originalDate}),userId,correlationId,this.agora()]);
         const eventId=inserted.rows[0]?.id;
         if (!eventId) throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Evento fiscal já registrado com esta identidade.');

@@ -103,9 +103,10 @@ export class FiscalDocumentsController {
       eventDate:dataCivilQuerySchema,unit:z.string().trim().min(1).max(20),returnedQuantityScaled:z.string().regex(/^\d{1,38}$/u),
       returnedQuantity:z.string().regex(/^\d+(?:[.,]\d{1,10})?$/u),returnDocumentNumber:z.string().regex(/^\d{1,20}$/u),
       returnAccessKey:z.string().regex(/^\d{44}$/u),returnModel:z.enum(['55','65']),returnSeries:z.string().trim().min(1).max(20),
-      returnCfop:z.string().regex(/^\d{4}$/u),ncm:z.string().regex(/^\d{8}$/u).nullable(),productCode:z.string().trim().min(1).max(60),
-      productDescription:z.string().trim().min(1).max(120),unitPrice:z.string().regex(/^\d+(?:[.,]\d{1,3})?$/u),
-      total:z.string().regex(/^\d+(?:[.,]\d{1,2})?$/u),efdDate:dataCivilQuerySchema.nullable(),
+      returnCfop:z.string().regex(/^\d{4}$/u),ncm:z.string().regex(/^\d{8}$/u).nullable().optional().default(null),productCode:z.string().trim().max(60).optional().default(''),
+      productDescription:z.string().trim().max(120).optional().default(''),unitPrice:z.string().regex(/^\d+(?:[.,]\d{1,3})?$/u).or(z.literal('')),
+      total:z.string().regex(/^\d+(?:[.,]\d{1,2})?$/u).or(z.literal('')),efdDate:dataCivilQuerySchema.nullable(),
+      evidenceOrigin:z.enum(['MANUAL_DOCUMENT','EFD','NORMALIZED_NFE']).default('MANUAL_DOCUMENT'),
       idempotencyKey:uuid}),body);
     const file=files?.[0];
     if(!file)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Anexo comprobatório obrigatório.');

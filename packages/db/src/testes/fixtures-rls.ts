@@ -982,6 +982,13 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       return r['cancellationId']!;
     },
   },
+  'app.fiscal_document_verified_event': {
+    preparar: prepararStagingFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_verified_event(tenant_id,empresa_id,staging_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,ocorrido_em,tamanho_bytes,correlation_id)
+       values($1,$2,$3,lpad($4::text,44,'2'),$5,'PRODUCAO','110111','1','135260000000001',repeat('f',64),'fiscal/verified-event.xml','2017-02-01T12:00:00Z',1,'f32-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['stagingId'],proximo(),r['cnpj']]),
+  },
   'app.tax_st_return_event': {
     preparar: prepararDevolucaoIcmsSt,
     inserir: (banco,e,r) => unico(banco,

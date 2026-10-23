@@ -113,10 +113,20 @@ describe('Painel de apuração F29', () => {
     render(<PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar podeDecidir />, { wrapper: Envolvido });
     await userEvent.click(await screen.findByRole('button', { name: 'Abrir' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Registrar devolução' }));
-    const form=await screen.findByRole('form', { name: 'Registrar devolução manual' });
+    const form=await screen.findByRole('form', { name: 'Registrar devolução' });
     expect(form).toBeInTheDocument();
-    expect(screen.getByText(/Valores tributários vêm da linha aprovada/u)).toBeInTheDocument();
+    expect(screen.getByText(/Valores de estorno vêm da linha aprovada/u)).toBeInTheDocument();
     expect(within(form).queryByLabelText(/valor.*tributário|imposto|restituição/u)).not.toBeInTheDocument();
+    await userEvent.click(within(form).getByRole('combobox',{name:'Origem da evidência'}));
+    await userEvent.click(screen.getByRole('option',{name:'Arquivo EFD'}));
+    expect(within(form).queryByLabelText('Valor unitário do item (até 3 casas)')).not.toBeInTheDocument();
+    await userEvent.click(within(form).getByRole('combobox',{name:'Origem da evidência'}));
+    await userEvent.click(screen.getByRole('option',{name:'Documento manual'}));
+    expect(within(form).queryByLabelText(/Código do produto/u)).not.toBeInTheDocument();
+    expect(within(form).queryByLabelText(/Valor total/u)).not.toBeInTheDocument();
+    await userEvent.click(within(form).getByRole('combobox',{name:'Origem da evidência'}));
+    await userEvent.click(screen.getByRole('option',{name:'Arquivo EFD'}));
+    expect(within(form).getByText('Arquivo EFD TXT obrigatório')).toBeInTheDocument();
   });
 
   it('marca revisão desatualizada e exige motivo antes de reprocessar', async () => {

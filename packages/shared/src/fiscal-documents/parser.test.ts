@@ -11,6 +11,14 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 </infNFe></NFe><protNFe><infProt><nProt>135260000000001</nProt><dhRecbto>2026-06-15T10:01:00-03:00</dhRecbto></infProt></protNFe></nfeProc>`;
 
 describe('parse de evidência F27 para NF-e 55', () => {
+  it('preserva finalidade de devolução e chaves de origem referenciadas', () => {
+    const key='5'.repeat(44);
+    const source=xml.replace('<indFinal>1</indFinal>','<indFinal>1</indFinal><finNFe>4</finNFe><NFref><refNFe>'+key+'</refNFe></NFref>');
+    const parsed=parsearDocumentoFiscal(new TextEncoder().encode(source),'NFE_55');
+    expect(parsed.finality).toBe('4');
+    expect(parsed.referencias).toContainEqual({tipo:'NFE',chave:key});
+  });
+
   it('preserva CEST e valores ICMS-ST declarados por item e documento', () => {
     const parsed = parsearDocumentoFiscal(new TextEncoder().encode(xml), 'NFE_55');
     expect(parsed).toMatchObject({ destinationIndicator: '1', finalConsumerIndicator: '1', finalConsumer: true });

@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { DOMParser } from '@xmldom/xmldom';
+import { NAMESPACE_NFE } from '@contaia/shared';
 import { comContexto, createOrReuseDfeCaptureRun, ensureDfeCaptureState, getDfeCaptureCompany, iniciarCienciaDaEmissao, listarCienciasPendentes, registrarResumoImpedido, registrarXmlCompletoJaDisponivel } from '@contaia/db';
 import { contextoTecnico } from '@contaia/domain';
 import { DFE_CAPTURE_JOB, DFE_CAPTURE_JOB_OPTIONS, DFE_CAPTURE_SCAN_INTERVAL_MS, DfeCaptureCommandSchema,
@@ -147,7 +149,12 @@ export const scanFiscalDocumentsOutbox = async (options: FiscalOutboxOptions): P
           });
           continue;
         }
-        if (!ehDocumentoFiscalElegivel(item.conteudo_bruto,item.especie)) {
+        const eventDom=new DOMParser({errorHandler:()=>undefined}).parseFromString(new TextDecoder('utf-8',{fatal:false}).decode(item.conteudo_bruto),'application/xml');
+        const eventRoot=eventDom.documentElement;
+        const isAuthorizedCancellation=eventRoot.localName==='procEventoNFe'&&eventRoot.namespaceURI===NAMESPACE_NFE&&
+          eventDom.getElementsByTagNameNS(NAMESPACE_NFE,'infEvento')[0]?.getElementsByTagNameNS(NAMESPACE_NFE,'tpEvento')[0]?.textContent?.trim()==='110111'&&
+          eventDom.getElementsByTagNameNS(NAMESPACE_NFE,'infEvento')[0]?.getElementsByTagNameNS(NAMESPACE_NFE,'chNFe')[0]?.textContent?.trim().slice(20,22)==='55';
+        if (!isAuthorizedCancellation&&!ehDocumentoFiscalElegivel(item.conteudo_bruto,item.especie)) {
           await comContexto(options.pool, ctx, (client) => client.query(
             `update app.fiscal_document_outbox set estado='IGNORADO',tentativas=tentativas+1
               where staging_id=$1 and empresa_id=$2 and estado='PENDENTE'`, [item.staging_id,candidate.empresa_id]));

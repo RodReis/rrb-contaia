@@ -371,6 +371,7 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.tax_st_return_reversal', classe: 'empresa', origem: 'F32 / SPEC-032', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.tax_st_return_review_event', classe: 'empresa', origem: 'F32 / SPEC-032', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.tax_st_authorized_cancellation', classe: 'empresa', origem: 'F32 / SPEC-032', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.fiscal_document_verified_event', classe: 'empresa', origem: 'F32 / SPEC-032', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.rfb_procuracao', classe: 'empresa', origem: 'F25 / SPEC-025', exigirHelperRfbNasEscritas: true },
   { tabela: 'app.rfb_procuracao_evento', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },
   { tabela: 'app.rfb_procuracao_operacao', classe: 'empresa', origem: 'F25 / SPEC-025', appendOnly: true },
