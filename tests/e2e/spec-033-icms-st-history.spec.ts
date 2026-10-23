@@ -203,6 +203,7 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   const approvalResponse=await approval;
   expect(approvalResponse.ok(),await approvalResponse.text()).toBeTruthy();
   await expect(panel.getByText('Aprovação humana da fonte F33 necessária')).toHaveCount(0);
+  await panel.getByText('Importar pacote normativo oficial',{exact:true}).click();
 
   const evidence=Buffer.from('E2E synthetic fixture; not an official legal source.','utf8');
   const sourceSha=createHash('sha256').update(evidence).digest('hex');
