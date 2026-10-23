@@ -121,7 +121,7 @@ export class IcmsStLegalAccrualsService {
       await this.storage.enviarComChave(storageKey,file.buffer,file.mimetype||'application/octet-stream');sources.push({...source,storageKey});}
     const hashes=new Set(sources.map(source=>source.sha256));
     if(input.rules.some(rule=>!hashes.has(rule.sourceSha256)))throw this.indeterminado('Regra normativa aponta para fonte não anexada.');
-    const canonical:LegalPackage={...input,sources};const canonicalJson=json(canonical);const contentSha=sha(canonicalJson);
+    const canonical:LegalPackage={...input,sources};const canonicalJson=canonicalizarJson(canonical);const contentSha=sha(canonicalJson);
     return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
       const id=randomUUID();
       await client.query(`insert into app.tax_st_legal_rule_package(id,tenant_id,empresa_id,version,coverage_through,content_sha256,canonical_json,requested_by,created_at)
