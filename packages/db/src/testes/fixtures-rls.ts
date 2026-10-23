@@ -102,6 +102,45 @@ const prepararDocumentoFiscal = async (admin: Consultavel, e: Escopo): Promise<R
   return { ...staging, documentId };
 };
 
+const prepararCancelamentoTributario = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const documento = await prepararDocumentoFiscal(admin, e);
+  const snapshotId=await unico(admin,
+    `insert into app.tax_st_settlement_snapshot(tenant_id,empresa_id,competence,revision,idempotency_key,input_sha256,status,line_count,blocked_line_count,facts,actor_id,correlation_id,processed_at)
+     values($1,$2,'2017-01-01',$3,$4,repeat('c',64),'BLOCKED',0,0,'{}'::jsonb,$5,'f32-cancellation-fixture',now()) returning id`,
+    [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]);
+  await admin.query(`insert into app.tax_st_settlement_review_event(tenant_id,empresa_id,snapshot_id,action,actor_id,correlation_id,occurred_at,details)
+    values($1,$2,$3,'SUBMITTED',$4,'f32-cancellation-fixture',now(),'{}'::jsonb)`,[e.tenantId,e.empresaId,snapshotId,e.autorId]);
+  const accessKey=String(proximo()).padStart(44,'1').slice(-44);
+  const protocol='135260000000001';
+  const eventHash='d'.repeat(64);
+  const sourceBatchId=await unico(admin,`insert into app.nfce_import_batch(tenant_id,empresa_id,actor_id,correlation_id,origem,status,total)
+    values($1,$2,$3,'f32-cancellation-fixture','ERP','COMPLETED',1) returning id`,[e.tenantId,e.empresaId,e.autorId]);
+  const sourceItemId=await unico(admin,`insert into app.nfce_import_item(tenant_id,empresa_id,batch_id,nome_sanitizado,tamanho_bytes,hash_sha256,original_key,status,document_id,parser_version,schema_version,correlation_id)
+    values($1,$2,$3,'cancelamento.xml',1,$4,$5,'IMPORTED',$6,'fixture','fixture','f32-cancellation-fixture') returning id`,
+    [e.tenantId,e.empresaId,sourceBatchId,eventHash,`fiscal/${e.sufixo}/cancelamento.xml`,documento['documentId']]);
+  const sourceId=await unico(admin,`insert into app.nfce_import_source(tenant_id,empresa_id,item_id,cnpj,origem,correlation_id)
+    values($1,$2,$3,$4,'ERP','f32-cancellation-fixture') returning id`,[e.tenantId,e.empresaId,sourceItemId,documento['cnpj']]);
+  await admin.query(`insert into app.nfce_import_event(tenant_id,empresa_id,item_id,source_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,tamanho_bytes,correlation_id)
+    values($1,$2,$3,$4,$5,$6,'PRODUCAO','110111','1',$7,$8,$9,1,'f32-cancellation-fixture')`,
+    [e.tenantId,e.empresaId,sourceItemId,sourceId,accessKey,documento['cnpj'],protocol,eventHash,`fiscal/${e.sufixo}/cancelamento.xml`]);
+  await admin.query(`update app.fiscal_document set especie='NFCE_65',modelo='65',chave_acesso=$2,emitido_em='2017-01-01',estado='CANCELLED',cancelado_em='2017-02-01T12:00:00Z',protocolo_cancelamento=$3 where id=$1`,
+    [documento['documentId'],accessKey,protocol]);
+  const forgedEventId=await unico(admin,
+    `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,parser_version,hash_sha256,ator_id,correlation_id)
+     values($1,$2,$3,$4,'CANCELAMENTO','110111','fixture',repeat('e',64),$5,'f32-cancellation-invalid-fixture') returning id`,
+    [e.tenantId,e.empresaId,documento['documentId'],sourceId,e.autorId]);
+  const forged=await admin.query(`select 1 from app.tax_st_authorized_cancellation where source_event_id=$1`,[forgedEventId]);
+  if(forged.rows.length)throw new Error('trigger F32 aceitou hash de evento diferente da origem validada');
+  const sourceEventId = await unico(admin,
+    `insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,nfce_source_id,tipo,codigo,parser_version,hash_sha256,ator_id,correlation_id)
+     values($1,$2,$3,$4,'CANCELAMENTO','110111','fixture',$5,$6,'f32-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,documento['documentId'],sourceId,eventHash,e.autorId]);
+  const cancellation=await admin.query<{id:string}>(`select id from app.tax_st_authorized_cancellation where source_event_id=$1`,[sourceEventId]);
+  const stale=await admin.query<{id:string}>(`select id from app.tax_st_settlement_event where snapshot_id=$1 and action='DOCUMENT_SET_CHANGED' and details->>'eventId'=$2`,[snapshotId,sourceEventId]);
+  if(!cancellation.rows[0]||!stale.rows[0])throw new Error('trigger F32 não registrou cancelamento autorizado e invalidação da revisão');
+  return { ...documento, sourceEventId, cancellationId:cancellation.rows[0].id };
+};
+
 const prepararDocumentoParaSnapshot = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const documento = await prepararDocumentoFiscal(admin,e);
   await admin.query(
@@ -120,6 +159,27 @@ const prepararSnapshotIcmsSt = async (admin: Consultavel, e: Escopo): Promise<Re
      values($1,$2,'2098-01-01',$3,$4,repeat('c',64),'BLOCKED',0,0,'{}'::jsonb,$5,'f29-rls-fixture',now()) returning id`,
     [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]);
   return { ...documento, snapshotId };
+};
+
+const prepararDevolucaoIcmsSt = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const base = await prepararSnapshotIcmsSt(admin, e);
+  const lineId = await unico(admin,
+    `insert into app.tax_st_settlement_line(tenant_id,empresa_id,snapshot_id,output_document_id,output_item_id,difference_kind,facts,calculation,recovery_memory)
+     values($1,$2,$3,$4,$5,'RESTITUTION','{}'::jsonb,'{}'::jsonb,'{}'::jsonb) returning id`,
+    [e.tenantId,e.empresaId,base['snapshotId'],base['documentId'],`fixture:${e.sufixo}`]);
+  return { ...base, lineId };
+};
+
+const inserirEventoDevolucaoIcmsSt = async (admin: Consultavel, e: Escopo, r: Referencias): Promise<string> => unico(admin,
+  `insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,evidence_facts,actor_id,correlation_id,occurred_at)
+   values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,'2017-02-01',$7,'UN',1,repeat('f',64),'{"formulaVersion":"F32_FIXTURE","sourceIds":["fixture"]}'::jsonb,$8,'f32-rls-fixture',now()) returning id`,
+  [e.tenantId,e.empresaId,r['snapshotId'],r['lineId'],`return-event-${randomUUID()}`,`item-event-${randomUUID()}`,randomUUID(),e.autorId]);
+
+const prepararRevisaoDevolucaoIcmsSt = async (admin:Consultavel,e:Escopo,r:Referencias):Promise<Referencias> => {
+  const eventId=await inserirEventoDevolucaoIcmsSt(admin,e,r);
+  const reviewId=await unico(admin,`insert into app.tax_st_return_review_event(tenant_id,empresa_id,return_event_id,action,actor_id,occurred_at,correlation_id)
+    values($1,$2,$3,'APPROVED',$4,now(),'f32-rls-fixture') returning id`,[e.tenantId,e.empresaId,eventId,e.autorId]);
+  return {...r,eventId,reviewId};
 };
 
 const prepararConfiguracaoRiscoFiscal = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
@@ -910,6 +970,50 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
          (tenant_id,empresa_id,competence,revision,idempotency_key,input_sha256,status,line_count,blocked_line_count,facts,actor_id,correlation_id,processed_at)
        values($1,$2,'2098-01-01',$3,$4,repeat('d',64),'BLOCKED',0,0,'{}'::jsonb,$5,'f29-rls-fixture',now()) returning id`,
       [e.tenantId,e.empresaId,proximo(),randomUUID(),e.autorId]),
+  },
+  'app.tax_st_authorized_cancellation': {
+    preparar: prepararCancelamentoTributario,
+    inserir: async (banco,e,r) => {
+      const role=await banco.query<{name:string}>('select current_user name');
+      if(role.rows[0]?.name==='contaia_app')return unico(banco,
+        `insert into app.tax_st_authorized_cancellation(tenant_id,empresa_id,output_document_id,source_event_id,output_competence,authorized_at,evidence_sha256,actor_id,correlation_id,occurred_at)
+         values($1,$2,$3,$4,'2017-01-01','2017-02-01T12:00:00Z',repeat('e',64),$5,'f32-rls-fixture',now()) returning id`,
+        [e.tenantId,e.empresaId,r['documentId'],r['sourceEventId'],e.autorId]);
+      return r['cancellationId']!;
+    },
+  },
+  'app.fiscal_document_verified_event': {
+    preparar: prepararStagingFiscal,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.fiscal_document_verified_event(tenant_id,empresa_id,staging_id,chave_acesso,cnpj,ambiente,tipo,sequencia,protocolo,hash_sha256,original_key,ocorrido_em,tamanho_bytes,correlation_id)
+       values($1,$2,$3,lpad($4::text,44,'2'),$5,'PRODUCAO','110111','1','135260000000001',repeat('f',64),'fiscal/verified-event.xml','2017-02-01T12:00:00Z',1,'f32-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,r['stagingId'],proximo(),r['cnpj']]),
+  },
+  'app.tax_st_return_event': {
+    preparar: prepararDevolucaoIcmsSt,
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,actor_id,correlation_id,occurred_at)
+       values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,'2017-02-02',$7,'UN',1,repeat('e',64),$8,'f32-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,r['snapshotId'],r['lineId'],`return-${randomUUID()}`,`item-${randomUUID()}`,randomUUID(),e.autorId]),
+  },
+  'app.tax_st_return_reversal': {
+    preparar: async (admin,e) => {
+      const base = await prepararDevolucaoIcmsSt(admin,e);
+      return await prepararRevisaoDevolucaoIcmsSt(admin,e,base);
+    },
+    inserir: (banco,e,r) => unico(banco,
+      `insert into app.tax_st_return_reversal(tenant_id,empresa_id,event_id,original_snapshot_id,original_line_id,competence,returned_quantity_scaled,remaining_quantity_scaled,reversed_restitution_cents,reversed_complement_cents,formula_version,source_ids,actor_id,correlation_id,occurred_at)
+       values($1,$2,$3,$4,$5,'2017-02-01',1,0,0,0,'fixture',array['fixture']::text[],$6,'f32-rls-fixture',now()) returning id`,
+      [e.tenantId,e.empresaId,r['eventId'],r['snapshotId'],r['lineId'],e.autorId]),
+  },
+  'app.tax_st_return_review_event': {
+    preparar:async(admin,e)=>{
+      const base=await prepararDevolucaoIcmsSt(admin,e);
+      const eventId=await inserirEventoDevolucaoIcmsSt(admin,e,base);
+      return {...base,eventId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_return_review_event(tenant_id,empresa_id,return_event_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'SUBMITTED',$4,now(),'f32-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['eventId'],e.autorId]),
   },
   'app.tax_st_settlement_line': {
     preparar: prepararSnapshotIcmsSt,

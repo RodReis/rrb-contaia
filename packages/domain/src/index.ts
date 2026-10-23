@@ -26,6 +26,10 @@ export { projetarSaudeEmpresa, FONTES_DA_SAUDE } from './dashboard/saude-empresa
 export type { CorDaSaude, EntradaDaProjecao, FonteDaSaude, MotivoDeSaude, ResultadoDaSaude, SinalDeSaude } from './dashboard/saude-empresa.js';
 export { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, ErroDeValidacao } from './erros.js';
 export type { CampoInvalido, CodigoDeErro } from './erros.js';
+export { calculateIcmsStReturnReversal } from './tax-resolution/calculate-icms-st-return-reversal.js';
+export type { IcmsStReturnReversalInput, IcmsStReturnReversalResult } from './tax-resolution/calculate-icms-st-return-reversal.js';
+export { renderIcmsStC002 } from './tax-resolution/render-icms-st-c002.js';
+export type { IcmsStC002Input } from './tax-resolution/render-icms-st-c002.js';
 
 export { PAPEIS_PADRAO, ehPapelPadrao } from './usuarios/papeis.js';
 export type { PapelPadrao } from './usuarios/papeis.js';

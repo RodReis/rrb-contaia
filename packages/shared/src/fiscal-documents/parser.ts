@@ -21,6 +21,7 @@ export type DocumentoFiscalParseado = Readonly<{
   partes: readonly ParteFiscalParseada[];
   tributos: readonly TributoFiscalParseado[];
   emitidoEm: string | null; emitente: string | null; destinatario: string | null;
+  finality: string | null;
   finalConsumer: boolean | null;
   destinationIndicator: string | null;
   finalConsumerIndicator: string | null;
@@ -140,6 +141,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   const destinationIndicator = nfe ? texto(ide ?? null, 'idDest', namespaceEsperado) : null;
   const numeroDocumento = nfe ? texto(ide ?? null, 'nNF', namespaceEsperado) : texto(ide ?? null, 'nCT', namespaceEsperado);
   const serieDocumento = texto(ide ?? null, 'serie', namespaceEsperado);
+  const finality = nfe ? texto(ide ?? null, 'finNFe', namespaceEsperado) : null;
   const itemNodes = Array.from(document.getElementsByTagNameNS(namespaceEsperado, nfe ? 'det' : 'infQ'));
   const items: DocumentoFiscalParseado['itens'][number][] = itemNodes.map((node) => {
     const content = node as Element;
@@ -239,6 +241,7 @@ export const parsearDocumentoFiscal = (bytes: Uint8Array, especieEsperada: Espec
   return {
     especie, modelo: model!, versaoLayout, tributos, pagamentos,
     chaveAcesso: key, emitidoEm: emission, finalConsumer, destinationIndicator, finalConsumerIndicator: finalConsumerValue, numeroDocumento, serieDocumento,
+    finality,
     protocolo: texto(protocolNode ? protocolNode as unknown as XmlContainer : null, 'nProt', namespaceEsperado),
     protocoloRecebidoEm: protocolReceivedAt ? new Date(protocolReceivedAt).toISOString() : null, referencias, partes,
     emitente: texto(emitenteNode ?? null, 'CNPJ', namespaceEsperado) ?? texto(emitenteNode ?? null, 'CPF', namespaceEsperado) ?? texto(emitenteNode ?? null, 'xNome', namespaceEsperado),

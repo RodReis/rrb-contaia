@@ -736,6 +736,23 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [ ] Capturas F31 CLARO/ESCURO × 768/1024/1440 e comparação visual correspondente não têm evidência rastreável anexada. `not_run`; `test-tela` verde não substitui captura visual.
 - [ ] Comentário com evidências publicado na issue #35; `proplan:done` aguarda pacote tributário oficial F29 publicado/revisado, E2E completo da SPEC-031 e capturas visuais rastreáveis.
 
+### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
+
+- [x] Domínio calcula estorno proporcional cumulativo em centavos inteiros; última devolução absorve resíduo de arredondamento, sem exceder valor ou quantidade original.
+- [x] Migration 0058 cria evidência manual e linhas de estorno append-only, com RLS por tenant/empresa, índices e FKs compostas para preservar vínculo da linha com revisão original.
+- [x] API registra devolução manual somente sobre linha aprovada e não obsoleta, serializa saldo por linha, exige anexo privado e registra hash SHA-256; moeda não é recebida pela API.
+- [x] Submissão de evidência aceita auxiliar; decisão separada por contador/admin fica append-only. Estorno exige aprovação e passa por função restrita `SECURITY DEFINER`; `INSERT` direto da aplicação foi revogado.
+- [x] Tela mostra vínculo causal, evidência submetida, decisão contador/admin e valores separados; ação só aparece para alçada correspondente.
+- [x] Aprovação compõe revisão imutável na competência do evento e linha C002 com hash; histórico e filtro por modelo incluem snapshots F32.
+- [x] Testes locais: API focal 6/6, domínio e shared aprovados; tela 7/7; banco F32, matriz RLS e anti-drift 23/23; typecheck/lint dos pacotes afetados e `git diff --check`.
+- [x] Migrations 0059/0061/0062/0063 registram cancelamento NFC-e somente quando origem, item importado, chave, protocolo e hash coincidem; a API não insere cancelamento diretamente. A migration 0068 invalida snapshots afetados por evidência nova de devolução; migrations aplicadas no Compose compartilhado `contaia`.
+- [x] Matriz RLS (100%, 5 testes) e anti-drift do catálogo (17 testes) passaram após as migrations 0059/0060; fixtures F32 cobrem evento, estorno e cancelamento.
+- [x] Ingestão EFD e NF-e normalizada identifica devoluções por referência, validade da competência e hash; origem manual rejeita valores fiscais declarados pelo usuário.
+- [x] Worker valida evento autorizado de cancelamento NF-e 55 (XSD, XMLDSig, cadeia ICP na data do evento e protocolo); persiste proveniência verificada e concilia evento órfão ao documento correspondente.
+- [ ] E2E autenticado local: `not_run`; Vault da composição compartilhada permaneceu sealed e o bootstrap retornou HTTP 400. Não houve recriação nem remoção de volumes. E2E da CI para o head `c090bdc` em execução.
+- [ ] Capturas autenticadas novas para essa revisão em CLARO/ESCURO × 768/1024/1440: `not_run` localmente pelo bloqueio do Vault; capturas preexistentes não são apresentadas como evidência desta revisão.
+- [ ] Comentário de encerramento, merge confirmado e `proplan:done` pendentes de CI verde e integração da PR #143.
+
 ### Card #34 — `[MVP2][SPEC-030][F30]` Importação e normalização de NFC-e modelo 65 em Goiás
 
 - [x] Upload assíncrono XML/ZIP, limites de expansão, armazenamento por hash, consulta de lote, CSV e download original com hash/auditoria.

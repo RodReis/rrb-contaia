@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { digitoVerificadorDaChaveNfeValido, normalizarEventoCancelamentoNfce, normalizarNfceGoias } from './nfce.js';
+import { digitoVerificadorDaChaveNfeValido, normalizarEventoCancelamentoNfe, normalizarEventoCancelamentoNfce, normalizarNfceGoias } from './nfce.js';
 
 const chaveBase = '5226101234567800019565001000000123100000001';
 const dv = (base: string): string => {
@@ -30,9 +30,16 @@ const criarXml = (version: '3.10' | '4.00' = '4.00', overrides: Readonly<{
   ].join('');
 };
 
-const criarEventoCancelamento = (status='135') => `<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><evento versao="1.00"><infEvento Id="ID110111${chave}01"><cOrgao>52</cOrgao><tpAmb>1</tpAmb><CNPJ>${cnpj}</CNPJ><chNFe>${chave}</chNFe><dhEvento>2026-10-21T12:00:00-03:00</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>152260000000001</nProt><xJust>Documento emitido indevidamente</xJust></detEvento></infEvento><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo/><SignatureValue>c2lnbmF0dXJl</SignatureValue></Signature></evento><retEvento versao="1.00"><infEvento><tpAmb>1</tpAmb><verAplic>fixture</verAplic><cOrgao>52</cOrgao><cStat>${status}</cStat><xMotivo>Evento registrado</xMotivo><chNFe>${chave}</chNFe><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><dhRegEvento>2026-10-21T12:01:00-03:00</dhRegEvento><nProt>152260000000099</nProt></infEvento></retEvento></procEventoNFe>`;
+const criarEventoCancelamento = (status='135') => `<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><evento versao="1.00"><infEvento Id="ID110111${chave}01"><cOrgao>52</cOrgao><tpAmb>1</tpAmb><CNPJ>${cnpj}</CNPJ><chNFe>${chave}</chNFe><dhEvento>2026-10-21T12:00:00-03:00</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>152260000000001</nProt><xJust>Documento emitido indevidamente</xJust></detEvento></infEvento><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo/><SignatureValue>c2lnbmF0dXJl</SignatureValue></Signature></evento><retEvento versao="1.00"><infEvento><tpAmb>1</tpAmb><verAplic>fixture</verAplic><cOrgao>52</cOrgao><cStat>${status}</cStat><xMotivo>Evento registrado</xMotivo><chNFe>${chave}</chNFe><tpEvento>110111</tpEvento><xEvento>Cancelamento</xEvento><nSeqEvento>1</nSeqEvento><dhRegEvento>2026-10-21T12:01:00-03:00</dhRegEvento><nProt>152260000000099</nProt></infEvento></retEvento></procEventoNFe>`;
+const chaveNfe55Base='5226101234567800019555001000000123100000001';
+const chaveNfe55=chaveNfe55Base+dv(chaveNfe55Base);
+const criarEventoCancelamentoNfe=()=>criarEventoCancelamento().replaceAll(chave,chaveNfe55);
 
 describe('normalizarNfceGoias', () => {
+  it('normaliza evento de cancelamento de NF-e 55',()=>{
+    expect(normalizarEventoCancelamentoNfe(Buffer.from(criarEventoCancelamentoNfe()))).toMatchObject({chaveAcesso:chaveNfe55,cnpjEmitente:cnpj,protocolo:'152260000000099'});
+    expect(()=>normalizarEventoCancelamentoNfce(Buffer.from(criarEventoCancelamentoNfe()))).toThrow('NFCE_PROTOCOL_INVALID');
+  });
   it.each(['3.10', '4.00'] as const)('normaliza layout %s sem inferir validação criptográfica', (version) => {
     const result = normalizarNfceGoias(new TextEncoder().encode(criarXml(version)), cnpj);
     expect(result).toMatchObject({

@@ -66,6 +66,31 @@ export const normalizarEventoCancelamentoNfce = (bytes: Uint8Array): Readonly<{ 
   return {chaveAcesso:key,cnpjEmitente:cnpj!,protocolo:protocol,ambiente:tpAmb==='1'?'PRODUCAO':'HOMOLOGACAO',sequencia:seq!};
 };
 
+/** Valida identidade/protocolo de cancelamento 110111 de NF-e 55. A assinatura e o XSD
+ * devem ser validados pelo worker antes que o evento seja persistido como autorizado. */
+export const normalizarEventoCancelamentoNfe = (bytes: Uint8Array): Readonly<{ chaveAcesso:string;cnpjEmitente:string;protocolo:string;ambiente:'PRODUCAO'|'HOMOLOGACAO';sequencia:string;ocorridoEm:string }> => {
+  if(bytes.byteLength===0||bytes.byteLength>TAMANHO_MAXIMO_XML_NFCE)erro('NFCE_XML_INVALID');
+  let source='';try{source=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{return erro('NFCE_XML_INVALID');}
+  if(/<!\s*(?:DOCTYPE|ENTITY)\b/iu.test(source))erro('NFCE_XML_UNSAFE');
+  const diagnostics:string[]=[];let document:Document;
+  try{document=new DOMParser({errorHandler:(_level:string,message:string)=>diagnostics.push(String(message).slice(0,160))}).parseFromString(source,'application/xml');}
+  catch{return erro('NFCE_XML_INVALID');}
+  const root=document.documentElement;
+  if(diagnostics.length||root.localName!=='procEventoNFe'||root.namespaceURI!==NAMESPACE_NFE)erro('NFCE_LAYOUT_UNSUPPORTED');
+  const info=document.getElementsByTagNameNS(NAMESPACE_NFE,'infEvento')[0];
+  const signatures=document.getElementsByTagNameNS('http://www.w3.org/2000/09/xmldsig#','Signature');
+  const key=texto(info??null,'chNFe'),cnpj=texto(info??null,'CNPJ'),environment=texto(info??null,'tpAmb'),sequence=texto(info??null,'nSeqEvento');
+  if(!info||texto(info,'tpEvento')!=='110111'||!key||!digitoVerificadorDaChaveNfeValido(key)||key.slice(0,2)!=='52'||key.slice(20,22)!=='55'||
+    !cnpjValido(cnpj??'')||cnpj!==key.slice(6,20)||!sequence||!/^\d{1,2}$/u.test(sequence)||signatures.length!==1||(environment!=='1'&&environment!=='2'))erro('NFCE_PROTOCOL_INVALID');
+  const returned=document.getElementsByTagNameNS(NAMESPACE_NFE,'retEvento')[0]?.getElementsByTagNameNS(NAMESPACE_NFE,'infEvento')[0];
+  const protocol=texto(returned??null,'nProt');
+  if(!protocol||texto(returned??null,'cStat')!=='135'||texto(returned??null,'chNFe')!==key||texto(returned??null,'tpEvento')!=='110111'||
+    texto(returned??null,'nSeqEvento')!==sequence||texto(returned??null,'tpAmb')!==environment)erro('NFCE_PROTOCOL_INVALID');
+  const occurredAt=texto(info,'dhEvento');
+  if(!occurredAt||!/(?:Z|[+-]\d{2}:\d{2})$/u.test(occurredAt)||!Number.isFinite(Date.parse(occurredAt)))erro('NFCE_PROTOCOL_INVALID');
+  return {chaveAcesso:key,cnpjEmitente:cnpj!,protocolo:protocol,ambiente:environment==='1'?'PRODUCAO':'HOMOLOGACAO',sequencia:sequence!,ocorridoEm:occurredAt};
+};
+
 const cnpjValido = (cnpj: string): boolean => {
   if (!/^\d{14}$/u.test(cnpj) || /^([0-9])\1{13}$/u.test(cnpj)) return false;
   const calcular = (base: string, pesos: readonly number[]): number => {

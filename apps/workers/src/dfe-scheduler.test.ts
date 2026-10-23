@@ -40,6 +40,8 @@ const stagingId = '33333333-3333-4333-8333-333333333333';
 const cnpj='12345678000195';
 const chave='35240112345678000195550010000000011000000019';
 const resumo=`<resNFe xmlns="http://www.portalfiscal.inf.br/nfe"><chNFe>${chave}</chNFe><CNPJ>${cnpj}</CNPJ></resNFe>`;
+const cancellationKey='52'+'0'.repeat(18)+'55'+'0'.repeat(22);
+const cancellation=`<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe"><evento><infEvento><chNFe>${cancellationKey}</chNFe><tpEvento>110111</tpEvento></infEvento></evento></procEventoNFe>`;
 
 const criarDependencias = (queueAdd: ReturnType<typeof vi.fn>, ackAdd=vi.fn(async()=>({}))) => {
   const schedulerPool = { query: vi.fn(async (sql: string) => ({
@@ -73,6 +75,14 @@ describe('outbox F17 → F18', () => {
 
     expect(add).toHaveBeenCalledWith('process-staging', { tenantId, companyId, stagingId, correlationId: 'capture-correlation-01' }, expect.objectContaining({ jobId: `fiscal-${stagingId}` }));
     expect(fixture.statements.some(({ sql }) => sql.includes("estado='PUBLICADO'"))).toBe(true);
+  });
+
+  it('encaminha cancelamento autorizado NF-e modelo 55 à validação fiscal',async()=>{
+    fixture.staging={...fixture.staging!,conteudo_bruto:Buffer.from(cancellation)};
+    const add=vi.fn(async()=>({}));
+    await scanFiscalDocumentsOutbox(criarDependencias(add));
+    expect(add).toHaveBeenCalledWith('process-staging',expect.objectContaining({stagingId}),expect.objectContaining({jobId:`fiscal-${stagingId}`}));
+    expect(fixture.statements.some(({sql})=>sql.includes("estado='PUBLICADO'"))).toBe(true);
   });
 
   it('mantém o item pendente e incrementa tentativas se Redis falhar', async () => {

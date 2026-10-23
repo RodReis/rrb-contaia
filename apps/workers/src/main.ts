@@ -91,7 +91,8 @@ if (config.signer !== null) {
   ativos.push('captura DF-e');
 }
 if (config.armazenamento !== null) {
-  const fiscalDocuments = await iniciarConsumidorDeDocumentosFiscais({ pool, schedulerPool: schedulerPool!, conexao, storage: config.armazenamento,
+  const roots=config.raizesIcp?readdirSync(config.raizesIcp.diretorio).filter(name=>/\.(?:crt|pem)$/iu.test(name)).map(name=>new X509Certificate(readFileSync(path.join(config.raizesIcp!.diretorio,name)))):[];
+  const fiscalDocuments = await iniciarConsumidorDeDocumentosFiscais({ pool, schedulerPool: schedulerPool!, conexao, storage: config.armazenamento, certificateRoots:roots,
     ...(config.signer ? { signer: criarClienteDoSigner({ host:config.signer.signer.host,porta:config.signer.signer.porta,servername:config.signer.signer.servername,
       certificadoPem:readFileSync(config.signer.arquivoDoCertificado,'utf8'),chavePem:readFileSync(config.signer.arquivoDaChave,'utf8'),caPem:readFileSync(config.signer.arquivoDaCaInterna,'utf8') }) } : {}) });
   fechamentos.push(async () => { await fiscalDocuments.fechar(); });
@@ -99,7 +100,6 @@ if (config.armazenamento !== null) {
   fechamentos.push(await iniciarImportacoes(config.armazenamento));
   ativos.push('plano de contas', 'empregados');
   if(config.raizesIcp){
-    const roots=readdirSync(config.raizesIcp.diretorio).filter(name=>/\.(?:crt|pem)$/iu.test(name)).map(name=>new X509Certificate(readFileSync(path.join(config.raizesIcp!.diretorio,name))));
     if(roots.length===0)throw new Error('Pacote de raízes ICP-Brasil vazio; importação NFC-e permanece desativada.');
     const nfce=await iniciarConsumidorNfce({pool,conexao,storage:config.armazenamento,certificateRoots:roots});
     fechamentos.push(async()=>{await nfce.fechar();});ativos.push('importação NFC-e F30');

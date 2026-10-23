@@ -1,6 +1,6 @@
 export type { HealthStatus, ServiceName } from './health.js';
 export { health } from './health.js';
-export { digitoVerificadorDaChaveNfeValido, NAMESPACE_NFE, normalizarNfceGoias, normalizarEventoCancelamentoNfce, TAMANHO_MAXIMO_XML_NFCE } from './nfce.js';
+export { digitoVerificadorDaChaveNfeValido, NAMESPACE_NFE, normalizarNfceGoias, normalizarEventoCancelamentoNfe, normalizarEventoCancelamentoNfce, TAMANHO_MAXIMO_XML_NFCE } from './nfce.js';
 export type { CodigoDeRejeicaoNfce, NfceNormalizada } from './nfce.js';
 export { AUDIT_EXPORT_QUEUE, AUDIT_EXPORT_JOB, AUDIT_EXPORT_EXPIRY_JOB, AUDIT_EXPORT_TTL_MS, AuditExportCommandSchema, AuditExportExpiryCommandSchema } from './audit-export.js';
 export type { AuditExportCommand, AuditExportExpiryCommand } from './audit-export.js';

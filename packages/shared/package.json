@@ -15,6 +15,10 @@
       "types": "./dist/fiscal-documents/parser.d.ts",
       "default": "./dist/fiscal-documents/parser.js"
     },
+    "./efd-return": {
+      "types": "./dist/fiscal-documents/efd-return.d.ts",
+      "default": "./dist/fiscal-documents/efd-return.js"
+    },
     "./fiscal-acknowledgement": {
       "types": "./dist/fiscal-acknowledgement.d.ts",
       "default": "./dist/fiscal-acknowledgement.js"
