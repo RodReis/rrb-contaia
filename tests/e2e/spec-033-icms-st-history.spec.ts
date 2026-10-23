@@ -166,8 +166,7 @@ test('F33 reconstrói principal aprovado, exporta artefatos privados e prova tem
     grossComplementCents:1200,reversedRestitutionCents:0,reversedComplementCents:0,netRestitutionPrincipalCents:5000,netComplementPrincipalCents:1200,
     netPrincipalBalanceCents:3800,regimeOutput:{kind:'SIMPLES_NACIONAL',carriedBalanceCents:null,possibleDestinations:[]},contentSha256:'',packageId:randomUUID()};
   f34PackageId=canonical.packageId;
-  const hashMaterial={...canonical};delete hashMaterial.contentSha256;
-  const sourceHash=createHash('sha256').update(canonicalizarJson({...hashMaterial,packageId:f34PackageId})).digest('hex');canonical.contentSha256=sourceHash;
+  const sourceHash=createHash('sha256').update(canonicalizarJson({...canonical,packageId:f34PackageId})).digest('hex');canonical.contentSha256=sourceHash;
   const f34Package=await pool.query<{id:string}>(`insert into app.tax_st_history_package(id,tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,
     content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
     values($1,$2,$3,'SIMPLES_NACIONAL','2017-02-01','2017-02-01',1,repeat('a',64),$4,'READY_FOR_INTERNAL_REVIEW',array[$5::uuid],'[]'::jsonb,$6::jsonb,$7,now(),$8) returning id`,
