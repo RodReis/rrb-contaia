@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { calculateIcmsStLegalAccruals, type IcmsStLegalAccrualRule, type IcmsStLegalAccrualSource } from '@contaia/domain';
 import { comContextoHumano } from '@contaia/db';
+import { canonicalizarJson } from '@contaia/shared';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { PoolDoBanco } from '../banco/pool.provider';
 import { StorageService } from '../comum/storage.service';
@@ -79,7 +80,7 @@ export class IcmsStLegalAccrualsService {
       const payload=object(row.canonical_json);
       const hashMaterial={...payload};delete hashMaterial['contentSha256'];
       if(!['READY_FOR_INTERNAL_REVIEW','BLOQUEADO_POR_ACRESCIMOS_LEGAIS'].includes(row.status)||payload['periodComplete']!==true||
-        sha(json({...hashMaterial,packageId}))!==row.content_sha256||payload['contentSha256']!==row.content_sha256)
+        sha(canonicalizarJson({...hashMaterial,packageId}))!==row.content_sha256||payload['contentSha256']!==row.content_sha256)
         throw this.indeterminado('Pacote F33 incompleto, inválido ou inelegível.');
       const lines=Array.isArray(payload['lines'])?payload['lines']:[];
       const packageLines=await client.query<{count:string;line_ids:string[];revision_ids:string[]}>(`select count(*)::text count,coalesce(array_agg(source_line_id::text order by source_line_id::text),'{}') line_ids,
