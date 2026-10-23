@@ -135,7 +135,7 @@ export class IcmsStLegalAccrualsService {
   async decidirPacoteNormativo(tenantId:string,userId:string,companyId:string,packageId:string,action:'APPROVED'|'REJECTED',reason:string|null,correlationId:string){
     return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/rule/${tenantId}/${companyId}/${packageId}`]);
-      const row=await client.query<{id:string;canonical_json:unknown;content_sha256:string}>('select id,canonical_json,content_sha256 from app.tax_st_legal_rule_package where id=$1 and tenant_id=$2 and empresa_id=$3 and app.empresa_autorizada(empresa_id) for share',[packageId,tenantId,companyId]);
+      const row=await client.query<{id:string;canonical_json:unknown;content_sha256:string}>('select id,canonical_json,content_sha256 from app.tax_st_legal_rule_package where id=$1 and tenant_id=$2 and empresa_id=$3 and app.empresa_autorizada(empresa_id)',[packageId,tenantId,companyId]);
       if(!row.rows[0])throw this.naoEncontrado('Pacote normativo não encontrado.');
       const canonical=object(row.rows[0].canonical_json);
       if(action==='APPROVED'&&(sha(json(canonical))!==row.rows[0].content_sha256||!Array.isArray(canonical['sources'])||!Array.isArray(canonical['rules'])))
