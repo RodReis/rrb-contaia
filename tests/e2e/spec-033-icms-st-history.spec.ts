@@ -197,7 +197,10 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   await expect(panel.getByRole('heading',{name:'Acréscimos legais do ICMS-ST histórico'})).toBeVisible();
   await panel.getByLabel('Pacote F33').selectOption(f34PackageId);
   await expect(panel.getByText('Aprovação humana da fonte F33 necessária')).toBeVisible();
+  const approval=page.waitForResponse(response=>response.url().includes('/legal-approval')&&response.request().method()==='POST');
   await panel.getByRole('button',{name:'Aprovar fonte F33'}).click();
+  const approvalResponse=await approval;
+  expect(approvalResponse.ok(),await approvalResponse.text()).toBeTruthy();
   await expect(panel.getByText('Aprovação humana da fonte F33 necessária')).toHaveCount(0);
 
   const evidence=Buffer.from('E2E synthetic fixture; not an official legal source.','utf8');
