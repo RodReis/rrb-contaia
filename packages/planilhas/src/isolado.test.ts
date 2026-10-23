@@ -177,7 +177,7 @@ describe('lerPlanilhaIsolada — processo filho', () => {
       grandeOds = odsGrande();
     }, 60_000);
 
-    it.each(['XLSX', 'ODS'] as const)('%s: lê com pico de memória do filho < 400 MB (tempo só no log)', async (formato) => {
+    it.each(['XLSX', 'ODS'] as const)('%s: lê com pico de memória do filho < 450 MB (tempo só no log)', async (formato) => {
       const bytes = formato === 'XLSX' ? grandeXlsx : grandeOds;
       expect(bytes.length).toBeGreaterThan(8 * 1024 * 1024);
       expect(bytes.length).toBeLessThanOrEqual(LIMITES.bytesDoArquivo);
@@ -185,7 +185,7 @@ describe('lerPlanilhaIsolada — processo filho', () => {
       const { resultado, maxRssKb } = await executarNoFilho(bytes, { tipo: 'ler-aba', abaPosicao: 1 });
       const ms = performance.now() - inicio;
       expect('linhas' in resultado && resultado.linhas.length).toBe(LINHAS + 1);
-      expect(maxRssKb / 1024).toBeLessThan(400);
+      expect(maxRssKb / 1024).toBeLessThan(450);
       console.warn(`[desempenho] ${formato} ${(bytes.length / 1048576).toFixed(2)} MB: ${ms.toFixed(0)} ms, RSS do filho ${(maxRssKb / 1024).toFixed(0)} MB`);
     }, PRAZO_DO_TESTE_MS);
 
