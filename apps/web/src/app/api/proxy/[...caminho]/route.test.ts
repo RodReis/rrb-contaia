@@ -35,6 +35,7 @@ describe('proxy autenticado', () => {
             headers: {
               'content-type': 'text/csv; charset=utf-8',
               'content-disposition': 'attachment; filename="relatorio-plano.csv"',
+              'x-content-sha256': 'a'.repeat(64),
               'x-correlation-id': 'corr-da-api-123',
               'x-content-type-options': 'nosniff',
               'cache-control': 'no-store',
@@ -78,6 +79,7 @@ describe('proxy autenticado', () => {
 
     expect(resposta.headers.get('content-disposition')).toBe('attachment; filename="relatorio-plano.csv"');
     expect(resposta.headers.get('x-correlation-id')).toBe('corr-da-api-123');
+    expect(resposta.headers.get('x-content-sha256')).toBe('a'.repeat(64));
     expect(resposta.headers.get('content-type')).toBe('text/csv; charset=utf-8');
   });
 

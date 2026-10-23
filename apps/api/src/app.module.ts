@@ -69,6 +69,7 @@ import { PROVEDOR_DA_FILA_DFE_CAPTURE } from './dfe-capture/dfe-capture.queue';
 import { FiscalDocumentsController } from './fiscal-documents/fiscal-documents.controller';
 import { FiscalDocumentsService } from './fiscal-documents/fiscal-documents.service';
 import { IcmsStSettlementsService } from './fiscal-documents/icms-st-settlements.service';
+import { IcmsStHistoryService } from './fiscal-documents/icms-st-history.service';
 import { PROVEDOR_DA_FILA_FISCAL } from './fiscal-documents/fiscal-documents.queue';
 import { PROVEDOR_DA_FILA_NFCE } from './fiscal-documents/nfce-import.queue';
 import { FiscalRiskController } from './fiscal-risk/fiscal-risk.controller';
@@ -165,6 +166,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     ...PROVEDOR_DA_FILA_DFE_CAPTURE,
     FiscalDocumentsService,
     IcmsStSettlementsService,
+    IcmsStHistoryService,
     ...PROVEDOR_DA_FILA_FISCAL,
     ...PROVEDOR_DA_FILA_NFCE,
     FiscalRiskService,

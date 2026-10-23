@@ -30,6 +30,21 @@ export { calculateIcmsStReturnReversal } from './tax-resolution/calculate-icms-s
 export type { IcmsStReturnReversalInput, IcmsStReturnReversalResult } from './tax-resolution/calculate-icms-st-return-reversal.js';
 export { renderIcmsStC002 } from './tax-resolution/render-icms-st-c002.js';
 export type { IcmsStC002Input } from './tax-resolution/render-icms-st-c002.js';
+export { buildHistoricalIcmsStPackage } from './tax-resolution/build-icms-st-history.js';
+export type {
+  HistoricalIcmsStApprovedReversal,
+  HistoricalIcmsStExcludedCompetence,
+  HistoricalIcmsStLineMemory,
+  HistoricalIcmsStPackage,
+  HistoricalIcmsStPackageInput,
+  HistoricalIcmsStPackageLine,
+  HistoricalIcmsStPackageStatus,
+  HistoricalIcmsStRegime,
+  HistoricalIcmsStRegimeOutput,
+  HistoricalIcmsStSourceLine,
+  HistoricalIcmsStSourceSnapshot,
+  HistoricalIcmsStUnresolvedEvidence,
+} from './tax-resolution/build-icms-st-history.js';
 
 export { PAPEIS_PADRAO, ehPapelPadrao } from './usuarios/papeis.js';
 export type { PapelPadrao } from './usuarios/papeis.js';

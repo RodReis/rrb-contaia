@@ -11,6 +11,7 @@ import { analisar } from '../escritorio/escritorio.dto';
 import { paginaSchema } from '../empregados/empregados.dto';
 import { FiscalDocumentsService } from './fiscal-documents.service';
 import { IcmsStSettlementsService } from './icms-st-settlements.service';
+import { IcmsStHistoryService } from './icms-st-history.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { z as zod } from 'zod';
 
@@ -35,6 +36,7 @@ const historicalDecisionSchema=z.strictObject({
   if(input.action==='REJECTED'&&(input.reason===undefined||input.reason===null))
     context.addIssue({code:'custom',message:'Rejeição exige motivo.',path:['reason']});
 });
+const periodoHistoricoF33Schema=z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/u).refine(value=>value>='2016-10'&&value<='2018-02','Período fora da cobertura histórica F33.');
 const dataCivilQuerySchema=z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).refine((value)=>{
   const date=new Date(`${value}T00:00:00.000Z`);
   return Number.isFinite(date.valueOf())&&date.toISOString().slice(0,10)===value;
@@ -51,7 +53,26 @@ const filaResolucaoSchema = paginaSchema.extend({
 @DfeAdminTenantScope()
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
 export class FiscalDocumentsController {
-  constructor(private readonly service: FiscalDocumentsService, private readonly icmsStService: IcmsStSettlementsService) {}
+  constructor(private readonly service: FiscalDocumentsService, private readonly icmsStService: IcmsStSettlementsService,
+    private readonly icmsStHistory: IcmsStHistoryService) {}
+
+  @Post('icms-st-history-packages')
+  @HttpCode(201)
+  @ExigePermissao('fiscal.motor_tributario.simular')
+  gerarPacoteHistoricoIcmsSt(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Body() body:unknown){
+    const input=analisar(z.strictObject({regime:z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']),periodStart:periodoHistoricoF33Schema,
+      periodEnd:periodoHistoricoF33Schema}).refine(value=>value.periodStart<=value.periodEnd,'Período inválido.'),body);
+    return this.icmsStHistory.gerar(tenantDa(request),autorDa(request).usuarioId,analisar(persistedUuid,companyId),input.regime,input.periodStart,input.periodEnd,obterCorrelationId(request));
+  }
+
+  @Get('icms-st-history-packages/:packageId')
+  @ExigePermissao('fiscal.motor_tributario.consultar')
+  baixarPacoteHistoricoIcmsSt(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('packageId') packageId:string,
+    @Query() query:unknown,@Res() response:Response){
+    const input=analisar(z.strictObject({format:z.enum(['PDF','CSV','JSON'])}),query);
+    return this.icmsStHistory.baixar(tenantDa(request),autorDa(request).usuarioId,analisar(persistedUuid,companyId),analisar(persistedUuid,packageId),input.format,obterCorrelationId(request))
+      .then(file=>response.type(file.contentType).setHeader('Content-Disposition',`attachment; filename="${file.nome}"`).setHeader('X-Content-SHA256',file.hash).send(file.conteudo));
+  }
 
   @Post('icms-st-settlements')
   @HttpCode(201)
