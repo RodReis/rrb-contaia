@@ -130,7 +130,7 @@ test('F32 registra devolução, exige decisão humana e compõe revisão C002; p
   await expect(settlementRegion.getByRole('button',{name:'Abrir'})).toHaveCount(2);
   await settlementRegion.getByRole('button',{name:'Abrir'}).first().click();
   await expect(page.getByRole('heading',{name:'Prévia de linha C002'})).toBeVisible();
-  await expect(page.locator('pre')).toContainText('|C002|');
+  await expect(page.getByText('|C002|201902|20190203|',{exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Submeter revisão do C002'}).click();
   await expect(page.getByRole('button',{name:'Aprovar rascunho C002'})).toBeVisible();
   await page.getByRole('button',{name:'Aprovar rascunho C002'}).click();

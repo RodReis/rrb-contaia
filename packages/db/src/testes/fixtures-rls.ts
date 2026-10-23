@@ -1066,7 +1066,7 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     },
     inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_legal_formal_act(tenant_id,empresa_id,source_package_id,issuer,act_number,act_type,act_date,period_start,period_end,official_basis,storage_key,content_sha256,canonical_facts,requested_by,created_at)
       values($1,$2,$3,'SEFAZ-GO',$4,'ASSESSMENT_NOTICE','2018-02-01','2017-01-01','2017-12-31','Fixture oficial','${'fixture/f34/act.pdf'}',repeat(md5($4),2),'{}'::jsonb,$5,now()) returning id`,[e.tenantId,e.empresaId,r['sourcePackageId'],`${e.sufixo}/${proximo()}`,e.autorId]),
-    atualizacao:"update app.tax_st_legal_formal_act set issuer=issuer where id=$1",
+    colunaDeAtualizacao:'issuer',
   },
   'app.tax_st_legal_formal_act_event': {
     preparar:async(admin,e)=>{

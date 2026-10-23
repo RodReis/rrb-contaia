@@ -150,7 +150,7 @@ test('F33 reconstrói principal aprovado, exporta artefatos privados e prova tem
     values($1,$2,'2017-02-01','SIMPLES_NACIONAL',1,$3,repeat('f',64),'PENDING_REVIEW',5000,1200,3800,1,0,'{}'::jsonb,$4,$3,now()) returning id`,[tenantId,companyId,`${PREFIXO}-f34-snapshot`,userId]);
   f34SnapshotId=snapshotF34.rows[0]?.id??'';
   const lineF34=await pool.query<{id:string}>(`insert into app.tax_st_settlement_line(tenant_id,empresa_id,snapshot_id,output_document_id,output_item_id,difference_kind,restitution_cents,
-    complement_cents,facts,calculation,recovery_memory,source_ids) values($1,$2,$3,(select id from app.fiscal_document where tenant_id=$1 and empresa_id=$2 order by created_at desc limit 1),'1',
+    complement_cents,facts,calculation,recovery_memory,source_ids) values($1,$2,$3,(select id from app.fiscal_document where tenant_id=$1 and empresa_id=$2 order by criado_em desc limit 1),'1',
     'RESTITUTION',5000,1200,$4::jsonb,'{}'::jsonb,'{}'::jsonb,array['entrada-f34-e2e']) returning id`,
     [tenantId,companyId,f34SnapshotId,JSON.stringify({productCode:'SKU-F33',factDate:'2017-02-15'})]);
   f34LineId=lineF34.rows[0]?.id??'';
