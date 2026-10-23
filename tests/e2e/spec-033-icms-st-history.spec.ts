@@ -163,20 +163,19 @@ test('F33 reconstrói principal aprovado, exporta artefatos privados e prova tem
     companyId,regime:'SIMPLES_NACIONAL',periodStart:'2017-02',periodEnd:'2017-02',sourceRevisionIds:[f34SnapshotId],excludedCompetences:[],periodComplete:true,
     status:'BLOQUEADO_POR_ACRESCIMOS_LEGAIS',blockingReasonCodes:['F34_LEGAL_ACCRUALS_REQUIRED'],unresolvedEvidence:[],lines:[sourceLine],grossRestitutionCents:5000,
     grossComplementCents:1200,reversedRestitutionCents:0,reversedComplementCents:0,netRestitutionPrincipalCents:5000,netComplementPrincipalCents:1200,
-    netPrincipalBalanceCents:3800,regimeOutput:{kind:'SIMPLES_NACIONAL',carriedBalanceCents:null,possibleDestinations:[]},contentSha256:'',packageId:''};
-  const f34Package=await pool.query<{id:string}>(`insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,
+    netPrincipalBalanceCents:3800,regimeOutput:{kind:'SIMPLES_NACIONAL',carriedBalanceCents:null,possibleDestinations:[]},contentSha256:'',packageId:randomUUID()};
+  f34PackageId=canonical.packageId;
+  const hashMaterial={...canonical};delete hashMaterial.contentSha256;
+  const sourceHash=createHash('sha256').update(JSON.stringify({...hashMaterial,packageId:f34PackageId})).digest('hex');canonical.contentSha256=sourceHash;
+  const f34Package=await pool.query<{id:string}>(`insert into app.tax_st_history_package(id,tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,
     content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
-    values($1,$2,'SIMPLES_NACIONAL','2017-02-01','2017-02-01',1,repeat('a',64),repeat('b',64),'READY_FOR_INTERNAL_REVIEW',array[$3::uuid],'[]'::jsonb,$4::jsonb,$5,now(),$6) returning id`,
-    [tenantId,companyId,f34SnapshotId,JSON.stringify(canonical),userId,`${PREFIXO}-f34-source`]);
-  f34PackageId=f34Package.rows[0]?.id??'';
-  canonical.packageId=f34PackageId;
+    values($1,$2,$3,'SIMPLES_NACIONAL','2017-02-01','2017-02-01',1,repeat('a',64),$4,'READY_FOR_INTERNAL_REVIEW',array[$5::uuid],'[]'::jsonb,$6::jsonb,$7,now(),$8) returning id`,
+    [f34PackageId,tenantId,companyId,sourceHash,f34SnapshotId,JSON.stringify(canonical),userId,`${PREFIXO}-f34-source`]);
+  expect(f34Package.rows[0]?.id).toBe(f34PackageId);
   await pool.query(`insert into app.tax_st_history_package_line(tenant_id,empresa_id,package_id,source_kind,source_revision_id,source_line_id,competence,source_ids,rule_id,formula_version,
     memory_sha256,restitution_principal_cents,complement_principal_cents,facts)
     values($1,$2,$3,'APPROVED_SETTLEMENT',$4,$5,'2017-02-01',array['entrada-f34-e2e'],'fixture-f34','fixture-v1',repeat('c',64),5000,1200,$6::jsonb)`,
     [tenantId,companyId,f34PackageId,f34SnapshotId,f34LineId,JSON.stringify(sourceLine)]);
-  const hashMaterial={...canonical};delete hashMaterial.contentSha256;
-  const sourceHash=createHash('sha256').update(JSON.stringify({...hashMaterial,packageId:f34PackageId})).digest('hex');canonical.contentSha256=sourceHash;
-  await pool.query(`update app.tax_st_history_package set content_sha256=$2,canonical_json=$3::jsonb where id=$1`,[f34PackageId,sourceHash,JSON.stringify(canonical)]);
   expect(snapshotId).not.toBe('');
   expect(lineId).not.toBe('');
   achados=await provarVisualmente(page,CAMINHO,'f33-pacote-gerado',{pronto:alvo=>alvo.getByRole('region',{name:'Reconstrução histórica do ICMS-ST'}),semToasts:true,
