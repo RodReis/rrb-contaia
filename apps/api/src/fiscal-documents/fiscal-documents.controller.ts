@@ -91,7 +91,7 @@ export class FiscalDocumentsController {
   @Post('icms-st-returns')
   @HttpCode(201)
   @AcaoLivre()
-  @UseInterceptors(FilesInterceptor('arquivo',1,{limits:{fileSize:10*1024*1024,files:1,fields:8}}))
+  @UseInterceptors(FilesInterceptor('arquivo',1,{limits:{fileSize:10*1024*1024,files:1,fields:32}}))
   registrarDevolucaoIcmsSt(@Req() request:RequisicaoAutenticada,@Param('companyId') companyId:string,
     @UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown) {
     const roles=request.sessao?.papeis??[];

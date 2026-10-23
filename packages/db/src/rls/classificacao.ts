@@ -364,7 +364,7 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.tax_entry_resolution_human_review', classe: 'empresa', origem: 'F28 / SPEC-028', exigeIndiceEmpresa: true },
   { tabela: 'app.tax_entry_resolution_human_review_event', classe: 'empresa', origem: 'F28 / SPEC-028', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.tax_st_settlement_snapshot', classe: 'empresa', origem: 'F29 / SPEC-029', appendOnly: true, exigeIndiceEmpresa: true },
-  { tabela: 'app.tax_st_settlement_line', classe: 'empresa', origem: 'F29 / SPEC-029', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.tax_st_settlement_line', classe: 'empresa', origem: 'F29 / SPEC-029; leitura da linha aprovada para F32 / SPEC-032', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.tax_st_settlement_event', classe: 'empresa', origem: 'F29 / SPEC-029', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.tax_st_settlement_review_event', classe: 'empresa', origem: 'F29 / SPEC-029', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.tax_st_return_event', classe: 'empresa', origem: 'F32 / SPEC-032', appendOnly: true, exigeIndiceEmpresa: true },

@@ -144,7 +144,7 @@ export class IcmsStSettlementsService {
                   exists(select 1 from app.tax_st_settlement_event e where e.snapshot_id=s.id and e.action='DOCUMENT_SET_CHANGED') stale
              from app.tax_st_settlement_line l join app.tax_st_settlement_snapshot s on s.id=l.snapshot_id
              join app.fiscal_document d on d.id=l.output_document_id and d.tenant_id=l.tenant_id and d.empresa_id=l.empresa_id
-            where l.tenant_id=$1 and l.empresa_id=$2 and l.snapshot_id=$3 and l.id=$4 for update of l`,
+            where l.tenant_id=$1 and l.empresa_id=$2 and l.snapshot_id=$3 and l.id=$4`,
           [tenantId,companyId,input.originalSnapshotId,input.originalLineId]);
         const line=original.rows[0];
         if (!line) throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_LINK_NOT_FOUND,'Linha original não encontrada.');
@@ -187,11 +187,8 @@ export class IcmsStSettlementsService {
         if (!eventId) throw new ErroDeConflito(CODIGOS_DE_ERRO.CONFLITO_DE_VERSAO,'Evento fiscal já registrado com esta identidade.');
         await client.query('select app.tax_st_return_review($1::uuid,$2::uuid,$3::uuid,$4::timestamptz,$5::text,$6::text,$7::text)',
           [eventId,companyId,userId,this.agora(),'SUBMITTED',null,correlationId]);
-        await client.query(`insert into app.tax_st_settlement_event(tenant_id,empresa_id,snapshot_id,action,actor_id,correlation_id,occurred_at,details)
-          select s.tenant_id,s.empresa_id,s.id,'DOCUMENT_SET_CHANGED',$4,$5,$6,jsonb_build_object('source','F32_RETURN','eventId',$3::text)
-            from app.tax_st_settlement_snapshot s where s.tenant_id=$1 and s.empresa_id=$2 and s.competence=$7::date
-              and not exists(select 1 from app.tax_st_settlement_event prior where prior.snapshot_id=s.id and prior.details->>'eventId'=$3::text)`,
-          [tenantId,companyId,eventId,userId,correlationId,this.agora(),competence]);
+        await client.query('select app.tax_st_settlement_mark_return_stale($1::uuid,$2::date,$3::uuid,$4::text,$5::uuid,$6::timestamptz)',
+          [companyId,competence,userId,correlationId,eventId,this.agora()]);
         return {id:eventId,status:'SUBMITTED',competence,returnedQuantityScaled:input.returnedQuantityScaled,
           remainingQuantityScaled:result.remainingQuantityScaled.toString(),reversedRestitutionCents:null,reversedComplementCents:null,evidenceSha256:sha256};
     });
@@ -202,7 +199,7 @@ export class IcmsStSettlementsService {
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`icms-st-return-review:${tenantId}:${companyId}:${eventId}`]);
       const selected=await client.query<{original_snapshot_id:string;original_line_id:string;return_item_identity:string;event_date:string;returned_quantity_scaled:string;normalized_unit:string;evidence_facts:unknown}>(
         `select original_snapshot_id,original_line_id,return_item_identity,to_char(event_date,'YYYY-MM-DD') event_date,returned_quantity_scaled::text,normalized_unit,evidence_facts
-           from app.tax_st_return_event where id=$1 and tenant_id=$2 and empresa_id=$3 for update`,[eventId,tenantId,companyId]);
+           from app.tax_st_return_event where id=$1 and tenant_id=$2 and empresa_id=$3`,[eventId,tenantId,companyId]);
       const event=selected.rows[0];
       if(!event)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_LINK_NOT_FOUND,'Devolução não encontrada.');
       if(action==='REJECTED'&&(reason===null||reason.trim().length<10))throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_EVENT_EVIDENCE_INVALID,'Rejeição exige motivo com ao menos 10 caracteres.');

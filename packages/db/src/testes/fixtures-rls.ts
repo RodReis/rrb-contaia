@@ -171,8 +171,8 @@ const prepararDevolucaoIcmsSt = async (admin: Consultavel, e: Escopo): Promise<R
 };
 
 const inserirEventoDevolucaoIcmsSt = async (admin: Consultavel, e: Escopo, r: Referencias): Promise<string> => unico(admin,
-  `insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,actor_id,correlation_id,occurred_at)
-   values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,'2017-02-01',$7,'UN',1,repeat('f',64),$8,'f32-rls-fixture',now()) returning id`,
+  `insert into app.tax_st_return_event(tenant_id,empresa_id,original_snapshot_id,original_line_id,origin,return_document_identity,return_item_identity,event_date,idempotency_key,normalized_unit,returned_quantity_scaled,evidence_sha256,evidence_facts,actor_id,correlation_id,occurred_at)
+   values($1,$2,$3,$4,'MANUAL_DOCUMENT',$5,$6,'2017-02-01',$7,'UN',1,repeat('f',64),'{"formulaVersion":"F32_FIXTURE","sourceIds":["fixture"]}'::jsonb,$8,'f32-rls-fixture',now()) returning id`,
   [e.tenantId,e.empresaId,r['snapshotId'],r['lineId'],`return-event-${randomUUID()}`,`item-event-${randomUUID()}`,randomUUID(),e.autorId]);
 
 const prepararRevisaoDevolucaoIcmsSt = async (admin:Consultavel,e:Escopo,r:Referencias):Promise<Referencias> => {
