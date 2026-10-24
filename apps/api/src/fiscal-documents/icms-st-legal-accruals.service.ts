@@ -252,6 +252,7 @@ export class IcmsStLegalAccrualsService {
     const canonicalJson=json(loaded.result),contentSha=sha(canonicalJson),key=sha(json({tenantId,companyId,sourcePackageId:input.sourcePackageId,referenceDate:input.referenceDate,rulePackageId:loaded.rulePackageId,formalActIds:[...input.formalActIds].sort(),contentSha}));
     return comContextoHumano(this.pool.instancia,{tenantId,usuarioId:userId,correlationId},async(client)=>{
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/result/${tenantId}/${companyId}/${key}`]);
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/result-source/${tenantId}/${companyId}/${input.sourcePackageId}`]);
       const previous=await client.query<StoredResult>('select id,canonical_json,content_sha256,source_package_id,rule_package_id,status from app.tax_st_legal_accrual_result where tenant_id=$1 and empresa_id=$2 and idempotency_sha256=$3',[tenantId,companyId,key]);
       const prior=previous.rows[0];if(prior){if(sha(json(object(prior.canonical_json)))!==prior.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado reproduzido diverge.');
         await client.query(`insert into app.tax_st_legal_accrual_event(tenant_id,empresa_id,result_id,action,actor_id,occurred_at,correlation_id,details) values($1,$2,$3,'REPRODUCED',$4,now(),$5,$6::jsonb)`,[tenantId,companyId,prior.id,userId,correlationId,json({contentSha256:prior.content_sha256})]);
@@ -268,7 +269,7 @@ export class IcmsStLegalAccrualsService {
       if(formalActIds.length!==input.formalActIds.length)throw this.indeterminado('A lista contém atos formais duplicados.');
       await client.query(`insert into app.tax_st_legal_accrual_event(tenant_id,empresa_id,result_id,action,actor_id,occurred_at,correlation_id,details)
         values($1,$2,$3,'SELECTED',$4,now(),$5,$6::jsonb)`,[tenantId,companyId,id,userId,correlationId,json({sourcePackageId:input.sourcePackageId,rulePackageId:loaded.rulePackageId,formalActIds,referenceDate:input.referenceDate})]);
-      const older=await client.query<{id:string}>('select r.id from app.tax_st_legal_accrual_result r where r.tenant_id=$1 and r.empresa_id=$2 and r.source_package_id=$3 and r.id<>$4 and not exists(select 1 from app.tax_st_legal_accrual_event e where e.result_id=r.id and e.action=\'SUPERSEDED\') for update',[tenantId,companyId,input.sourcePackageId,id]);
+      const older=await client.query<{id:string}>('select r.id from app.tax_st_legal_accrual_result r where r.tenant_id=$1 and r.empresa_id=$2 and r.source_package_id=$3 and r.id<>$4 and not exists(select 1 from app.tax_st_legal_accrual_event e where e.result_id=r.id and e.action=\'SUPERSEDED\')',[tenantId,companyId,input.sourcePackageId,id]);
       for(const previousResult of older.rows)await client.query(`insert into app.tax_st_legal_accrual_event(tenant_id,empresa_id,result_id,action,actor_id,occurred_at,correlation_id,details) values($1,$2,$3,'SUPERSEDED',$4,now(),$5,$6::jsonb)`,[tenantId,companyId,previousResult.id,userId,correlationId,json({supersededBy:id})]);
       return {id,hash:finalSha,reused:false,result:payload};
     });
