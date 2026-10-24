@@ -232,7 +232,7 @@ export class IcmsStLegalAccrualsService {
           const base={id:String(line['sourceLineId']??index),competence:String(line['competence']??''),termStartDate:typeof line['termStartDate']==='string'?line['termStartDate']:null};
           return [...(rest>0?[{...base,track:'RESTITUTION' as const,principalCents:rest}]:[]),...(comp>0?[{...base,track:'COMPLEMENT' as const,principalCents:comp}]:[])];})};
       const content=rulePackage?object(rulePackage['canonical_json']):null;const rules=content&&Array.isArray(content['rules'])?content['rules'] as IcmsStLegalAccrualRule[]:[];
-      let ruleSourcesValid=Boolean(content&&rulePackage&&sha(json(content))===String(rulePackage['content_sha256'])&&Array.isArray(content['sources'])&&
+      let ruleSourcesValid=Boolean(content&&rulePackage&&sha(canonicalizarJson(content))===String(rulePackage['content_sha256'])&&Array.isArray(content['sources'])&&
         Array.isArray(content['rules'])&&Array.isArray(object(content['requiredComponents'])['RESTITUTION'])&&Array.isArray(object(content['requiredComponents'])['COMPLEMENT']));
       const ruleSources=content&&Array.isArray(content['sources'])?content['sources']:[];
       for(const raw of ruleSources){const item=object(raw);const sourceBytes=await this.storage.obter(String(item['storageKey']??''));
