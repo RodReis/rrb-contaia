@@ -12,7 +12,7 @@ const PREFIXO=`e2e-f33-${randomUUID()}`;
 const ADMIN:Pessoa={usuario:PREFIXO,senha:`${PREFIXO}-senha-123456`,nome:'Contador F33'};
 const CNPJ_ESCRITORIO=cnpjValido('299293490001');
 const CNPJ_EMPRESA=cnpjValido('299293490002');
-const CAMINHO=resolve('test-results/SPEC-033/e2e/provas');
+const CAMINHO=resolve('test-results',process.env['PROVA_ESCOPO']??'SPEC-024','e2e/provas/spec-033');
 const pool=new Pool({connectionString:process.env['DATABASE_URL']??'postgresql://contaia:contaia_local@127.0.0.1:15432/contaia'});
 const DOCUMENT_KEY='3'.repeat(44);
 
