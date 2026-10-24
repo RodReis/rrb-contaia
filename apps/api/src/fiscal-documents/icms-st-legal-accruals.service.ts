@@ -207,7 +207,7 @@ export class IcmsStLegalAccrualsService {
       const canonical=object(sourceRow['canonical_json']);const lines=Array.isArray(canonical['lines'])?canonical['lines']:[];
       const sourceLineIds=lines.map(raw=>String(object(raw)['sourceLineId']??''));
       const hashMaterial={...canonical};delete hashMaterial['contentSha256'];
-      const recomputedSourceHash=sha(json({...hashMaterial,packageId:String(sourceRow['id'])}));
+      const recomputedSourceHash=sha(canonicalizarJson({...hashMaterial,packageId:String(sourceRow['id'])}));
       if(recomputedSourceHash!==String(sourceRow['content_sha256']))throw this.indeterminado('Hash canônico da fonte F33 divergente.');
       const persistedLines=await client.query<{count:string;line_ids:string[];revision_ids:string[]}>(`select count(*)::text count,
         coalesce(array_agg(source_line_id::text order by source_line_id::text),'{}') line_ids,
