@@ -258,7 +258,7 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   const same=await calculate();const reproduced=await same.json() as {id:string;hash:string;reused:boolean};
   expect(reproduced).toMatchObject({id:first.id,hash:first.hash,reused:true});
   await expect(panel.getByText('Histórico de resultados')).toBeVisible();
-  await expect(panel.getByText(new RegExp(`E2E-${PREFIXO}`,'u'))).toBeVisible();
+  await expect(panel.getByText(new RegExp(`E2E-${PREFIXO}`,'u')).last()).toBeVisible();
   achados=await provarVisualmente(page,CAMINHO,'f34-resultado-e-exports',{pronto:alvo=>alvo.getByRole('region',{name:'Acréscimos legais do ICMS-ST histórico'}),semToasts:true,
     recorte:alvo=>alvo.getByRole('region',{name:'Acréscimos legais do ICMS-ST histórico'})});
 });
