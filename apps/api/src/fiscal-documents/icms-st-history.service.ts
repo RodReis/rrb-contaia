@@ -4,6 +4,7 @@ import { buildHistoricalIcmsStPackage, type HistoricalIcmsStApprovedReversal, ty
   type HistoricalIcmsStRegime, type HistoricalIcmsStSourceLine, type HistoricalIcmsStSourceSnapshot,
   type HistoricalIcmsStUnresolvedEvidence } from '@contaia/domain';
 import { comContextoHumano } from '@contaia/db';
+import { canonicalizarJson } from '@contaia/shared';
 import { CODIGOS_DE_ERRO, ErroDeDominio } from '@contaia/domain';
 import { PoolDoBanco } from '../banco/pool.provider';
 import { StorageService } from '../comum/storage.service';
@@ -128,7 +129,7 @@ export class IcmsStHistoryService {
       const sourceRevisionIds=pkg.sourceRevisionIds;
       const payload={contractVersion:CONTRACT_VERSION,generatedAt:this.nowIso(),generatedBy:userId,tenantId,empresaId:companyId,selectionSha256:selectionSha,...JSON.parse(pkg.canonicalJson) as object};
       const id=randomUUID();
-      const canonicalJson=json({...payload,packageId:id}),contentSha=sha(canonicalJson);
+      const canonicalJson=canonicalizarJson({...payload,packageId:id}),contentSha=sha(canonicalJson);
       const packageJson={...payload,packageId:id,contentSha256:contentSha};
       const storedCanonical=json(packageJson);
       await client.query(`insert into app.tax_st_history_package(id,tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)

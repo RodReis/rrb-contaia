@@ -70,6 +70,7 @@ import { FiscalDocumentsController } from './fiscal-documents/fiscal-documents.c
 import { FiscalDocumentsService } from './fiscal-documents/fiscal-documents.service';
 import { IcmsStSettlementsService } from './fiscal-documents/icms-st-settlements.service';
 import { IcmsStHistoryService } from './fiscal-documents/icms-st-history.service';
+import { IcmsStLegalAccrualsService } from './fiscal-documents/icms-st-legal-accruals.service';
 import { PROVEDOR_DA_FILA_FISCAL } from './fiscal-documents/fiscal-documents.queue';
 import { PROVEDOR_DA_FILA_NFCE } from './fiscal-documents/nfce-import.queue';
 import { FiscalRiskController } from './fiscal-risk/fiscal-risk.controller';
@@ -167,6 +168,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     FiscalDocumentsService,
     IcmsStSettlementsService,
     IcmsStHistoryService,
+    IcmsStLegalAccrualsService,
     ...PROVEDOR_DA_FILA_FISCAL,
     ...PROVEDOR_DA_FILA_NFCE,
     FiscalRiskService,

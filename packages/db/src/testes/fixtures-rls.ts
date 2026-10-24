@@ -1045,6 +1045,60 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       `insert into app.tax_st_history_package_event(tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id,details)
        values($1,$2,$3,'GENERATED',$4,now(),'f33-rls-event-fixture','{}'::jsonb) returning id`,[e.tenantId,e.empresaId,r['packageId'],e.autorId]),
   },
+  'app.tax_st_legal_rule_package': {
+    inserir:(banco,e)=>unico(banco,`insert into app.tax_st_legal_rule_package(tenant_id,empresa_id,version,coverage_through,content_sha256,canonical_json,requested_by,created_at)
+      values($1,$2,$3,'2018-02-28',repeat(md5($4),2),'{}'::jsonb,$5,now()) returning id`,[e.tenantId,e.empresaId,`fixture-${proximo()}`,`${e.sufixo}/${proximo()}`,e.autorId]),
+  },
+  'app.tax_st_legal_rule_package_event': {
+    preparar:async(admin,e)=>{
+      const packageId=await unico(admin,`insert into app.tax_st_legal_rule_package(tenant_id,empresa_id,version,coverage_through,content_sha256,canonical_json,requested_by,created_at)
+        values($1,$2,$3,'2018-02-28',repeat(md5($4),2),'{}'::jsonb,$5,now()) returning id`,[e.tenantId,e.empresaId,`fixture-${proximo()}`,`${e.sufixo}/${proximo()}`,e.autorId]);
+      return {packageId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_legal_rule_package_event(tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'IMPORTED',$4,now(),'f34-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['packageId'],e.autorId]),
+  },
+  'app.tax_st_legal_formal_act': {
+    preparar:async(admin,e)=>{
+      const packageId=await unico(admin,`insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
+        values($1,$2,'SIMPLES_NACIONAL','2017-01-01','2017-01-01',1,repeat(md5($4||'s'),2),repeat(md5($4||'c'),2),'BLOQUEADO_POR_ACRESCIMOS_LEGAIS','{}'::uuid[],'[]'::jsonb,'{}'::jsonb,$3,now(),'f34-rls-source') returning id`,[e.tenantId,e.empresaId,e.autorId,`${e.sufixo}/${proximo()}`]);
+      return {sourcePackageId:packageId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_legal_formal_act(tenant_id,empresa_id,source_package_id,issuer,act_number,act_type,act_date,period_start,period_end,official_basis,storage_key,content_sha256,canonical_facts,requested_by,created_at)
+      values($1,$2,$3,'SEFAZ-GO',$4,'ASSESSMENT_NOTICE','2018-02-01','2017-01-01','2017-12-31','Fixture oficial','${'fixture/f34/act.pdf'}',repeat(md5($4),2),'{}'::jsonb,$5,now()) returning id`,[e.tenantId,e.empresaId,r['sourcePackageId'],`${e.sufixo}/${proximo()}`,e.autorId]),
+    colunaDeAtualizacao:'issuer',
+  },
+  'app.tax_st_legal_formal_act_event': {
+    preparar:async(admin,e)=>{
+      const sourcePackageId=await unico(admin,`insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
+        values($1,$2,'SIMPLES_NACIONAL','2017-01-01','2017-01-01',1,repeat(md5($4||'s'),2),repeat(md5($4||'c'),2),'BLOQUEADO_POR_ACRESCIMOS_LEGAIS','{}'::uuid[],'[]'::jsonb,'{}'::jsonb,$3,now(),'f34-rls-source') returning id`,[e.tenantId,e.empresaId,e.autorId,`${e.sufixo}/${proximo()}`]);
+      const actId=await unico(admin,`insert into app.tax_st_legal_formal_act(tenant_id,empresa_id,source_package_id,issuer,act_number,act_type,act_date,period_start,period_end,official_basis,storage_key,content_sha256,canonical_facts,requested_by,created_at)
+        values($1,$2,$3,'SEFAZ-GO',$4,'ASSESSMENT_NOTICE','2018-02-01','2017-01-01','2017-12-31','Fixture oficial','fixture/f34/act.pdf',repeat(md5($4),2),'{}'::jsonb,$5,now()) returning id`,[e.tenantId,e.empresaId,sourcePackageId,`${e.sufixo}/${proximo()}`,e.autorId]);
+      return {actId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_legal_formal_act_event(tenant_id,empresa_id,act_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'IMPORTED',$4,now(),'f34-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['actId'],e.autorId]),
+  },
+  'app.tax_st_legal_accrual_result': {
+    preparar:async(admin,e)=>{
+      const sourcePackageId=await unico(admin,`insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
+        values($1,$2,'SIMPLES_NACIONAL','2017-01-01','2017-01-01',1,repeat(md5($4||'s'),2),repeat(md5($4||'c'),2),'BLOQUEADO_POR_ACRESCIMOS_LEGAIS','{}'::uuid[],'[]'::jsonb,'{}'::jsonb,$3,now(),'f34-rls-source') returning id`,[e.tenantId,e.empresaId,e.autorId,`${e.sufixo}/${proximo()}`]);
+      return {sourcePackageId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_legal_accrual_result(tenant_id,empresa_id,source_package_id,reference_date,contract_version,idempotency_sha256,canonical_json,content_sha256,status,requested_by,generated_at,correlation_id)
+      values($1,$2,$3,'2018-02-28',1,repeat(md5($4),2),'{}'::jsonb,repeat(md5($4||'content'),2),'INDETERMINATE',$5,now(),'f34-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['sourcePackageId'],`${e.sufixo}/${proximo()}`,e.autorId]),
+  },
+  'app.tax_st_legal_accrual_event': {
+    preparar:async(admin,e)=>{
+      const sourcePackageId=await unico(admin,`insert into app.tax_st_history_package(tenant_id,empresa_id,regime,period_start,period_end,contract_version,selection_sha256,content_sha256,status,source_revision_ids,excluded_competences,canonical_json,requested_by,generated_at,correlation_id)
+        values($1,$2,'SIMPLES_NACIONAL','2017-01-01','2017-01-01',1,repeat(md5($4||'s'),2),repeat(md5($4||'c'),2),'BLOQUEADO_POR_ACRESCIMOS_LEGAIS','{}'::uuid[],'[]'::jsonb,'{}'::jsonb,$3,now(),'f34-rls-source') returning id`,[e.tenantId,e.empresaId,e.autorId,`${e.sufixo}/${proximo()}`]);
+      const resultId=await unico(admin,`insert into app.tax_st_legal_accrual_result(tenant_id,empresa_id,source_package_id,reference_date,contract_version,idempotency_sha256,canonical_json,content_sha256,status,requested_by,generated_at,correlation_id)
+        values($1,$2,$3,'2018-02-28',1,repeat(md5($4),2),'{}'::jsonb,repeat(md5($4||'content'),2),'INDETERMINATE',$5,now(),'f34-rls-fixture') returning id`,[e.tenantId,e.empresaId,sourcePackageId,`${e.sufixo}/${proximo()}`,e.autorId]);
+      return {resultId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_legal_accrual_event(tenant_id,empresa_id,result_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'CALCULATED',$4,now(),'f34-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['resultId'],e.autorId]),
+  },
   'app.tax_st_settlement_line': {
     preparar: prepararSnapshotIcmsSt,
     inserir: (banco,e,r) => unico(banco,
