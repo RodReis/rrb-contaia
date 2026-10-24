@@ -754,7 +754,7 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Painel F34 integrado à resolução fiscal; teste de tela focal 2/2, domínio focal 5/5, PDF 1/1, matriz RLS 5/5 após migrations 0072–0073 no Compose compartilhado `contaia`; `pnpm lint`, `pnpm build` e `git diff --check` passaram. Warning preexistente do React Compiler em `aba-de-enderecos.tsx`.
 - [x] Fixture E2E autenticada cobre fonte sintética rastreável, aprovação, pacote de regra sintético não oficial, cálculo, revisão, hash de PDF/CSV/JSON e reprodução; execução E2E local `not_run` por timeout no bootstrap `webServer` do Playwright. CI run `40056808935`: E2E 174/174; imagens CLARO/ESCURO × 768/1024/1440 e arquivos PDF/CSV/JSON/manifest publicados em `resultados-e2e/e2e/provas/spec-033/`.
 - [x] Inspeção visual das capturas 1440 CLARO e 768 ESCURO: aviso de fixture sintética visível, página responsiva e trilhas separadas; não há protótipo F34 específico em `docs/telas/` para comparação direta. `impeccable detect --json` sem achados.
-- [ ] Revisão final, merge confirmado, comentário de encerramento e `proplan:done` pendentes; ausência de pacote oficial curado mantém resultados reais indeterminados.
+- [x] PR #147 integrada em `main` (`a3b9dc2`); CI do head e CI pós-merge verdes. Issue #38 segue aberta para aceite do PI; ausência de pacote oficial curado mantém resultados reais indeterminados. Próximo `todo`: #39 / F35.
 
 ### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
 
