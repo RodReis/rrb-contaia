@@ -239,7 +239,7 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   const first=await calculated.json() as {id:string;hash:string;reused:boolean;result:{status:string;complement:{principalCents:number;monetaryUpdateCents:number;totalCents:number};memory:unknown[];gaps:unknown[]}};
   expect(first.result).toMatchObject({status:'READY_FOR_INTERNAL_REVIEW',complement:{principalCents:1200,monetaryUpdateCents:0,totalCents:1200},gaps:[]});
   expect(first.result.memory).toHaveLength(2);
-  await expect(panel.getByText('READY_FOR_INTERNAL_REVIEW')).toBeVisible();
+  await expect(panel.locator('header').getByText('READY_FOR_INTERNAL_REVIEW',{exact:true})).toBeVisible();
   await panel.getByRole('button',{name:'Registrar revisão'}).click();
 
   for(const format of ['PDF','CSV','JSON'] as const){
