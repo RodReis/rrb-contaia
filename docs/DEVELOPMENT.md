@@ -752,9 +752,9 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Migrations 0072–0073 adicionam pacotes normativos, atos formais, resultados e eventos append-only com RLS, FKs compostas, índices, `escopo_imutavel`, storage privado e aprovação humana da fonte F33.
 - [x] API valida hash canônico e revisões atuais da F33, hash do pacote normativo/anexos e hash dos atos formais; cálculo idempotente, revisão interna e exportação privada PDF/CSV/JSON com SHA-256.
 - [x] Painel F34 integrado à resolução fiscal; teste de tela focal 2/2, domínio focal 5/5, PDF 1/1, matriz RLS 5/5 após migrations 0072–0073 no Compose compartilhado `contaia`; `pnpm lint`, `pnpm build` e `git diff --check` passaram. Warning preexistente do React Compiler em `aba-de-enderecos.tsx`.
-- [x] Fixture E2E autenticada cobre fonte sintética rastreável, aprovação, pacote de regra sintético não oficial, cálculo, revisão, hash de PDF/CSV/JSON e reprodução; execução E2E local `not_run` por timeout no bootstrap `webServer` do Playwright, apesar dos serviços responderem 200 isoladamente. CI do head ainda é gate.
-- [ ] Capturas autenticadas F34 em CLARO/ESCURO × 768/1024/1440 e comparação correspondente com protótipo: `not_run` local; detector `impeccable detect --json` sem achados. Exigir evidência da CI/PR para comparar.
-- [ ] PR/CI verde, merge confirmado, comentário de encerramento e `proplan:done` pendentes; ausência de pacote oficial curado mantém resultados reais indeterminados.
+- [x] Fixture E2E autenticada cobre fonte sintética rastreável, aprovação, pacote de regra sintético não oficial, cálculo, revisão, hash de PDF/CSV/JSON e reprodução; execução E2E local `not_run` por timeout no bootstrap `webServer` do Playwright. CI run `40056808935`: E2E 174/174; imagens CLARO/ESCURO × 768/1024/1440 e arquivos PDF/CSV/JSON/manifest publicados em `resultados-e2e/e2e/provas/spec-033/`.
+- [x] Inspeção visual das capturas 1440 CLARO e 768 ESCURO: aviso de fixture sintética visível, página responsiva e trilhas separadas; não há protótipo F34 específico em `docs/telas/` para comparação direta. `impeccable detect --json` sem achados.
+- [ ] Revisão final, merge confirmado, comentário de encerramento e `proplan:done` pendentes; ausência de pacote oficial curado mantém resultados reais indeterminados.
 
 ### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
 
