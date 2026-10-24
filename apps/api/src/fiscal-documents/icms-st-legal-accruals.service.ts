@@ -256,9 +256,9 @@ export class IcmsStLegalAccrualsService {
       const prior=previous.rows[0];if(prior){if(sha(json(object(prior.canonical_json)))!==prior.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado reproduzido diverge.');
         await client.query(`insert into app.tax_st_legal_accrual_event(tenant_id,empresa_id,result_id,action,actor_id,occurred_at,correlation_id,details) values($1,$2,$3,'REPRODUCED',$4,now(),$5,$6::jsonb)`,[tenantId,companyId,prior.id,userId,correlationId,json({contentSha256:prior.content_sha256})]);
         return {id:prior.id,hash:prior.content_sha256,reused:true,result:prior.canonical_json};}
-      await client.query('select id from app.tax_st_history_package where id=$1 and tenant_id=$2 and empresa_id=$3 for share',[input.sourcePackageId,tenantId,companyId]);
-      if(loaded.rulePackageId)await client.query('select id from app.tax_st_legal_rule_package where id=$1 and tenant_id=$2 and empresa_id=$3 for share',[loaded.rulePackageId,tenantId,companyId]);
-      if(input.formalActIds.length)await client.query('select id from app.tax_st_legal_formal_act where id=any($1::uuid[]) and tenant_id=$2 and empresa_id=$3 for share',[input.formalActIds,tenantId,companyId]);
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/source/${tenantId}/${companyId}/${input.sourcePackageId}`]);
+      if(loaded.rulePackageId)await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/rule/${tenantId}/${companyId}/${loaded.rulePackageId}`]);
+      for(const actId of input.formalActIds)await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/act/${tenantId}/${companyId}/${actId}`]);
       const id=randomUUID();const payload={...loaded.result,resultId:id,tenantId,companyId,rulePackageId:loaded.rulePackageId,canonicalJsonHash:contentSha,generatedAtUtc:new Date().toISOString()};
       const finalJson=json(payload),finalSha=sha(finalJson);
       await client.query(`insert into app.tax_st_legal_accrual_result(id,tenant_id,empresa_id,source_package_id,rule_package_id,reference_date,contract_version,idempotency_sha256,canonical_json,content_sha256,status,requested_by,generated_at,correlation_id)
