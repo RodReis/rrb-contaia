@@ -254,14 +254,14 @@ export class IcmsStLegalAccrualsService {
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/result/${tenantId}/${companyId}/${key}`]);
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/result-source/${tenantId}/${companyId}/${input.sourcePackageId}`]);
       const previous=await client.query<StoredResult>('select id,canonical_json,content_sha256,source_package_id,rule_package_id,status from app.tax_st_legal_accrual_result where tenant_id=$1 and empresa_id=$2 and idempotency_sha256=$3',[tenantId,companyId,key]);
-      const prior=previous.rows[0];if(prior){if(sha(json(object(prior.canonical_json)))!==prior.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado reproduzido diverge.');
+      const prior=previous.rows[0];if(prior){if(sha(canonicalizarJson(object(prior.canonical_json)))!==prior.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado reproduzido diverge.');
         await client.query(`insert into app.tax_st_legal_accrual_event(tenant_id,empresa_id,result_id,action,actor_id,occurred_at,correlation_id,details) values($1,$2,$3,'REPRODUCED',$4,now(),$5,$6::jsonb)`,[tenantId,companyId,prior.id,userId,correlationId,json({contentSha256:prior.content_sha256})]);
         return {id:prior.id,hash:prior.content_sha256,reused:true,result:prior.canonical_json};}
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/source/${tenantId}/${companyId}/${input.sourcePackageId}`]);
       if(loaded.rulePackageId)await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/rule/${tenantId}/${companyId}/${loaded.rulePackageId}`]);
       for(const actId of input.formalActIds)await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`f34/act/${tenantId}/${companyId}/${actId}`]);
       const id=randomUUID();const payload={...loaded.result,resultId:id,tenantId,companyId,rulePackageId:loaded.rulePackageId,canonicalJsonHash:contentSha,generatedAtUtc:new Date().toISOString()};
-      const finalJson=json(payload),finalSha=sha(finalJson);
+      const finalJson=canonicalizarJson(payload),finalSha=sha(finalJson);
       await client.query(`insert into app.tax_st_legal_accrual_result(id,tenant_id,empresa_id,source_package_id,rule_package_id,reference_date,contract_version,idempotency_sha256,canonical_json,content_sha256,status,requested_by,generated_at,correlation_id)
         values($1,$2,$3,$4,$5,$6::date,1,$7,$8::jsonb,$9,$10,$11,now(),$12)`,[id,tenantId,companyId,input.sourcePackageId,loaded.rulePackageId,input.referenceDate,key,finalJson,finalSha,loaded.result.status,userId,correlationId]);
       await client.query(`insert into app.tax_st_legal_accrual_event(tenant_id,empresa_id,result_id,action,actor_id,occurred_at,correlation_id,details) values($1,$2,$3,'CALCULATED',$4,now(),$5,$6::jsonb)`,[tenantId,companyId,id,userId,correlationId,json({contentSha256:finalSha,status:loaded.result.status})]);
@@ -292,7 +292,7 @@ export class IcmsStLegalAccrualsService {
         exists(select 1 from app.tax_st_legal_accrual_event e where e.result_id=r.id and e.action='SUPERSEDED') superseded from app.tax_st_legal_accrual_result r
         where r.id=$1 and r.tenant_id=$2 and r.empresa_id=$3 and app.empresa_autorizada(r.empresa_id)`,[resultId,tenantId,companyId]);
       const result=row.rows[0];if(!result)throw this.naoEncontrado('Resultado F34 não encontrado.');
-      const data=object(result.canonical_json);if(sha(json(data))!==result.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado divergente.');if(result.superseded)data['status']='SUPERSEDED';
+      const data=object(result.canonical_json);if(sha(canonicalizarJson(data))!==result.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado divergente.');if(result.superseded)data['status']='SUPERSEDED';
       return {id:result.id,hash:result.content_sha256,result:data};
     });
   }
@@ -303,7 +303,7 @@ export class IcmsStLegalAccrualsService {
         exists(select 1 from app.tax_st_legal_accrual_event e where e.result_id=r.id and e.action='SUPERSEDED') superseded from app.tax_st_legal_accrual_result r
         where r.id=$1 and r.tenant_id=$2 and r.empresa_id=$3 and app.empresa_autorizada(r.empresa_id)`,[resultId,tenantId,companyId]);return row.rows[0]??null;});
     if(!result)throw this.naoEncontrado('Resultado F34 não encontrado.');
-    const data=object(result.canonical_json);if(sha(json(data))!==result.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado divergente.');if(result.superseded)data['status']='SUPERSEDED';let bytes:Buffer;const contentType=format==='PDF'?'application/pdf':format==='CSV'?'text/csv; charset=utf-8':'application/json';
+    const data=object(result.canonical_json);if(sha(canonicalizarJson(data))!==result.content_sha256)throw new ErroDeDominio(CODIGOS_DE_ERRO.ICMS_ST_ACCRUAL_EXPORT_HASH_MISMATCH,'Hash do resultado divergente.');if(result.superseded)data['status']='SUPERSEDED';let bytes:Buffer;const contentType=format==='PDF'?'application/pdf':format==='CSV'?'text/csv; charset=utf-8':'application/json';
     if(format==='JSON')bytes=Buffer.from(json(data),'utf8');
     else if(format==='CSV'){const rows=[['trilha','principal_centavos','atualizacao_centavos','juros_centavos','multa_mora_centavos','penalidade_centavos','total_centavos','estado'],...(['restitution','complement'] as const).map(key=>{const track=object(data[key]);return [key,track['principalCents'],track['monetaryUpdateCents'],track['lateInterestCents'],track['latePaymentFineCents'],track['infractionPenaltyCents'],track['totalCents'],data['status']];})];bytes=Buffer.from(rows.map(row=>row.map(value=>`"${String(value??'').replace(/"/gu,'""')}"`).join(';')).join('\r\n'),'utf8');}
     else bytes=renderIcmsStLegalAccrualsPdf(data,result.content_sha256);
