@@ -5,6 +5,7 @@ export type { CodigoDeRejeicaoNfce, NfceNormalizada } from './nfce.js';
 export { AUDIT_EXPORT_QUEUE, AUDIT_EXPORT_JOB, AUDIT_EXPORT_EXPIRY_JOB, AUDIT_EXPORT_TTL_MS, AuditExportCommandSchema, AuditExportExpiryCommandSchema } from './audit-export.js';
 export type { AuditExportCommand, AuditExportExpiryCommand } from './audit-export.js';
 export type { ProblemDetails } from './problem.js';
+export { canonicalizarJson } from './canonical-json.js';
 export {
   LIMITE_DE_DOCUMENTO_BYTES,
   LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,
