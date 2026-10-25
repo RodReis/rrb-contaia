@@ -24,6 +24,7 @@ describe('painel do dossiê interno ICMS-ST F35', () => {
   it('exibe estado vazio e impede criar sem fontes elegíveis', async () => {
     render(<PainelDossieDecisaoIcmsSt empresaId="company-1" podePreparar podeDecidir={false} />, { wrapper: Wrapper });
     expect(await screen.findByRole('heading', { name: 'Dossiê de decisão do ICMS-ST histórico' })).toBeTruthy();
+    expect(screen.queryByText('\\n', { exact: true })).toBeNull();
     expect(await screen.findByText('Nenhum fundamento importado. Destinos seguem sem elegibilidade.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Criar / reproduzir dossiê' })).toBeDisabled();
   });

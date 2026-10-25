@@ -1124,7 +1124,7 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.tax_st_destination_rule_event': {
     preparar:async(admin,e)=>({ruleId:await unico(admin,`insert into app.tax_st_destination_rule_package(tenant_id,empresa_id,version,destination,regime,valid_from,valid_through,official_basis,source_url,consulted_at,source_sha256,storage_key,conditions,requested_by,created_at)
       values($1,$2,$3,'REFUND_REQUEST','SIMPLES_NACIONAL','2016-10-01','2018-02-28','Fixture formal','https://example.gov.br/fixture','2018-02-28',repeat(md5($4),2),'fixture/f35.pdf','["fixture"]'::jsonb,$5,now()) returning id`,[e.tenantId,e.empresaId,`fixture-${proximo()}`,`${e.sufixo}/${proximo()}`,e.autorId])}),
-    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_destination_rule_event(tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id) values($1,$2,$3,'IMPORTED',$4,now(),'f35-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['ruleId'],e.autorId]),
+    inserir:(banco,e,r)=>unico(banco,`insert into app.tax_st_destination_rule_event(tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id) values($1,$2,$3,'FAILED',$4,now(),'f35-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['ruleId'],e.autorId]),
   },
   'app.tax_st_internal_decision_dossier': {
     preparar:prepararDossieF35,

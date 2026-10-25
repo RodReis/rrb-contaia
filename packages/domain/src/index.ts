@@ -31,9 +31,9 @@ export type { IcmsStReturnReversalInput, IcmsStReturnReversalResult } from './ta
 export { renderIcmsStC002 } from './tax-resolution/render-icms-st-c002.js';
 export type { IcmsStC002Input } from './tax-resolution/render-icms-st-c002.js';
 export { buildHistoricalIcmsStPackage } from './tax-resolution/build-icms-st-history.js';
-export { calculateIcmsStLegalAccruals } from './tax-resolution/calculate-icms-st-legal-accruals.js';
+export { calculateIcmsStLegalAccruals, endOfIcmsStCompetence } from './tax-resolution/calculate-icms-st-legal-accruals.js';
 export { decideIcmsStDossierTrack, fiscalUseDossierStatus } from './tax-resolution/decide-icms-st-dossier.js';
-export type { FiscalUseDestination, FiscalUseTrackStatus, FiscalUseTrack, FiscalUseDossier, FiscalUseCommand } from './tax-resolution/decide-icms-st-dossier.js';
+export type { FiscalUseDestination, FiscalUseTrackStatus, FiscalUseRuleSnapshot, FiscalUseEvidenceSnapshot, FiscalUseTrack, FiscalUseDossier, FiscalUseCommand } from './tax-resolution/decide-icms-st-dossier.js';
 export type { IcmsStLegalAccrualComponent, IcmsStLegalAccrualTrackName, IcmsStLegalAccrualRule,
   IcmsStLegalAccrualSource, IcmsStLegalAccrualRulePackage, IcmsStLegalFormalAct, IcmsStLegalAccrualInput,
   IcmsStLegalAccrualGap, IcmsStLegalAccrualResult } from './tax-resolution/calculate-icms-st-legal-accruals.js';

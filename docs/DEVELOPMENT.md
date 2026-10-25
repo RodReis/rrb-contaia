@@ -767,6 +767,9 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
   - [x] Autorrevisão corrigiu reuso de evidências entre revisões, idempotência, upload órfão, permissão de preparação/revisão, destinos cruzados e auditoria append-only de tentativas negadas (`FAILED`, após rollback). A correspondência das condições do pacote com fontes/evidências é atestada pelo revisor humano, não inferida automaticamente. A gravação de `FAILED` ainda não tem teste de integração específico.
   - [x] `impeccable detect --json` havia retornado `[]` após o passe visual; o comando não está disponível no PATH deste ambiente atual.
   - [x] Matriz RLS após a migration 0074: 5/5 testes em `src/rls-matriz.integration.test.ts`.
+  - [x] Revisão P1 corrigida: lock por dossiê serializa decisões/anexos; vigência inclui o último dia civil; negativa de pacote e falha de auditoria ficam observáveis. Migration 0075 permite ação auditável `FAILED` no pacote de destino.
+  - [x] Alteração de evidência cria nova revisão append-only, herda evidências com IDs remapeados e atualiza o painel para a revisão resultante. Exportação PDF/CSV inclui período original, data de referência F34, hashes F33/F34, snapshot do fundamento e manifesto de evidências. Testes locais pós-ajuste: API 5/5 (serviço/PDF), domínio focado, tela 2/2; typecheck API/web/domain, lint domain/API/web e `git diff --check` passaram. Lint mantém somente aviso React Compiler preexistente em `aba-de-enderecos.tsx`.
+  - [ ] Esses checks locais não substituem CI no novo SHA. E2E autenticado local permanece `not_run` por `/health` 503 do Cofre no Compose compartilhado `contaia`; migration 0075 ainda aguarda validação da matriz/CI limpa. Revisão final, artefato visual do novo head, merge e encerramento continuam pendentes.
 
 ### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
 
