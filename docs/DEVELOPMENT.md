@@ -756,6 +756,18 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Inspeção visual das capturas 1440 CLARO e 768 ESCURO: aviso de fixture sintética visível, página responsiva e trilhas separadas; não há protótipo F34 específico em `docs/telas/` para comparação direta. `impeccable detect --json` sem achados.
 - [x] PR #147 integrada em `main` (`a3b9dc2`); CI do head e CI pós-merge verdes. Issue #38 segue aberta para aceite do PI; ausência de pacote oficial curado mantém resultados reais indeterminados. Próximo `todo`: #39 / F35.
 
+### Card #39 — `[MVP2][SPEC-035][F35]` Dossiê interno de decisão do ICMS-ST histórico
+
+- [x] Worktree isolado `codex/f35-issue39`, base `origin/main` `bda0030`; issue #39 movida para `proplan:doing`.
+- [x] Migration 0074 cria pacotes oficiais de destino, dossiês, evidências e eventos append-only com RLS/índices/FKs compostas; matriz RLS real passou (5 testes) no Compose compartilhado `contaia`.
+- [x] Domínio de decisão segregada, elegibilidade por trilha, bloqueio de indeterminação, hash de evidências e confirmação humana de cada condição do pacote vinculada à decisão; domínio focal 11/11, teste PDF 1/1 e tela focal 2/2 passaram.
+- [x] Painel F35 integrado com permissões distintas para preparação/revisão, estados de carregamento/erro/vazio, registro de fundamentos e condições, evidências por revisão e destinos futuros sem execução externa. `impeccable detect --json` sem achados.
+  - [x] `pnpm exec turbo run build --filter=@contaia/api --filter=@contaia/web`, typecheck e lint passaram após os ajustes; warning preexistente React Compiler em `aba-de-enderecos.tsx`. Testes focais atuais: domínio 11/11, PDF 1/1, tela 2/2; `git diff --check` limpo.
+  - [ ] E2E visual `not_run`: Playwright não passou readiness do Cofre (`/health` 503); serviço `vault-bootstrap` do Compose compartilhado `contaia` está reiniciando com `unseal falhou (HTTP 400)`. API/Web/CNPJá responderam localmente, mas a prova F35 não chegou a executar. Não recriar nem reinicializar Vault/dados para contornar.
+  - [x] Autorrevisão corrigiu reuso de evidências entre revisões, idempotência, upload órfão, permissão de preparação/revisão, destinos cruzados e auditoria append-only de tentativas negadas (`FAILED`, após rollback). A correspondência das condições do pacote com fontes/evidências é atestada pelo revisor humano, não inferida automaticamente. A gravação de `FAILED` ainda não tem teste de integração específico.
+  - [x] `impeccable detect --json` havia retornado `[]` após o passe visual; o comando não está disponível no PATH deste ambiente atual.
+  - [x] Matriz RLS após a migration 0074: 5/5 testes em `src/rls-matriz.integration.test.ts`.
+
 ### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
 
 - [x] Domínio calcula estorno proporcional cumulativo em centavos inteiros; última devolução absorve resíduo de arredondamento, sem exceder valor ou quantidade original.

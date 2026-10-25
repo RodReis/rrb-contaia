@@ -27,6 +27,7 @@ let snapshotId='';
 let lineId='';
 let packageId='';
 let f34PackageId='';
+let f34ResultId='';
 let f34SnapshotId='';
 let f34LineId='';
 let achados:AchadosVisuais|null=null;
@@ -237,6 +238,7 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   };
   const calculated=await calculate();expect(calculated.ok(),await calculated.text()).toBeTruthy();
   const first=await calculated.json() as {id:string;hash:string;reused:boolean;result:{status:string;complement:{principalCents:number;monetaryUpdateCents:number;totalCents:number};memory:unknown[];gaps:unknown[]}};
+  f34ResultId=first.id;
   expect(first.result).toMatchObject({status:'READY_FOR_INTERNAL_REVIEW',complement:{principalCents:1200,monetaryUpdateCents:0,totalCents:1200},gaps:[]});
   expect(first.result.memory).toHaveLength(2);
   await expect(panel.locator('header').getByText('READY_FOR_INTERNAL_REVIEW',{exact:true})).toBeVisible();
@@ -264,6 +266,31 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
 });
 
 test('F34 não apresenta violações críticas nem rolagem horizontal nas provas visuais',()=>{
+  expect(achados).not.toBeNull();expect(achados?.rolagens).toEqual([]);
+  for(const [theme,violations] of Object.entries(achados?.violacoes??{}))expect(violations.filter(item=>item.impacto==='critical'),`${theme}: axe`).toEqual([]);
+});
+
+test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova a tela',async()=>{
+  test.setTimeout(180_000);
+  mkdirSync(CAMINHO,{recursive:true});
+  await page.reload();
+  const panel=page.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'});
+  await expect(panel.getByRole('heading',{name:'Dossiê de decisão do ICMS-ST histórico'})).toBeVisible();
+  await panel.getByLabel('Fonte F33 aprovada').selectOption(f34PackageId);
+  await panel.getByLabel('Resultado F34').selectOption(f34ResultId);
+  const created=page.waitForResponse(response=>response.url().includes('/icms-st-dossiers')&&!response.url().includes('/destination-rules')&&response.request().method()==='POST');
+  await panel.getByRole('button',{name:'Criar / reproduzir dossiê'}).click();
+  const response=await created;expect(response.ok(),await response.text()).toBeTruthy();
+  const dossier=await response.json() as {id:string;hash:string;reused:boolean;dossier:{status:string;restitution:{status:string};complement:{status:string}}};
+  expect(dossier.hash).toMatch(/^[0-9a-f]{64}$/u);
+  expect(dossier.dossier).toMatchObject({restitution:{status:'PENDING'},complement:{status:'PENDING'}});
+  await expect(panel.getByRole('button',{name:'Abrir'}).first()).toBeVisible();
+  await expect(panel.getByText('Aprovação registra intenção interna; nenhum efeito fiscal ou financeiro é executado.')).toBeVisible();
+  achados=await provarVisualmente(page,CAMINHO,'f35-dossie-interno',{pronto:alvo=>alvo.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'}),semToasts:true,
+    recorte:alvo=>alvo.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'})});
+});
+
+test('F35 não apresenta violações críticas nem rolagem horizontal nas provas visuais',()=>{
   expect(achados).not.toBeNull();expect(achados?.rolagens).toEqual([]);
   for(const [theme,violations] of Object.entries(achados?.violacoes??{}))expect(violations.filter(item=>item.impacto==='critical'),`${theme}: axe`).toEqual([]);
 });

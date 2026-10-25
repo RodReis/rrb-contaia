@@ -16,6 +16,7 @@ import type { IcmsStLegalAccrualRule } from '@contaia/domain';
 import { IcmsStLegalAccrualsService } from './icms-st-legal-accruals.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { z as zod } from 'zod';
+import { IcmsStDossiersService } from './icms-st-dossiers.service';
 
 const uuid = z.string().uuid();
 const persistedUuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
@@ -56,7 +57,41 @@ const filaResolucaoSchema = paginaSchema.extend({
 @UseGuards(GuardDeSessao, GuardDeCadastro, GuardDeAcao, GuardDeEscopoDeEmpresa)
 export class FiscalDocumentsController {
   constructor(private readonly service: FiscalDocumentsService, private readonly icmsStService: IcmsStSettlementsService,
-    private readonly icmsStHistory: IcmsStHistoryService,private readonly icmsStLegalAccruals:IcmsStLegalAccrualsService) {}
+    private readonly icmsStHistory: IcmsStHistoryService,private readonly icmsStLegalAccruals:IcmsStLegalAccrualsService,private readonly icmsStDossiers:IcmsStDossiersService) {}
+
+  @Get('icms-st-dossiers/destination-rules') @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarRegrasDeDestino(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string){return this.icmsStDossiers.listarRegras(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),obterCorrelationId(req));}
+
+  @Post('icms-st-dossiers/destination-rules') @HttpCode(201) @ExigePermissao('fiscal.motor_tributario.simular')
+  @UseInterceptors(FilesInterceptor('source',1,{limits:{fileSize:20*1024*1024,files:1,fields:1}}))
+  importarRegraDeDestino(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown){
+    const input=analisar(z.strictObject({version:z.string().trim().min(1).max(100),destination:z.enum(['APPROPRIATION','COMPENSATION','TRANSFER','REFUND_REQUEST','GUIDE_PAYMENT','RECTIFICATION_BOOKKEEPING','DISPUTE_ANALYSIS']),regime:z.enum(['SIMPLES_NACIONAL','LUCRO_PRESUMIDO']),validFrom:dataCivilQuerySchema,validThrough:dataCivilQuerySchema,officialBasis:z.string().trim().min(1).max(1000),sourceUrl:z.string().url().max(2000),consultedAt:dataCivilQuerySchema,conditions:z.preprocess(value=>{if(typeof value!=='string')return value;try{return JSON.parse(value) as unknown;}catch{return undefined;}},z.array(z.string().trim().min(1).max(500)).min(1).max(100))}).refine(v=>v.validFrom<=v.validThrough,'Vigência inválida.'),body);
+    if(!(req.sessao?.papeis??[]).some(r=>(['contador','admin_escritorio'] as readonly string[]).includes(r)))throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Papel sem autorização para importar fundamento de destino.');const file=files?.[0];if(!file)throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,'Documento oficial obrigatório.');return this.icmsStDossiers.importarRegra(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),input,file,obterCorrelationId(req));}
+
+  @Post('icms-st-dossiers/destination-rules/:packageId/review') @HttpCode(201) @AcaoLivre()
+  decidirRegraDeDestino(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('packageId') id:string,@Body() body:unknown){if(!(req.sessao?.papeis??[]).some(r=>(['contador','admin_escritorio'] as readonly string[]).includes(r)))throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Somente contador ou admin_escritorio decide fundamento de destino.');const input=analisar(z.strictObject({action:z.enum(['APPROVED','REJECTED']),reason:z.string().trim().min(10).max(500)}),body);return this.icmsStDossiers.decidirRegra(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),analisar(persistedUuid,id),input.action,input.reason,obterCorrelationId(req));}
+
+  @Get('icms-st-dossiers') @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarDossies(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string){return this.icmsStDossiers.listar(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),obterCorrelationId(req));}
+
+  @Post('icms-st-dossiers') @HttpCode(201) @ExigePermissao('fiscal.motor_tributario.simular')
+  criarDossie(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@Body() body:unknown){const input=analisar(z.strictObject({sourcePackageId:persistedUuid,accrualResultId:persistedUuid}),body);return this.icmsStDossiers.criar(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),input,obterCorrelationId(req));}
+
+  @Post('icms-st-dossiers/:dossierId/evidence') @HttpCode(201) @ExigePermissao('fiscal.motor_tributario.simular')
+  @UseInterceptors(FilesInterceptor('evidence',1,{limits:{fileSize:20*1024*1024,files:1,fields:3}}))
+  anexarEvidenciaDossie(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('dossierId') dossierId:string,@UploadedFiles() files:readonly Readonly<{originalname:string;mimetype:string;buffer:Buffer}>[]|undefined,@Body() body:unknown){const input=analisar(z.strictObject({track:z.enum(['RESTITUTION','COMPLEMENT']),kind:z.string().trim().min(1).max(100),description:z.string().trim().min(10).max(1000)}),body);const roles=req.sessao?.papeis??[];if(!roles.some(r=>(['admin_escritorio','contador','auxiliar'] as readonly string[]).includes(r)))throw new ErroDeDominio(CODIGOS_DE_ERRO.SEM_AUTORIZACAO,'Papel sem autorização para preparar evidência.');const file=files?.[0];if(!file)throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,'Arquivo de evidência obrigatório.');return this.icmsStDossiers.anexarEvidencia(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),analisar(persistedUuid,dossierId),input.track,input.kind,input.description,file,obterCorrelationId(req));}
+
+  @Get('icms-st-dossiers/:dossierId/evidence') @ExigePermissao('fiscal.motor_tributario.consultar')
+  listarEvidenciasDossie(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('dossierId') dossierId:string){return this.icmsStDossiers.listarEvidencias(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),analisar(persistedUuid,dossierId),obterCorrelationId(req));}
+
+  @Get('icms-st-dossiers/:dossierId/evidence/:evidenceId/download') @ExigePermissao('fiscal.motor_tributario.consultar')
+  baixarEvidenciaDossie(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('dossierId') dossierId:string,@Param('evidenceId') evidenceId:string,@Res() response:Response){return this.icmsStDossiers.baixarEvidencia(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),analisar(persistedUuid,dossierId),analisar(persistedUuid,evidenceId),obterCorrelationId(req)).then(file=>response.type(file.contentType).setHeader('Content-Disposition',`attachment; filename="${file.nome.replace(/[\r\n"\\]/gu,'_')}"`).setHeader('Cache-Control','private, no-store').setHeader('X-Content-SHA256',file.hash).send(file.conteudo));}
+
+  @Post('icms-st-dossiers/:dossierId/:track/decision') @HttpCode(201) @AcaoLivre()
+  decidirTrilhaDossie(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('dossierId') dossierId:string,@Param('track') track:string,@Body() body:unknown){const input=analisar(z.strictObject({action:z.enum(['APPROVED','REJECTED','RETURNED_FOR_EVIDENCE']),reason:z.string().trim().min(10).max(500),evidenceIds:z.array(z.string().trim().min(1).max(200)).min(1).max(100),conditionConfirmations:z.array(z.number().int().nonnegative()).max(100),destination:z.enum(['APPROPRIATION','COMPENSATION','TRANSFER','REFUND_REQUEST','GUIDE_PAYMENT','RECTIFICATION_BOOKKEEPING','DISPUTE_ANALYSIS']).nullable(),rulePackageId:persistedUuid.nullable()}),body);if(track!=='RESTITUTION'&&track!=='COMPLEMENT')throw new ErroDeDominio(CODIGOS_DE_ERRO.ARQUIVO_INVALIDO,'Trilha inválida.');return this.icmsStDossiers.decidir(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),analisar(persistedUuid,dossierId),track,input,req.sessao?.papeis??[],obterCorrelationId(req));}
+
+  @Get('icms-st-dossiers/:dossierId/export') @ExigePermissao('fiscal.motor_tributario.consultar')
+  exportarDossie(@Req() req:RequisicaoAutenticada,@Param('companyId') companyId:string,@Param('dossierId') id:string,@Query() query:unknown,@Res() response:Response){const input=analisar(z.strictObject({format:z.enum(['PDF','CSV','JSON'])}),query);return this.icmsStDossiers.exportar(tenantDa(req),autorDa(req).usuarioId,analisar(persistedUuid,companyId),analisar(persistedUuid,id),input.format,obterCorrelationId(req)).then(file=>response.type(file.contentType).setHeader('Content-Disposition',`attachment; filename="${file.nome}"`).setHeader('X-Content-SHA256',file.hash).send(file.conteudo));}
 
   @Post('icms-st-history-packages')
   @HttpCode(201)
