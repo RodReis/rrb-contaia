@@ -69,7 +69,7 @@ export const reconcileSimpleRevenue = (input: ReturnType<typeof simpleDeclaratio
     const key = `${item.id}:${item.hash}`;
     if (!byDocument.has(key)) byDocument.set(key, { month: item.competence, total: item.documentTotalCents });
   }
-  for (const [key, document] of byDocument) {
+  for (const document of byDocument.values()) {
     if (!amountsByMonth.has(document.month)) continue;
     if (document.total === null) { gaps.push('MONTHLY_ASSESSMENT_DOCUMENT_GAP'); continue; }
     const current = amountsByMonth.get(document.month) ?? 0n;
