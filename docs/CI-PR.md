@@ -146,6 +146,7 @@ Gate acima de 15 minutos sem justificativa técnica é registrado aqui, com medi
 |---|---|---|---|---|---|---|
 | 2026-10-15 | [#123](https://github.com/RodReis/rrb-contaia/pull/123) | 15m48s | `e2e` (14m45s) | Inicialização da composição e suíte Playwright integral do workspace | Medição registrada; manter cobertura e observar próximas execuções antes de propor otimização | `build`, `quality`, regras, banco, tela, E2E e `gate` passaram |
 | 2026-10-21 | [#140](https://github.com/RodReis/rrb-contaia/pull/140) | 16m08s | `e2e` (15m53s) | Preparação da composição, seed e build (3m26s); suíte Playwright integral (12m27s) | Medição registrada; manter cobertura e observar próximas execuções antes de propor otimização | `build`, `quality`, regras, banco, tela, E2E e `gate` passaram |
+| 2026-10-24 | [#150](https://github.com/RodReis/rrb-contaia/pull/150) | 15m57s | `e2e` (15m45s; Playwright 11m54s) | Inicialização/build da pilha (~3m51s) mais suíte integral (164 testes passaram; F35 falhou ao usar `selectOption` em componente Radix) | Corrigir interação do teste para selecionar opções Radix e observar próxima execução; cobertura mantida | `build`, `quality`, regras, banco e tela passaram; E2E falhou em um teste F35; gate falhou |
 
 Preenchido pelo Code na mesma PR em que o estouro ocorreu. Linha sem causa medida não conta.
 
