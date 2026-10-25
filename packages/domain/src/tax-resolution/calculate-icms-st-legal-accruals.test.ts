@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateIcmsStLegalAccruals, type IcmsStLegalAccrualRule } from './calculate-icms-st-legal-accruals.js';
+import { calculateIcmsStLegalAccruals, endOfIcmsStCompetence, type IcmsStLegalAccrualRule } from './calculate-icms-st-legal-accruals.js';
 
 const source = { id:'source-1', tenantId:'tenant-1', companyId:'company-1', regime:'SIMPLES_NACIONAL' as const,
   approved:true, superseded:false, hash:'a'.repeat(64), lines:[{ id:'line-1', competence:'2017-01', track:'COMPLEMENT' as const,
@@ -10,6 +10,9 @@ const rule = (overrides:Partial<IcmsStLegalAccrualRule>={}):IcmsStLegalAccrualRu
   rounding:'HALF_UP',officialBasis:'lei oficial',sourceSha256:'b'.repeat(64),...overrides});
 
 describe('calculateIcmsStLegalAccruals',()=>{
+  it.each([['2018-02','2018-02-28'],['2020-02','2020-02-29'],['2018-04','2018-04-30']])('expõe o último dia civil da competência %s', (competence, end) => {
+    expect(endOfIcmsStCompetence(competence)).toBe(end);
+  });
   it('calcula apenas regra aprovada, por trechos inclusivos e em centavos inteiros',()=>{
     const result=calculateIcmsStLegalAccruals({source,referenceDate:'2017-01-02',rulePackage:{id:'rules-1',version:'1',approved:true,
       superseded:false,hash:'c'.repeat(64),coverageThrough:'2017-01-02',requiredComponents:{RESTITUTION:[],COMPLEMENT:['LATE_INTEREST']},rules:[rule()]},formalActs:[]});

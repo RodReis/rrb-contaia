@@ -18,6 +18,7 @@ import { PainelApuracaoIcmsSt } from './painel-apuracao-icms-st';
 import { PainelHistoricoIcmsSt } from './painel-historico-icms-st';
 import { PainelAcrescimosLegaisIcmsSt } from './painel-acrescimos-legais-icms-st';
 import { ImportacaoNfce } from './importacao-nfce';
+import { PainelDossieDecisaoIcmsSt } from './painel-dossie-decisao-icms-st';
 
 const dataHora = (value: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(value)) : '—';
 
@@ -128,6 +129,7 @@ export const PainelDeDocumentosFiscais = ({ empresaId, somenteLeitura, podeRepro
     <PainelApuracaoIcmsSt empresaId={empresaId} podeProcessar={podeResolverTributos&&!somenteLeitura} podeDecidir={permitirDecisao??false} />
     <PainelHistoricoIcmsSt empresaId={empresaId} podeGerar={podeResolverTributos&&!somenteLeitura} />
     <PainelAcrescimosLegaisIcmsSt empresaId={empresaId} podeGerar={podeResolverTributos&&!somenteLeitura} />
+    <PainelDossieDecisaoIcmsSt empresaId={empresaId} podePreparar={podeResolverTributos&&!somenteLeitura} podeDecidir={podeRevisarHistorico&&!somenteLeitura} />
     <section aria-labelledby="acknowledgements-title" className="flex flex-col gap-sm border-t border-border pt-lg">
       <div><h4 id="acknowledgements-title" className="font-display text-title-md text-foreground">Ciência da Emissão</h4><p className="mt-xs max-w-2xl text-body-sm text-muted-foreground">Resumos de NF-e destinados à empresa, tentativas técnicas e recuperação do XML completo.</p></div>
       {ciencias.isPending?<div aria-busy="true"><Skeleton className="h-20 w-full"/></div>:null}

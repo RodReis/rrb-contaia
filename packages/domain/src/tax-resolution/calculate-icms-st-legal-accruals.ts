@@ -30,7 +30,7 @@ const validDate=(value:string):boolean=>datePattern.test(value)&&Number.isFinite
 const round=(numerator:bigint,denominator:bigint,mode:'HALF_UP'|'DOWN'):bigint=>mode==='HALF_UP'?(numerator*2n+denominator)/(denominator*2n):numerator/denominator;
 const daysBetweenInclusive=(start:string,end:string):bigint=>BigInt((Date.parse(`${end}T00:00:00.000Z`)-Date.parse(`${start}T00:00:00.000Z`))/86_400_000+1);
 const addDays=(value:string,offset:number):string=>new Date(Date.parse(`${value}T00:00:00.000Z`)+offset*86_400_000).toISOString().slice(0,10);
-const competenceEnd=(value:string):string=>new Date(Date.UTC(Number(value.slice(0,4)),Number(value.slice(5,7)),0)).toISOString().slice(0,10);
+export const endOfIcmsStCompetence=(value:string):string=>new Date(Date.UTC(Number(value.slice(0,4)),Number(value.slice(5,7)),0)).toISOString().slice(0,10);
 const asSafeNumber=(value:bigint):number=>{if(value>BigInt(Number.MAX_SAFE_INTEGER)||value<BigInt(Number.MIN_SAFE_INTEGER))throw new Error('valor monetário excede precisão segura');return Number(value);};
 type MutableTrack={principalCents:number;monetaryUpdateCents:number|null;lateInterestCents:number|null;latePaymentFineCents:number|null;infractionPenaltyCents:number|null;totalCents:number|null};
 const zeroTrack=():MutableTrack=>({principalCents:0,monetaryUpdateCents:0,lateInterestCents:0,latePaymentFineCents:0,infractionPenaltyCents:0,totalCents:0});
@@ -84,7 +84,7 @@ export const calculateIcmsStLegalAccruals=(input:IcmsStLegalAccrualInput):IcmsSt
         const termRule=rules.filter(candidate=>candidate.validFrom<=input.referenceDate).sort((a,b)=>a.validFrom.localeCompare(b.validFrom))[0];
         const competenceStart=`${line.competence}-01`;
         const termStart=line.termStartDate??(termRule?.termStartBasis==='COMPETENCE_START'?addDays(competenceStart,termRule.termStartOffsetDays):
-          termRule?.termStartBasis==='COMPETENCE_END'?addDays(competenceEnd(line.competence),termRule.termStartOffsetDays):null);
+          termRule?.termStartBasis==='COMPETENCE_END'?addDays(endOfIcmsStCompetence(line.competence),termRule.termStartOffsetDays):null);
         if(termStart===null){gaps.push({track:trackName,component,from:null,through:input.referenceDate,reason:'TERM_START_MISSING'});indeterminate=true;componentIndeterminate=true;continue;}
         if(termStart>input.referenceDate)continue;
         let cursor=termStart;

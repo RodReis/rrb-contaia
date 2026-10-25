@@ -1,0 +1,32 @@
+export type FiscalUseDestination='APPROPRIATION'|'COMPENSATION'|'TRANSFER'|'REFUND_REQUEST'|'GUIDE_PAYMENT'|'RECTIFICATION_BOOKKEEPING'|'DISPUTE_ANALYSIS';
+export type FiscalUseTrackStatus='PENDING'|'RETURNED_FOR_EVIDENCE'|'APPROVED'|'REJECTED'|'BLOCKED';
+export type FiscalUseRuleSnapshot=Readonly<{id:string;version:string;destination:FiscalUseDestination;regime:'SIMPLES_NACIONAL'|'LUCRO_PRESUMIDO';validFrom:string;validThrough:string;officialBasis:string;sourceUrl:string;consultedAt:string;sourceSha256:string;conditions:readonly string[]}>;
+export type FiscalUseEvidenceSnapshot=Readonly<{id:string;track:'RESTITUTION'|'COMPLEMENT'|'DOSSIER';kind:string;description:string;fileName:string;contentSha256:string}>;
+export type FiscalUseTrack=Readonly<{status:FiscalUseTrackStatus;principalCents:number;legalAccrualsCents:number|null;totalCents:number|null;destination:FiscalUseDestination|null;rulePackageId:string|null;rulePackageVersion:string|null;rulePackageSnapshot:FiscalUseRuleSnapshot|null;conditionConfirmations:readonly number[];evidenceIds:readonly string[];reason:string|null;preparedBy:string;materialContributorIds:readonly string[];decidedBy:string|null;decidedAtUtc:string|null}>;
+export type FiscalUseDossier=Readonly<{dossierId:string;tenantId:string;companyId:string;sourceReconstructionPackageId:string;sourceLegalAccrualResultId:string;sourceHashes:Readonly<{f33:string;f34:string}>;originalPeriod:Readonly<{start:string;end:string}>;referenceDate:string;evidenceManifest:readonly FiscalUseEvidenceSnapshot[];regime:'SIMPLES_NACIONAL'|'LUCRO_PRESUMIDO';restitution:FiscalUseTrack;complement:FiscalUseTrack;status:'DRAFT'|'IN_REVIEW'|'PARTIALLY_DECIDED'|'DECIDED'|'BLOCKED_INDETERMINATE'|'POSSIBLY_OUTDATED'|'SUPERSEDED';contractVersion:string;canonicalJsonHash:string;generatedAtUtc:string}>;
+export type FiscalUseCommand=Readonly<{action:'APPROVED'|'REJECTED'|'RETURNED_FOR_EVIDENCE';track:'RESTITUTION'|'COMPLEMENT';actorId:string;actorRole:'contador'|'admin_escritorio'|'auxiliar'|'auditor_readonly';reason:string;evidenceIds:readonly string[];destination:FiscalUseDestination|null;rulePackageId:string|null;rulePackageVersion:string|null;rulePackageSnapshot:FiscalUseRuleSnapshot|null;ruleApproved:boolean;requiredConditionCount:number;conditionConfirmations:readonly number[];preparedBy:string;materialContributorIds:readonly string[];principalCents:number;legalAccrualsCents:number|null;blockedByIndeterminate:boolean;nowUtc:string}>;
+export const decideIcmsStDossierTrack=(command:FiscalUseCommand):FiscalUseTrack=>{
+ const reason=command.reason.trim();if(reason.length<10)throw new Error('JUSTIFICATION_REQUIRED');
+ if(command.actorRole==='auditor_readonly')throw new Error('ACCESS_DENIED');
+ if(command.action==='APPROVED'){
+  if(!['contador','admin_escritorio'].includes(command.actorRole))throw new Error('ACCESS_DENIED');
+  if(command.actorId===command.preparedBy||command.materialContributorIds.includes(command.actorId))throw new Error('SELF_APPROVAL_FORBIDDEN');
+  if(command.blockedByIndeterminate)throw new Error('SOURCE_INDETERMINATE');
+  if(!command.destination)throw new Error('DESTINATION_REQUIRED');
+  const destinations=command.track==='RESTITUTION'?['APPROPRIATION','COMPENSATION','TRANSFER','REFUND_REQUEST']:['GUIDE_PAYMENT','RECTIFICATION_BOOKKEEPING','DISPUTE_ANALYSIS'];if(!destinations.includes(command.destination))throw new Error('DESTINATION_NOT_SUPPORTED');
+  if(!command.ruleApproved||!command.rulePackageVersion)throw new Error('DESTINATION_RULE_MISSING');
+  if(!command.rulePackageId||command.requiredConditionCount<1||new Set(command.conditionConfirmations).size!==command.requiredConditionCount||Array.from({length:command.requiredConditionCount},(_,index)=>index).some(index=>!command.conditionConfirmations.includes(index)))throw new Error('DESTINATION_INDETERMINATE');
+  if(command.evidenceIds.length===0)throw new Error('EVIDENCE_REQUIRED');
+  if(!Number.isSafeInteger(command.principalCents)||command.principalCents<0||command.legalAccrualsCents===null||!Number.isSafeInteger(command.legalAccrualsCents)||command.legalAccrualsCents<0)throw new Error('SOURCE_INDETERMINATE');
+  const total=command.principalCents+command.legalAccrualsCents;if(!Number.isSafeInteger(total))throw new Error('AMOUNT_OVERFLOW');
+  return {status:'APPROVED',principalCents:command.principalCents,legalAccrualsCents:command.legalAccrualsCents,totalCents:total,destination:command.destination,rulePackageId:command.rulePackageId,rulePackageVersion:command.rulePackageVersion,rulePackageSnapshot:command.rulePackageSnapshot,conditionConfirmations:[...command.conditionConfirmations].sort(),evidenceIds:[...new Set(command.evidenceIds)].sort(),reason,preparedBy:command.preparedBy,materialContributorIds:[...new Set(command.materialContributorIds)].sort(),decidedBy:command.actorId,decidedAtUtc:command.nowUtc};
+ }
+ if(command.action==='REJECTED'&&!['contador','admin_escritorio'].includes(command.actorRole))throw new Error('ACCESS_DENIED');
+ if(command.action==='RETURNED_FOR_EVIDENCE'&&!['contador','admin_escritorio'].includes(command.actorRole))throw new Error('ACCESS_DENIED');
+ return {status:command.blockedByIndeterminate?'BLOCKED':command.action==='REJECTED'?'REJECTED':'RETURNED_FOR_EVIDENCE',principalCents:command.principalCents,legalAccrualsCents:command.legalAccrualsCents,totalCents:command.legalAccrualsCents===null?null:command.principalCents+command.legalAccrualsCents,destination:null,rulePackageId:null,rulePackageVersion:null,rulePackageSnapshot:null,conditionConfirmations:[],evidenceIds:[...new Set(command.evidenceIds)].sort(),reason,preparedBy:command.action==='RETURNED_FOR_EVIDENCE'?command.actorId:command.preparedBy,materialContributorIds:[...new Set([...command.materialContributorIds,...(command.action==='RETURNED_FOR_EVIDENCE'?[command.actorId]:[])])].sort(),decidedBy:command.action==='RETURNED_FOR_EVIDENCE'?null:command.actorId,decidedAtUtc:command.action==='RETURNED_FOR_EVIDENCE'?null:command.nowUtc};
+};
+export const fiscalUseDossierStatus=(restitution:FiscalUseTrackStatus,complement:FiscalUseTrackStatus,indeterminate:boolean):FiscalUseDossier['status']=>{
+ if(indeterminate&&(restitution==='BLOCKED'||complement==='BLOCKED'))return 'BLOCKED_INDETERMINATE';
+ const decided=(s:FiscalUseTrackStatus)=>s==='APPROVED'||s==='REJECTED';const a=decided(restitution),b=decided(complement);
+ if(a&&b)return 'DECIDED';if(a||b)return 'PARTIALLY_DECIDED';if(restitution==='PENDING'&&complement==='PENDING')return 'DRAFT';return 'IN_REVIEW';
+};
