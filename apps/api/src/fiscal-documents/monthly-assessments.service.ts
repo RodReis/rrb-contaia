@@ -640,7 +640,7 @@ export class MonthlyAssessmentsService {
       await this.assessmentEvent(client, tenantId, companyId, assessmentId, 'EXPORTED', userId, correlationId, { format, hash });
       await this.assessmentEvent(client, tenantId, companyId, assessmentId, 'DOWNLOADED', userId, correlationId, { format, bytes: bytes.byteLength });
     });
-    return { bytes, contentType, filename: `apuracao-fiscal-${String(data['competence'])}.${format.toLowerCase()}`, hash, canonicalJsonHash: declaredHash };
+    return { bytes, contentType, filename: `apuracao-fiscal-${String(data['competence'])}.${format.toLowerCase()}`, hash: sha(bytes), canonicalJsonHash: declaredHash };
   }
 
   async downloadRuleSource(tenantId: string, userId: string, companyId: string, packageId: string, correlationId: string) {
