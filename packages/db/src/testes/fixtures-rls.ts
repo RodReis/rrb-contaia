@@ -96,8 +96,8 @@ const prepararApuracaoMensalF36 = async (admin: Consultavel, e: Escopo): Promise
   [e.tenantId,e.empresaId,`f36-${marker}`,e.autorId]);
   const declarationId = await unico(admin, `insert into app.tax_monthly_declaration
     (tenant_id,empresa_id,competence,kind,revision,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at,correlation_id)
-    values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',1,repeat(md5($3||'d'),2),repeat(md5($3||'h'),2),
-      '{}'::jsonb,$4,now(),'f36-rls-fixture') returning id`, [e.tenantId,e.empresaId,marker,e.autorId]);
+    values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,repeat(md5($4||'d'),2),repeat(md5($4||'h'),2),
+      '{}'::jsonb,$5,now(),'f36-rls-fixture') returning id`, [e.tenantId,e.empresaId,proximo(),marker,e.autorId]);
   return { packageId, declarationId, marker };
 };
 
@@ -1491,8 +1491,9 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.tax_monthly_declaration': {
     inserir: (banco,e) => unico(banco, `insert into app.tax_monthly_declaration
       (tenant_id,empresa_id,competence,kind,revision,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at,correlation_id)
-      values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',1,repeat(md5($3||'d'),2),repeat(md5($3||'h'),2),
-        '{}'::jsonb,$4,now(),'f36-rls-fixture') returning id`, [e.tenantId,e.empresaId,`f36-${e.sufixo}-${proximo()}`,e.autorId]),
+      values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,repeat(md5($4||'d'),2),repeat(md5($4||'h'),2),
+        '{}'::jsonb,$5,now(),'f36-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,proximo(),`f36-${e.sufixo}-${proximo()}`,e.autorId]),
   },
   'app.tax_monthly_declaration_event': {
     preparar: prepararApuracaoMensalF36,
@@ -1512,9 +1513,9 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_assessment
       (tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,idempotency_sha256,content_sha256,status,
         canonical_json,prepared_by,revision_created_at,correlation_id)
-      values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',1,$3,$4,repeat(md5($5||'a'),2),repeat(md5($5||'b'),2),
-        'DRAFT','{}'::jsonb,$6,now(),'f36-rls-fixture') returning id`,
-    [e.tenantId,e.empresaId,r['packageId'],r['declarationId'],r['marker'],e.autorId]),
+      values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,$4,$5,repeat(md5($6||'a'),2),repeat(md5($6||'b'),2),
+        'DRAFT','{}'::jsonb,$7,now(),'f36-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,proximo(),r['packageId'],r['declarationId'],r['marker'],e.autorId]),
   },
   'app.tax_monthly_assessment_event': {
     preparar: async(admin,e) => {
@@ -1522,9 +1523,9 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       const assessmentId=await unico(admin, `insert into app.tax_monthly_assessment
         (tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,idempotency_sha256,content_sha256,status,
           canonical_json,prepared_by,revision_created_at,correlation_id)
-        values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',1,$3,$4,repeat(md5($5||'a'),2),repeat(md5($5||'b'),2),
-          'DRAFT','{}'::jsonb,$6,now(),'f36-rls-fixture') returning id`,
-      [e.tenantId,e.empresaId,refs['packageId'],refs['declarationId'],refs['marker'],e.autorId]);
+        values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,$4,$5,repeat(md5($6||'a'),2),repeat(md5($6||'b'),2),
+          'DRAFT','{}'::jsonb,$7,now(),'f36-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,proximo(),refs['packageId'],refs['declarationId'],refs['marker'],e.autorId]);
       return {...refs,assessmentId};
     },
     inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_assessment_event

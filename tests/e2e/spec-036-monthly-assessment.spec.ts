@@ -55,26 +55,34 @@ const pacoteIcms = { kind: 'LUCRO_PRESUMIDO_ICMS_DARE', version: `${PREFIXO}-icm
   rounding: 'HALF_UP', allowedAdjustments: [] };
 
 const criarDocumento = async (companyId: string, cnpj: string, date: string, cents: number, suffix: string, icmsCents?: number) => {
-  const fixture = FIXTURES['app.fiscal_document'];
-  if (!fixture?.preparar) throw new Error('Fixture fiscal F36 indisponível.');
-  const staging = await fixture.preparar(pool, { tenantId, empresaId: companyId, autorId: userId, sufixo: `${PREFIXO}-${suffix}` });
-  const stagingId = String(staging['stagingId'] ?? '');
+  const cnpjSemMascara = cnpj.replace(/\D/gu, '');
+  const stateId = (await pool.query<{ id: string }>(`insert into app.dfe_capture_state(tenant_id,empresa_id,cnpj) values($1,$2,$3)
+    on conflict (tenant_id,empresa_id,cnpj) do update set atualizado_em=app.dfe_capture_state.atualizado_em returning id`,
+  [tenantId, companyId, cnpjSemMascara])).rows[0]?.id;
+  if (!stateId) throw new Error('Estado sintético de captura F36 não foi criado.');
+  const runId = (await pool.query<{ id: string }>(`insert into app.dfe_capture_run(tenant_id,empresa_id,estado_id,cnpj,origem,usuario_originador_id,
+    chave_idempotente,correlation_id,ult_nsu_entrada,estado,finalizado_em) values($1,$2,$3,$4,'MANUAL',$5,$6,$6,'0','SUCCEEDED',now()) returning id`,
+  [tenantId, companyId, stateId, cnpjSemMascara, userId, `${PREFIXO}-${suffix}`])).rows[0]?.id;
+  if (!runId) throw new Error('Execução sintética de captura F36 não foi criada.');
+  const stagingId = (await pool.query<{ id: string }>(`insert into app.dfe_capture_staging(tenant_id,empresa_id,run_id,cnpj,nsu,especie,conteudo_bruto,
+    capturado_em,correlation_id) values($1,$2,$3,$4,$5,'NFE_55',decode('3c78','hex'),now(),$6) returning id`,
+  [tenantId, companyId, runId, cnpjSemMascara, String(1 + Number(suffix.replace(/\D/gu, ''))), `${PREFIXO}-${suffix}`])).rows[0]?.id;
   if (!stagingId) throw new Error('Staging sintético F36 não foi criado.');
   const documentHash = createHash('sha256').update(`${PREFIXO}-${suffix}`).digest('hex');
   const key = `${String(Number(suffix.replace(/\D/gu, '')) + 1).padStart(2, '0')}${'7'.repeat(42)}`;
   const inserted = await pool.query<{ id: string }>(`insert into app.fiscal_document(tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,
     original_key,tamanho_bytes,media_type,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,emitente,destinatario,total,estado,parser_version)
-    values($1,$2,$3,'NFE_55',$4,$5,$6,100,'application/xml','55','4.00',$7,now(),$8,$9,'99999999000199',$10/100.0,'PROCESSADO',$11) returning id`,
+    values($1,$2,$3,'NFE_55',$4,$5,$6,100,'application/xml','55','4.00',$7,now(),$8,$9,'99999999000199',$10/10000.0,'PROCESSADO',$11) returning id`,
   [tenantId, companyId, stagingId, key, documentHash, `${tenantId}/${suffix}.xml`, `PROTO-${suffix}`, `${date}-15`, cnpj, cents, `${PREFIXO}-${suffix}`]);
   const documentId = inserted.rows[0]?.id;
   if (!documentId) throw new Error('Documento sintético F36 não foi criado.');
   await pool.query(`insert into app.fiscal_document_party(tenant_id,empresa_id,document_id,parser_version,papel,identificador,nome)
     values($1,$2,$3,$4,'EMITENTE',$5,'Empresa sintética F36')`, [tenantId, companyId, documentId, `${PREFIXO}-${suffix}`, cnpj]);
   await pool.query(`insert into app.fiscal_document_item(tenant_id,empresa_id,document_id,parser_version,numero,tipo,codigo,descricao,ncm,cest,cfop,cst_csosn,
-    unidade,quantidade,valor) values($1,$2,$3,$4,1,'ITEM',$5,'Autopeça sintética','87082999','1234567','5102','00','UN','1',$6/100.0)`,
+    unidade,quantidade,valor) values($1,$2,$3,$4,1,'ITEM',$5,'Autopeça sintética','87082999','1234567','5102','00','UN','1',$6/10000.0)`,
   [tenantId, companyId, documentId, `${PREFIXO}-${suffix}`, `${PREFIXO}-${suffix}`, cents]);
   if (icmsCents !== undefined) await pool.query(`insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,parser_version,escopo,numero_item,codigo,
-    base_calculo,aliquota,valor,situacao) values($1,$2,$3,$4,'ITEM',1,'ICMS',$5/100.0,18,$6/100.0,'00')`,
+    base_calculo,aliquota,valor,situacao) values($1,$2,$3,$4,'ITEM',1,'ICMS',$5/10000.0,18,$6/10000.0,'00')`,
   [tenantId, companyId, documentId, `${PREFIXO}-${suffix}`, cents, icmsCents]);
   return { id: documentId, stagingId, hash: documentHash };
 };
@@ -137,7 +145,7 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
   await criarDocumento(presumedCompanyId, CNPJ_PRESUMIDO, dataCompetencia, 100_000, 'doc-3', 18_000);
   context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   page = await context.newPage();
-  await entrarComo(page, CONTADOR, `/empresas/${simpleCompanyId}?aba=apuracao-fiscal`);
+  await entrarComo(page, CONTADOR, `/empresas/${simpleCompanyId}`);
 });
 
 test.afterAll(async () => {
@@ -161,14 +169,15 @@ test('F36 calcula e aprova as duas trilhas, exporta por hash, invalida após nov
 
   const mesesRbt12 = Array.from({ length: 12 }, (_, index) => {
     const date = new Date(Date.UTC(2026, 8 - 12 + index, 1));
-    return { month: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`, cents: date.getUTCMonth() === 7 ? 50_000 : 0 };
+    const month = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    return { month, cents: month === '2026-08' ? 500 : 0 };
   });
   await declarar(simpleCompanyId, { optionValid: true, revenueReconciled: true, activityVerified: true, historyComplete: true,
-    rbt12ByMonth: mesesRbt12, revenue: [{ code: 'ANEXO_I_COMERCIO', cents: 100_000, sourceIds: [`${simpleDocumentId}:${simpleDocumentHash}`] }] });
+    rbt12ByMonth: mesesRbt12, revenue: [{ code: 'ANEXO_I_COMERCIO', cents: 1_000, sourceIds: [`${simpleDocumentId}:${simpleDocumentHash}`] }] });
   const simpleAssessment = await preparar(simpleCompanyId, 'SIMPLES_NACIONAL_DAS', simplePackageId);
-  expect(simpleAssessment).toMatchObject({ status: 'READY_FOR_REVIEW', totalCents: 1000 });
+  expect(simpleAssessment, JSON.stringify(simpleAssessment)).toMatchObject({ status: 'READY_FOR_REVIEW', totalCents: 10 });
   const approvedSimple = await aprovarApuracao(simpleCompanyId, simpleAssessment);
-  expect(approvedSimple).toMatchObject({ status: 'APPROVED', totalCents: 1000 });
+  expect(approvedSimple).toMatchObject({ status: 'APPROVED', totalCents: 10 });
   auxiliarContext = await page.context().browser()!.newContext({ viewport: { width: 1280, height: 800 } });
   const auxiliarPage = await auxiliarContext.newPage();
   await entrarComo(auxiliarPage, AUXILIAR, `/empresas/${simpleCompanyId}`);

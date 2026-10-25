@@ -57,6 +57,35 @@ const simpleDeclaration = (value: unknown) => {
     historyComplete: value['historyComplete'] === true };
 };
 
+type SimpleRevenueDocument = Readonly<{ id: string; hash: string; competence: string; documentTotalCents: number | null; isSales: boolean }>;
+
+export const reconcileSimpleRevenue = (input: ReturnType<typeof simpleDeclaration>, documents: readonly SimpleRevenueDocument[], competence: string) => {
+  const gaps: string[] = [];
+  if (!input) return ['MONTHLY_ASSESSMENT_EVIDENCE_REQUIRED'];
+  const lastTwelve = Array.from({ length: 12 }, (_, index) => monthOffset(competence, index - 12));
+  const amountsByMonth = new Map<string, bigint>(lastTwelve.map((month) => [month, 0n]));
+  const byDocument = new Map<string, { month: string; total: number | null }>();
+  for (const item of documents.filter((document) => document.isSales)) {
+    const key = `${item.id}:${item.hash}`;
+    if (!byDocument.has(key)) byDocument.set(key, { month: item.competence, total: item.documentTotalCents });
+  }
+  for (const [key, document] of byDocument) {
+    if (!amountsByMonth.has(document.month)) continue;
+    if (document.total === null) { gaps.push('MONTHLY_ASSESSMENT_DOCUMENT_GAP'); continue; }
+    const current = amountsByMonth.get(document.month) ?? 0n;
+    amountsByMonth.set(document.month, current + BigInt(document.total));
+  }
+  for (const month of lastTwelve) {
+    const declared = input.rbt12ByMonth.find((item) => item.month === month);
+    if (!declared || !Number.isSafeInteger(declared.cents) || declared.cents !== Number(amountsByMonth.get(month) ?? 0n))
+      gaps.push('MONTHLY_ASSESSMENT_RBT12_INCOMPLETE');
+  }
+  const currentTotal = [...byDocument.values()].filter((item) => item.month === competence).reduce((sum, item) => sum + (item.total ?? 0), 0);
+  if (currentTotal === 0 || input.revenue.reduce((sum, item) => sum + item.cents, 0) !== currentTotal)
+    gaps.push('MONTHLY_ASSESSMENT_REVENUE_RECONCILIATION_FAILED');
+  return [...new Set(gaps)];
+};
+
 const icmsDeclaration = (value: unknown) => {
   if (!isRecord(value) || !Array.isArray(value['adjustments'])) return null;
   const adjustments: IcmsOwnAdjustment[] = value['adjustments'].flatMap((entry) => {
@@ -142,9 +171,9 @@ export class MonthlyAssessmentsService {
       await client.query(`insert into app.tax_monthly_rule_package_event(tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id,details)
         values($1,$2,$3,$4,$5,now(),$6,$7::jsonb)`, [tenantId, companyId, packageId, parsed.data.action, userId, correlationId, JSON.stringify({ reason: parsed.data.reason })]);
       if (parsed.data.action === 'APPROVED') await client.query(`insert into app.tax_monthly_assessment_event(tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id,details)
-        select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','RULE_PACKAGE_APPROVED','packageId',$3)
+        select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','RULE_PACKAGE_APPROVED','packageId',$3::uuid)
         from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.kind=$6 and a.status='APPROVED'
-          and a.competence >= $7::date and ($8::date is null or a.competence <= $8::date)
+        and a.competence >= $7::date and ($8::date is null or a.competence <= $8::date)
           and not exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='INVALIDATED')`,
       [tenantId, companyId, packageId, userId, correlationId, row.kind, `${row.valid_from.slice(0, 7)}-01`, row.valid_through]);
       return { id: packageId, status: parsed.data.action };
@@ -206,7 +235,7 @@ export class MonthlyAssessmentsService {
         if (previous) await client.query(`insert into app.tax_monthly_declaration_event(tenant_id,empresa_id,declaration_id,action,actor_id,occurred_at,correlation_id,details)
           values($1,$2,$3,'SUPERSEDED',$4,now(),$5,$6::jsonb)`, [tenantId, companyId, previous.id, userId, correlationId, JSON.stringify({ supersededBy: id })]);
         await client.query(`insert into app.tax_monthly_assessment_event(tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id,details)
-          select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','DECLARATION_CHANGED','declarationId',$3)
+          select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','DECLARATION_CHANGED','declarationId',$3::uuid)
           from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.competence=$6::date and a.kind=$7 and a.status='APPROVED'
             and not exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='INVALIDATED')`,
         [tenantId, companyId, id, userId, correlationId, competenceDate(parsed.competence), parsed.kind]);
@@ -252,7 +281,7 @@ export class MonthlyAssessmentsService {
       let calculated: MonthlyAssessment;
       if (kind === 'SIMPLES_NACIONAL_DAS' && content.kind === 'SIMPLES_NACIONAL_DAS') {
         const inputData = simpleDeclaration(data);
-        const documentGaps = this.reconcileSimpleRevenue(inputData, documents, parsed.competence);
+        const documentGaps = reconcileSimpleRevenue(inputData, documents, parsed.competence);
         const mappedContent: SimpleRulePackage = { version: content.version, approved: ruleStatus === 'APPROVED' && validRule,
           validFrom: content.validFrom, validThrough: content.validThrough, sourceIds: [content.sourceUrl, rule.source_sha256],
           brackets: content.brackets, segregations: content.segregations, rounding: content.rounding };
@@ -340,7 +369,7 @@ export class MonthlyAssessmentsService {
       const hash = sha(canonical);
       const revision = latest.rows[0]?.revision ?? 1;
       await client.query(`insert into app.tax_monthly_assessment_event(tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id,details)
-        select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','ASSESSMENT_INPUTS_CHANGED','replacementId',$8,'replacementHash',$6)
+        select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','ASSESSMENT_INPUTS_CHANGED','replacementId',$8::uuid,'replacementHash',$6::text)
         from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.competence=$3::date and a.kind=$7 and a.status='APPROVED'
           and a.idempotency_sha256<>$6
           and not exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='INVALIDATED')`,
@@ -450,35 +479,6 @@ export class MonthlyAssessmentsService {
     if (!Array.isArray(components)) return false;
     const carry = components.find((item) => isRecord(item) && item['code'] === 'ICMS_SALDO_CREDOR_TRANSPORTAVEL');
     return isRecord(carry) && carry['amountCents'] === declaredCents;
-  }
-
-  private reconcileSimpleRevenue(input: ReturnType<typeof simpleDeclaration>, documents: Awaited<ReturnType<MonthlyAssessmentsService['loadDocuments']>>, competence: string) {
-    const gaps: string[] = [];
-    if (!input) return ['MONTHLY_ASSESSMENT_EVIDENCE_REQUIRED'];
-    const lastTwelve = Array.from({ length: 12 }, (_, index) => monthOffset(competence, index - 12));
-    const amountsByMonth = new Map<string, bigint>(lastTwelve.map((month) => [month, 0n]));
-    const byDocument = new Map<string, { month: string; total: number | null }>();
-    for (const item of documents.filter((document) => document.isSales)) {
-      const key = `${item.id}:${item.hash}`;
-      if (!byDocument.has(key)) byDocument.set(key, { month: item.competence, total: item.documentTotalCents });
-    }
-    for (const [key, document] of byDocument) {
-      if (!amountsByMonth.has(document.month)) continue;
-      if (document.total === null) { gaps.push('MONTHLY_ASSESSMENT_DOCUMENT_GAP'); continue; }
-      const current = amountsByMonth.get(document.month) ?? 0n;
-      amountsByMonth.set(document.month, current + BigInt(document.total));
-      if (!input.revenue.some((segment) => segment.sourceIds.includes(key) || segment.sourceIds.includes(key.split(':')[0]!)))
-        gaps.push('MONTHLY_ASSESSMENT_REVENUE_RECONCILIATION_FAILED');
-    }
-    for (const month of lastTwelve) {
-      const declared = input.rbt12ByMonth.find((item) => item.month === month);
-      if (!declared || !Number.isSafeInteger(declared.cents) || declared.cents !== Number(amountsByMonth.get(month) ?? 0n))
-        gaps.push('MONTHLY_ASSESSMENT_RBT12_INCOMPLETE');
-    }
-    const currentTotal = [...byDocument.values()].filter((item) => item.month === competence).reduce((sum, item) => sum + (item.total ?? 0), 0);
-    if (currentTotal === 0 || input.revenue.reduce((sum, item) => sum + item.cents, 0) !== currentTotal)
-      gaps.push('MONTHLY_ASSESSMENT_REVENUE_RECONCILIATION_FAILED');
-    return [...new Set(gaps)];
   }
 
   private mapIcmsDocuments(documents: Awaited<ReturnType<MonthlyAssessmentsService['loadDocuments']>>, competence: string,
