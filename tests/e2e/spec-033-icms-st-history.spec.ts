@@ -27,7 +27,6 @@ let snapshotId='';
 let lineId='';
 let packageId='';
 let f34PackageId='';
-let f34ResultId='';
 let f34SnapshotId='';
 let f34LineId='';
 let achados:AchadosVisuais|null=null;
@@ -238,7 +237,6 @@ test('F34 aprova fonte e pacote de demonstração, calcula, revisa e exporta sem
   };
   const calculated=await calculate();expect(calculated.ok(),await calculated.text()).toBeTruthy();
   const first=await calculated.json() as {id:string;hash:string;reused:boolean;result:{status:string;complement:{principalCents:number;monetaryUpdateCents:number;totalCents:number};memory:unknown[];gaps:unknown[]}};
-  f34ResultId=first.id;
   expect(first.result).toMatchObject({status:'READY_FOR_INTERNAL_REVIEW',complement:{principalCents:1200,monetaryUpdateCents:0,totalCents:1200},gaps:[]});
   expect(first.result.memory).toHaveLength(2);
   await expect(panel.locator('header').getByText('READY_FOR_INTERNAL_REVIEW',{exact:true})).toBeVisible();
@@ -277,9 +275,9 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
   const panel=page.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'});
   await expect(panel.getByRole('heading',{name:'Dossiê de decisão do ICMS-ST histórico'})).toBeVisible();
   await panel.getByRole('combobox',{name:'Fonte F33 aprovada'}).click();
-  await page.locator(`[role="option"][data-value="${f34PackageId}"]`).click();
+  await page.getByRole('option',{name:/SIMPLES_NACIONAL.*2017-02/u}).click();
   await panel.getByRole('combobox',{name:'Resultado F34'}).click();
-  await page.locator(`[role="option"][data-value="${f34ResultId}"]`).click();
+  await page.getByRole('option',{name:/2017-02-28.*READY FOR INTERNAL REVIEW/u}).click();
   const created=page.waitForResponse(response=>response.url().includes('/icms-st-dossiers')&&!response.url().includes('/destination-rules')&&response.request().method()==='POST');
   await panel.getByRole('button',{name:'Criar / reproduzir dossiê'}).click();
   const response=await created;expect(response.ok(),await response.text()).toBeTruthy();
