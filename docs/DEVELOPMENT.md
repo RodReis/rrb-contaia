@@ -772,6 +772,7 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
   - [ ] E2E autenticado local permanece `not_run` por `/health` 503 do Cofre no Compose compartilhado `contaia`; migration 0075 passou na CI `40158717501`. Revisão do artefato visual, merge e encerramento continuam pendentes.
   - [ ] CI `40158717501` no SHA `a20b246`: build, quality, regras, tela e banco verdes; E2E 158/166. O caso F35 falhou por seletores internos em inglês após a tradução da interface; labels atualizados para PT-BR. Um teste do Signer falhou aguardando o incidente (`spec-012`, linha 491), sem relação observada com F35. Gate falhou pela E2E.
   - [ ] CI `40159882315` no SHA `9ec98dc`: build, quality, regras, tela e banco verdes; E2E 164/166. Após corrigir os seletores traduzidos, o F35 criou o dossiê, mas a área de evidências estava oculta porque o teste não abria explicitamente a linha recém-criada. O teste agora clica em `Abrir` e aguarda a região `Evidências anexadas`; validar no próximo run. O teste do Signer passou neste run.
+  - [ ] CI `40160861881` no SHA `77fc6b9`: build, quality, regras, tela e banco verdes; E2E 164/166. A região de evidências está aberta e acessível; a falha era a asserção de visibilidade sobre o `span` interno do seletor de arquivo, que Playwright classifica como oculto. A validação foi movida para o `label` visível que contém o input; repetir a CI.
 
 ### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
 

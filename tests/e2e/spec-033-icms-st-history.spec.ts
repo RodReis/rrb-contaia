@@ -290,7 +290,8 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
   await expect(panel.getByRole('region',{name:'Evidências anexadas'})).toBeVisible();
   await expect(panel.getByText('\\n',{exact:true})).toHaveCount(0);
   await expect(panel.getByText(/PENDING|DRAFT|SIMPLES_NACIONAL|READY_FOR_INTERNAL_REVIEW|Choose File/u)).toHaveCount(0);
-  await expect(panel.getByText('Selecionar arquivo').first()).toBeVisible();
+  const seletorArquivo=panel.locator('label').filter({hasText:'Selecionar arquivo'}).last();
+  await expect(seletorArquivo).toBeVisible();
   await expect(panel.getByText('Aprovação registra intenção interna; nenhum efeito fiscal ou financeiro é executado.')).toBeVisible();
   achados=await provarVisualmente(page,CAMINHO,'f35-dossie-interno',{pronto:alvo=>alvo.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'}),semToasts:true,
     recorte:alvo=>alvo.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'})});
