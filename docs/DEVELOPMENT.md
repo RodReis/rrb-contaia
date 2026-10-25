@@ -777,6 +777,7 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
   - [x] Revisão final identificou dois P1: autoaprovação por autor de evidência e E2E sem fluxo de decisão/exportação. `5e714d7` rastreia contribuidor por trilha, bloqueia autoaprovação e amplia E2E; testes focais, lint, typecheck API e build passaram. Revisão SPEC não encontrou P0/P1 nesses pontos.
   - [ ] CI `40163770968` no SHA `5e714d7`: demais jobs passaram; E2E falhou no upload de regra com `HTTP 400 Too many fields`, devido ao limite Multer `fields: 1` apesar dos sete metadados exigidos. Endpoint ajustado para `fields: 8`.
   - [ ] CI `40164674063` no SHA `ccba65f`: build, quality, regras, banco e tela passaram; E2E falhou com 422 porque a fixture omitia `sourceUrl`, `consultedAt` e `conditions`, obrigatórios pelo contrato. Fixture restaurada com os sete metadados exigidos; repetir CI.
+  - [ ] CI `40165585528` no SHA `d0aa3dd`: build, quality, regras, banco e tela passaram; E2E ainda recebeu `HTTP 400 Too many fields` no multipart com sete metadados + arquivo, mesmo com limite `fields: 8`. Ajustado limite Multer para 12; repetir CI.
   - [ ] PR #150 aguarda CI verde no head corrigido, revisão final e merge; depois do merge ainda publicar comentário de encerramento e mover #39 para `proplan:done`. A issue fica aberta para aceite do PI.
 
 ### Card #36 — `[MVP2][SPEC-032][F32]` Eventos posteriores no complemento e restituição do ICMS-ST
