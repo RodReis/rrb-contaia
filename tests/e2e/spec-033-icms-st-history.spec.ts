@@ -284,7 +284,10 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
   const dossier=await response.json() as {id:string;hash:string;reused:boolean;dossier:{status:string;restitution:{status:string};complement:{status:string}}};
   expect(dossier.hash).toMatch(/^[0-9a-f]{64}$/u);
   expect(dossier.dossier).toMatchObject({restitution:{status:'PENDING'},complement:{status:'PENDING'}});
-  await expect(panel.getByRole('button',{name:'Abrir'}).first()).toBeVisible();
+  const abrirDossie=panel.getByRole('button',{name:'Abrir'}).first();
+  await expect(abrirDossie).toBeVisible();
+  await abrirDossie.click();
+  await expect(panel.getByRole('region',{name:'Evidências anexadas'})).toBeVisible();
   await expect(panel.getByText('\\n',{exact:true})).toHaveCount(0);
   await expect(panel.getByText(/PENDING|DRAFT|SIMPLES_NACIONAL|READY_FOR_INTERNAL_REVIEW|Choose File/u)).toHaveCount(0);
   await expect(panel.getByText('Selecionar arquivo').first()).toBeVisible();
