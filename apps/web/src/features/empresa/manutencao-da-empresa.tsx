@@ -33,9 +33,11 @@ import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
 import { AbaCapturaDfe } from '../dfe-capture/aba-captura-dfe';
 import { PainelDeDocumentosFiscais } from '../fiscal-documents/painel-de-documentos-fiscais';
 import { PainelDeRiscoFiscal } from '../fiscal-documents/painel-de-risco-fiscal';
+import { PainelApuracaoMensal } from '../fiscal-documents/painel-apuracao-mensal';
 import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
 import { ADMINISTRACAO_DE_USUARIOS, pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
+import { CONSULTA_DO_MOTOR, SIMULACAO_DO_MOTOR } from '../motor-tributario/permissoes';
 import { AbaDeDocumentos } from './aba-de-documentos';
 import { AbaDeEnderecos } from './aba-de-enderecos';
 import { AtualizacaoPelaCnpja } from './atualizacao-pela-cnpja';
@@ -58,6 +60,7 @@ const ABAS = [
   { id: 'plano-contas', rotulo: 'Plano de contas' },
   { id: 'empregados', rotulo: 'Empregados' },
   { id: 'captura-dfe', rotulo: 'Captura DF-e' },
+  { id: 'apuracao-fiscal', rotulo: 'Apuração fiscal' },
   { id: 'colaboradores', rotulo: 'Colaboradores' },
 ] as const;
 
@@ -98,7 +101,7 @@ const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
 };
 
 /** Abas que só existem depois que a sessão diz o que o papel pode. */
-const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'empregados', 'captura-dfe', 'colaboradores'];
+const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'empregados', 'captura-dfe', 'apuracao-fiscal', 'colaboradores'];
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
@@ -207,12 +210,14 @@ export const ManutencaoDaEmpresa = ({
   // Empregados idem, com a permissão própria (SPEC-014 §3.12).
   const consultaDeEmpregados = consultaEmpregados(sessao);
   const consultaDfe = sessao !== undefined && concede(sessao, 'empresas.cadastro.consultar');
+  const consultaApuracao = sessao !== undefined && concede(sessao, CONSULTA_DO_MOTOR);
   const abas = ABAS.filter(
     (aba) =>
       (aba.id !== 'colaboradores' || administraCarteira) &&
       (aba.id !== 'plano-contas' || consultaPlano) &&
       (aba.id !== 'empregados' || consultaDeEmpregados) &&
-      (aba.id !== 'captura-dfe' || consultaDfe),
+      (aba.id !== 'captura-dfe' || consultaDfe) &&
+      (aba.id !== 'apuracao-fiscal' || consultaApuracao),
   );
   const aba = useAbaNaUrl(
     visao.id,
@@ -340,6 +345,14 @@ export const ManutencaoDaEmpresa = ({
                 permitirDecisao={sessao?.papeis.some((papel)=>['admin_escritorio','contador'].includes(papel))??false} />
               <PainelDeRiscoFiscal empresaId={visao.id} somenteLeitura={arquivada}
                 podeConfigurar={sessao?.papeis.some((papel)=>['admin_escritorio','contador'].includes(papel))??false}/>
+            </Tabs.Content>
+          ) : null}
+
+          {consultaApuracao ? (
+            <Tabs.Content value="apuracao-fiscal" className="focus-visible:outline-none">
+              <PainelApuracaoMensal empresaId={visao.id} somenteLeitura={arquivada}
+                podePreparar={sessao?.permissoes.includes(SIMULACAO_DO_MOTOR) ?? false}
+                podeRevisar={sessao?.papeis.some((papel) => ['admin_escritorio', 'contador'].includes(papel)) ?? false} />
             </Tabs.Content>
           ) : null}
 

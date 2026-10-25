@@ -32,6 +32,10 @@ export { renderIcmsStC002 } from './tax-resolution/render-icms-st-c002.js';
 export type { IcmsStC002Input } from './tax-resolution/render-icms-st-c002.js';
 export { buildHistoricalIcmsStPackage } from './tax-resolution/build-icms-st-history.js';
 export { calculateIcmsStLegalAccruals, endOfIcmsStCompetence } from './tax-resolution/calculate-icms-st-legal-accruals.js';
+export { calculateMonthlyOwnIcmsAssessment, calculateMonthlySimpleAssessment } from './tax-resolution/calculate-monthly-assessment.js';
+export type { IcmsOwnAdjustment, IcmsOwnAssessmentInput, IcmsOwnRulePackage, MonthlyAssessment, MonthlyAssessmentKind,
+  MonthlyAssessmentSource, MonthlyAssessmentStatus, MonthlyTaxComponent, SimpleAssessmentInput, SimpleBracket,
+  SimpleRevenueSegment, SimpleRulePackage, SimpleSegregation } from './tax-resolution/calculate-monthly-assessment.js';
 export { decideIcmsStDossierTrack, fiscalUseDossierStatus } from './tax-resolution/decide-icms-st-dossier.js';
 export type { FiscalUseDestination, FiscalUseTrackStatus, FiscalUseRuleSnapshot, FiscalUseEvidenceSnapshot, FiscalUseTrack, FiscalUseDossier, FiscalUseCommand } from './tax-resolution/decide-icms-st-dossier.js';
 export type { IcmsStLegalAccrualComponent, IcmsStLegalAccrualTrackName, IcmsStLegalAccrualRule,

@@ -14,6 +14,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ManutencaoDaEmpresa } from './manutencao-da-empresa';
 import type { VisaoDaEmpresa } from './api';
+import { useSessao } from '../usuarios/queries';
+import type { Sessao } from '../usuarios/api';
+
+vi.mock('../usuarios/queries', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../usuarios/queries')>();
+  return { ...original, useSessao: vi.fn(() => ({ data: undefined, isPending: true })) };
+});
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -105,6 +112,12 @@ describe('abas da manutenção (§3.1)', () => {
     // A aba Documentos entrou na F4 (SPEC-004); as provas dela ficam em
     // `aba-de-documentos.test.tsx`.
     expect(within(abas).getByRole('tab', { name: 'Documentos' })).toBeInTheDocument();
+  });
+
+  it('mostra Apuração fiscal somente com permissão do motor tributário', async () => {
+    vi.mocked(useSessao).mockReturnValue({ data: { papeis: ['contador'], permissoes: ['fiscal.motor_tributario.consultar'], escopoDeEmpresas: 'CARTEIRA' } as Sessao } as unknown as ReturnType<typeof useSessao>);
+    renderizar();
+    expect(await screen.findByRole('tab', { name: 'Apuração fiscal' })).toBeInTheDocument();
   });
 });
 
