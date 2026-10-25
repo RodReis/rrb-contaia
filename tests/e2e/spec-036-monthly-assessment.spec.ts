@@ -82,7 +82,7 @@ const criarDocumento = async (companyId: string, cnpj: string, date: string, cen
     unidade,quantidade,valor) values($1,$2,$3,$4,1,'ITEM',$5,'Autopeça sintética','87082999','1234567','5102','00','UN','1',$6/10000.0)`,
   [tenantId, companyId, documentId, `${PREFIXO}-${suffix}`, `${PREFIXO}-${suffix}`, cents]);
   if (icmsCents !== undefined) await pool.query(`insert into app.fiscal_document_tax(tenant_id,empresa_id,document_id,parser_version,escopo,numero_item,codigo,
-    base_calculo,aliquota,valor,situacao) values($1,$2,$3,$4,'ITEM',1,'ICMS',$5/10000.0,18,$6/10000.0,'00')`,
+    base_calculo,aliquota,valor,situacao) values($1,$2,$3,$4,'ITEM',1,'ICMS',$5/100.0,18,$6/100.0,'00')`,
   [tenantId, companyId, documentId, `${PREFIXO}-${suffix}`, cents, icmsCents]);
   return { id: documentId, stagingId, hash: documentHash };
 };
