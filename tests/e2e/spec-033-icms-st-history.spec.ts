@@ -340,7 +340,7 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
 
   const approved=await reviewerPage.request.post(`${dossierPath}/${currentDossierId}/RESTITUTION/decision`,{data:decision('RESTITUTION','APPROVED',restitutionEvidence!,'REFUND_REQUEST',rule.id,[0])});
   expect(approved.status(),await approved.text()).toBe(201);
-  const approvedDossier=await approved.json() as {id:string;dossier:{restitution:{status:string;materialContributorIds:string[]}}};
+  const approvedDossier=await approved.json() as {id:string;dossier:{dossierId:string;restitution:{status:string;materialContributorIds:string[]}}};
   expect(approvedDossier.dossier.restitution).toMatchObject({status:'APPROVED',materialContributorIds:[userId]});
 
   for(const format of ['PDF','CSV','JSON'] as const){
@@ -350,7 +350,7 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
     expect(hash).toMatch(/^[0-9a-f]{64}$/u);expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash);
     if(format==='PDF')expect(bytes.subarray(0,8).toString('ascii')).toBe('%PDF-1.4');
     if(format==='CSV')expect(bytes.toString('utf8')).toContain('AUTORIA');
-    if(format==='JSON')expect(JSON.parse(bytes.toString('utf8')).dossier).toMatchObject({dossierId:approvedDossier.id,status:'PARTIALLY_DECIDED'});
+    if(format==='JSON')expect(JSON.parse(bytes.toString('utf8')).dossier).toMatchObject({dossierId:approvedDossier.dossier.dossierId,status:'PARTIALLY_DECIDED'});
   }
   const currentEvidence=await reviewerPage.request.get(`${dossierPath}/${approvedDossier.id}/evidence`);
   const complementAfterApproval=(await currentEvidence.json() as {items:Array<{id:string;track:string}>}).items.find(item=>item.track==='COMPLEMENT')?.id;
