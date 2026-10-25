@@ -275,9 +275,9 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
   const panel=page.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'});
   await expect(panel.getByRole('heading',{name:'Dossiê de decisão do ICMS-ST histórico'})).toBeVisible();
   await panel.getByRole('combobox',{name:'Fonte F33 aprovada'}).click();
-  await page.getByRole('option',{name:/SIMPLES_NACIONAL.*2017-02/u}).click();
+  await page.getByRole('option',{name:/Simples Nacional.*2017-02/u}).click();
   await panel.getByRole('combobox',{name:'Resultado F34'}).click();
-  await page.getByRole('option',{name:/2017-02-28.*READY FOR INTERNAL REVIEW/u}).click();
+  await page.getByRole('option',{name:/2017-02-28.*Pronto para revisão interna/u}).click();
   const created=page.waitForResponse(response=>response.url().includes('/icms-st-dossiers')&&!response.url().includes('/destination-rules')&&response.request().method()==='POST');
   await panel.getByRole('button',{name:'Criar / reproduzir dossiê'}).click();
   const response=await created;expect(response.ok(),await response.text()).toBeTruthy();
