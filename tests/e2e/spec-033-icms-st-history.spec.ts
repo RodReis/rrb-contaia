@@ -309,8 +309,7 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
   const source=Buffer.from('Fixture E2E sintética; não é fonte fiscal oficial.','utf8');
   const imported=await page.request.post(`${dossierPath}/destination-rules`,{multipart:{
     version:`E2E-${PREFIXO}`,destination:'REFUND_REQUEST',regime:'SIMPLES_NACIONAL',validFrom:'2016-10-01',validThrough:'2018-02-28',
-    officialBasis:'Fixture sintética sem efeito fiscal; dispositivo demonstrativo.',sourceUrl:'https://example.gov.br/fixture-e2e',consultedAt:'2026-10-25',
-    conditions:JSON.stringify(['Conferir evidência da trilha e período de referência.']),source:{name:'fundamento-sintetico.txt',mimeType:'text/plain',buffer:source},
+    officialBasis:'Fixture sintética sem efeito fiscal; dispositivo demonstrativo.',source:{name:'fundamento-sintetico.txt',mimeType:'text/plain',buffer:source},
   }});
   expect(imported.status(),await imported.text()).toBe(201);
   const rule=await imported.json() as {id:string};
