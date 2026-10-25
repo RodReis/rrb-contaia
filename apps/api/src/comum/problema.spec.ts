@@ -250,6 +250,13 @@ describe('status dos códigos da importação do plano de contas (SPEC-013)', ()
   });
 });
 
+describe('status dos conflitos do dossiê interno F35', () => {
+  it.each(['ICMS_ST_DOSSIER_SELF_APPROVAL_FORBIDDEN', 'ICMS_ST_DOSSIER_DECISION_CONFLICT'] as const)(
+    '%s responde 409',
+    codigo => expect(statusDoErro(new ErroDeDominio(CODIGOS_DE_ERRO[codigo], 'x'))).toBe(HttpStatus.CONFLICT),
+  );
+});
+
 describe('status dos códigos do pacote tributário F26', () => {
   const casos: ReadonlyArray<readonly [keyof typeof CODIGOS_DE_ERRO, number]> = [
     ['TAX_PACKAGE_NOT_FOUND', HttpStatus.NOT_FOUND],

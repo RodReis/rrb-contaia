@@ -9,7 +9,7 @@ describe('PDF do dossiê interno ICMS-ST', () => {
       sourceHashes: { f33: 'b'.repeat(64), f34: 'c'.repeat(64) }, originalPeriod: { start: '2017-01', end: '2017-12' }, referenceDate: '2026-10-24',
       evidenceManifest: [{ id: 'evidence-1', track: 'RESTITUTION', kind: 'Nota', description: 'Documento comprobatório', fileName: 'nota.pdf', contentSha256: 'd'.repeat(64) }],
       regime: 'SIMPLES_NACIONAL', generatedAtUtc: '2026-10-24T00:00:00Z',
-      restitution: { status: 'APPROVED', principalCents: 100, legalAccrualsCents: 20, totalCents: 120, reason: 'Revisado', rulePackageSnapshot: { id: 'rule-1', version: 'go-v1', officialBasis: 'Ato oficial, artigo 3', sourceUrl: 'https://example.gov.br/ato', validFrom: '2016-10-01', validThrough: '2018-02-28', sourceSha256: 'e'.repeat(64), conditions: ['Condição 1'] } },
+      restitution: { status: 'APPROVED', principalCents: 100, legalAccrualsCents: 20, totalCents: 120, reason: 'Revisado', preparedBy: 'preparador-1', materialContributorIds: ['preparador-1', 'autor-evidencia-2'], rulePackageSnapshot: { id: 'rule-1', version: 'go-v1', officialBasis: 'Ato oficial, artigo 3', sourceUrl: 'https://example.gov.br/ato', validFrom: '2016-10-01', validThrough: '2018-02-28', sourceSha256: 'e'.repeat(64), conditions: ['Condição 1'] } },
       complement: { status: 'PENDING' },
     }, 'a'.repeat(64), [{ occurred_at: '2026-10-24T00:00:00Z', action: 'APPROVED', track: 'RESTITUTION', actor_id: 'reviewer' }]);
 
@@ -22,6 +22,7 @@ describe('PDF do dossiê interno ICMS-ST', () => {
     expect(text).toContain('2026-10-24');
     expect(text).toContain('Hashes de origem F33/F34');
     expect(text).toContain('Ato oficial');
+    expect(text).toContain('contribuidores materiais preparador-1, autor-evidencia-2');
     expect(text).toContain('https://example.gov.br/ato');
     expect(text).toContain('nota.pdf');
     expect(text).toContain('d'.repeat(64));

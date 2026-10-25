@@ -74,10 +74,11 @@ describe('IcmsStDossiersService', () => {
     const storage = { enviarComChave: vi.fn(), remover: vi.fn(), obter: vi.fn() };
     const service = new IcmsStDossiersService({ instancia: {} as never } as never, storage as never);
 
-    const result = await service.anexarEvidencia('tenant', 'preparer', 'company', 'dossier', 'RESTITUTION', 'Nota', 'Documento de suporte fiscal', { originalname: 'nota.pdf', mimetype: 'application/pdf', buffer: Buffer.from('evidence') }, 'corr');
+    const result = await service.anexarEvidencia('tenant', 'evidence-author', 'company', 'dossier', 'RESTITUTION', 'Nota', 'Documento de suporte fiscal', { originalname: 'nota.pdf', mimetype: 'application/pdf', buffer: Buffer.from('evidence') }, 'corr');
 
     expect(result.id).not.toBe('dossier');
     expect((result.dossier as { evidenceManifest: unknown[] }).evidenceManifest).toHaveLength(1);
+    expect((result.dossier as { restitution: { materialContributorIds: string[] } }).restitution.materialContributorIds).toEqual(['evidence-author', 'preparer']);
     expect(state.query).toHaveBeenCalledWith(expect.stringContaining('insert into app.tax_st_internal_decision_event'), expect.arrayContaining(['dossier', 'DOSSIER', 'SUPERSEDED']));
     expect(state.query).toHaveBeenCalledWith(expect.stringContaining('insert into app.tax_st_internal_decision_evidence'), expect.any(Array));
   });
@@ -86,7 +87,7 @@ describe('IcmsStDossiersService', () => {
     const dossier = {
       originalPeriod: { start: '2017-01', end: '2017-12' }, referenceDate: '2026-10-24', sourceHashes: { f33: 'a'.repeat(64), f34: 'b'.repeat(64) },
       evidenceManifest: [{ id: 'evidence', track: 'RESTITUTION', kind: 'Nota', description: 'Documento fiscal', fileName: 'nota.pdf', contentSha256: 'c'.repeat(64) }],
-      restitution: { status: 'APPROVED', principalCents: 100, legalAccrualsCents: 20, totalCents: 120, destination: 'REFUND_REQUEST', rulePackageVersion: 'go-v1', evidenceIds: ['evidence'], rulePackageSnapshot: { id: 'rule', version: 'go-v1', validFrom: '2016-10-01', validThrough: '2018-02-28', officialBasis: 'Ato oficial', sourceSha256: 'd'.repeat(64), sourceUrl: 'https://example.gov.br/ato', conditions: ['Condição 1'] } },
+      restitution: { status: 'APPROVED', principalCents: 100, legalAccrualsCents: 20, totalCents: 120, destination: 'REFUND_REQUEST', rulePackageVersion: 'go-v1', evidenceIds: ['evidence'], preparedBy: 'preparer', materialContributorIds: ['preparer', 'evidence-author'], rulePackageSnapshot: { id: 'rule', version: 'go-v1', validFrom: '2016-10-01', validThrough: '2018-02-28', officialBasis: 'Ato oficial', sourceSha256: 'd'.repeat(64), sourceUrl: 'https://example.gov.br/ato', conditions: ['Condição 1'] } },
       complement: { status: 'PENDING', evidenceIds: [] },
     };
     const contentHash = createHash('sha256').update(canonicalizarJson(dossier)).digest('hex');
@@ -106,5 +107,7 @@ describe('IcmsStDossiersService', () => {
     expect(csv).toContain('Ato oficial');
     expect(csv).toContain('2018-02-28');
     expect(csv).toContain('Condição 1');
+    expect(csv).toContain('AUTORIA');
+    expect(csv).toContain('evidence-author');
   });
 });

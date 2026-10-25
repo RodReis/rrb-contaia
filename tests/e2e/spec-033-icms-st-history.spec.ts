@@ -10,6 +10,7 @@ import { FIXTURES } from '../../packages/db/src/testes/fixtures-rls';
 
 const PREFIXO=`e2e-f33-${randomUUID()}`;
 const ADMIN:Pessoa={usuario:PREFIXO,senha:`${PREFIXO}-senha-123456`,nome:'Contador F33'};
+const REVISOR:Pessoa={usuario:`${PREFIXO}-revisor`,senha:`${PREFIXO}-revisor-123456`,nome:'Revisor F35'};
 const CNPJ_ESCRITORIO=cnpjValido('299293490001');
 const CNPJ_EMPRESA=cnpjValido('299293490002');
 const CAMINHO=resolve('test-results',process.env['PROVA_ESCOPO']??'SPEC-024','e2e/provas/spec-033');
@@ -19,9 +20,11 @@ const DOCUMENT_KEY='3'.repeat(44);
 test.describe.configure({mode:'serial'});
 test.use({trace:'off',video:'off',screenshot:'off'});
 let context:BrowserContext;
+let reviewerContext:BrowserContext;
 let page:Page;
 let tenantId='';
 let userId='';
+let reviewerId='';
 let companyId='';
 let snapshotId='';
 let lineId='';
@@ -37,8 +40,10 @@ test.beforeAll(async({browser}:{browser:Browser})=>{
   await removerIdentidadesComPrefixo(PREFIXO);
   tenantId=await criarEscritorio(pool,CNPJ_ESCRITORIO,'Escritório sintético E2E F33');
   userId=await criarUsuario(pool,tenantId,await criarIdentidade(ADMIN),ADMIN,'contador');
+  reviewerId=await criarUsuario(pool,tenantId,await criarIdentidade(REVISOR),REVISOR,'contador');
   companyId=await criarEmpresa(pool,tenantId,CNPJ_EMPRESA,'Autopeças sintéticas E2E F33');
   await vincular(pool,tenantId,userId,companyId);
+  await vincular(pool,tenantId,reviewerId,companyId);
   await pool.query(`insert into app.empresa_evento_de_historico(tenant_id,empresa_id,aba,acao,campo,valor_novo,vigencia,usuario_id)
     values($1,$2,'DADOS_FISCAIS','ALTERACAO','regimeTributario','SIMPLES_NACIONAL','2016-10-01',$3)`,[tenantId,companyId,userId]);
   const fiscalFixture=FIXTURES['app.fiscal_document'];
@@ -78,6 +83,7 @@ test.beforeAll(async({browser}:{browser:Browser})=>{
 });
 
 test.afterAll(async()=>{
+  await reviewerContext?.close();
   await context?.close();
   await limparEscritorios(pool,[CNPJ_ESCRITORIO]);
   await removerIdentidadesComPrefixo(PREFIXO);
@@ -295,6 +301,66 @@ test('F35 cria dossiê interno reproduzível a partir das fontes F33/F34 e prova
   await expect(panel.getByText('Aprovação registra intenção interna; nenhum efeito fiscal ou financeiro é executado.')).toBeVisible();
   achados=await provarVisualmente(page,CAMINHO,'f35-dossie-interno',{pronto:alvo=>alvo.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'}),semToasts:true,
     recorte:alvo=>alvo.getByRole('region',{name:'Dossiê de decisão do ICMS-ST histórico'})});
+
+  reviewerContext=await context.browser()!.newContext({viewport:{width:1280,height:900}});
+  const reviewerPage=await reviewerContext.newPage();
+  await entrarComo(reviewerPage,REVISOR,`/empresas/${companyId}`);
+  const dossierPath=`/api/proxy/companies/${companyId}/fiscal-documents/icms-st-dossiers`;
+  const source=Buffer.from('Fixture E2E sintética; não é fonte fiscal oficial.','utf8');
+  const imported=await page.request.post(`${dossierPath}/destination-rules`,{multipart:{
+    version:`E2E-${PREFIXO}`,destination:'REFUND_REQUEST',regime:'SIMPLES_NACIONAL',validFrom:'2016-10-01',validThrough:'2018-02-28',
+    officialBasis:'Fixture sintética sem efeito fiscal; dispositivo demonstrativo.',sourceUrl:'https://example.gov.br/fixture-e2e',consultedAt:'2026-10-25',
+    conditions:JSON.stringify(['Conferir evidência da trilha e período de referência.']),source:{name:'fundamento-sintetico.txt',mimeType:'text/plain',buffer:source},
+  }});
+  expect(imported.status(),await imported.text()).toBe(201);
+  const rule=await imported.json() as {id:string};
+  const packageApproval=await reviewerPage.request.post(`${dossierPath}/destination-rules/${rule.id}/review`,{data:{action:'APPROVED',reason:'Revisão sintética independente para prova E2E.'}});
+  expect(packageApproval.status(),await packageApproval.text()).toBe(201);
+
+  let currentDossierId=dossier.id;
+  for(const track of ['RESTITUTION','COMPLEMENT'] as const){
+    const attached=await page.request.post(`${dossierPath}/${currentDossierId}/evidence`,{multipart:{track,kind:'Documento sintético',description:`Evidência de suporte E2E da trilha ${track}.`,evidence:{name:`evidencia-${track.toLowerCase()}.txt`,mimeType:'text/plain',buffer:Buffer.from(`Evidência sintética ${track}`)}}});
+    expect(attached.status(),await attached.text()).toBe(201);
+    currentDossierId=(await attached.json() as {id:string}).id;
+  }
+  const evidenceResponse=await reviewerPage.request.get(`${dossierPath}/${currentDossierId}/evidence`);
+  expect(evidenceResponse.ok()).toBeTruthy();
+  const evidenceItems=(await evidenceResponse.json() as {items:Array<{id:string;track:string}>}).items;
+  const restitutionEvidence=evidenceItems.find(item=>item.track==='RESTITUTION')?.id;
+  const complementEvidence=evidenceItems.find(item=>item.track==='COMPLEMENT')?.id;
+  expect(restitutionEvidence).toBeTruthy();expect(complementEvidence).toBeTruthy();
+  const decision=(track:'RESTITUTION'|'COMPLEMENT',action:'APPROVED'|'REJECTED',evidenceId:string,destination:string|null,rulePackageId:string|null,conditionConfirmations:number[])=>({
+    action,reason:`Revisão E2E independente da trilha ${track}.`,evidenceIds:[evidenceId],conditionConfirmations,destination,rulePackageId,
+  });
+  const selfApproval=await page.request.post(`${dossierPath}/${currentDossierId}/RESTITUTION/decision`,{data:decision('RESTITUTION','APPROVED',restitutionEvidence!,'REFUND_REQUEST',rule.id,[0])});
+  expect(selfApproval.status()).toBe(409);
+  expect((await selfApproval.json() as {code:string}).code).toBe('ICMS_ST_DOSSIER_SELF_APPROVAL_FORBIDDEN');
+  const deniedEvent=await pool.query<{count:string}>(`select count(*)::text count from app.tax_st_internal_decision_event where dossier_id=$1 and action='FAILED' and actor_id=$2`,[currentDossierId,userId]);
+  expect(deniedEvent.rows[0]?.count).toBe('1');
+
+  const approved=await reviewerPage.request.post(`${dossierPath}/${currentDossierId}/RESTITUTION/decision`,{data:decision('RESTITUTION','APPROVED',restitutionEvidence!,'REFUND_REQUEST',rule.id,[0])});
+  expect(approved.status(),await approved.text()).toBe(201);
+  const approvedDossier=await approved.json() as {id:string;dossier:{restitution:{status:string;materialContributorIds:string[]}}};
+  expect(approvedDossier.dossier.restitution).toMatchObject({status:'APPROVED',materialContributorIds:[userId]});
+
+  for(const format of ['PDF','CSV','JSON'] as const){
+    const exported=await reviewerPage.request.get(`${dossierPath}/${approvedDossier.id}/export?format=${format}`);
+    expect(exported.ok(),`${format}: ${exported.status()}`).toBeTruthy();
+    const bytes=await exported.body(),hash=exported.headers()['x-content-sha256'];
+    expect(hash).toMatch(/^[0-9a-f]{64}$/u);expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash);
+    if(format==='PDF')expect(bytes.subarray(0,8).toString('ascii')).toBe('%PDF-1.4');
+    if(format==='CSV')expect(bytes.toString('utf8')).toContain('AUTORIA');
+    if(format==='JSON')expect(JSON.parse(bytes.toString('utf8')).dossier).toMatchObject({dossierId:approvedDossier.id,status:'PARTIALLY_DECIDED'});
+  }
+  const currentEvidence=await reviewerPage.request.get(`${dossierPath}/${approvedDossier.id}/evidence`);
+  const complementAfterApproval=(await currentEvidence.json() as {items:Array<{id:string;track:string}>}).items.find(item=>item.track==='COMPLEMENT')?.id;
+  expect(complementAfterApproval).toBeTruthy();
+  const rejected=await reviewerPage.request.post(`${dossierPath}/${approvedDossier.id}/COMPLEMENT/decision`,{data:decision('COMPLEMENT','REJECTED',complementAfterApproval!,null,null,[])});
+  expect(rejected.status(),await rejected.text()).toBe(201);
+  const rejectedDossier=await rejected.json() as {id:string;dossier:{status:string;complement:{status:string}}};
+  expect(rejectedDossier.dossier).toMatchObject({status:'DECIDED',complement:{status:'REJECTED'}});
+  const superseded=await pool.query<{count:string}>(`select count(*)::text count from app.tax_st_internal_decision_event where dossier_id=$1 and action='SUPERSEDED' and details->>'supersededBy'=$2`,[approvedDossier.id,rejectedDossier.id]);
+  expect(superseded.rows[0]?.count).toBe('1');
 });
 
 test('F35 não apresenta violações críticas nem rolagem horizontal nas provas visuais',()=>{
