@@ -142,7 +142,7 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
   await criarDocumento(simpleCompanyId, CNPJ_SIMPLES, '2026-08', 50_000, 'doc-1');
   const current = await criarDocumento(simpleCompanyId, CNPJ_SIMPLES, dataCompetencia, 100_000, 'doc-2');
   simpleDocumentId = current.id; simpleStagingId = current.stagingId; simpleDocumentHash = current.hash;
-  await criarDocumento(presumedCompanyId, CNPJ_PRESUMIDO, dataCompetencia, 100_000, 'doc-3', 18_000);
+  await criarDocumento(presumedCompanyId, CNPJ_PRESUMIDO, dataCompetencia, 100_000, 'doc-3', 180);
   context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   page = await context.newPage();
   await entrarComo(page, CONTADOR, `/empresas/${simpleCompanyId}`);
@@ -217,9 +217,9 @@ test('F36 calcula e aprova as duas trilhas, exporta por hash, invalida após nov
   await declarar(presumedCompanyId, { adjustments: [], priorCreditCents: 0, priorCreditProven: true, priorCreditAssessmentId: null,
     allOperationsCovered: true, activityVerified: true, returnCancellationReconciled: true, excludedOperationsHandled: true });
   const icmsAssessment = await preparar(presumedCompanyId, 'LUCRO_PRESUMIDO_ICMS_DARE', icmsPackageId);
-  expect(icmsAssessment).toMatchObject({ status: 'READY_FOR_REVIEW', totalCents: 18_000 });
+  expect(icmsAssessment).toMatchObject({ status: 'READY_FOR_REVIEW', totalCents: 180 });
   const approvedIcms = await aprovarApuracao(presumedCompanyId, icmsAssessment);
-  expect(approvedIcms).toMatchObject({ status: 'APPROVED', totalCents: 18_000 });
+  expect(approvedIcms).toMatchObject({ status: 'APPROVED', totalCents: 180 });
 
   await pool.query(`insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,staging_id,tipo,codigo,parser_version,hash_sha256,correlation_id)
     values($1,$2,$3,$4,'REPROCESSADO','F36_INPUT_CHANGED',$5,repeat('d',64),$6)`,
