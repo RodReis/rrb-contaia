@@ -16,7 +16,7 @@ export const listarApuracoesMensais = async (companyId: string, competenceValue:
   const query = new URLSearchParams({ page: '1', pageSize: '50' });
   if (competenceValue) query.set('competence', competenceValue);
   if (kind) query.set('kind', kind);
-  const result = z.object({ items: z.array(assessment) }).parse(await requisitar<unknown>(`/companies/${companyId}/fiscal-documents/monthly-assessments?${query}`));
+  const result = z.object({ items: z.array(assessment) }).parse(await requisitar<unknown>(`/companies/${companyId}/fiscal-documents/monthly-assessments/history?${query}`));
   return result.items;
 };
 

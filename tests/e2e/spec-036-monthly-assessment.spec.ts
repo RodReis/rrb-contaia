@@ -229,7 +229,7 @@ test('F36 calcula e aprova as duas trilhas, exporta por hash, invalida após nov
   const oldAssessment = await page.request.get(`${BASE_URL}/${simpleCompanyId}/fiscal-documents/monthly-assessments/${approvedSimple.assessmentId}`);
   expect((await oldAssessment.json() as { status: string }).status).toBe('POSSIBLY_OUTDATED');
 
-  const assessmentList = await page.request.get(`${BASE_URL}/${simpleCompanyId}/fiscal-documents/monthly-assessments?competence=2026-10&kind=SIMPLES_NACIONAL_DAS&page=1&pageSize=50`);
+  const assessmentList = await page.request.get(`${BASE_URL}/${simpleCompanyId}/fiscal-documents/monthly-assessments/history?competence=2026-10&kind=SIMPLES_NACIONAL_DAS&page=1&pageSize=50`);
   expect(assessmentList.ok(), `Lista mensal: ${assessmentList.status()} ${await assessmentList.text()}`).toBeTruthy();
   await page.goto(`/empresas/${simpleCompanyId}?aba=apuracao-fiscal`);
   await expect(page.getByRole('region', { name: 'Apuração fiscal mensal' })).toBeVisible();

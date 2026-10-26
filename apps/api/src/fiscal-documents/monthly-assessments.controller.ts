@@ -90,7 +90,7 @@ export class MonthlyAssessmentsController {
         .setHeader('Cache-Control', 'private, no-store').send(file.bytes));
   }
 
-  @Get()
+  @Get('history')
   @ExigePermissao('fiscal.motor_tributario.consultar')
   list(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string) {
     const filters = analisar(MonthlyAssessmentListQuerySchema, parametrosDaUrl(request.originalUrl));
