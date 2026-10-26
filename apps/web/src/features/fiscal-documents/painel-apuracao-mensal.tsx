@@ -96,7 +96,7 @@ export const PainelApuracaoMensal = ({ empresaId, somenteLeitura, podePreparar, 
         <Button variante="contorno" tamanho="compacto" onClick={() => void assessments.refetch()} aria-label="Atualizar apurações"><RefreshCw aria-hidden="true" /> Atualizar</Button>
       </header>
 
-      <section className="grid gap-md rounded-lg border border-border bg-card p-lg shadow-[var(--elevation-1)] tablet:grid-cols-[1fr_1fr_1.4fr_auto] tablet:items-end" aria-label="Parâmetros da apuração">
+      <section className="grid gap-md rounded-lg border border-border bg-card p-lg shadow-[var(--elevation-1)] tablet:grid-cols-2 desktop:grid-cols-[1fr_1fr_1.4fr_auto] desktop:items-end" aria-label="Parâmetros da apuração">
         <Select rotulo="Competência" valor={competence} onValorChange={setCompetence} opcoes={opcoesCompetencia} />
         <Select rotulo="Trilha fiscal" valor={kind} onValorChange={(value) => setKind(value as MonthlyAssessment['kind'])} opcoes={options} />
         <div className="flex flex-col gap-xs">
