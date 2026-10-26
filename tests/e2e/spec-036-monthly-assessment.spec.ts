@@ -115,14 +115,14 @@ const declarar = async (companyId: string, data: object) => {
 const preparar = async (companyId: string, kind: 'SIMPLES_NACIONAL_DAS' | 'LUCRO_PRESUMIDO_ICMS_DARE', rulePackageId: string) => {
   const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments`, { data: { competence: dataCompetencia, kind, rulePackageId } });
   expect(response.status(), await response.text()).toBe(201);
-  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; canonicalJsonHash: string };
+  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; canonicalJsonHash: string; gapCodes?: string[] };
 };
 
 const aprovarApuracao = async (companyId: string, assessment: Awaited<ReturnType<typeof preparar>>) => {
   const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments/${assessment.assessmentId}/review`,
     { data: { action: 'APPROVED', reason: 'Conferência manual da memória sintética; rascunho local.', expectedHash: assessment.canonicalJsonHash } });
   expect(response.status(), await response.text()).toBe(201);
-  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; canonicalJsonHash: string };
+  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; canonicalJsonHash: string; gapCodes?: string[] };
 };
 
 test.beforeAll(async ({ browser }: { browser: Browser }) => {
@@ -225,7 +225,7 @@ test('F36 calcula e aprova as duas trilhas, exporta por hash, invalida após nov
     values($1,$2,$3,$4,'ORIGINAL_BAIXADO','F36_INPUT_CHANGED',$5,repeat('d',64),$6)`,
   [tenantId, simpleCompanyId, simpleDocumentId, simpleStagingId, 'f36-e2e-event', correlation]);
   const changed = await preparar(simpleCompanyId, 'SIMPLES_NACIONAL_DAS', simplePackageId);
-  expect(changed.status).toBe('READY_FOR_REVIEW');
+  expect(changed.status, JSON.stringify(changed)).toBe('READY_FOR_REVIEW');
   const oldAssessment = await page.request.get(`${BASE_URL}/${simpleCompanyId}/fiscal-documents/monthly-assessments/${approvedSimple.assessmentId}`);
   expect((await oldAssessment.json() as { status: string }).status).toBe('POSSIBLY_OUTDATED');
 
