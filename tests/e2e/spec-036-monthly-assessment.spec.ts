@@ -222,7 +222,7 @@ test('F36 calcula e aprova as duas trilhas, exporta por hash, invalida após nov
   expect(approvedIcms).toMatchObject({ status: 'APPROVED', totalCents: 180 });
 
   await pool.query(`insert into app.fiscal_document_event(tenant_id,empresa_id,document_id,staging_id,tipo,codigo,parser_version,hash_sha256,correlation_id)
-    values($1,$2,$3,$4,'ATUALIZADO','F36_INPUT_CHANGED',$5,repeat('d',64),$6)`,
+    values($1,$2,$3,$4,'ORIGINAL_BAIXADO','F36_INPUT_CHANGED',$5,repeat('d',64),$6)`,
   [tenantId, simpleCompanyId, simpleDocumentId, simpleStagingId, 'f36-e2e-event', correlation]);
   const changed = await preparar(simpleCompanyId, 'SIMPLES_NACIONAL_DAS', simplePackageId);
   expect(changed.status).toBe('READY_FOR_REVIEW');
