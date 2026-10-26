@@ -22,6 +22,14 @@ const decodeJsonField = (body: unknown, key: string): unknown => {
   try { return JSON.parse(value) as unknown; } catch { return undefined; }
 };
 const attachmentName = (value: string) => value.replace(/[\r\n"\\]/gu, '_');
+const parametrosDaUrl = (originalUrl: string): Record<string, string | string[]> => {
+  const parametros: Record<string, string | string[]> = {};
+  for (const [chave, valor] of new URL(originalUrl, 'http://contaia.local').searchParams) {
+    const anterior = parametros[chave];
+    parametros[chave] = anterior === undefined ? valor : Array.isArray(anterior) ? [...anterior, valor] : [anterior, valor];
+  }
+  return parametros;
+};
 
 @Controller('companies/:companyId/fiscal-documents/monthly-assessments')
 @DfeAdminTenantScope()
@@ -85,7 +93,7 @@ export class MonthlyAssessmentsController {
   @Get()
   @ExigePermissao('fiscal.motor_tributario.consultar')
   list(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string) {
-    const filters = analisar(MonthlyAssessmentListQuerySchema, request.query);
+    const filters = analisar(MonthlyAssessmentListQuerySchema, parametrosDaUrl(request.originalUrl));
     return this.service.list(tenantDa(request), autorDa(request).usuarioId, companyId, obterCorrelationId(request), {
       page: filters.page, pageSize: filters.pageSize, ...(filters.competence ? { competence: filters.competence } : {}), ...(filters.kind ? { kind: filters.kind } : {}),
     });
