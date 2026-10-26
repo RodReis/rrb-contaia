@@ -387,7 +387,7 @@ export class MonthlyAssessmentsService {
   private async loadPackage(client: PoolClient, tenantId: string, companyId: string, id: string): Promise<StoredPackage> {
     if (!persistedUuid.test(id)) throw new ErroDeDominio(CODIGOS_DE_ERRO.MONTHLY_ASSESSMENT_RULE_MISSING, 'Pacote normativo não encontrado.');
     const result = await client.query<StoredPackage>(`select p.id,p.kind,p.version,p.valid_from::text,p.valid_through::text,p.source_url,p.source_storage_key,
-      p.source_sha256,p.content_sha256,p.canonical_json,(select e.action from app.tax_monthly_rule_package_event e where e.package_id=p.id and e.action<>'FAILED'
+      p.source_sha256,p.content_sha256,p.canonical_json,(select e.action from app.tax_monthly_rule_package_event e where e.package_id=p.id and e.action in ('IMPORTED','APPROVED','REJECTED','SUPERSEDED')
         order by e.occurred_at desc,e.id desc limit 1) status from app.tax_monthly_rule_package p
       where p.id=$1 and p.tenant_id=$2 and p.empresa_id=$3 and app.empresa_autorizada(p.empresa_id)`, [id, tenantId, companyId]);
     const row = result.rows[0];
@@ -397,7 +397,7 @@ export class MonthlyAssessmentsService {
 
   private packageStatus(client: PoolClient, id: string, tenantId: string, companyId: string) {
     return client.query<{ action: string }>(`select action from app.tax_monthly_rule_package_event where package_id=$1 and tenant_id=$2 and empresa_id=$3
-      and action<>'FAILED' order by occurred_at desc,id desc limit 1`, [id, tenantId, companyId]).then((result) => result.rows[0]?.action ?? 'IMPORTED');
+      and action in ('IMPORTED','APPROVED','REJECTED','SUPERSEDED') order by occurred_at desc,id desc limit 1`, [id, tenantId, companyId]).then((result) => result.rows[0]?.action ?? 'IMPORTED');
   }
 
   private async loadDocuments(client: PoolClient, tenantId: string, companyId: string, cnpj: string, from: string, to: string) {
