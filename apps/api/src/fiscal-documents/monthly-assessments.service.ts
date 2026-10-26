@@ -3,7 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { comContextoHumano } from '@contaia/db';
 import {
   CODIGOS_DE_ERRO, ErroDeDominio, calculateMonthlyOwnIcmsAssessment, calculateMonthlySimpleAssessment,
-  type IcmsOwnAdjustment, type MonthlyAssessment, type MonthlyTaxComponent, type SimpleRulePackage,
+  calculatePisCofinsAssessment, type IcmsOwnAdjustment, type MonthlyAssessment, type MonthlyTaxComponent, type PisCofinsRevenue,
+  type PisCofinsRevenueRecognition, type PisCofinsRulePackage, type SimpleRulePackage,
 } from '@contaia/domain';
 import {
   MonthlyDeclarationSchema, MonthlyRulePackageSchema, PrepareMonthlyAssessmentSchema,
@@ -12,7 +13,7 @@ import {
 import type { PoolClient } from 'pg';
 import { PoolDoBanco } from '../banco/pool.provider';
 import { StorageService } from '../comum/storage.service';
-import { renderMonthlyAssessmentPdf } from './monthly-assessment-pdf';
+import { renderMonthlyAssessmentPdf, renderMonthlyDarfDraftPdf } from './monthly-assessment-pdf';
 
 type Row = Record<string, unknown>;
 type Upload = Readonly<{ originalname: string; mimetype: string; buffer: Buffer }>;
@@ -86,6 +87,65 @@ export const reconcileSimpleRevenue = (input: ReturnType<typeof simpleDeclaratio
   return [...new Set(gaps)];
 };
 
+type PisCofinsSourceDocument = Readonly<{ id: string; hash: string; competence: string; itemNumber: number; itemCents: number | null;
+  ncm: string | null; cfop: string | null; cst: string | null; isSales: boolean }>;
+
+export const reconcilePisCofinsRevenue = (revenue: readonly PisCofinsRevenue[], documents: readonly PisCofinsSourceDocument[],
+  competence: string, recognition: PisCofinsRevenueRecognition | null, externalEvidenceValid: boolean,
+  declaredReconciled: boolean) => {
+  const gaps: string[] = [];
+  const allSales = documents.filter((item) => item.isSales);
+  const currentSales = allSales.filter((item) => item.competence === competence);
+  const sources = new Map(allSales.map((item) => [`${item.id}:${item.hash}:item:${item.itemNumber}`, item]));
+  const seenRevenue = new Set<string>();
+  const referenced = new Set<string>();
+  const receiptsBySource = new Map<string, number>();
+  for (const item of revenue) {
+    if (seenRevenue.has(item.id)) gaps.push('PIS_COFINS_REVENUE_DUPLICATE');
+    seenRevenue.add(item.id);
+    if (item.recognizedAt.slice(0, 7) !== competence || !isDateCivil(item.recognizedAt) || !Number.isSafeInteger(item.cents) || item.cents <= 0)
+      gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+    const documentSourceIds = item.sourceIds.filter((sourceId) => sources.has(sourceId));
+    const manualEvidence = item.sourceIds.includes('DECLARATION') && externalEvidenceValid;
+    if (documentSourceIds.length === 0 && !manualEvidence) gaps.push('PIS_COFINS_EVIDENCE_REQUIRED');
+    if (item.sourceIds.some((sourceId) => sourceId !== 'DECLARATION' && !sources.has(sourceId))) gaps.push('PIS_COFINS_EVIDENCE_REQUIRED');
+    if (recognition === 'ACCRUAL' && documentSourceIds.length !== 1 && !manualEvidence)
+      gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+    if (recognition === 'CASH' && documentSourceIds.length > 1)
+      gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+    for (const sourceId of documentSourceIds) {
+      const source = sources.get(sourceId)!;
+      if (source.ncm !== item.ncm || source.cfop !== item.cfop || source.cst !== item.cst)
+        gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+      if (recognition === 'ACCRUAL' && (source.itemCents !== item.cents || source.ncm !== item.ncm || source.cfop !== item.cfop || source.cst !== item.cst))
+        gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+      referenced.add(sourceId);
+      if (recognition === 'CASH' && documentSourceIds.length === 1)
+        receiptsBySource.set(sourceId, (receiptsBySource.get(sourceId) ?? 0) + item.cents);
+    }
+  }
+  if (recognition === null) gaps.push('PIS_COFINS_RECOGNITION_OPTION_MISSING');
+  if (recognition === 'ACCRUAL' && (referenced.size !== currentSales.length || currentSales.some((item) =>
+      !sources.has(`${item.id}:${item.hash}:item:${item.itemNumber}`) || !referenced.has(`${item.id}:${item.hash}:item:${item.itemNumber}`))))
+    gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+  if (revenue.some((item) => item.sourceIds.includes('DECLARATION')) && !declaredReconciled)
+    gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+  if (recognition === 'CASH' && !declaredReconciled) gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+  for (const [sourceId, cents] of receiptsBySource) {
+    const source = sources.get(sourceId);
+    if (source?.itemCents === null || source?.itemCents === undefined || cents > source.itemCents)
+      gaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+  }
+  if (revenue.length === 0) gaps.push('PIS_COFINS_REVENUE_MISSING');
+  return [...new Set(gaps)].sort();
+};
+
+const isDateCivil = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+};
+
 const icmsDeclaration = (value: unknown) => {
   if (!isRecord(value) || !Array.isArray(value['adjustments'])) return null;
   const adjustments: IcmsOwnAdjustment[] = value['adjustments'].flatMap((entry) => {
@@ -99,6 +159,29 @@ const icmsDeclaration = (value: unknown) => {
     allOperationsCovered: value['allOperationsCovered'] === true, activityVerified: value['activityVerified'] === true,
     returnCancellationReconciled: value['returnCancellationReconciled'] === true,
     excludedOperationsHandled: value['excludedOperationsHandled'] === true };
+};
+
+const pisCofinsDeclaration = (value: unknown): Readonly<{
+  recognition: 'ACCRUAL' | 'CASH' | null; recognitionOptionProven: boolean; activityVerified: boolean; revenueReconciled: boolean;
+  revenue: readonly PisCofinsRevenue[]; transitionApplies: boolean; transitionNotApplicableProven: boolean;
+  totalTransitionOffsetCents: number | undefined;
+}> | null => {
+  if (!isRecord(value) || !Array.isArray(value['revenue'])) return null;
+  const recognition = value['recognition'] === 'ACCRUAL' || value['recognition'] === 'CASH' ? value['recognition'] : null;
+  const revenue = value['revenue'].flatMap((raw): PisCofinsRevenue[] => {
+    if (!isRecord(raw) || typeof raw['id'] !== 'string' || typeof raw['recognizedAt'] !== 'string' ||
+        typeof raw['cents'] !== 'number' || typeof raw['ncm'] !== 'string' || typeof raw['cfop'] !== 'string' ||
+        typeof raw['cst'] !== 'string' || typeof raw['treatmentCode'] !== 'string' || !Array.isArray(raw['sourceIds']) ||
+        !raw['sourceIds'].every((item) => typeof item === 'string')) return [];
+    return [{ id: raw['id'], recognizedAt: raw['recognizedAt'], cents: raw['cents'], ncm: raw['ncm'], cfop: raw['cfop'], cst: raw['cst'],
+      treatmentCode: raw['treatmentCode'], sourceIds: raw['sourceIds'] as string[], evidenceComplete: raw['evidenceComplete'] === true,
+      postSaleReconciled: raw['postSaleReconciled'] === true }];
+  });
+  if (revenue.length !== value['revenue'].length) return null;
+  return { recognition, recognitionOptionProven: value['recognitionOptionProven'] === true,
+    activityVerified: value['activityVerified'] === true, revenueReconciled: value['revenueReconciled'] === true, revenue,
+    transitionApplies: value['transitionApplies'] === true, transitionNotApplicableProven: value['transitionNotApplicableProven'] === true,
+    totalTransitionOffsetCents: valueCents(value['totalTransitionOffsetCents']) ?? undefined };
 };
 
 @Injectable()
@@ -174,8 +257,11 @@ export class MonthlyAssessmentsService {
         select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','RULE_PACKAGE_APPROVED','packageId',$3::uuid)
         from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.kind=$6 and a.status='APPROVED'
         and a.competence >= $7::date and ($8::date is null or a.competence <= $8::date)
+          and ($6<>'LUCRO_PRESUMIDO_PIS_COFINS' or a.canonical_json->>'contractVersion'='SPEC-037-v1')
           and not exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='INVALIDATED')`,
-      [tenantId, companyId, packageId, userId, correlationId, row.kind, `${row.valid_from.slice(0, 7)}-01`, row.valid_through]);
+      [tenantId, companyId, packageId, userId, correlationId,
+        row.kind === 'PIS_COFINS_TRANSITION_2026' ? 'LUCRO_PRESUMIDO_PIS_COFINS' : row.kind,
+        `${row.valid_from.slice(0, 7)}-01`, row.valid_through]);
       return { id: packageId, status: parsed.data.action };
     });
   }
@@ -237,6 +323,7 @@ export class MonthlyAssessmentsService {
         await client.query(`insert into app.tax_monthly_assessment_event(tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id,details)
           select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','DECLARATION_CHANGED','declarationId',$3::uuid)
           from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.competence=$6::date and a.kind=$7 and a.status='APPROVED'
+            and ($7<>'LUCRO_PRESUMIDO_PIS_COFINS' or a.canonical_json->>'contractVersion'='SPEC-037-v1')
             and not exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='INVALIDATED')`,
         [tenantId, companyId, id, userId, correlationId, competenceDate(parsed.competence), parsed.kind]);
         await client.query(`insert into app.tax_monthly_declaration_event(tenant_id,empresa_id,declaration_id,action,actor_id,occurred_at,correlation_id,details)
@@ -249,12 +336,17 @@ export class MonthlyAssessmentsService {
   async prepare(tenantId: string, userId: string, companyId: string, input: unknown, correlationId: string) {
     const parsed = PrepareMonthlyAssessmentSchema.parse(input);
     const kind = parsed.kind;
+    let transitionPackageId: string | null = parsed.transitionPackageId ?? null;
+    let transitionPackageHash = 'missing';
+    let transitionPackageStatus = 'MISSING';
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
       const company = await this.company(client, tenantId, companyId);
       if (!company || company['status'] !== 'ATIVA' || company['situacao'] !== 'ativo') throw new ErroDeDominio(CODIGOS_DE_ERRO.EMPRESA_NAO_ENCONTRADA, 'Empresa não encontrada ou inativa.');
       const expectedRegime = kind === 'SIMPLES_NACIONAL_DAS' ? 'SIMPLES_NACIONAL' : 'LUCRO_PRESUMIDO';
-      const regimeMatches = company['regime_tributario'] === expectedRegime && company['address_go'] === true &&
-        company['inscricao_estadual_situacao'] === 'POSSUI' && typeof company['inscricao_estadual_numero'] === 'string' && company['inscricao_estadual_numero'].trim() !== '';
+      const regimeMatches = kind === 'LUCRO_PRESUMIDO_PIS_COFINS'
+        ? company['regime_tributario'] === 'LUCRO_PRESUMIDO'
+        : company['regime_tributario'] === expectedRegime && company['address_go'] === true &&
+          company['inscricao_estadual_situacao'] === 'POSSUI' && typeof company['inscricao_estadual_numero'] === 'string' && company['inscricao_estadual_numero'].trim() !== '';
       const rule = await this.loadPackage(client, tenantId, companyId, parsed.rulePackageId);
       if (rule.kind !== kind) throw new ErroDeDominio(CODIGOS_DE_ERRO.MONTHLY_ASSESSMENT_REGIME_MISMATCH, 'Pacote não corresponde à trilha solicitada.');
       const ruleStatus = await this.packageStatus(client, rule.id, tenantId, companyId);
@@ -266,8 +358,8 @@ export class MonthlyAssessmentsService {
         and competence=$3::date and kind=$4 order by revision desc limit 1`, [tenantId, companyId, competenceDate(parsed.competence), kind]);
       const declarationRow = declarationResult.rows[0];
       const declaration = object(declarationRow?.['canonical_json']);
-      const evidenceResult = declarationRow ? await client.query<{ id: string; content_sha256: string; storage_key: string }>(
-        'select id,content_sha256,storage_key from app.tax_monthly_evidence where declaration_id=$1 and tenant_id=$2 and empresa_id=$3 order by id',
+      const evidenceResult = declarationRow ? await client.query<{ id: string; kind: string; content_sha256: string; storage_key: string }>(
+        'select id,kind,content_sha256,storage_key from app.tax_monthly_evidence where declaration_id=$1 and tenant_id=$2 and empresa_id=$3 order by id',
         [declarationRow['id'], tenantId, companyId]) : { rows: [] };
       const evidenceValid = evidenceResult.rows.length > 0 && (await Promise.all(evidenceResult.rows.map(async (item) => {
         const file = await this.storage.obter(item.storage_key);
@@ -276,7 +368,9 @@ export class MonthlyAssessmentsService {
       const documentWindowStart = `${monthOffset(parsed.competence, -12)}-01`;
       const cnpj = String(company['cnpj']).replace(/\D/gu, '');
       const documents = await this.loadDocuments(client, tenantId, companyId, cnpj, documentWindowStart, `${monthOffset(parsed.competence, 1)}-01`);
-      const postSaleCoverage = await this.loadPostSaleCoverage(client, tenantId, companyId, cnpj, documentWindowStart, `${monthOffset(parsed.competence, 1)}-01`);
+      const assessmentDocuments = kind === 'LUCRO_PRESUMIDO_PIS_COFINS' ? documents.filter((item) => item.competence === parsed.competence) : documents;
+      const postSaleCoverage = await this.loadPostSaleCoverage(client, tenantId, companyId, cnpj, documentWindowStart,
+        `${monthOffset(parsed.competence, 1)}-01`, kind === 'LUCRO_PRESUMIDO_PIS_COFINS');
       const data = object(declaration['declaration']);
       let calculated: MonthlyAssessment;
       if (kind === 'SIMPLES_NACIONAL_DAS' && content.kind === 'SIMPLES_NACIONAL_DAS') {
@@ -317,21 +411,95 @@ export class MonthlyAssessmentsService {
             ...(!inputData?.activityVerified ? ['MONTHLY_ASSESSMENT_EVIDENCE_REQUIRED'] : []), ...(!evidenceValid ? ['MONTHLY_ASSESSMENT_EVIDENCE_REQUIRED'] : []),
             ...(!priorCreditVerified ? ['MONTHLY_ASSESSMENT_PRIOR_CREDIT_UNPROVEN'] : []),
             ...(!regimeMatches ? ['MONTHLY_ASSESSMENT_REGIME_MISMATCH'] : [])], rule.version, calculated.components);
+      } else if (kind === 'LUCRO_PRESUMIDO_PIS_COFINS' && content.kind === 'LUCRO_PRESUMIDO_PIS_COFINS') {
+        const inputData = pisCofinsDeclaration(data);
+        const pisCofinsContent = content as Extract<MonthlyRulePackageInput, { kind: 'LUCRO_PRESUMIDO_PIS_COFINS' }>;
+        const evidenceKinds = new Set(evidenceResult.rows.map((item) => item.kind));
+        const annualOptionEvidenceProven = evidenceKinds.has('ANNUAL_RECOGNITION_OPTION');
+        const activityEvidenceProven = evidenceKinds.has('ACTIVITY_CLASSIFICATION');
+        const transitionRecord = parsed.transitionPackageId ? await this.loadPackage(client, tenantId, companyId, parsed.transitionPackageId) : null;
+        const transitionContent = transitionRecord ? MonthlyRulePackageSchema.parse(transitionRecord.canonical_json) : null;
+        const transitionStatus = transitionRecord ? await this.packageStatus(client, transitionRecord.id, tenantId, companyId) : 'MISSING';
+        transitionPackageStatus = transitionStatus;
+        transitionPackageHash = transitionRecord?.content_sha256 ?? 'missing';
+        const transitionFile = transitionRecord ? await this.storage.obter(transitionRecord.source_storage_key) : null;
+        const transitionHashValid = transitionRecord !== null && transitionFile !== null && transitionContent !== null &&
+          sha(transitionFile.conteudo) === transitionRecord.source_sha256 &&
+          sha(canonicalizarJson({ content: transitionContent, sourceSha: transitionRecord.source_sha256 })) === transitionRecord.content_sha256;
+        const transition = transitionContent?.kind === 'PIS_COFINS_TRANSITION_2026' && inputData !== null ? {
+          applies: inputData.transitionApplies, notApplicableProven: inputData.transitionNotApplicableProven,
+          approved: transitionStatus === 'APPROVED' && transitionHashValid, version: transitionContent.version,
+          sourceIds: [transitionContent.sourceUrl, transitionRecord?.source_sha256 ?? ''],
+          evidenceProven: evidenceValid && transitionContent.requiredEvidenceKinds.every((required) => evidenceResult.rows.some((item) => item.kind === required)),
+          offsetOrder: transitionContent.offsetOrder,
+          ...(inputData.totalTransitionOffsetCents !== undefined ? { totalOffsetCents: inputData.totalTransitionOffsetCents } : {}),
+          maximumPisOffsetCents: transitionContent.maximumOffsets.PIS_PASEP,
+          maximumCofinsOffsetCents: transitionContent.maximumOffsets.COFINS,
+        } : null;
+        const sourceDocuments = assessmentDocuments.map((item) => ({ id: item.id, hash: item.hash, competence: item.competence,
+          itemNumber: item.itemNumber, itemCents: item.itemCents, ncm: item.ncm, cfop: item.cfop, cst: item.cst, isSales: item.isSales }));
+        const reconciliationGaps = inputData ? reconcilePisCofinsRevenue(inputData.revenue, sourceDocuments, parsed.competence,
+          inputData.recognition, evidenceValid, inputData.revenueReconciled) : ['PIS_COFINS_EVIDENCE_REQUIRED'];
+        if (inputData && (!annualOptionEvidenceProven || !activityEvidenceProven || inputData.revenue.some((item) => {
+          const treatment = pisCofinsContent.treatments.find((candidate) => candidate.code === item.treatmentCode);
+          return !treatment || !treatment.requiredEvidenceKinds.every((required) => evidenceKinds.has(required));
+        }))) reconciliationGaps.push('PIS_COFINS_EVIDENCE_REQUIRED');
+        const historicalOptions = await client.query<{ recognition: string | null }>(`select distinct d.canonical_json->'declaration'->>'recognition' recognition
+          from app.tax_monthly_declaration d where d.tenant_id=$1 and d.empresa_id=$2 and d.kind='LUCRO_PRESUMIDO_PIS_COFINS'
+            and d.competence >= date '2026-01-01' and d.competence < date '2027-01-01'
+            and not exists(select 1 from app.tax_monthly_declaration_event e where e.declaration_id=d.id and e.action='SUPERSEDED')`, [tenantId, companyId]);
+        const recognitionConflict = inputData !== null && historicalOptions.rows.some((item) => item.recognition !== inputData.recognition);
+        if (postSaleCoverage.unresolved || postSaleCoverage.incompleteDocuments) reconciliationGaps.push('PIS_COFINS_REVENUE_RECONCILIATION_FAILED');
+        if (recognitionConflict) reconciliationGaps.push('PIS_COFINS_RECOGNITION_OPTION_CONFLICT');
+        const revenue = inputData?.revenue.map((item) => {
+          const manualEvidence = item.sourceIds.includes('DECLARATION') && evidenceValid;
+          const sourceIds = item.sourceIds.flatMap((sourceId) => sourceId === 'DECLARATION' && declarationRow
+            ? [`declaration:${String(declarationRow['id'])}`, ...evidenceResult.rows.map((evidence) => `evidence:${evidence.id}:${evidence.content_sha256}`)] : [sourceId]);
+          const treatmentEvidenceProven = pisCofinsContent.treatments.find((treatment) => treatment.code === item.treatmentCode)
+            ?.requiredEvidenceKinds.every((required) => evidenceKinds.has(required)) === true;
+          return { ...item, sourceIds, evidenceComplete: evidenceValid && treatmentEvidenceProven && (manualEvidence || item.sourceIds.some((sourceId) =>
+            sourceDocuments.some((document) => document.isSales && `${document.id}:${document.hash}:item:${document.itemNumber}` === sourceId))),
+            postSaleReconciled: !postSaleCoverage.unresolved && !postSaleCoverage.incompleteDocuments };
+        }) ?? [];
+        const mappedPackage: PisCofinsRulePackage = { version: pisCofinsContent.version, approved: ruleStatus === 'APPROVED' && validRule,
+          validFrom: pisCofinsContent.validFrom, validThrough: pisCofinsContent.validThrough, sourceIds: [pisCofinsContent.sourceUrl, rule.source_sha256],
+          treatments: pisCofinsContent.treatments, rounding: pisCofinsContent.rounding };
+        const result = calculatePisCofinsAssessment({ competence: parsed.competence, recognition: inputData?.recognition ?? null,
+          recognitionOptionProven: inputData?.recognitionOptionProven === true && evidenceValid && annualOptionEvidenceProven && !recognitionConflict,
+          package: mappedPackage, regimeEligible: regimeMatches, activityVerified: inputData?.activityVerified === true && evidenceValid && activityEvidenceProven,
+          revenueReconciled: inputData?.revenueReconciled === true && reconciliationGaps.length === 0, revenue, transition });
+        const gapCodes = [...new Set([...result.gapCodes, ...reconciliationGaps])].sort();
+        calculated = { kind, status: gapCodes.length === 0 ? result.status : 'INDETERMINATE', competence: result.competence,
+          rulePackageVersion: result.rulePackageVersion, transitionPackageVersion: result.transitionPackageVersion,
+          revenueRecognition: result.revenueRecognition, components: result.components.map((item) => ({
+            code: `${item.contribution}:${item.treatmentCode}`, contribution: item.contribution, treatmentCode: item.treatmentCode,
+            baseCents: item.baseCents, rateScaled: item.rateScaled, amountCents: item.netAmountCents, grossAmountCents: item.grossAmountCents,
+            transitionOffsetCents: item.transitionOffsetCents, netAmountCents: item.netAmountCents, ruleId: item.ruleId, sourceIds: item.sourceIds,
+          })), totalCents: null, pisPayableCents: gapCodes.length === 0 ? result.pisPayableCents : null,
+          cofinsPayableCents: gapCodes.length === 0 ? result.cofinsPayableCents : null,
+          unallocatedTransitionOffsetCents: gapCodes.length === 0 ? result.unallocatedTransitionOffsetCents : null, gapCodes };
       } else calculated = this.indeterminate(kind, parsed.competence, ['MONTHLY_ASSESSMENT_RULE_CONFLICT'], rule.version);
 
       const documentIds = [...new Set(documents.map((item) => `${item.id}:${item.hash}`))].sort();
       const declarationHash = String(declarationRow?.['content_sha256'] ?? 'missing');
-      const idempotencyHash = sha(canonicalizarJson({ tenantId, companyId, competence: parsed.competence, kind, rulePackageHash: rule.content_sha256,
-        declarationHash, documentIds, postSaleCoverage: postSaleCoverage.fingerprint,
+      const idempotencyHash = sha(canonicalizarJson({ tenantId, companyId, competence: parsed.competence, kind,
+        rulePackageHash: rule.content_sha256, rulePackageStatus: ruleStatus, ruleSourceValid: validRule,
+        transitionPackageId, transitionPackageHash, transitionPackageStatus,
+        declarationHash, documentIds: kind === 'LUCRO_PRESUMIDO_PIS_COFINS'
+          ? documentIds.filter((value) => assessmentDocuments.some((item) => `${item.id}:${item.hash}` === value)) : documentIds,
+        postSaleCoverage: postSaleCoverage.fingerprint,
         companyFacts: { status: company['status'], situation: company['situacao'], regime: company['regime_tributario'],
-          stateRegistration: company['inscricao_estadual_situacao'], stateRegistrationNumber: company['inscricao_estadual_numero'],
-          addressGo: company['address_go'] }, contractVersion: 'SPEC-036-v1' }));
-      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`f36/assessment/${tenantId}/${companyId}/${idempotencyHash}`]);
+          ...(kind === 'LUCRO_PRESUMIDO_PIS_COFINS' ? {} : { stateRegistration: company['inscricao_estadual_situacao'],
+            stateRegistrationNumber: company['inscricao_estadual_numero'], addressGo: company['address_go'] }) },
+        contractVersion: kind === 'LUCRO_PRESUMIDO_PIS_COFINS' ? 'SPEC-037-v1' : 'SPEC-036-v1' }));
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',
+        [`${kind === 'LUCRO_PRESUMIDO_PIS_COFINS' ? 'f37' : 'f36'}/assessment/${tenantId}/${companyId}/${idempotencyHash}`]);
       const prior = await client.query<StoredAssessment>(`select a.id,a.competence::text,a.kind,a.revision,
         case when exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='SUPERSEDED') then 'SUPERSEDED'
           when exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='INVALIDATED') then 'POSSIBLY_OUTDATED' else a.status end status,
-        a.content_sha256,a.canonical_json from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.idempotency_sha256=$3`,
-        [tenantId, companyId, idempotencyHash]);
+        a.content_sha256,a.canonical_json from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.idempotency_sha256=$3
+          and ($4<>'LUCRO_PRESUMIDO_PIS_COFINS' or a.canonical_json->>'contractVersion'='SPEC-037-v1')`,
+        [tenantId, companyId, idempotencyHash, kind]);
       if (prior.rows[0]) {
         let current = prior.rows[0];
         const visited = new Set<string>();
@@ -362,8 +530,14 @@ export class MonthlyAssessmentsService {
       const id = randomUUID();
       const createdAt = new Date().toISOString();
       const snapshot = { assessmentId: id, tenantId, companyId, competence: parsed.competence, kind, status: calculated.status,
-        rulePackageVersion: rule.version, components: calculated.components, totalCents: calculated.totalCents, gapCodes: calculated.gapCodes,
-        preparedBy: userId, approvedBy: null, approvedAtUtc: null, contractVersion: 'SPEC-036-v1', revisionCreatedAtUtc: createdAt,
+        rulePackageVersion: rule.version, ...(calculated.transitionPackageVersion !== undefined ? { transitionPackageVersion: calculated.transitionPackageVersion } : {}),
+        ...(calculated.revenueRecognition !== undefined ? { revenueRecognition: calculated.revenueRecognition } : {}),
+        ...(calculated.pisPayableCents !== undefined ? { pisPayableCents: calculated.pisPayableCents } : {}),
+        ...(calculated.cofinsPayableCents !== undefined ? { cofinsPayableCents: calculated.cofinsPayableCents } : {}),
+        ...(calculated.unallocatedTransitionOffsetCents !== undefined ? { unallocatedTransitionOffsetCents: calculated.unallocatedTransitionOffsetCents } : {}),
+        components: calculated.components, totalCents: calculated.totalCents, gapCodes: calculated.gapCodes,
+        preparedBy: userId, approvedBy: null, approvedAtUtc: null,
+        contractVersion: kind === 'LUCRO_PRESUMIDO_PIS_COFINS' ? 'SPEC-037-v1' : 'SPEC-036-v1', revisionCreatedAtUtc: createdAt,
       };
       const canonical = canonicalizarJson(snapshot);
       const hash = sha(canonical);
@@ -371,14 +545,22 @@ export class MonthlyAssessmentsService {
       await client.query(`insert into app.tax_monthly_assessment_event(tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id,details)
         select a.tenant_id,a.empresa_id,a.id,'INVALIDATED',$4,now(),$5,jsonb_build_object('reason','ASSESSMENT_INPUTS_CHANGED','replacementId',$8::uuid,'replacementHash',$6::text)
         from app.tax_monthly_assessment a where a.tenant_id=$1 and a.empresa_id=$2 and a.competence=$3::date and a.kind=$7 and a.status='APPROVED'
-          and a.idempotency_sha256<>$6
+          and a.idempotency_sha256<>$6 and ($7<>'LUCRO_PRESUMIDO_PIS_COFINS' or a.canonical_json->>'contractVersion'='SPEC-037-v1')
           and not exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action='INVALIDATED')`,
       [tenantId, companyId, competenceDate(parsed.competence), userId, correlationId, idempotencyHash, kind, id]);
-      await client.query(`insert into app.tax_monthly_assessment(id,tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,
-        idempotency_sha256,content_sha256,status,canonical_json,prepared_by,revision_created_at,correlation_id)
-        values($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15)`,
-      [id, tenantId, companyId, competenceDate(parsed.competence), kind, revision, rule.id, declarationRow?.['id'] ?? null, idempotencyHash, hash,
-        calculated.status, canonical, userId, createdAt, correlationId]);
+      if (kind === 'LUCRO_PRESUMIDO_PIS_COFINS') {
+        await client.query(`insert into app.tax_monthly_assessment(id,tenant_id,empresa_id,competence,kind,revision,rule_package_id,transition_package_id,declaration_id,
+          idempotency_sha256,content_sha256,status,canonical_json,prepared_by,revision_created_at,correlation_id)
+          values($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16)`,
+        [id, tenantId, companyId, competenceDate(parsed.competence), kind, revision, rule.id, transitionPackageId, declarationRow?.['id'] ?? null,
+          idempotencyHash, hash, calculated.status, canonical, userId, createdAt, correlationId]);
+      } else {
+        await client.query(`insert into app.tax_monthly_assessment(id,tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,
+          idempotency_sha256,content_sha256,status,canonical_json,prepared_by,revision_created_at,correlation_id)
+          values($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15)`,
+        [id, tenantId, companyId, competenceDate(parsed.competence), kind, revision, rule.id, declarationRow?.['id'] ?? null,
+          idempotencyHash, hash, calculated.status, canonical, userId, createdAt, correlationId]);
+      }
       await this.assessmentEvent(client, tenantId, companyId, id, 'CREATED', userId, correlationId, { status: calculated.status, hash });
       return { ...snapshot, canonicalJsonHash: hash };
     });
@@ -402,7 +584,8 @@ export class MonthlyAssessmentsService {
 
   private async loadDocuments(client: PoolClient, tenantId: string, companyId: string, cnpj: string, from: string, to: string) {
     const result = await client.query<Row>(`select d.id,d.especie,d.hash_sha256,d.chave_acesso,to_char(d.emitido_em,'YYYY-MM') competence,
-      round(d.total*100)::bigint::text total_cents,i.numero,i.cfop,i.cst_csosn,
+      d.emitido_em::text recognized_at,round(d.total*100)::bigint::text total_cents,i.id item_id,i.numero,i.ncm,i.cfop,i.cst_csosn,
+      round(i.valor*100)::bigint::text item_total_cents,
       round(t.base_calculo*100)::bigint::text icms_base_cents,round(t.valor*100)::bigint::text icms_value_cents,t.situacao tax_situation,
       (exists(select 1 from app.fiscal_document_party party where party.document_id=d.id and party.tenant_id=d.tenant_id and party.empresa_id=d.empresa_id
         and party.papel='EMITENTE' and party.identificador=$5) or exists(select 1 from app.fiscal_document_party party where party.document_id=d.id and party.tenant_id=d.tenant_id and party.empresa_id=d.empresa_id
@@ -415,48 +598,52 @@ export class MonthlyAssessmentsService {
       where d.tenant_id=$1 and d.empresa_id=$2 and d.estado='PROCESSADO' and d.protocolo is not null and d.especie in ('NFE_55','NFCE_65')
         and d.emitido_em >= $3::date and d.emitido_em < $4::date and app.empresa_autorizada(d.empresa_id)
       order by d.emitido_em,d.id,i.numero`, [tenantId, companyId, from, to, cnpj]);
-    return result.rows.map((row) => ({ id: String(row['id']), hash: String(row['hash_sha256']), competence: String(row['competence']),
+    return result.rows.map((row) => ({ id: String(row['id']), itemId: String(row['item_id']), hash: String(row['hash_sha256']), competence: String(row['competence']),
+      recognizedAt: String(row['recognized_at']), itemNumber: Number(row['numero']), itemCents: valueCents(row['item_total_cents']),
+      ncm: row['ncm'] === null ? null : String(row['ncm']), cfop: row['cfop'] === null ? null : String(row['cfop']),
       species: String(row['especie']), key: row['chave_acesso'] === null ? null : String(row['chave_acesso']),
-      documentTotalCents: valueCents(row['total_cents']), itemNumber: Number(row['numero']), cfop: row['cfop'] === null ? null : String(row['cfop']),
+      documentTotalCents: valueCents(row['total_cents']),
       isSales: row['is_sales'] === true, isCompanyParty: row['is_company_party'] === true,
       cst: row['cst_csosn'] === null ? (row['tax_situation'] === null ? null : String(row['tax_situation'])) : String(row['cst_csosn']),
       icmsBaseCents: valueCents(row['icms_base_cents']), icmsValueCents: valueCents(row['icms_value_cents']) }));
   }
 
-  private async loadPostSaleCoverage(client: PoolClient, tenantId: string, companyId: string, cnpj: string, from: string, to: string) {
+  private async loadPostSaleCoverage(client: PoolClient, tenantId: string, companyId: string, cnpj: string, from: string, to: string,
+    scopedToCurrentCompetence = false) {
+    const documentScope = scopedToCurrentCompetence ? "d.emitido_em >= $6::date and d.emitido_em < $7::date" : 'true';
     const result = await client.query<{ cancelled: number; events: number; reference_count: number; incomplete: number; fingerprint: string | null }>(`select
       (select count(distinct d.id)::int from app.fiscal_document d where d.tenant_id=$1 and d.empresa_id=$2 and d.estado='CANCELLED'
         and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date
-        and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))) cancelled,
+        and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})) cancelled,
       (select count(distinct d.id)::int from app.fiscal_document d join app.fiscal_document_event e on e.document_id=d.id and e.tenant_id=d.tenant_id and e.empresa_id=d.empresa_id
         where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date
           and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))
-          and (lower(e.tipo) like '%cancel%' or lower(e.tipo) like '%devol%' or e.codigo='110111')) events,
+          and (lower(e.tipo) like '%cancel%' or lower(e.tipo) like '%devol%' or e.codigo='110111') and (${documentScope})) events,
       (select count(distinct d.id)::int from app.fiscal_document d join app.fiscal_document_reference r on r.document_id=d.id and r.tenant_id=d.tenant_id and r.empresa_id=d.empresa_id
         where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date
-          and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))) reference_count,
+          and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})) reference_count,
       (select count(distinct d.id)::int from app.fiscal_document d where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65')
         and d.emitido_em >= $3::date and d.emitido_em < $4::date and (d.estado<>'PROCESSADO' or d.protocolo is null)
         and (exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))
-          or regexp_replace(coalesce(d.emitente,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g') or regexp_replace(coalesce(d.destinatario,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g'))) incomplete,
+          or regexp_replace(coalesce(d.emitente,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g') or regexp_replace(coalesce(d.destinatario,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g')) and (${documentScope}) incomplete,
       coalesce((select string_agg(d.id::text||':'||e.id::text||':'||coalesce(e.hash_sha256,''),',' order by d.id,e.id)
         from app.fiscal_document d join app.fiscal_document_event e on e.document_id=d.id and e.tenant_id=d.tenant_id and e.empresa_id=d.empresa_id
         where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date
-          and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))), '') || ':' ||
+          and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})), '') || ':' ||
       coalesce((select string_agg(d.id::text||':'||d.hash_sha256,',' order by d.id) from app.fiscal_document d
         where d.tenant_id=$1 and d.empresa_id=$2 and d.estado='CANCELLED' and d.especie in ('NFE_55','NFCE_65')
           and d.emitido_em >= $3::date and d.emitido_em < $4::date and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id
-            and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))), '') || ':' ||
+            and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})), '') || ':' ||
       coalesce((select string_agg(d.id::text||':'||d.hash_sha256||':'||d.estado||':'||coalesce(d.protocolo,''),',' order by d.id) from app.fiscal_document d
         where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date
           and (d.estado<>'PROCESSADO' or d.protocolo is null) and (exists(select 1 from app.fiscal_document_party p where p.document_id=d.id
             and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))
-            or regexp_replace(coalesce(d.emitente,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g') or regexp_replace(coalesce(d.destinatario,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g'))), '') || ':' ||
+            or regexp_replace(coalesce(d.emitente,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g') or regexp_replace(coalesce(d.destinatario,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})), '') || ':' ||
       coalesce((select string_agg(d.id::text||':'||r.tipo||':'||r.chave,',' order by d.id,r.tipo,r.chave)
         from app.fiscal_document d join app.fiscal_document_reference r on r.document_id=d.id and r.tenant_id=d.tenant_id and r.empresa_id=d.empresa_id
         where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date
-          and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))), '') fingerprint`,
-    [tenantId, companyId, from, to, cnpj]);
+          and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})), '') fingerprint`,
+    [tenantId, companyId, from, to, cnpj, from, to]);
     const row = result.rows[0];
     const cancelled = Number(row?.cancelled ?? 0); const events = Number(row?.events ?? 0); const referenceCount = Number(row?.reference_count ?? 0);
     const incomplete = Number(row?.incomplete ?? 0);
@@ -533,6 +720,7 @@ export class MonthlyAssessmentsService {
           when exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=tax_monthly_assessment.id and e.action='INVALIDATED') then 'POSSIBLY_OUTDATED' else status end status,
         content_sha256,canonical_json from app.tax_monthly_assessment
         where tenant_id=$1 and empresa_id=$2 and ($3::date is null or competence=$3::date) and ($4::text is null or kind=$4)
+        and ($4::text<>'LUCRO_PRESUMIDO_PIS_COFINS' or canonical_json->>'contractVersion'='SPEC-037-v1')
         and app.empresa_autorizada(empresa_id) order by competence desc,kind,revision desc limit $5 offset $6`,
       [tenantId, companyId, filters.competence ? competenceDate(filters.competence) : null, filters.kind ?? null, filters.pageSize, (filters.page - 1) * filters.pageSize]);
       return { items: result.rows.map((row) => this.assessmentDto(row)) };
@@ -583,11 +771,19 @@ export class MonthlyAssessmentsService {
         [tenantId, companyId, competenceDate(row.competence.slice(0, 7)), row.kind]);
       const nextRevision = latestRevision.rows[0]?.revision ?? row.revision + 1;
       const idem = sha(canonicalizarJson({ parentHash: row.content_sha256, action: parsed.action, reason: parsed.reason, actor: userId }));
-      await client.query(`insert into app.tax_monthly_assessment(id,tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,
-        idempotency_sha256,content_sha256,status,canonical_json,prepared_by,revision_created_at,correlation_id)
-        select $1,tenant_id,empresa_id,competence,kind,$2,rule_package_id,declaration_id,$3,$4,$5,$6::jsonb,$7,$8,$9
-        from app.tax_monthly_assessment where id=$10 and tenant_id=$11 and empresa_id=$12`,
-      [newId, nextRevision, idem, hash, status, canonical, row.prepared_by, snapshot.revisionCreatedAtUtc, correlationId, row.id, tenantId, companyId]);
+      if (row.kind === 'LUCRO_PRESUMIDO_PIS_COFINS') {
+        await client.query(`insert into app.tax_monthly_assessment(id,tenant_id,empresa_id,competence,kind,revision,rule_package_id,transition_package_id,declaration_id,
+          idempotency_sha256,content_sha256,status,canonical_json,prepared_by,revision_created_at,correlation_id)
+          select $1,tenant_id,empresa_id,competence,kind,$2,rule_package_id,transition_package_id,declaration_id,$3,$4,$5,$6::jsonb,$7,$8,$9
+          from app.tax_monthly_assessment where id=$10 and tenant_id=$11 and empresa_id=$12`,
+        [newId, nextRevision, idem, hash, status, canonical, row.prepared_by, snapshot.revisionCreatedAtUtc, correlationId, row.id, tenantId, companyId]);
+      } else {
+        await client.query(`insert into app.tax_monthly_assessment(id,tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,
+          idempotency_sha256,content_sha256,status,canonical_json,prepared_by,revision_created_at,correlation_id)
+          select $1,tenant_id,empresa_id,competence,kind,$2,rule_package_id,declaration_id,$3,$4,$5,$6::jsonb,$7,$8,$9
+          from app.tax_monthly_assessment where id=$10 and tenant_id=$11 and empresa_id=$12`,
+        [newId, nextRevision, idem, hash, status, canonical, row.prepared_by, snapshot.revisionCreatedAtUtc, correlationId, row.id, tenantId, companyId]);
+      }
       const action = parsed.action === 'APPROVED' ? 'APPROVED' : parsed.action === 'REJECTED' ? 'REJECTED' : 'RETURNED_FOR_EVIDENCE';
       await this.assessmentEvent(client, tenantId, companyId, newId, action, userId, correlationId, { reason: parsed.reason, parentAssessmentId: row.id, hash });
       await this.assessmentEvent(client, tenantId, companyId, row.id, 'SUPERSEDED', userId, correlationId, { supersededBy: newId });
@@ -618,11 +814,15 @@ export class MonthlyAssessmentsService {
     } catch { this.logger.error(`Falha ao auditar tentativa de revisão do pacote [${correlationId}]`); }
   }
 
-  async export(tenantId: string, userId: string, companyId: string, assessmentId: string, format: 'PDF' | 'CSV' | 'JSON', correlationId: string) {
+  async export(tenantId: string, userId: string, companyId: string, assessmentId: string,
+    format: 'PDF' | 'CSV' | 'JSON' | 'PIS_DARF_DRAFT' | 'COFINS_DARF_DRAFT', correlationId: string) {
     const data: Row = await this.get(tenantId, userId, companyId, assessmentId, correlationId);
     if (data['status'] === 'INDETERMINATE' || data['status'] === 'INCOMPLETE' || data['status'] === 'DRAFT' || data['status'] === 'REJECTED' ||
         data['status'] === 'POSSIBLY_OUTDATED' || data['status'] === 'SUPERSEDED')
       throw new ErroDeDominio(CODIGOS_DE_ERRO.MONTHLY_ASSESSMENT_INDETERMINATE, 'Revisão indeterminada não pode ser exportada como guia.');
+    if ((format === 'PIS_DARF_DRAFT' || format === 'COFINS_DARF_DRAFT') &&
+        (data['kind'] !== 'LUCRO_PRESUMIDO_PIS_COFINS' || data['status'] !== 'APPROVED'))
+      throw new ErroDeDominio(CODIGOS_DE_ERRO.PIS_COFINS_INDETERMINATE, 'Rascunho local de DARF exige revisão F37 aprovada.');
     const { canonicalJsonHash: declaredHash, ...payload } = data;
     const canonical = canonicalizarJson(payload);
     const hash = sha(canonical);
@@ -630,10 +830,13 @@ export class MonthlyAssessmentsService {
     let bytes: Buffer;
     let contentType: string;
     if (format === 'PDF') { bytes = renderMonthlyAssessmentPdf(data); contentType = 'application/pdf'; }
+    else if (format === 'PIS_DARF_DRAFT' || format === 'COFINS_DARF_DRAFT') {
+      bytes = renderMonthlyDarfDraftPdf(data, format === 'PIS_DARF_DRAFT' ? 'PIS_PASEP' : 'COFINS'); contentType = 'application/pdf';
+    }
     else if (format === 'CSV') {
       const escape = (value: unknown) => `"${String(value ?? '').replace(/"/gu, '""')}"`;
-      const rows = [['assessmentId', 'competence', 'kind', 'status', 'component', 'baseCents', 'rateScaled', 'amountCents', 'ruleId', 'sourceIds', 'totalCents', 'gapCodes', 'canonicalJsonHash'],
-        ...(Array.isArray(data['components']) ? data['components'].map((raw) => { const item = object(raw); return [data['assessmentId'], data['competence'], data['kind'], data['status'], item['code'], item['baseCents'], item['rateScaled'], item['amountCents'], item['ruleId'], Array.isArray(item['sourceIds']) ? item['sourceIds'].join('|') : '', data['totalCents'], Array.isArray(data['gapCodes']) ? data['gapCodes'].join('|') : '', hash]; }) : [])];
+      const rows = [['assessmentId', 'competence', 'kind', 'status', 'component', 'contribution', 'baseCents', 'rateScaled', 'grossAmountCents', 'transitionOffsetCents', 'amountCents', 'ruleId', 'sourceIds', 'totalCents', 'pisPayableCents', 'cofinsPayableCents', 'gapCodes', 'canonicalJsonHash'],
+        ...(Array.isArray(data['components']) ? data['components'].map((raw) => { const item = object(raw); return [data['assessmentId'], data['competence'], data['kind'], data['status'], item['code'], item['contribution'], item['baseCents'], item['rateScaled'], item['grossAmountCents'] ?? item['amountCents'], item['transitionOffsetCents'], item['amountCents'], item['ruleId'], Array.isArray(item['sourceIds']) ? item['sourceIds'].join('|') : '', data['totalCents'], data['pisPayableCents'], data['cofinsPayableCents'], Array.isArray(data['gapCodes']) ? data['gapCodes'].join('|') : '', hash]; }) : [])];
       bytes = Buffer.from(rows.map((row) => row.map(escape).join(',')).join('\r\n'), 'utf8'); contentType = 'text/csv; charset=utf-8';
     } else { bytes = Buffer.from(canonicalizarJson({ assessment: payload, canonicalJsonHash: hash }), 'utf8'); contentType = 'application/json'; }
     await comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {

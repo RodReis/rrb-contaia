@@ -23,4 +23,23 @@ describe('contratos de apuração mensal', () => {
     expect(MonthlyDeclarationSchema.safeParse({ ...declaration, justification: 'Conferência conforme o documento anexo.' }).success).toBe(true);
     expect(MonthlyDeclarationSchema.safeParse(declaration).success).toBe(false);
   });
+
+  it('valida pacote cumulativo PIS/Cofins para 2026 sem taxas padrão embutidas', () => {
+    const packageInput = { kind: 'LUCRO_PRESUMIDO_PIS_COFINS', version: 'fixture', validFrom: '2026-01-01', validThrough: '2026-12-31',
+      consultedAt: '2026-10-26', officialBasis: 'Fixture sintética de contrato.', sourceUrl: 'https://example.org/pis-cofins', rounding: 'HALF_UP',
+      treatments: [{ code: 'TEST_ONLY', ncmCodes: ['12345678'], cfops: ['5102'], cstCodes: ['01'], pisRateScaled: '1',
+        cofinsRateScaled: '2', sourceIds: ['fixture-source'], requiredEvidenceKinds: ['TEST_TREATMENT_PROOF'] }] };
+    expect(MonthlyRulePackageSchema.safeParse(packageInput).success).toBe(true);
+    expect(MonthlyRulePackageSchema.safeParse({ ...packageInput, validThrough: '2027-01-01' }).success).toBe(false);
+    expect(MonthlyRulePackageSchema.safeParse({ ...packageInput, treatments: [] }).success).toBe(false);
+  });
+
+  it('exige limites e evidências no pacote de transição CBS/IBS de 2026', () => {
+    const packageInput = { kind: 'PIS_COFINS_TRANSITION_2026', version: 'fixture', validFrom: '2026-01-01', validThrough: '2026-12-31',
+      consultedAt: '2026-10-26', officialBasis: 'Fixture sintética de contrato.', sourceUrl: 'https://example.org/transition',
+      offsetOrder: ['PIS_PASEP', 'COFINS'], maximumOffsets: { PIS_PASEP: 10_000, COFINS: 100_000 },
+      requiredEvidenceKinds: ['RECOLHIMENTO_COMPROVADO'], rounding: 'HALF_UP' };
+    expect(MonthlyRulePackageSchema.safeParse(packageInput).success).toBe(true);
+    expect(MonthlyRulePackageSchema.safeParse({ ...packageInput, requiredEvidenceKinds: [] }).success).toBe(false);
+  });
 });

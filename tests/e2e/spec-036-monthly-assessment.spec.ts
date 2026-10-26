@@ -40,7 +40,10 @@ let icmsPackageId = '';
 let simpleDocumentId = '';
 let simpleStagingId = '';
 let simpleDocumentHash = '';
+let presumedDocumentId = '';
+let presumedDocumentHash = '';
 let achados: AchadosVisuais | null = null;
+let achadosF37: AchadosVisuais | null = null;
 
 const intervalos = Array.from({ length: 6 }, (_, index) => ({ id: `faixa-${index + 1}`, minimumRbt12Cents: index * 100_000_000,
   maximumRbt12Cents: index === 5 ? null : (index + 1) * 100_000_000 - 1, nominalRateBasisPoints: 100,
@@ -53,6 +56,13 @@ const pacoteIcms = { kind: 'LUCRO_PRESUMIDO_ICMS_DARE', version: `${PREFIXO}-icm
   consultedAt: '2026-10-25', officialBasis: 'Fixture sintética F36, sem validade tributária.', sourceUrl: 'https://example.invalid/f36/icms',
   operations: [{ id: 'CFOP-5102-CST-00', cfops: ['5102'], cstCsosn: ['00'], effect: 'DEBIT', amountSource: 'DECLARED_ICMS', rateBasisPoints: null }],
   rounding: 'HALF_UP', allowedAdjustments: [] };
+const pacotePisCofins = { kind: 'LUCRO_PRESUMIDO_PIS_COFINS', version: `${PREFIXO}-pis-cofins`, validFrom: '2026-01-01', validThrough: '2026-12-31',
+  consultedAt: '2026-10-26', officialBasis: 'Fixture sintética F37; taxas sem validade tributária.', sourceUrl: 'https://example.invalid/f37/pis-cofins',
+  treatments: [{ code: 'TEST_NORMAL', ncmCodes: ['87082999'], cfops: ['5102'], cstCodes: ['00'], pisRateScaled: '1', cofinsRateScaled: '2',
+    sourceIds: ['fixture-source'], requiredEvidenceKinds: ['TREATMENT_PROOF'] }], rounding: 'HALF_UP' };
+const pacoteTransicao = { kind: 'PIS_COFINS_TRANSITION_2026', version: `${PREFIXO}-transition`, validFrom: '2026-01-01', validThrough: '2026-12-31',
+  consultedAt: '2026-10-26', officialBasis: 'Fixture sintética F37; sem regra fiscal.', sourceUrl: 'https://example.invalid/f37/transicao',
+  offsetOrder: ['PIS_PASEP', 'COFINS'], maximumOffsets: { PIS_PASEP: 0, COFINS: 0 }, requiredEvidenceKinds: ['TRANSITION_PROOF'], rounding: 'HALF_UP' };
 
 const criarDocumento = async (companyId: string, cnpj: string, date: string, cents: number, suffix: string, icmsCents?: number) => {
   const cnpjSemMascara = cnpj.replace(/\D/gu, '');
@@ -101,28 +111,31 @@ const aprovarPacote = async (companyId: string, packageId: string) => {
   expect(response.status(), await response.text()).toBe(201);
 };
 
-const declarar = async (companyId: string, data: object) => {
+const declarar = async (companyId: string, data: object,
+  kind?: 'SIMPLES_NACIONAL_DAS' | 'LUCRO_PRESUMIDO_ICMS_DARE' | 'LUCRO_PRESUMIDO_PIS_COFINS', evidenceKinds = ['DOCUMENTO_CONTABIL']) => {
   const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments/declarations`, { multipart: {
-    declaration: JSON.stringify({ competence: dataCompetencia, kind: companyId === simpleCompanyId ? 'SIMPLES_NACIONAL_DAS' : 'LUCRO_PRESUMIDO_ICMS_DARE',
+    declaration: JSON.stringify({ competence: dataCompetencia, kind: kind ?? (companyId === simpleCompanyId ? 'SIMPLES_NACIONAL_DAS' : 'LUCRO_PRESUMIDO_ICMS_DARE'),
       justification: 'Declaração sintética rastreável para teste E2E da F36.', declaration: data,
-      evidence: [{ kind: 'DOCUMENTO_CONTABIL', description: 'Comprovante sintético sem valor fiscal.' }] }),
-    evidence: { name: 'evidencia-f36.pdf', mimeType: 'application/pdf', buffer: Buffer.from('evidência sintética F36') },
+      evidence: evidenceKinds.map((evidenceKind) => ({ kind: evidenceKind, description: 'Comprovante sintético sem valor fiscal.' })) }),
+    evidence: evidenceKinds.map((_, index) => ({ name: `evidencia-f36-${index}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from('evidência sintética F36') })),
   } });
   expect(response.status(), await response.text()).toBe(201);
   return await response.json() as { id: string; revision: number; hash: string };
 };
 
-const preparar = async (companyId: string, kind: 'SIMPLES_NACIONAL_DAS' | 'LUCRO_PRESUMIDO_ICMS_DARE', rulePackageId: string) => {
-  const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments`, { data: { competence: dataCompetencia, kind, rulePackageId } });
+const preparar = async (companyId: string, kind: 'SIMPLES_NACIONAL_DAS' | 'LUCRO_PRESUMIDO_ICMS_DARE' | 'LUCRO_PRESUMIDO_PIS_COFINS',
+  rulePackageId: string, transitionPackageId?: string) => {
+  const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments`, { data: { competence: dataCompetencia, kind, rulePackageId,
+    ...(transitionPackageId ? { transitionPackageId } : {}) } });
   expect(response.status(), await response.text()).toBe(201);
-  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; canonicalJsonHash: string; gapCodes?: string[] };
+  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; pisPayableCents?: number | null; cofinsPayableCents?: number | null; canonicalJsonHash: string; gapCodes?: string[] };
 };
 
 const aprovarApuracao = async (companyId: string, assessment: Awaited<ReturnType<typeof preparar>>) => {
   const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments/${assessment.assessmentId}/review`,
     { data: { action: 'APPROVED', reason: 'Conferência manual da memória sintética; rascunho local.', expectedHash: assessment.canonicalJsonHash } });
   expect(response.status(), await response.text()).toBe(201);
-  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; canonicalJsonHash: string; gapCodes?: string[] };
+  return await response.json() as { assessmentId: string; status: string; totalCents: number | null; pisPayableCents?: number | null; cofinsPayableCents?: number | null; canonicalJsonHash: string; gapCodes?: string[] };
 };
 
 test.beforeAll(async ({ browser }: { browser: Browser }) => {
@@ -142,7 +155,8 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
   await criarDocumento(simpleCompanyId, CNPJ_SIMPLES, '2026-08', 50_000, 'doc-1');
   const current = await criarDocumento(simpleCompanyId, CNPJ_SIMPLES, dataCompetencia, 100_000, 'doc-2');
   simpleDocumentId = current.id; simpleStagingId = current.stagingId; simpleDocumentHash = current.hash;
-  await criarDocumento(presumedCompanyId, CNPJ_PRESUMIDO, dataCompetencia, 100_000, 'doc-3', 180);
+  const presumedDocument = await criarDocumento(presumedCompanyId, CNPJ_PRESUMIDO, dataCompetencia, 100_000, 'doc-3', 180);
+  presumedDocumentId = presumedDocument.id; presumedDocumentHash = presumedDocument.hash;
   context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   page = await context.newPage();
   await entrarComo(page, CONTADOR, `/empresas/${simpleCompanyId}`);
@@ -249,5 +263,56 @@ test('F36 mantém responsividade, acessibilidade crítica e os dois temas nas tr
   expect(achados).not.toBeNull();
   expect(achados?.rolagens).toEqual([]);
   for (const [theme, violations] of Object.entries(achados?.violacoes ?? {}))
+    expect(violations.filter((item) => item.impacto === 'critical'), `${theme}: axe`).toEqual([]);
+});
+
+test('F37 apura PIS/Cofins separadamente e exporta apenas rascunhos locais aprovados', async () => {
+  test.setTimeout(180_000);
+  const pisPackage = await importarPacote(presumedCompanyId, pacotePisCofins);
+  const transitionPackage = await importarPacote(presumedCompanyId, pacoteTransicao);
+  await aprovarPacote(presumedCompanyId, pisPackage.id);
+  await aprovarPacote(presumedCompanyId, transitionPackage.id);
+  await declarar(presumedCompanyId, {
+    recognition: 'ACCRUAL', recognitionOptionProven: true, activityVerified: true, revenueReconciled: true,
+    revenue: [{ id: 'invoice-item-1', recognizedAt: `${dataCompetencia}-15`, cents: 1_000, ncm: '87082999', cfop: '5102', cst: '00',
+      treatmentCode: 'TEST_NORMAL', sourceIds: [`${presumedDocumentId}:${presumedDocumentHash}:item:1`], evidenceComplete: true, postSaleReconciled: true }],
+    transitionApplies: false, transitionNotApplicableProven: true, totalTransitionOffsetCents: 0,
+  }, 'LUCRO_PRESUMIDO_PIS_COFINS', ['ANNUAL_RECOGNITION_OPTION', 'ACTIVITY_CLASSIFICATION', 'TREATMENT_PROOF', 'TRANSITION_PROOF']);
+
+  const assessment = await preparar(presumedCompanyId, 'LUCRO_PRESUMIDO_PIS_COFINS', pisPackage.id, transitionPackage.id);
+  expect(assessment, JSON.stringify(assessment)).toMatchObject({ status: 'READY_FOR_REVIEW', totalCents: null, pisPayableCents: 10, cofinsPayableCents: 20 });
+  const approved = await aprovarApuracao(presumedCompanyId, assessment);
+  expect(approved).toMatchObject({ status: 'APPROVED', pisPayableCents: 10, cofinsPayableCents: 20 });
+
+  for (const format of ['PIS_DARF_DRAFT', 'COFINS_DARF_DRAFT'] as const) {
+    const exported = await page.request.get(`${BASE_URL}/${presumedCompanyId}/fiscal-documents/monthly-assessments/${approved.assessmentId}/export?format=${format}`);
+    expect(exported.ok(), `${format}: ${exported.status()} ${await exported.text()}`).toBeTruthy();
+    const pdf = (await exported.body()).toString('latin1');
+    expect(pdf).toContain('NAO OFICIAL / SEM CODIGO PAGAVEL');
+    expect(pdf).not.toMatch(/codigo de barras|linha digitavel|autenticacao/iu);
+    expect(exported.headers()['x-canonical-json-sha256']).toBe(approved.canonicalJsonHash);
+  }
+
+  const list = await page.request.get(`${BASE_URL}/${presumedCompanyId}/fiscal-documents/monthly-assessments/history?competence=${dataCompetencia}&kind=LUCRO_PRESUMIDO_PIS_COFINS&page=1&pageSize=50`);
+  expect(list.ok(), `Histórico F37: ${list.status()}`).toBeTruthy();
+  await page.goto(`/empresas/${presumedCompanyId}?aba=apuracao-fiscal`);
+  await expect(page.getByRole('region', { name: 'Apuração fiscal mensal' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Trilha fiscal' }).click();
+  await page.getByRole('option', { name: 'Lucro Presumido · PIS/Pasep e Cofins' }).click();
+  await page.getByRole('combobox', { name: 'Competência' }).click();
+  await page.getByRole('option', { name: /setembro de 2026/iu }).click();
+  await expect(page.getByText('PIS/Pasep preliminar')).toBeVisible();
+  await expect(page.getByText('Cofins preliminar')).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Compensação' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Rascunho DARF PIS' })).toBeEnabled();
+  achadosF37 = await provarVisualmente(page, resolve('test-results', process.env['PROVA_ESCOPO'] ?? 'SPEC-037', 'e2e/provas/spec-037'),
+    'f37-pis-cofins-aprovada', { pronto: (target) => target.getByRole('region', { name: 'Apuração fiscal mensal' }),
+      recorte: (target) => target.getByRole('region', { name: 'Apuração fiscal mensal' }), semToasts: true });
+});
+
+test('F37 mantém responsividade, acessibilidade crítica e os dois temas nas três larguras', () => {
+  expect(achadosF37).not.toBeNull();
+  expect(achadosF37?.rolagens).toEqual([]);
+  for (const [theme, violations] of Object.entries(achadosF37?.violacoes ?? []))
     expect(violations.filter((item) => item.impacto === 'critical'), `${theme}: axe`).toEqual([]);
 });
