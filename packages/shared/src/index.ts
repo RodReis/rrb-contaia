@@ -6,6 +6,10 @@ export { AUDIT_EXPORT_QUEUE, AUDIT_EXPORT_JOB, AUDIT_EXPORT_EXPIRY_JOB, AUDIT_EX
 export type { AuditExportCommand, AuditExportExpiryCommand } from './audit-export.js';
 export type { ProblemDetails } from './problem.js';
 export { canonicalizarJson } from './canonical-json.js';
+export { MonthlyAssessmentKindSchema, MonthlyAssessmentStatusSchema, MonthlyAssessmentListQuerySchema,
+  MonthlyAssessmentSchema, MonthlyDeclarationSchema, MonthlyRulePackageSchema, MonthlyTaxComponentSchema,
+  PrepareMonthlyAssessmentSchema, ReviewMonthlyAssessmentSchema } from './monthly-assessment.js';
+export type { MonthlyRulePackageInput } from './monthly-assessment.js';
 export {
   LIMITE_DE_DOCUMENTO_BYTES,
   LIMITE_DE_DOCUMENTO_DA_EMPRESA_BYTES,

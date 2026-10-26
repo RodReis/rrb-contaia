@@ -86,6 +86,21 @@ const prepararDossieF35 = async (admin: Consultavel, e: Escopo): Promise<Referen
   return { sourcePackageId, accrualResultId, dossierId };
 };
 
+const prepararApuracaoMensalF36 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const marker = `${e.sufixo}-${proximo()}`;
+  const packageId = await unico(admin, `insert into app.tax_monthly_rule_package
+    (tenant_id,empresa_id,kind,version,valid_from,valid_through,consulted_at,official_basis,source_url,source_storage_key,
+      source_sha256,content_sha256,canonical_json,requested_by,created_at)
+    values($1,$2,'LUCRO_PRESUMIDO_ICMS_DARE',$3,'2026-01-01',null,'2026-01-01','Fixture RLS F36',
+      'https://example.invalid/f36','fixture/f36/'||$3,repeat(md5($3||'s'),2),repeat(md5($3||'c'),2),'{}'::jsonb,$4,now()) returning id`,
+  [e.tenantId,e.empresaId,`f36-${marker}`,e.autorId]);
+  const declarationId = await unico(admin, `insert into app.tax_monthly_declaration
+    (tenant_id,empresa_id,competence,kind,revision,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at,correlation_id)
+    values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,repeat(md5($4||'d'),2),repeat(md5($4||'h'),2),
+      '{}'::jsonb,$5,now(),'f36-rls-fixture') returning id`, [e.tenantId,e.empresaId,proximo(),marker,e.autorId]);
+  return { packageId, declarationId, marker };
+};
+
 const prepararOcorrenciaObrigacao = async (admin: Consultavel,e: Escopo): Promise<Referencias> => {
   const regra = await prepararRegraObrigacao(admin);
   const occurrenceId = await unico(admin,
@@ -1458,5 +1473,63 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
         `insert into app.tax_entry_resolution_human_review_event(tenant_id,empresa_id,review_id,action,actor_id,correlation_id,occurred_at,lock_version)
          values($1,$2,$3,'SUBMITTED',$4,'rls-f28-event',now(),1) returning id`,[e.tenantId,e.empresaId,reviewId,e.autorId]);
     },
+  },
+  'app.tax_monthly_rule_package': {
+    inserir: (banco,e) => unico(banco, `insert into app.tax_monthly_rule_package
+      (tenant_id,empresa_id,kind,version,valid_from,valid_through,consulted_at,official_basis,source_url,source_storage_key,
+        source_sha256,content_sha256,canonical_json,requested_by,created_at)
+      values($1,$2,'LUCRO_PRESUMIDO_ICMS_DARE',$3,'2026-01-01',null,'2026-01-01','Fixture RLS F36',
+        'https://example.invalid/f36','fixture/f36/'||$3,repeat(md5($3||'s'),2),repeat(md5($3||'c'),2),'{}'::jsonb,$4,now()) returning id`,
+    [e.tenantId,e.empresaId,`f36-${e.sufixo}-${proximo()}`,e.autorId]),
+  },
+  'app.tax_monthly_rule_package_event': {
+    preparar: prepararApuracaoMensalF36,
+    inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_rule_package_event
+      (tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'IMPORTED',$4,now(),'f36-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['packageId'],e.autorId]),
+  },
+  'app.tax_monthly_declaration': {
+    inserir: (banco,e) => unico(banco, `insert into app.tax_monthly_declaration
+      (tenant_id,empresa_id,competence,kind,revision,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at,correlation_id)
+      values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,repeat(md5($4||'d'),2),repeat(md5($4||'h'),2),
+        '{}'::jsonb,$5,now(),'f36-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,proximo(),`f36-${e.sufixo}-${proximo()}`,e.autorId]),
+  },
+  'app.tax_monthly_declaration_event': {
+    preparar: prepararApuracaoMensalF36,
+    inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_declaration_event
+      (tenant_id,empresa_id,declaration_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'DECLARED',$4,now(),'f36-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['declarationId'],e.autorId]),
+  },
+  'app.tax_monthly_evidence': {
+    preparar: prepararApuracaoMensalF36,
+    inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_evidence
+      (tenant_id,empresa_id,declaration_id,kind,description,file_name,storage_key,content_sha256,requested_by,created_at)
+      values($1,$2,$3,'DECLARACAO','Fixture RLS F36','fixture.pdf','fixture/f36/'||$4,repeat(md5($4||'e'),2),$5,now()) returning id`,
+    [e.tenantId,e.empresaId,r['declarationId'],r['marker'],e.autorId]),
+  },
+  'app.tax_monthly_assessment': {
+    preparar: prepararApuracaoMensalF36,
+    inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_assessment
+      (tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,idempotency_sha256,content_sha256,status,
+        canonical_json,prepared_by,revision_created_at,correlation_id)
+      values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,$4,$5,repeat(md5($6||'a'),2),repeat(md5($6||'b'),2),
+        'DRAFT','{}'::jsonb,$7,now(),'f36-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,proximo(),r['packageId'],r['declarationId'],r['marker'],e.autorId]),
+  },
+  'app.tax_monthly_assessment_event': {
+    preparar: async(admin,e) => {
+      const refs=await prepararApuracaoMensalF36(admin,e);
+      const assessmentId=await unico(admin, `insert into app.tax_monthly_assessment
+        (tenant_id,empresa_id,competence,kind,revision,rule_package_id,declaration_id,idempotency_sha256,content_sha256,status,
+          canonical_json,prepared_by,revision_created_at,correlation_id)
+        values($1,$2,'2026-01-01','LUCRO_PRESUMIDO_ICMS_DARE',$3,$4,$5,repeat(md5($6||'a'),2),repeat(md5($6||'b'),2),
+          'DRAFT','{}'::jsonb,$7,now(),'f36-rls-fixture') returning id`,
+      [e.tenantId,e.empresaId,proximo(),refs['packageId'],refs['declarationId'],refs['marker'],e.autorId]);
+      return {...refs,assessmentId};
+    },
+    inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_assessment_event
+      (tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id)
+      values($1,$2,$3,'CREATED',$4,now(),'f36-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['assessmentId'],e.autorId]),
   },
 };
