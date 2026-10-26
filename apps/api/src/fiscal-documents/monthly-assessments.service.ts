@@ -146,6 +146,10 @@ const isDateCivil = (value: string): boolean => {
   return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 };
 
+export const postSaleCoverageParameters = (tenantId: string, companyId: string, from: string, to: string, cnpj: string,
+  scopedToCurrentCompetence: boolean): string[] => scopedToCurrentCompetence
+  ? [tenantId, companyId, from, to, cnpj, from, to] : [tenantId, companyId, from, to, cnpj];
+
 const icmsDeclaration = (value: unknown) => {
   if (!isRecord(value) || !Array.isArray(value['adjustments'])) return null;
   const adjustments: IcmsOwnAdjustment[] = value['adjustments'].flatMap((entry) => {
@@ -643,7 +647,7 @@ export class MonthlyAssessmentsService {
         from app.fiscal_document d join app.fiscal_document_reference r on r.document_id=d.id and r.tenant_id=d.tenant_id and r.empresa_id=d.empresa_id
         where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date
           and exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})), '') fingerprint`,
-    [tenantId, companyId, from, to, cnpj, from, to]);
+    postSaleCoverageParameters(tenantId, companyId, from, to, cnpj, scopedToCurrentCompetence));
     const row = result.rows[0];
     const cancelled = Number(row?.cancelled ?? 0); const events = Number(row?.events ?? 0); const referenceCount = Number(row?.reference_count ?? 0);
     const incomplete = Number(row?.incomplete ?? 0);

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { PisCofinsRevenue } from '@contaia/domain';
-import { reconcilePisCofinsRevenue, reconcileSimpleRevenue } from './monthly-assessments.service';
+import { postSaleCoverageParameters, reconcilePisCofinsRevenue, reconcileSimpleRevenue } from './monthly-assessments.service';
+
+describe('parâmetros da consulta de cobertura pós-venda', () => {
+  it('mantém cinco binds no caminho F36 e sete quando F37 restringe a competência', () => {
+    const base: [string, string, string, string, string] = ['tenant', 'company', '2025-09-01', '2026-10-01', '12345678000199'];
+    expect(postSaleCoverageParameters(...base, false)).toEqual(base);
+    expect(postSaleCoverageParameters(...base, true)).toEqual([...base, '2025-09-01', '2026-10-01']);
+  });
+});
 
 const rbt12 = Array.from({ length: 12 }, (_, index) => {
   const date = new Date(Date.UTC(2026, 8 - 12 + index, 1));
