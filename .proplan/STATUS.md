@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-25
+updated: 2026-10-26
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -54,12 +54,6 @@ updated: 2026-10-25
 - [MVP2][SPEC-047][F47] Plano referencial contábil por empresa (#61)
 - [MVP2][SPEC-046][F46] Modelos de DRE do escritório (#60)
 - [MVP2][SPEC-045][F45] DRE gerencial por empresa (#59)
-- [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58)
-- [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57)
-- [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56)
-- [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55)
-- [MVP2][SPEC-040][F40] Lançamentos contábeis manuais balanceados (#54)
-- [MVP2][SPEC-039][F39] Catálogo contábil operacional (#53)
 
 ### Sem épico
 
@@ -68,20 +62,28 @@ updated: 2026-10-25
 - [MVP1][SPEC-014][FIX] Suítes de banco com e-mails fixos quebram depois de uma rodada interrompida (#112)
 - [MVP1][SPEC-014][FIX] Falha determinística na preparação da validação deixa a tentativa em RECEBIDA sem FALHA (#111)
 - [MVP1][SPEC-014][FIX] cn() descarta o tamanho de texto dos tokens (tailwind-merge) e código do plano quebra na tabela de rejeições (#110)
-- [MVP1][FIX] app.uuid_v7() grava a variante RFC 4122 no byte errado (#47)
 
 ## A Fazer
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57)
+- [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58)
+- [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55)
+- [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56)
+- [MVP2][SPEC-040][F40] Lançamentos contábeis manuais balanceados (#54)
+- [MVP2][SPEC-039][F39] Catálogo contábil operacional (#53)
 - [MVP2][SPEC-038][F38] Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido (#44)
-- [MVP2][SPEC-037][F37] Apuração mensal de PIS e Cofins para autopeças no Lucro Presumido (#43)
+
+### Sem épico
+
+- [MVP1][FIX] app.uuid_v7() grava a variante RFC 4122 no byte errado (#47)
 
 ## Em Andamento
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
-- [MVP2][SPEC-036][F36] Apuração mensal e guias prévias para comércio de autopeças em Goiás (#41)
+- [MVP2][SPEC-037][F37] Apuração mensal de PIS e Cofins para autopeças no Lucro Presumido (#43)
 
 ## Feito
 
@@ -91,6 +93,7 @@ _(vazio)_
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-036][F36] Apuração mensal e guias prévias para comércio de autopeças em Goiás (#41, finalizado em: 2026-10-26)
 - [MVP2][SPEC-035][F35] Dossiê interno de decisão do ICMS-ST histórico (#39, finalizado em: 2026-10-25)
 - [MVP2][SPEC-034][F34] Acréscimos legais da reconstrução histórica do ICMS-ST em Goiás (#38, finalizado em: 2026-10-24)
 - [MVP2][SPEC-032][F32] Eventos posteriores no complemento e restituição do ICMS-ST (#36, finalizado em: 2026-10-23)
