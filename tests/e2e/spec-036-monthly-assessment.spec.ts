@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Pool } from 'pg';
@@ -127,6 +128,19 @@ const preparar = async (companyId: string, kind: 'SIMPLES_NACIONAL_DAS' | 'LUCRO
   rulePackageId: string, transitionPackageId?: string) => {
   const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments`, { data: { competence: dataCompetencia, kind, rulePackageId,
     ...(transitionPackageId ? { transitionPackageId } : {}) } });
+  if (response.status() === 500 && process.env['CI'] === 'true') {
+    const problem = await response.json() as { correlationId?: string };
+    const correlationId = problem.correlationId;
+    if (correlationId && /^[0-9a-f-]{36}$/iu.test(correlationId)) {
+      try {
+        const output = spawnSync('docker', ['logs', '--tail', '500', 'contaia-api'], { encoding: 'utf8', timeout: 10_000 });
+        const logs = `${output.stdout ?? ''}\n${output.stderr ?? ''}`;
+        const lines = logs.split(/\r?\n/u);
+        const index = lines.findIndex((line) => line.includes(`falha não tratada [${correlationId}]`));
+        if (index >= 0) console.error(`Falha API ${correlationId}:\n${lines.slice(index, index + 16).join('\n')}`);
+      } catch { console.error(`Logs API indisponíveis para ${correlationId}`); }
+    }
+  }
   expect(response.status(), await response.text()).toBe(201);
   return await response.json() as { assessmentId: string; status: string; totalCents: number | null; pisPayableCents?: number | null; cofinsPayableCents?: number | null; canonicalJsonHash: string; gapCodes?: string[] };
 };
