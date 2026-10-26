@@ -84,8 +84,8 @@ export class MonthlyAssessmentsController {
 
   @Get()
   @ExigePermissao('fiscal.motor_tributario.consultar')
-  list(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string, @Query() query: unknown) {
-    const filters = analisar(MonthlyAssessmentListQuerySchema, query);
+  list(@Req() request: RequisicaoAutenticada, @Param('companyId') companyId: string) {
+    const filters = analisar(MonthlyAssessmentListQuerySchema, request.query);
     return this.service.list(tenantDa(request), autorDa(request).usuarioId, companyId, obterCorrelationId(request), {
       page: filters.page, pageSize: filters.pageSize, ...(filters.competence ? { competence: filters.competence } : {}), ...(filters.kind ? { kind: filters.kind } : {}),
     });
