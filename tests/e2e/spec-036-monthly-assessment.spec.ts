@@ -117,7 +117,7 @@ const declarar = async (companyId: string, data: object,
     declaration: JSON.stringify({ competence: dataCompetencia, kind: kind ?? (companyId === simpleCompanyId ? 'SIMPLES_NACIONAL_DAS' : 'LUCRO_PRESUMIDO_ICMS_DARE'),
       justification: 'Declaração sintética rastreável para teste E2E da F36.', declaration: data,
       evidence: evidenceKinds.map((evidenceKind) => ({ kind: evidenceKind, description: 'Comprovante sintético sem valor fiscal.' })) }),
-    evidence: evidenceKinds.map((_, index) => ({ name: `evidencia-f36-${index}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from('evidência sintética F36') })),
+    ...Object.fromEntries(evidenceKinds.map((_, index) => [`evidence-${index}`, { name: `evidencia-f36-${index}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from('evidência sintética F36') }])),
   } });
   expect(response.status(), await response.text()).toBe(201);
   return await response.json() as { id: string; revision: number; hash: string };

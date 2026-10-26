@@ -336,7 +336,7 @@ export class MonthlyAssessmentsService {
   async prepare(tenantId: string, userId: string, companyId: string, input: unknown, correlationId: string) {
     const parsed = PrepareMonthlyAssessmentSchema.parse(input);
     const kind = parsed.kind;
-    let transitionPackageId: string | null = parsed.transitionPackageId ?? null;
+    const transitionPackageId: string | null = parsed.transitionPackageId ?? null;
     let transitionPackageHash = 'missing';
     let transitionPackageStatus = 'MISSING';
     return comContextoHumano(this.pool.instancia, { tenantId, usuarioId: userId, correlationId }, async (client) => {
