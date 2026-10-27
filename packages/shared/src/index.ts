@@ -7,7 +7,7 @@ export type { AuditExportCommand, AuditExportExpiryCommand } from './audit-expor
 export type { ProblemDetails } from './problem.js';
 export { canonicalizarJson } from './canonical-json.js';
 export { MonthlyAssessmentKindSchema, MonthlyAssessmentStatusSchema, MonthlyAssessmentListQuerySchema,
-  MonthlyAssessmentSchema, MonthlyDeclarationSchema, MonthlyRulePackageSchema, MonthlyTaxComponentSchema,
+  MonthlyAssessmentSchema, MonthlyDeclarationSchema, MonthlyRulePackageKindSchema, MonthlyRulePackageSchema, MonthlyTaxComponentSchema,
   PrepareMonthlyAssessmentSchema, ReviewMonthlyAssessmentSchema } from './monthly-assessment.js';
 export type { MonthlyRulePackageInput } from './monthly-assessment.js';
 export {

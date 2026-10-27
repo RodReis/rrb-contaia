@@ -36,6 +36,9 @@ export { calculateMonthlyOwnIcmsAssessment, calculateMonthlySimpleAssessment } f
 export type { IcmsOwnAdjustment, IcmsOwnAssessmentInput, IcmsOwnRulePackage, MonthlyAssessment, MonthlyAssessmentKind,
   MonthlyAssessmentSource, MonthlyAssessmentStatus, MonthlyTaxComponent, SimpleAssessmentInput, SimpleBracket,
   SimpleRevenueSegment, SimpleRulePackage, SimpleSegregation } from './tax-resolution/calculate-monthly-assessment.js';
+export { calculatePisCofinsAssessment } from './tax-resolution/calculate-pis-cofins-assessment.js';
+export type { PisCofinsAssessment, PisCofinsAssessmentInput, PisCofinsComponent, PisCofinsContribution,
+  PisCofinsRevenue, PisCofinsRevenueRecognition, PisCofinsRulePackage, PisCofinsTransition, PisCofinsTreatment } from './tax-resolution/calculate-pis-cofins-assessment.js';
 export { decideIcmsStDossierTrack, fiscalUseDossierStatus } from './tax-resolution/decide-icms-st-dossier.js';
 export type { FiscalUseDestination, FiscalUseTrackStatus, FiscalUseRuleSnapshot, FiscalUseEvidenceSnapshot, FiscalUseTrack, FiscalUseDossier, FiscalUseCommand } from './tax-resolution/decide-icms-st-dossier.js';
 export type { IcmsStLegalAccrualComponent, IcmsStLegalAccrualTrackName, IcmsStLegalAccrualRule,

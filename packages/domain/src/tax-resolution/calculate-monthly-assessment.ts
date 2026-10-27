@@ -3,7 +3,7 @@
  * tributários: faixas, repartições, segregações, fórmulas e arredondamento
  * vêm exclusivamente de pacote normativo aprovado e versionado.
  */
-export type MonthlyAssessmentKind = 'SIMPLES_NACIONAL_DAS' | 'LUCRO_PRESUMIDO_ICMS_DARE';
+export type MonthlyAssessmentKind = 'SIMPLES_NACIONAL_DAS' | 'LUCRO_PRESUMIDO_ICMS_DARE' | 'LUCRO_PRESUMIDO_PIS_COFINS';
 export type MonthlyAssessmentStatus = 'INDETERMINATE' | 'READY_FOR_REVIEW';
 
 export type MonthlyTaxComponent = Readonly<{
@@ -13,6 +13,11 @@ export type MonthlyTaxComponent = Readonly<{
   amountCents: number | null;
   ruleId: string;
   sourceIds: readonly string[];
+  contribution?: 'PIS_PASEP' | 'COFINS';
+  treatmentCode?: string;
+  grossAmountCents?: number | null;
+  transitionOffsetCents?: number;
+  netAmountCents?: number | null;
 }>;
 
 export type MonthlyAssessment = Readonly<{
@@ -20,8 +25,13 @@ export type MonthlyAssessment = Readonly<{
   status: MonthlyAssessmentStatus;
   competence: string;
   rulePackageVersion: string | null;
+  transitionPackageVersion?: string | null;
+  revenueRecognition?: 'ACCRUAL' | 'CASH' | null;
   components: readonly MonthlyTaxComponent[];
   totalCents: number | null;
+  pisPayableCents?: number | null;
+  cofinsPayableCents?: number | null;
+  unallocatedTransitionOffsetCents?: number | null;
   gapCodes: readonly string[];
 }>;
 

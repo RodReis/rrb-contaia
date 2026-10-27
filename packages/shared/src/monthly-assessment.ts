@@ -11,7 +11,9 @@ const codigo = z.string().trim().min(1).max(100);
 const fonteId = z.string().trim().min(1).max(200);
 const centavos = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 
-export const MonthlyAssessmentKindSchema = z.enum(['SIMPLES_NACIONAL_DAS', 'LUCRO_PRESUMIDO_ICMS_DARE']);
+export const MonthlyAssessmentKindSchema = z.enum(['SIMPLES_NACIONAL_DAS', 'LUCRO_PRESUMIDO_ICMS_DARE', 'LUCRO_PRESUMIDO_PIS_COFINS']);
+export const MonthlyRulePackageKindSchema = z.enum(['SIMPLES_NACIONAL_DAS', 'LUCRO_PRESUMIDO_ICMS_DARE',
+  'LUCRO_PRESUMIDO_PIS_COFINS', 'PIS_COFINS_TRANSITION_2026']);
 export const MonthlyAssessmentStatusSchema = z.enum([
   'DRAFT', 'INCOMPLETE', 'INDETERMINATE', 'READY_FOR_REVIEW', 'APPROVED', 'REJECTED', 'POSSIBLY_OUTDATED', 'SUPERSEDED',
 ]);
@@ -37,6 +39,26 @@ const icmsOperation = z.strictObject({
 }).superRefine((value, context) => {
   if ((value.amountSource === 'BASE_RATE') !== (value.rateBasisPoints !== null))
     context.addIssue({ code: 'custom', message: 'Alíquota é obrigatória somente para BASE_RATE.', path: ['rateBasisPoints'] });
+});
+const pisCofinsTreatment = z.strictObject({
+  code: codigo,
+  ncmCodes: z.array(z.string().regex(/^\d{8}$/u)).min(1).max(500),
+  cfops: z.array(z.string().regex(/^\d{4}$/u)).min(1).max(100),
+  cstCodes: z.array(z.string().regex(/^\d{2}$/u)).min(1).max(100),
+  pisRateScaled: z.string().regex(/^\d+(?:\.\d{1,6})?$/u),
+  cofinsRateScaled: z.string().regex(/^\d+(?:\.\d{1,6})?$/u),
+  sourceIds: z.array(fonteId).min(1).max(20),
+  requiredEvidenceKinds: z.array(codigo).min(1).max(30),
+});
+const pisCofinsTransitionPackage = z.strictObject({
+  kind: z.literal('PIS_COFINS_TRANSITION_2026'), version: codigo, validFrom: dataCivil, validThrough: dataCivil.nullable(),
+  consultedAt: dataCivil, officialBasis: z.string().trim().min(1).max(1000), sourceUrl: z.string().url().max(2000),
+  offsetOrder: z.array(z.enum(['PIS_PASEP', 'COFINS'])).length(2).refine((value) => new Set(value).size === 2),
+  maximumOffsets: z.strictObject({ PIS_PASEP: centavos, COFINS: centavos }),
+  requiredEvidenceKinds: z.array(codigo).min(1).max(30), rounding: z.literal('HALF_UP'),
+}).superRefine((value, context) => {
+  if (value.validFrom < '2026-01-01' || (value.validThrough !== null && value.validThrough > '2026-12-31'))
+    context.addIssue({ code: 'custom', message: 'Pacote de transição deve cobrir somente vigência de 2026.', path: ['validFrom'] });
 });
 
 export const MonthlyRulePackageSchema = z.discriminatedUnion('kind', [
@@ -69,6 +91,17 @@ export const MonthlyRulePackageSchema = z.discriminatedUnion('kind', [
     operations: z.array(icmsOperation).min(1).max(500), rounding: z.literal('HALF_UP'),
     allowedAdjustments: z.array(z.strictObject({ id: codigo, effect: z.enum(['INCREASE_DUE', 'REDUCE_DUE']) })).max(200),
   }),
+  z.strictObject({
+    kind: z.literal('LUCRO_PRESUMIDO_PIS_COFINS'), version: codigo, validFrom: dataCivil, validThrough: dataCivil.nullable(),
+    consultedAt: dataCivil, officialBasis: z.string().trim().min(1).max(1000), sourceUrl: z.string().url().max(2000),
+    treatments: z.array(pisCofinsTreatment).min(1).max(500), rounding: z.literal('HALF_UP'),
+  }).superRefine((value, context) => {
+    if (value.validFrom < '2026-01-01' || (value.validThrough !== null && value.validThrough > '2026-12-31'))
+      context.addIssue({ code: 'custom', message: 'Pacote F37 deve cobrir somente vigência de 2026.', path: ['validFrom'] });
+    if (new Set(value.treatments.map((item) => item.code)).size !== value.treatments.length)
+      context.addIssue({ code: 'custom', message: 'Tratamentos precisam de códigos únicos.', path: ['treatments'] });
+  }),
+  pisCofinsTransitionPackage,
 ]);
 export type MonthlyRulePackageInput = z.infer<typeof MonthlyRulePackageSchema>;
 
@@ -85,6 +118,7 @@ export const PrepareMonthlyAssessmentSchema = z.strictObject({
   competence: competencia,
   kind: MonthlyAssessmentKindSchema,
   rulePackageId: uuidPersistido,
+  transitionPackageId: uuidPersistido.nullable().optional(),
 });
 
 export const ReviewMonthlyAssessmentSchema = z.strictObject({
@@ -96,10 +130,15 @@ export const ReviewMonthlyAssessmentSchema = z.strictObject({
 export const MonthlyTaxComponentSchema = z.strictObject({
   code: codigo,
   baseCents: z.number().int().nonnegative(),
-  rateScaled: z.string().regex(/^\d+$/u).nullable(),
+  rateScaled: z.string().regex(/^\d+(?:\.\d{1,6})?$/u).nullable(),
   amountCents: z.number().int().nonnegative().nullable(),
   ruleId: codigo,
   sourceIds: z.array(fonteId),
+  contribution: z.enum(['PIS_PASEP', 'COFINS']).optional(),
+  treatmentCode: codigo.optional(),
+  grossAmountCents: z.number().int().nonnegative().nullable().optional(),
+  transitionOffsetCents: z.number().int().nonnegative().optional(),
+  netAmountCents: z.number().int().nonnegative().nullable().optional(),
 });
 
 export const MonthlyAssessmentSchema = z.strictObject({
@@ -110,6 +149,10 @@ export const MonthlyAssessmentSchema = z.strictObject({
   kind: MonthlyAssessmentKindSchema,
   status: MonthlyAssessmentStatusSchema,
   rulePackageVersion: codigo,
+  transitionPackageVersion: codigo.nullable().optional(),
+  revenueRecognition: z.enum(['ACCRUAL', 'CASH']).nullable().optional(),
+  pisPayableCents: z.number().int().nonnegative().nullable().optional(),
+  cofinsPayableCents: z.number().int().nonnegative().nullable().optional(),
   components: z.array(MonthlyTaxComponentSchema),
   totalCents: z.number().int().nonnegative().nullable(),
   gapCodes: z.array(codigo),

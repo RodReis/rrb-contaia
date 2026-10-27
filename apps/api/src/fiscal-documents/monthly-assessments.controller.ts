@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res, Uploaded
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { z } from 'zod';
-import { MonthlyAssessmentListQuerySchema, MonthlyAssessmentKindSchema, MonthlyDeclarationSchema, MonthlyRulePackageSchema,
+import { MonthlyAssessmentListQuerySchema, MonthlyRulePackageKindSchema, MonthlyDeclarationSchema, MonthlyRulePackageSchema,
   PrepareMonthlyAssessmentSchema, ReviewMonthlyAssessmentSchema } from '@contaia/shared';
 import { ExigePermissao, GuardDeAcao, AcaoLivre } from '../auth/acao.guard';
 import { DfeAdminTenantScope, GuardDeEscopoDeEmpresa } from '../auth/escopo';
@@ -13,8 +13,8 @@ import { analisar } from '../escritorio/escritorio.dto';
 import { MonthlyAssessmentsService } from './monthly-assessments.service';
 
 const idSchema = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu);
-const formatSchema = z.strictObject({ format: z.enum(['PDF', 'CSV', 'JSON']) });
-const kindSchema = z.strictObject({ kind: MonthlyAssessmentKindSchema.optional() });
+const formatSchema = z.strictObject({ format: z.enum(['PDF', 'CSV', 'JSON', 'PIS_DARF_DRAFT', 'COFINS_DARF_DRAFT']) });
+const kindSchema = z.strictObject({ kind: MonthlyRulePackageKindSchema.optional() });
 const decodeJsonField = (body: unknown, key: string): unknown => {
   if (typeof body !== 'object' || body === null || !(key in body)) return undefined;
   const value = (body as Record<string, unknown>)[key];
