@@ -114,12 +114,13 @@ const aprovarPacote = async (companyId: string, packageId: string) => {
 
 const declarar = async (companyId: string, data: object,
   kind?: 'SIMPLES_NACIONAL_DAS' | 'LUCRO_PRESUMIDO_ICMS_DARE' | 'LUCRO_PRESUMIDO_PIS_COFINS', evidenceKinds = ['DOCUMENTO_CONTABIL']) => {
-  const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments/declarations`, { multipart: {
-    declaration: JSON.stringify({ competence: dataCompetencia, kind: kind ?? (companyId === simpleCompanyId ? 'SIMPLES_NACIONAL_DAS' : 'LUCRO_PRESUMIDO_ICMS_DARE'),
-      justification: 'Declaração sintética rastreável para teste E2E da F36.', declaration: data,
-      evidence: evidenceKinds.map((evidenceKind) => ({ kind: evidenceKind, description: 'Comprovante sintético sem valor fiscal.' })) }),
-    evidence: { name: 'evidencia-f36.pdf', mimeType: 'application/pdf', buffer: Buffer.from('evidência sintética F36') },
-  } });
+  const multipart = new FormData();
+  multipart.set('declaration', JSON.stringify({ competence: dataCompetencia, kind: kind ?? (companyId === simpleCompanyId ? 'SIMPLES_NACIONAL_DAS' : 'LUCRO_PRESUMIDO_ICMS_DARE'),
+    justification: 'Declaração sintética rastreável para teste E2E da F36.', declaration: data,
+    evidence: evidenceKinds.map((evidenceKind) => ({ kind: evidenceKind, description: 'Comprovante sintético sem valor fiscal.' })) }));
+  evidenceKinds.forEach((_, index) => multipart.append('evidence', new File([`evidência sintética F36 ${index + 1}`],
+    `evidencia-f36-${index + 1}.pdf`, { type: 'application/pdf' })));
+  const response = await page.request.post(`${BASE_URL}/${companyId}/fiscal-documents/monthly-assessments/declarations`, { multipart });
   expect(response.status(), await response.text()).toBe(201);
   return await response.json() as { id: string; revision: number; hash: string };
 };
