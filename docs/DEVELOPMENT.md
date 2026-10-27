@@ -860,3 +860,12 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [ ] Revisão final, PR, CI no HEAD, merge confirmado na origem, comentário de encerramento e `proplan:done` pendentes. Nenhum pacote fiscal real foi criado; publicação/aprovação tributária depende de fonte oficial e revisão humana.
   - [x] Investigação da CI `40400393151`: F36 falhava com 500 porque a consulta pós-venda substituía `$6/$7` por `true` no escopo amplo, mas ainda recebia sete binds (SQL usa apenas cinco). Ajustada a lista de parâmetros por escopo; regressão cobre cinco binds F36 e sete F37. Teste focado 6/6, lint e typecheck passaram.
   - [ ] CI `40407123287` no SHA `f07d31e`: build, quality, regras, banco e tela passaram; E2E cancelado após ficar travado por mais de seis minutos em `playwright install --with-deps chromium`, antes dos testes. Nova CI pendente.
+
+### Card #44 — `[MVP2][SPEC-038][F38]` Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido
+
+- [x] Motor puro calcula IRPJ, adicional e CSLL em centavos, com bases, limites anuais explícitos, deduções comprovadas e arredondamento determinístico; falta de pacote, vigência ou evidência mantém o resultado indeterminado.
+- [x] Migrations 0079–0081 criam pacote normativo, declaração/evidências, apurações, eventos e artefatos append-only; RLS exige contexto humano e carteira ativa, e `contaia_app` recebe somente SELECT/INSERT. Migration 0081 recompõe a concessão mínima no Compose persistente, onde 0079 já havia sido aplicada; nenhuma sequência ou tabela global recebeu privilégio.
+- [x] API implementa importação/revisão de fonte, declaração substituível, cálculo trimestral, decisões, invalidadores e artefatos PDF/CSV/JSON locais não pagáveis. Locks advisory transacionais serializam decisões sem exigir UPDATE sobre registros append-only.
+- [x] Painel CLARO/ESCURO final. E2E autenticado 2/2 e provas em `test-results/SPEC-038/e2e/provas/spec-038/f38-apuracao-trimestral-{claro,escuro}-{768,1024,1440}.png`; axe sem violações críticas e sem rolagem horizontal após quebra responsiva do hash.
+- [x] Suítes focadas: domínio 7/7, shared 4/4, banco/migration 6/6, tela 3/3; API/Web build e typechecks, lint dos cinco pacotes e revisão visual executados. Web lint reportou um warning preexistente em `aba-de-enderecos.tsx`, sem erros.
+- [ ] Revisão final contra o diff completo, PR, CI verde no HEAD, merge confirmado na origem, comentário de encerramento e `proplan:done` pendentes. Fixture e fontes são sintéticas; nenhum pacote normativo real foi aprovado ou criado.

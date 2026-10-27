@@ -9,6 +9,10 @@ export { canonicalizarJson } from './canonical-json.js';
 export { MonthlyAssessmentKindSchema, MonthlyAssessmentStatusSchema, MonthlyAssessmentListQuerySchema,
   MonthlyAssessmentSchema, MonthlyDeclarationSchema, MonthlyRulePackageKindSchema, MonthlyRulePackageSchema, MonthlyTaxComponentSchema,
   PrepareMonthlyAssessmentSchema, ReviewMonthlyAssessmentSchema } from './monthly-assessment.js';
+export { CorporateTaxAssessmentSchema, CorporateTaxDeclarationSchema, CorporateTaxRulePackageSchema, PrepareCorporateTaxAssessmentSchema,
+  ReviewCorporateTaxAssessmentSchema, ReviewCorporateTaxRulePackageSchema } from './monthly-assessment.js';
+export type { CorporateTaxAssessmentDto, CorporateTaxDeclarationInput, CorporateTaxRulePackageInput, PrepareCorporateTaxAssessmentInput, ReviewCorporateTaxRulePackageInput,
+  ReviewCorporateTaxAssessmentInput } from './monthly-assessment.js';
 export type { MonthlyRulePackageInput } from './monthly-assessment.js';
 export {
   LIMITE_DE_DOCUMENTO_BYTES,

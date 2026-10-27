@@ -101,6 +101,23 @@ const prepararApuracaoMensalF37 = async (admin: Consultavel, e: Escopo): Promise
   return { packageId, declarationId, marker };
 };
 
+const prepararApuracaoCorporativaF38 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const marker = `f38-${e.sufixo}-${proximo()}-${randomUUID()}`;
+  const packageId = await unico(admin, `insert into app.corporate_tax_rule_package
+    (tenant_id,empresa_id,version,valid_from,valid_through,consulted_at,official_basis,source_url,source_storage_key,source_sha256,content_sha256,canonical_json,requested_by,created_at)
+    values($1,$2,$3,'2026-01-01','2026-12-31','2026-01-01','Fixture RLS F38','https://example.invalid/f38',$4,repeat(md5($5||'s'),2),repeat(md5($5||'c'),2),'{}'::jsonb,$6,now()) returning id`,
+  [e.tenantId,e.empresaId,`package-${marker}`,`fiscal/f38/${marker}`,marker,e.autorId]);
+  const declarationId = await unico(admin, `insert into app.corporate_tax_declaration
+    (tenant_id,empresa_id,quarter,recognition,revision,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at,correlation_id)
+    values($1,$2,'2026-Q1','ACCRUAL',$3,repeat(md5($4||'d'),2),repeat(md5($4||'h'),2),'{}'::jsonb,$5,now(),'f38-rls-fixture') returning id`,
+  [e.tenantId,e.empresaId,proximo(),marker,e.autorId]);
+  const assessmentId = await unico(admin, `insert into app.corporate_tax_assessment
+    (tenant_id,empresa_id,quarter,revision,status,recognition,package_id,declaration_id,installment_count,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at)
+    values($1,$2,'2026-Q1',$3,'INDETERMINATE','ACCRUAL',$4,$5,1,repeat(md5($6||'a'),2),repeat(md5($6||'c'),2),'{}'::jsonb,$7,now()) returning id`,
+  [e.tenantId,e.empresaId,proximo(),packageId,declarationId,marker,e.autorId]);
+  return { packageId, declarationId, assessmentId, marker };
+};
+
 const prepararOcorrenciaObrigacao = async (admin: Consultavel,e: Escopo): Promise<Referencias> => {
   const regra = await prepararRegraObrigacao(admin);
   const occurrenceId = await unico(admin,
@@ -1531,5 +1548,56 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     inserir: (banco,e,r) => unico(banco, `insert into app.tax_monthly_assessment_event
       (tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id)
       values($1,$2,$3,'CREATED',$4,now(),'f37-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['assessmentId'],e.autorId]),
+  },
+  'app.corporate_tax_rule_package': {
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_rule_package
+      (tenant_id,empresa_id,version,valid_from,valid_through,consulted_at,official_basis,source_url,source_storage_key,source_sha256,content_sha256,canonical_json,requested_by,created_at)
+      values($1,$2,$3,'2026-01-01','2026-12-31','2026-01-01','Fixture RLS F38','https://example.invalid/f38',$4,repeat(md5($5||'s'),2),repeat(md5($5||'c'),2),'{}'::jsonb,$6,now()) returning id`,
+    [e.tenantId,e.empresaId,`package-${r['marker']}-${proximo()}`,`fiscal/f38/${r['marker']}/${proximo()}`,`${r['marker']}-${proximo()}`,e.autorId]),
+  },
+  'app.corporate_tax_rule_package_event': {
+    preparar: prepararApuracaoCorporativaF38,
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_rule_package_event
+      (tenant_id,empresa_id,package_id,action,actor_id,occurred_at,correlation_id,details)
+      values($1,$2,$3,'IMPORTED',$4,now(),'f38-rls-fixture','{}'::jsonb) returning id`, [e.tenantId,e.empresaId,r['packageId'],e.autorId]),
+  },
+  'app.corporate_tax_declaration': {
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_declaration
+      (tenant_id,empresa_id,quarter,recognition,revision,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at,correlation_id)
+      values($1,$2,'2026-Q1','ACCRUAL',$3,repeat(md5($4||'d'),2),repeat(md5($4||'h'),2),'{}'::jsonb,$5,now(),'f38-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,proximo(),`${r['marker']}-${proximo()}`,e.autorId]),
+  },
+  'app.corporate_tax_declaration_event': {
+    preparar: prepararApuracaoCorporativaF38,
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_declaration_event
+      (tenant_id,empresa_id,declaration_id,action,actor_id,occurred_at,correlation_id,details)
+      values($1,$2,$3,'DECLARED',$4,now(),'f38-rls-fixture','{}'::jsonb) returning id`, [e.tenantId,e.empresaId,r['declarationId'],e.autorId]),
+  },
+  'app.corporate_tax_evidence': {
+    preparar: prepararApuracaoCorporativaF38,
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_evidence
+      (tenant_id,empresa_id,declaration_id,kind,description,file_name,storage_key,content_sha256,requested_by,created_at)
+      values($1,$2,$3,'FIXTURE','Fixture RLS F38','fixture.pdf',$4,repeat(md5($5),2),$6,now()) returning id`,
+    [e.tenantId,e.empresaId,r['declarationId'],`fiscal/f38/evidence/${proximo()}`,`${r['marker']}-${proximo()}`,e.autorId]),
+  },
+  'app.corporate_tax_assessment': {
+    preparar: prepararApuracaoCorporativaF38,
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_assessment
+      (tenant_id,empresa_id,quarter,revision,status,recognition,package_id,declaration_id,installment_count,idempotency_sha256,content_sha256,canonical_json,prepared_by,created_at)
+      values($1,$2,'2026-Q1',$3,'INDETERMINATE','ACCRUAL',$4,$5,1,repeat(md5($6||'a'),2),repeat(md5($6||'c'),2),'{}'::jsonb,$7,now()) returning id`,
+    [e.tenantId,e.empresaId,proximo(),r['packageId'],r['declarationId'],`${r['marker']}-${proximo()}`,e.autorId]),
+  },
+  'app.corporate_tax_assessment_event': {
+    preparar: prepararApuracaoCorporativaF38,
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_assessment_event
+      (tenant_id,empresa_id,assessment_id,action,actor_id,occurred_at,correlation_id,details)
+      values($1,$2,$3,'PREPARED',$4,now(),'f38-rls-fixture','{}'::jsonb) returning id`, [e.tenantId,e.empresaId,r['assessmentId'],e.autorId]),
+  },
+  'app.corporate_tax_artifact': {
+    preparar: prepararApuracaoCorporativaF38,
+    inserir: (banco,e,r) => unico(banco, `insert into app.corporate_tax_artifact
+      (tenant_id,empresa_id,assessment_id,format,storage_key,artifact_sha256,canonical_sha256,created_by,created_at)
+      values($1,$2,$3,'PDF',$4,repeat(md5($5||'a'),2),repeat(md5($5||'c'),2),$6,now()) returning id`,
+    [e.tenantId,e.empresaId,r['assessmentId'],`fiscal/f38/artifact/${proximo()}`,`${r['marker']}-${proximo()}`,e.autorId]),
   },
 };
