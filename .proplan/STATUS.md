@@ -84,9 +84,7 @@ _(vazio)_
 
 ## Feito
 
-### Sem épico
-
-- [MVP2][SPEC-036][FIX] corrigir subconsulta de cobertura pós-venda (#154)
+_(vazio)_
 
 ## Finalizado
 
@@ -137,6 +135,7 @@ _(vazio)_
 
 ### Sem épico
 
+- [MVP2][SPEC-036][FIX] corrigir subconsulta de cobertura pós-venda (#154, finalizado em: 2026-10-27)
 - [MVP2][SPEC-036][FIX] alinhar anexos E2E à quantidade de evidências (#156, finalizado em: 2026-10-27)
 - [MVP2][SPEC-037][FIX] eliminar rolagem horizontal nos parâmetros F37 (#157, finalizado em: 2026-10-27)
 - [FIX][SPEC-013][F13] Reuso de resultado terminal obsoleto na importação do plano de contas (#107, finalizado em: 2026-10-11)
