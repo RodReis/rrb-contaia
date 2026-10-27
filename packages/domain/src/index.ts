@@ -34,6 +34,7 @@ export { buildHistoricalIcmsStPackage } from './tax-resolution/build-icms-st-his
 export { calculateIcmsStLegalAccruals, endOfIcmsStCompetence } from './tax-resolution/calculate-icms-st-legal-accruals.js';
 export { calculateMonthlyOwnIcmsAssessment, calculateMonthlySimpleAssessment } from './tax-resolution/calculate-monthly-assessment.js';
 export { calculateCorporateTaxAssessment } from './tax-resolution/calculate-corporate-tax-assessment.js';
+export { CORPORATE_TAX_RATE_SCALE, parseScaledRate, roundHalfUp } from './tax-resolution/corporate-tax-arithmetic.js';
 export type { CorporateTaxAssessmentCalculation, CorporateTaxComponent, CorporateTaxDeductionInput, CorporateTaxKind,
   CorporateTaxRecognition, CorporateTaxRevenue, CorporateTaxRule, CorporateTaxRulePackage } from './tax-resolution/calculate-corporate-tax-assessment.js';
 export type { IcmsOwnAdjustment, IcmsOwnAssessmentInput, IcmsOwnRulePackage, MonthlyAssessment, MonthlyAssessmentKind,

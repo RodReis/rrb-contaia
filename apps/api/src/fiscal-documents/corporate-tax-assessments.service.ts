@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { comContextoHumano, comFinalidade } from '@contaia/db';
 import { CODIGOS_DE_ERRO, ErroDeDominio, calculateCorporateTaxAssessment, type CorporateTaxDeductionInput,
-  type CorporateTaxRevenue, type CorporateTaxRulePackage } from '@contaia/domain';
+  CORPORATE_TAX_RATE_SCALE, parseScaledRate, roundHalfUp, type CorporateTaxRevenue, type CorporateTaxRulePackage } from '@contaia/domain';
 import {
   CorporateTaxDeclarationSchema, CorporateTaxRulePackageSchema, PrepareCorporateTaxAssessmentSchema,
   ReviewCorporateTaxAssessmentSchema, ReviewCorporateTaxRulePackageSchema, canonicalizarJson,
@@ -16,12 +16,6 @@ type Upload = Readonly<{ originalname: string; mimetype: string; buffer: Buffer 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const record = (value: unknown): Row => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Row : {};
 const rolesCanReview = (roles: readonly string[]) => roles.includes('contador') || roles.includes('admin_escritorio');
-const parseRate = (rate: string): bigint | null => {
-  if (!/^\d+(?:\.\d{1,8})?$/u.test(rate)) return null;
-  const [whole, fraction = ''] = rate.split('.');
-  return BigInt(whole!) * 100_000_000n + BigInt(fraction.padEnd(8, '0'));
-};
-const roundHalfUp = (numerator: bigint, denominator: bigint) => (numerator * 2n + denominator) / (2n * denominator);
 const safe = (value: bigint): number => {
   if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new ErroDeDominio(CODIGOS_DE_ERRO.CORPORATE_TAX_INSTALLMENT_INVALID, 'Valor de quota excede o limite suportado.');
   return Number(value);
@@ -394,9 +388,9 @@ export class CorporateTaxAssessmentsService {
       if (!entry || typeof entry['dueDate'] !== 'string' || typeof entry['additionRateScaled'] !== 'string' || !Array.isArray(entry['sourceIds']))
         throw new ErroDeDominio(CODIGOS_DE_ERRO.CORPORATE_TAX_INSTALLMENT_INVALID, 'Vencimento ou regra de acréscimo sem cobertura.');
       const principalCents = base + (index < remainder ? 1 : 0);
-      const rate = parseRate(entry['additionRateScaled']);
+      const rate = parseScaledRate(entry['additionRateScaled']);
       if (rate === null) throw new ErroDeDominio(CODIGOS_DE_ERRO.CORPORATE_TAX_INSTALLMENT_INVALID, 'Taxa de quota inválida.');
-      const additionCents = safe(roundHalfUp(BigInt(principalCents) * rate, 100_000_000n));
+      const additionCents = safe(roundHalfUp(BigInt(principalCents) * rate, CORPORATE_TAX_RATE_SCALE));
       return { tax, installmentNumber: index + 1, principalCents, additionCents, totalCents: principalCents + additionCents,
         dueDate: entry['dueDate'], draftArtifactId: randomUUID(), ruleSourceIds: entry['sourceIds'], additionRateScaled: entry['additionRateScaled'], ruleId: `INSTALLMENT_${tax}_${quarter}_${index + 1}` };
     });
@@ -483,8 +477,9 @@ export class CorporateTaxAssessmentsService {
         const rule = packageContent.deductionRules.find((candidate) => candidate.id === item['ruleId'] && candidate.tax === item['tax'] &&
           candidate.kind === item['kind'] && candidate.evidenceKind === item['evidenceKind']);
         if (!rule) return [];
+        const recognizedOn = typeof record(declaredEvidence)['recognizedOn'] === 'string' ? String(record(declaredEvidence)['recognizedOn']) : null;
         return [{ tax: item['tax'] as 'IRPJ' | 'CSLL', kind: item['kind'] as 'WITHHOLDING' | 'ADVANCE_PAYMENT',
-          amountCents: item['amountCents'], evidenceId: String(evidence['id']), ruleId: item['ruleId'],
+          amountCents: item['amountCents'], recognizedOn, evidenceId: String(evidence['id']), ruleId: item['ruleId'],
           sourceIds: [...rule.sourceIds, String(evidence['content_sha256'])] }];
       }) : [];
       const packageForDomain: CorporateTaxRulePackage = {

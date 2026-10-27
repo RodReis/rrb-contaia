@@ -80,14 +80,24 @@ describe('calculateCorporateTaxAssessment', () => {
 
   it('bloqueia dedução sem fonte vinculada ou comprovante duplicado', () => {
     const noSource = calculateCorporateTaxAssessment(input({ deductionsComplete: false, deductions: [
-      { tax: 'IRPJ', kind: 'WITHHOLDING', amountCents: 100, evidenceId: 'evidence-1', ruleId: 'WITHHOLDING-1' },
+      { tax: 'IRPJ', kind: 'WITHHOLDING', amountCents: 100, recognizedOn: '2026-02-15', evidenceId: 'evidence-1', ruleId: 'WITHHOLDING-1' },
     ] }));
     expect(noSource.status).toBe('INDETERMINATE');
     expect(noSource.gapCodes).toContain('CORPORATE_TAX_DEDUCTION_INVALID');
     const duplicate = calculateCorporateTaxAssessment(input({ deductions: [
-      { tax: 'IRPJ', kind: 'WITHHOLDING', amountCents: 100, evidenceId: 'evidence-1', ruleId: 'WITHHOLDING-1', sourceIds: ['source:1'] },
-      { tax: 'IRPJ', kind: 'WITHHOLDING', amountCents: 100, evidenceId: 'evidence-1', ruleId: 'WITHHOLDING-1', sourceIds: ['source:1'] },
+      { tax: 'IRPJ', kind: 'WITHHOLDING', amountCents: 100, recognizedOn: '2026-02-15', evidenceId: 'evidence-1', ruleId: 'WITHHOLDING-1', sourceIds: ['source:1'] },
+      { tax: 'IRPJ', kind: 'WITHHOLDING', amountCents: 100, recognizedOn: '2026-02-15', evidenceId: 'evidence-1', ruleId: 'WITHHOLDING-1', sourceIds: ['source:1'] },
     ] }));
     expect(duplicate.status).toBe('INDETERMINATE');
+  });
+
+  it('aceita dedução comprovada no trimestre e bloqueia retenção de trimestre anterior', () => {
+    const deduction = { tax: 'IRPJ' as const, kind: 'WITHHOLDING' as const, amountCents: 100,
+      evidenceId: 'evidence-1', ruleId: 'WITHHOLDING-1', sourceIds: ['source:1'] };
+    const currentQuarter = calculateCorporateTaxAssessment(input({ deductions: [{ ...deduction, recognizedOn: '2026-02-15' }] }));
+    expect(currentQuarter.status).toBe('READY_FOR_REVIEW');
+    const priorQuarter = calculateCorporateTaxAssessment(input({ deductions: [{ ...deduction, recognizedOn: '2025-12-31' }] }));
+    expect(priorQuarter.status).toBe('INDETERMINATE');
+    expect(priorQuarter.gapCodes).toContain('CORPORATE_TAX_DEDUCTION_INVALID');
   });
 });

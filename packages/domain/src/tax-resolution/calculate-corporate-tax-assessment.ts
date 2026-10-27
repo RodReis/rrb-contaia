@@ -1,3 +1,5 @@
+import { CORPORATE_TAX_RATE_SCALE, parseScaledRate, roundHalfUp } from './corporate-tax-arithmetic.js';
+
 export type CorporateTaxKind = 'IRPJ' | 'IRPJ_ADDITIONAL' | 'CSLL';
 export type CorporateTaxRecognition = 'ACCRUAL' | 'CASH';
 
@@ -47,6 +49,7 @@ export type CorporateTaxDeductionInput = Readonly<{
   tax: 'IRPJ' | 'CSLL';
   kind: 'WITHHOLDING' | 'ADVANCE_PAYMENT';
   amountCents: number;
+  recognizedOn: string | null;
   evidenceId: string;
   ruleId: string;
   sourceIds?: readonly string[];
@@ -83,17 +86,11 @@ const QUARTER_MONTHS: Readonly<Record<string, readonly string[]>> = {
   '2026-Q3': ['2026-07', '2026-08', '2026-09'],
   '2026-Q4': ['2026-10', '2026-11', '2026-12'],
 };
-const SCALE = 100_000_000n;
 const isCents = (amount: number): boolean => Number.isSafeInteger(amount) && amount >= 0;
-const roundHalfUp = (numerator: bigint, denominator: bigint): bigint =>
-  (numerator * 2n + denominator) / (2n * denominator);
+const civilDateBelongsToQuarter = (date: string | null, months: readonly string[] | undefined): boolean =>
+  date !== null && /^\d{4}-\d{2}-\d{2}$/u.test(date) && months?.includes(date.slice(0, 7)) === true;
 const asSafeNumber = (amount: bigint): number | null =>
   amount >= 0n && amount <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(amount) : null;
-const parseRate = (rate: string): bigint | null => {
-  if (!/^\d+(?:\.\d{1,8})?$/u.test(rate)) return null;
-  const [whole, fraction = ''] = rate.split('.');
-  return BigInt(whole!) * SCALE + BigInt(fraction.padEnd(8, '0'));
-};
 
 const blocked = (gapCodes: readonly string[], components: readonly CorporateTaxComponent[] = []): CorporateTaxAssessmentCalculation => ({
   status: 'INDETERMINATE', components, deductions: [], irpjPayableCents: null, csllPayableCents: null,
@@ -136,7 +133,8 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
     gaps.push('CORPORATE_TAX_REVENUE_RECONCILIATION_FAILED');
   if (new Set(input.revenue.map((item) => item.id)).size !== input.revenue.length)
     gaps.push('CORPORATE_TAX_REVENUE_RECONCILIATION_FAILED');
-  if (input.deductions.some((item) => !isCents(item.amountCents) || item.amountCents <= 0 || !item.evidenceId || !item.ruleId || !item.sourceIds?.length) ||
+  if (input.deductions.some((item) => !isCents(item.amountCents) || item.amountCents <= 0 ||
+      !civilDateBelongsToQuarter(item.recognizedOn, months) || !item.evidenceId || !item.ruleId || !item.sourceIds?.length) ||
       new Set(input.deductions.map((item) => `${item.tax}:${item.evidenceId}:${item.ruleId}`)).size !== input.deductions.length)
     gaps.push('CORPORATE_TAX_DEDUCTION_INVALID');
   if (gaps.length) return blocked(gaps);
@@ -181,16 +179,16 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
     }
   }
   for (const group of grouped.values()) {
-    const presumptionRate = parseRate(group.rule.presumptionRateScaled);
-    const taxRate = parseRate(group.rule.taxRateScaled);
+    const presumptionRate = parseScaledRate(group.rule.presumptionRateScaled);
+    const taxRate = parseScaledRate(group.rule.taxRateScaled);
     if (presumptionRate === null || taxRate === null) { gaps.push('CORPORATE_TAX_RULE_MISSING'); continue; }
     const gross = group.revenue.reduce((sum, item) => sum + BigInt(item.grossCents), 0n);
     const adjustment = group.revenue.reduce((sum, item) => sum + BigInt(item.adjustmentCents), 0n);
     const additions = group.revenue.reduce((sum, item) => sum + BigInt(item.directAdditionCents), 0n);
     const netGross = gross >= adjustment ? gross - adjustment : 0n;
-    const presumed = roundHalfUp(netGross * presumptionRate, SCALE);
+    const presumed = roundHalfUp(netGross * presumptionRate, CORPORATE_TAX_RATE_SCALE);
     const taxBase = presumed + additions;
-    const grossTax = asSafeNumber(roundHalfUp(taxBase * taxRate, SCALE));
+    const grossTax = asSafeNumber(roundHalfUp(taxBase * taxRate, CORPORATE_TAX_RATE_SCALE));
     const safeGross = asSafeNumber(gross), safeAdjustment = asSafeNumber(adjustment), safePresumed = asSafeNumber(presumed), safeAdditions = asSafeNumber(additions);
     if ([grossTax, safeGross, safeAdjustment, safePresumed, safeAdditions].some((value) => value === null)) {
       gaps.push('CORPORATE_TAX_RULE_MISSING'); continue;
@@ -201,7 +199,7 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
       grossTaxCents: grossTax!, ruleId: group.rule.id, sourceIds: [...new Set(group.revenue.flatMap((item) => item.sourceIds).concat(group.rule.sourceIds))].sort(),
       calculationTrace: { formula: 'ROUND_HALF_UP(MAX(0,GROSS-ADJUSTMENT)*PRESUMPTION_RATE/SCALE)+DIRECT_ADDITION;ROUND_HALF_UP(BASE*TAX_RATE/SCALE)',
         numerator: `${netGross.toString()}*${presumptionRate.toString()};${taxBase.toString()}*${taxRate.toString()}`,
-        denominator: `${SCALE.toString()};${SCALE.toString()}`, rounding: 'HALF_UP' } });
+        denominator: `${CORPORATE_TAX_RATE_SCALE.toString()};${CORPORATE_TAX_RATE_SCALE.toString()}`, rounding: 'HALF_UP' } });
   }
   if (gaps.length) return blocked(gaps, components);
 
@@ -210,16 +208,16 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
   const totalIrpjBase = components.filter((item) => item.tax === 'IRPJ').reduce((sum, item) => sum + BigInt(item.presumedBaseCents!) + BigInt(item.directAdditionCents), 0n);
   const threshold = BigInt(pkg.additionalIrpjThresholdCentsByMonth!) * 3n;
   const additionalBase = totalIrpjBase > threshold ? totalIrpjBase - threshold : 0n;
-  const additionalRate = parseRate(pkg.additionalIrpjRateScaled!);
+  const additionalRate = parseScaledRate(pkg.additionalIrpjRateScaled!);
   if (additionalRate === null) return blocked(['CORPORATE_TAX_RULE_MISSING'], components);
-  const additionalTax = asSafeNumber(roundHalfUp(additionalBase * additionalRate, SCALE));
+  const additionalTax = asSafeNumber(roundHalfUp(additionalBase * additionalRate, CORPORATE_TAX_RATE_SCALE));
   if (additionalTax === null) return blocked(['CORPORATE_TAX_RULE_MISSING'], components);
   if (additionalBase > 0n) components.push({ tax: 'IRPJ_ADDITIONAL', activityCode: 'COMMERCE_AUTO_PARTS', revenueNatureCode: 'ADDITIONAL_BASE',
     grossRevenueCents: 0, adjustmentCents: 0, presumptionRateScaled: null, presumedBaseCents: asSafeNumber(additionalBase),
     directAdditionCents: 0, taxRateScaled: pkg.additionalIrpjRateScaled, grossTaxCents: additionalTax,
     ruleId: pkg.additionalIrpjRuleId!, sourceIds: [...new Set([...pkg.additionalIrpjSourceIds, ...pkg.sourceIds])].sort(),
     calculationTrace: { formula: 'ROUND_HALF_UP(MAX(0,IRPJ_BASE-3*MONTHLY_THRESHOLD)*ADDITIONAL_RATE/SCALE)',
-      numerator: `${additionalBase.toString()}*${additionalRate.toString()}`, denominator: SCALE.toString(), rounding: 'HALF_UP' } });
+      numerator: `${additionalBase.toString()}*${additionalRate.toString()}`, denominator: CORPORATE_TAX_RATE_SCALE.toString(), rounding: 'HALF_UP' } });
   const irpjGross = ordinaryIrpj + BigInt(additionalTax);
   const irpjDeductions = input.deductions.filter((item) => item.tax === 'IRPJ').reduce((sum, item) => sum + BigInt(item.amountCents), 0n);
   const csllDeductions = input.deductions.filter((item) => item.tax === 'CSLL').reduce((sum, item) => sum + BigInt(item.amountCents), 0n);
