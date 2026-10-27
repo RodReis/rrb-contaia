@@ -86,8 +86,6 @@ _(vazio)_
 
 ### Sem épico
 
-- [MVP2][SPEC-037][FIX] eliminar rolagem horizontal nos parâmetros F37 (#157)
-- [MVP2][SPEC-036][FIX] alinhar anexos E2E à quantidade de evidências (#156)
 - [MVP2][SPEC-036][FIX] corrigir subconsulta de cobertura pós-venda (#154)
 
 ## Finalizado
@@ -139,6 +137,8 @@ _(vazio)_
 
 ### Sem épico
 
+- [MVP2][SPEC-036][FIX] alinhar anexos E2E à quantidade de evidências (#156, finalizado em: 2026-10-27)
+- [MVP2][SPEC-037][FIX] eliminar rolagem horizontal nos parâmetros F37 (#157, finalizado em: 2026-10-27)
 - [FIX][SPEC-013][F13] Reuso de resultado terminal obsoleto na importação do plano de contas (#107, finalizado em: 2026-10-11)
 - [MVP1][SPEC-002][FIX] E2E da F2 compara o total global de empresas e falha sob paralelismo (#96, finalizado em: 2026-10-03)
 - [MVP1][SPEC-002][FIX] ambiente local nao subia a Web/API e desalinhamentos no wizard/listagem (#45, finalizado em: 2026-09-22)
