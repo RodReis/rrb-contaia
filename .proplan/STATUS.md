@@ -73,7 +73,6 @@ updated: 2026-10-27
 - [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56)
 - [MVP2][SPEC-040][F40] Lançamentos contábeis manuais balanceados (#54)
 - [MVP2][SPEC-039][F39] Catálogo contábil operacional (#53)
-- [MVP2][SPEC-038][F38] Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido (#44)
 
 ### Sem épico
 
@@ -85,12 +84,17 @@ _(vazio)_
 
 ## Feito
 
-_(vazio)_
+### Sem épico
+
+- [MVP2][SPEC-037][FIX] eliminar rolagem horizontal nos parâmetros F37 (#157)
+- [MVP2][SPEC-036][FIX] alinhar anexos E2E à quantidade de evidências (#156)
+- [MVP2][SPEC-036][FIX] corrigir subconsulta de cobertura pós-venda (#154)
 
 ## Finalizado
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-038][F38] Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido (#44, finalizado em: 2026-10-27)
 - [MVP2][SPEC-037][F37] Apuração mensal de PIS e Cofins para autopeças no Lucro Presumido (#43, finalizado em: 2026-10-27)
 - [MVP2][SPEC-036][F36] Apuração mensal e guias prévias para comércio de autopeças em Goiás (#41, finalizado em: 2026-10-26)
 - [MVP2][SPEC-035][F35] Dossiê interno de decisão do ICMS-ST histórico (#39, finalizado em: 2026-10-25)
