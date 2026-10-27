@@ -629,7 +629,7 @@ export class MonthlyAssessmentsService {
       (select count(distinct d.id)::int from app.fiscal_document d where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65')
         and d.emitido_em >= $3::date and d.emitido_em < $4::date and (d.estado<>'PROCESSADO' or d.protocolo is null)
         and (exists(select 1 from app.fiscal_document_party p where p.document_id=d.id and p.tenant_id=d.tenant_id and p.empresa_id=d.empresa_id and p.identificador=regexp_replace($5,'[^0-9]','','g'))
-          or regexp_replace(coalesce(d.emitente,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g') or regexp_replace(coalesce(d.destinatario,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g')) and (${documentScope}) incomplete,
+          or regexp_replace(coalesce(d.emitente,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g') or regexp_replace(coalesce(d.destinatario,''),'[^0-9]','','g')=regexp_replace($5,'[^0-9]','','g')) and (${documentScope})) incomplete,
       coalesce((select string_agg(d.id::text||':'||e.id::text||':'||coalesce(e.hash_sha256,''),',' order by d.id,e.id)
         from app.fiscal_document d join app.fiscal_document_event e on e.document_id=d.id and e.tenant_id=d.tenant_id and e.empresa_id=d.empresa_id
         where d.tenant_id=$1 and d.empresa_id=$2 and d.especie in ('NFE_55','NFCE_65') and d.emitido_em >= $3::date and d.emitido_em < $4::date

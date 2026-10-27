@@ -124,23 +124,23 @@ export const PainelApuracaoMensal = ({ empresaId, somenteLeitura, podePreparar, 
         <Button variante="contorno" tamanho="compacto" onClick={() => void assessments.refetch()} aria-label="Atualizar apurações"><RefreshCw aria-hidden="true" /> Atualizar</Button>
       </header>
 
-      <section className="grid gap-md rounded-lg border border-border bg-card p-lg shadow-[var(--elevation-1)] tablet:grid-cols-2 desktop:grid-cols-[1fr_1fr_1.4fr_auto] desktop:items-end" aria-label="Parâmetros da apuração">
-        <Select rotulo="Competência" valor={competence} onValorChange={setCompetence} opcoes={competenceOptions} />
-        <Select rotulo="Trilha fiscal" valor={kind} onValorChange={(value) => {
+      <section className="grid min-w-0 gap-md rounded-lg border border-border bg-card p-lg shadow-[var(--elevation-1)] tablet:grid-cols-2 desktop:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] desktop:items-end" aria-label="Parâmetros da apuração">
+        <div className="min-w-0"><Select rotulo="Competência" valor={competence} onValorChange={setCompetence} opcoes={competenceOptions} /></div>
+        <div className="min-w-0"><Select rotulo="Trilha fiscal" valor={kind} onValorChange={(value) => {
           const selected = tipos.find((item) => item.valor === value);
           if (!selected) return;
           setKind(selected.valor);
           if (selected.valor === 'LUCRO_PRESUMIDO_PIS_COFINS') setPackageKind(selected.valor);
           else if (competence < '2026-09') setCompetence('2026-09');
-        }} opcoes={options} />
-        <div className="flex flex-col gap-xs">
+        }} opcoes={options} /></div>
+        <div className="flex min-w-0 flex-col gap-xs">
           <label htmlFor="f36-rule-package" className="text-label-md text-foreground">ID do pacote normativo aprovado</label>
-          <input id="f36-rule-package" value={rulePackageId} onChange={(event) => setRulePackageId(event.target.value.trim())} placeholder="UUID do pacote importado e revisado" className="h-11 rounded-md border border-input bg-background px-md text-body-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <input id="f36-rule-package" value={rulePackageId} onChange={(event) => setRulePackageId(event.target.value.trim())} placeholder="UUID do pacote importado e revisado" className="h-11 w-full min-w-0 rounded-md border border-input bg-background px-md text-body-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           <span className="text-body-xs text-muted-foreground">Pacotes dependem de fonte oficial carregada e aprovação do contador.</span>
         </div>
-        {kind === 'LUCRO_PRESUMIDO_PIS_COFINS' ? <div className="flex flex-col gap-xs tablet:col-span-2 desktop:col-span-1">
+        {kind === 'LUCRO_PRESUMIDO_PIS_COFINS' ? <div className="flex min-w-0 flex-col gap-xs tablet:col-span-2 desktop:col-span-1">
           <label htmlFor="f37-transition-package" className="text-label-md text-foreground">ID do pacote aprovado CBS/IBS 2026</label>
-          <input id="f37-transition-package" value={transitionPackageId} onChange={(event) => setTransitionPackageId(event.target.value.trim())} placeholder="UUID do pacote de transição revisado" className="h-11 rounded-md border border-input bg-background px-md text-body-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <input id="f37-transition-package" value={transitionPackageId} onChange={(event) => setTransitionPackageId(event.target.value.trim())} placeholder="UUID do pacote de transição revisado" className="h-11 w-full min-w-0 rounded-md border border-input bg-background px-md text-body-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           <span className="text-body-xs text-muted-foreground">Sem pacote e prova aplicáveis, a revisão fica indeterminada.</span>
         </div> : null}
         <Button disabled={somenteLeitura || !podePreparar || !rulePackageId || prepare.isPending} onClick={() => prepare.mutate()}><Calculator aria-hidden="true" /> Preparar</Button>
