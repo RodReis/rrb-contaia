@@ -83,7 +83,7 @@ Cada fatia recebe um `F<n>` e um `SPEC-<nnn>` **iguais**, alocados **uma única 
 | MVP-2 | F35 | SPEC-035 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Dossiê interno de decisão do ICMS-ST histórico | #39 | `proplan:backlog` |
 | MVP-2 | F36 | SPEC-036 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Apuração mensal e guias prévias para comércio de autopeças em Goiás | #41 | `proplan:backlog` |
 | MVP-2 | F37 | SPEC-037 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Apuração mensal de PIS e Cofins para autopeças no Lucro Presumido | #43 | `proplan:backlog` |
-| MVP-2 | F38 | SPEC-038 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido | #44 | `proplan:backlog` |
+| MVP-2 | F38 | SPEC-038 | PRD §§3, 5.3, 6.1, 6.2, 6.5, 12, 14, 15 e 16 | Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido | #44 | `proplan:doing` |
 | MVP-2 | F39 | SPEC-039 | PRD §§3, 4.2, 6.2, 10.3, 12, 14, 15 e 16 | Catálogo contábil operacional | #53 | `proplan:backlog` |
 | MVP-2 | F40 | SPEC-040 | PRD §§3, 6.2, 6.5, 12, 14, 15 e 16 | Lançamentos contábeis manuais balanceados | #54 | `proplan:backlog` |
 | MVP-2 | F41 | SPEC-041 | PRD §§3, 5.3, 6.2, 6.5, 10.3, 12, 14, 15 e 16 | Motor determinístico de partidas contábeis | #55 | `proplan:backlog` |

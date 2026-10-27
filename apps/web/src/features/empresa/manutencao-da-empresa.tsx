@@ -34,6 +34,7 @@ import { AbaCapturaDfe } from '../dfe-capture/aba-captura-dfe';
 import { PainelDeDocumentosFiscais } from '../fiscal-documents/painel-de-documentos-fiscais';
 import { PainelDeRiscoFiscal } from '../fiscal-documents/painel-de-risco-fiscal';
 import { PainelApuracaoMensal } from '../fiscal-documents/painel-apuracao-mensal';
+import { PainelApuracaoCorporativa } from '../fiscal-documents/painel-apuracao-corporativa';
 import { CONSULTA_DO_PLANO, concede } from '../plano-contas/permissoes';
 import { ADMINISTRACAO_DE_USUARIOS, pode } from '../usuarios/permissoes';
 import { useSessao } from '../usuarios/queries';
@@ -353,6 +354,11 @@ export const ManutencaoDaEmpresa = ({
               <PainelApuracaoMensal empresaId={visao.id} somenteLeitura={arquivada}
                 podePreparar={sessao?.permissoes.includes(SIMULACAO_DO_MOTOR) ?? false}
                 podeRevisar={sessao?.papeis.some((papel) => ['admin_escritorio', 'contador'].includes(papel)) ?? false} />
+              <div className="mt-2xl border-t border-border pt-2xl">
+                <PainelApuracaoCorporativa empresaId={visao.id} somenteLeitura={arquivada}
+                  podePreparar={sessao?.permissoes.includes(SIMULACAO_DO_MOTOR) ?? false}
+                  podeRevisar={sessao?.papeis.some((papel) => ['admin_escritorio', 'contador'].includes(papel)) ?? false} />
+              </div>
             </Tabs.Content>
           ) : null}
 

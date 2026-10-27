@@ -33,6 +33,9 @@ export type { IcmsStC002Input } from './tax-resolution/render-icms-st-c002.js';
 export { buildHistoricalIcmsStPackage } from './tax-resolution/build-icms-st-history.js';
 export { calculateIcmsStLegalAccruals, endOfIcmsStCompetence } from './tax-resolution/calculate-icms-st-legal-accruals.js';
 export { calculateMonthlyOwnIcmsAssessment, calculateMonthlySimpleAssessment } from './tax-resolution/calculate-monthly-assessment.js';
+export { calculateCorporateTaxAssessment } from './tax-resolution/calculate-corporate-tax-assessment.js';
+export type { CorporateTaxAssessmentCalculation, CorporateTaxComponent, CorporateTaxDeductionInput, CorporateTaxKind,
+  CorporateTaxRecognition, CorporateTaxRevenue, CorporateTaxRule, CorporateTaxRulePackage } from './tax-resolution/calculate-corporate-tax-assessment.js';
 export type { IcmsOwnAdjustment, IcmsOwnAssessmentInput, IcmsOwnRulePackage, MonthlyAssessment, MonthlyAssessmentKind,
   MonthlyAssessmentSource, MonthlyAssessmentStatus, MonthlyTaxComponent, SimpleAssessmentInput, SimpleBracket,
   SimpleRevenueSegment, SimpleRulePackage, SimpleSegregation } from './tax-resolution/calculate-monthly-assessment.js';
