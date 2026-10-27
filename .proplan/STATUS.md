@@ -67,16 +67,12 @@ updated: 2026-10-27
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
-- [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57)
 - [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58)
-- [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55)
+- [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57)
 - [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56)
+- [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55)
 - [MVP2][SPEC-040][F40] Lançamentos contábeis manuais balanceados (#54)
 - [MVP2][SPEC-039][F39] Catálogo contábil operacional (#53)
-
-### Sem épico
-
-- [MVP1][FIX] app.uuid_v7() grava a variante RFC 4122 no byte errado (#47)
 
 ## Em Andamento
 
@@ -135,6 +131,7 @@ _(vazio)_
 
 ### Sem épico
 
+- [MVP1][FIX] app.uuid_v7() grava a variante RFC 4122 no byte errado (#47, finalizado em: 2026-10-27)
 - [MVP2][SPEC-036][FIX] corrigir subconsulta de cobertura pós-venda (#154, finalizado em: 2026-10-27)
 - [MVP2][SPEC-036][FIX] alinhar anexos E2E à quantidade de evidências (#156, finalizado em: 2026-10-27)
 - [MVP2][SPEC-037][FIX] eliminar rolagem horizontal nos parâmetros F37 (#157, finalizado em: 2026-10-27)
