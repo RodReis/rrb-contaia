@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-26
+updated: 2026-10-27
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -81,9 +81,7 @@ updated: 2026-10-26
 
 ## Em Andamento
 
-### [MVP2] Fiscal, contábil e financeiro (#31)
-
-- [MVP2][SPEC-037][F37] Apuração mensal de PIS e Cofins para autopeças no Lucro Presumido (#43)
+_(vazio)_
 
 ## Feito
 
@@ -93,6 +91,7 @@ _(vazio)_
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-037][F37] Apuração mensal de PIS e Cofins para autopeças no Lucro Presumido (#43, finalizado em: 2026-10-27)
 - [MVP2][SPEC-036][F36] Apuração mensal e guias prévias para comércio de autopeças em Goiás (#41, finalizado em: 2026-10-26)
 - [MVP2][SPEC-035][F35] Dossiê interno de decisão do ICMS-ST histórico (#39, finalizado em: 2026-10-25)
 - [MVP2][SPEC-034][F34] Acréscimos legais da reconstrução histórica do ICMS-ST em Goiás (#38, finalizado em: 2026-10-24)
