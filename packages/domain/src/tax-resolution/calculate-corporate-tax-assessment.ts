@@ -139,10 +139,14 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
     gaps.push('CORPORATE_TAX_DEDUCTION_INVALID');
   if (gaps.length) return blocked(gaps);
 
-  const pkg = input.package!;
-  const quarterEnd = `${months![2]}-${String(new Date(Date.UTC(Number(months![2]!.slice(0, 4)), Number(months![2]!.slice(5, 7)), 0)).getUTCDate()).padStart(2, '0')}`;
+  const pkg = input.package;
+  if (!pkg || !months) return blocked(['CORPORATE_TAX_RULE_MISSING']);
+  const firstMonth = months[0];
+  const lastMonth = months[2];
+  if (!firstMonth || !lastMonth) return blocked(['CORPORATE_TAX_QUARTER_UNSUPPORTED']);
+  const quarterEnd = `${lastMonth}-${String(new Date(Date.UTC(Number(lastMonth.slice(0, 4)), Number(lastMonth.slice(5, 7)), 0)).getUTCDate()).padStart(2, '0')}`;
   if (!pkg.approved || pkg.sourceIds.length === 0 || pkg.rounding !== 'HALF_UP' ||
-      pkg.validFrom > `${months![0]}-01` || (pkg.validThrough !== null && pkg.validThrough < quarterEnd))
+      pkg.validFrom > `${firstMonth}-01` || (pkg.validThrough !== null && pkg.validThrough < quarterEnd))
     gaps.push('CORPORATE_TAX_RULE_MISSING');
   if (pkg.additionalIrpjRateScaled === null || pkg.additionalIrpjThresholdCentsByMonth === null ||
       !isCents(pkg.additionalIrpjThresholdCentsByMonth) || !pkg.additionalIrpjRuleId || pkg.additionalIrpjSourceIds.length === 0)
@@ -151,16 +155,17 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
   type CorporateTaxGroup = { tax: 'IRPJ' | 'CSLL'; revenue: CorporateTaxRevenue[]; rule: CorporateTaxRule };
   const grouped = new Map<string, CorporateTaxGroup>();
   for (const item of input.revenue) {
+    if (!item.id || !item.month) { gaps.push('CORPORATE_TAX_EVIDENCE_REQUIRED'); continue; }
     for (const tax of ['IRPJ', 'CSLL'] as const) {
       const monthEnd = `${item.month}-${String(new Date(Date.UTC(Number(item.month.slice(0, 4)), Number(item.month.slice(5, 7)), 0)).getUTCDate()).padStart(2, '0')}`;
       const candidates = pkg.rules.filter((rule) => rule.tax === tax && rule.activityCode === item.activityCode &&
         rule.revenueNatureCode === item.revenueNatureCode && rule.validFrom <= monthEnd &&
         (rule.validThrough === null || rule.validThrough >= `${item.month}-01`) && (() => {
           const basis = rule.revenueBasis ?? (rule.revenueMinimumCents === undefined && (rule.revenueMaximumCents === undefined || rule.revenueMaximumCents === null) ? 'LINE' : null);
-          if (!basis) return false;
+          if (!basis || !months) return false;
           const relevant = input.revenue.filter((candidate) => candidate.activityCode === item.activityCode &&
             candidate.revenueNatureCode === item.revenueNatureCode && (basis === 'LINE' ? candidate.id === item.id :
-              basis === 'MONTH' ? candidate.month === item.month : basis === 'QUARTER' ? months!.includes(candidate.month) :
+              basis === 'MONTH' ? candidate.month === item.month : basis === 'QUARTER' ? months.includes(candidate.month) :
                 candidate.month <= item.month && candidate.month.slice(0, 4) === item.month.slice(0, 4)));
           const periodRevenue = relevant.reduce((sum, candidate) => sum + BigInt(candidate.grossCents), 0n);
           return (rule.revenueMinimumCents === undefined || periodRevenue >= BigInt(rule.revenueMinimumCents)) &&
@@ -171,7 +176,8 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
         gaps.push(candidates.length > 1 ? 'CORPORATE_TAX_RULE_CONFLICT' : 'CORPORATE_TAX_REVENUE_NATURE_UNSUPPORTED');
         continue;
       }
-      const rule = applicable[0]!;
+      const rule = applicable[0];
+      if (!rule) continue;
       const key = `${tax}:${item.activityCode}:${item.revenueNatureCode}:${rule.id}`;
       const group: CorporateTaxGroup = grouped.get(key) ?? { tax, revenue: [], rule };
       group.revenue.push(item);
@@ -193,29 +199,33 @@ export const calculateCorporateTaxAssessment = (input: Readonly<{
     if ([grossTax, safeGross, safeAdjustment, safePresumed, safeAdditions].some((value) => value === null)) {
       gaps.push('CORPORATE_TAX_RULE_MISSING'); continue;
     }
+    if (grossTax === null || safeGross === null || safeAdjustment === null || safePresumed === null || safeAdditions === null) continue;
     components.push({ tax: group.tax, activityCode: group.rule.activityCode, revenueNatureCode: group.rule.revenueNatureCode,
-      grossRevenueCents: safeGross!, adjustmentCents: safeAdjustment!, presumptionRateScaled: group.rule.presumptionRateScaled,
-      presumedBaseCents: safePresumed!, directAdditionCents: safeAdditions!, taxRateScaled: group.rule.taxRateScaled,
-      grossTaxCents: grossTax!, ruleId: group.rule.id, sourceIds: [...new Set(group.revenue.flatMap((item) => item.sourceIds).concat(group.rule.sourceIds))].sort(),
+      grossRevenueCents: safeGross, adjustmentCents: safeAdjustment, presumptionRateScaled: group.rule.presumptionRateScaled,
+      presumedBaseCents: safePresumed, directAdditionCents: safeAdditions, taxRateScaled: group.rule.taxRateScaled,
+      grossTaxCents: grossTax, ruleId: group.rule.id, sourceIds: [...new Set(group.revenue.flatMap((item) => item.sourceIds).concat(group.rule.sourceIds))].sort(),
       calculationTrace: { formula: 'ROUND_HALF_UP(MAX(0,GROSS-ADJUSTMENT)*PRESUMPTION_RATE/SCALE)+DIRECT_ADDITION;ROUND_HALF_UP(BASE*TAX_RATE/SCALE)',
         numerator: `${netGross.toString()}*${presumptionRate.toString()};${taxBase.toString()}*${taxRate.toString()}`,
         denominator: `${CORPORATE_TAX_RATE_SCALE.toString()};${CORPORATE_TAX_RATE_SCALE.toString()}`, rounding: 'HALF_UP' } });
   }
   if (gaps.length) return blocked(gaps, components);
 
-  const ordinaryIrpj = components.filter((item) => item.tax === 'IRPJ').reduce((sum, item) => sum + BigInt(item.grossTaxCents!), 0n);
-  const csll = components.filter((item) => item.tax === 'CSLL').reduce((sum, item) => sum + BigInt(item.grossTaxCents!), 0n);
-  const totalIrpjBase = components.filter((item) => item.tax === 'IRPJ').reduce((sum, item) => sum + BigInt(item.presumedBaseCents!) + BigInt(item.directAdditionCents), 0n);
-  const threshold = BigInt(pkg.additionalIrpjThresholdCentsByMonth!) * 3n;
+  const ordinaryIrpj = components.filter((item) => item.tax === 'IRPJ').reduce((sum, item) => sum + BigInt(item.grossTaxCents ?? 0), 0n);
+  const csll = components.filter((item) => item.tax === 'CSLL').reduce((sum, item) => sum + BigInt(item.grossTaxCents ?? 0), 0n);
+  const totalIrpjBase = components.filter((item) => item.tax === 'IRPJ').reduce((sum, item) => sum + BigInt(item.presumedBaseCents ?? 0) + BigInt(item.directAdditionCents), 0n);
+  const thresholdCentsByMonth = pkg.additionalIrpjThresholdCentsByMonth;
+  if (thresholdCentsByMonth === null) return blocked(['CORPORATE_TAX_RULE_MISSING'], components);
+  const threshold = BigInt(thresholdCentsByMonth) * 3n;
   const additionalBase = totalIrpjBase > threshold ? totalIrpjBase - threshold : 0n;
-  const additionalRate = parseScaledRate(pkg.additionalIrpjRateScaled!);
+  const additionalRateScaled = pkg.additionalIrpjRateScaled;
+  const additionalRate = additionalRateScaled === null ? null : parseScaledRate(additionalRateScaled);
   if (additionalRate === null) return blocked(['CORPORATE_TAX_RULE_MISSING'], components);
   const additionalTax = asSafeNumber(roundHalfUp(additionalBase * additionalRate, CORPORATE_TAX_RATE_SCALE));
   if (additionalTax === null) return blocked(['CORPORATE_TAX_RULE_MISSING'], components);
   if (additionalBase > 0n) components.push({ tax: 'IRPJ_ADDITIONAL', activityCode: 'COMMERCE_AUTO_PARTS', revenueNatureCode: 'ADDITIONAL_BASE',
     grossRevenueCents: 0, adjustmentCents: 0, presumptionRateScaled: null, presumedBaseCents: asSafeNumber(additionalBase),
-    directAdditionCents: 0, taxRateScaled: pkg.additionalIrpjRateScaled, grossTaxCents: additionalTax,
-    ruleId: pkg.additionalIrpjRuleId!, sourceIds: [...new Set([...pkg.additionalIrpjSourceIds, ...pkg.sourceIds])].sort(),
+    directAdditionCents: 0, taxRateScaled: additionalRateScaled, grossTaxCents: additionalTax,
+    ruleId: pkg.additionalIrpjRuleId ?? '', sourceIds: [...new Set([...pkg.additionalIrpjSourceIds, ...pkg.sourceIds])].sort(),
     calculationTrace: { formula: 'ROUND_HALF_UP(MAX(0,IRPJ_BASE-3*MONTHLY_THRESHOLD)*ADDITIONAL_RATE/SCALE)',
       numerator: `${additionalBase.toString()}*${additionalRate.toString()}`, denominator: CORPORATE_TAX_RATE_SCALE.toString(), rounding: 'HALF_UP' } });
   const irpjGross = ordinaryIrpj + BigInt(additionalTax);

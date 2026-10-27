@@ -47,4 +47,17 @@ describe('contratos da apuração corporativa F38', () => {
     expect(CorporateTaxDeclarationSchema.safeParse(declaration).success).toBe(false);
     expect(CorporateTaxDeclarationSchema.safeParse({ ...declaration, revenue: [{ ...declaration.revenue[0], ruleIds: ['IRPJ-SALES','CSLL-SALES'] }] }).success).toBe(true);
   });
+
+  it('exige data de reconhecimento de dedução dentro do trimestre civil', () => {
+    const declaration = { quarter: '2026-Q1', recognition: 'ACCRUAL', recognitionOptionValid: true, regimeVerified: true,
+      activityVerified: true, revenueReconciled: true, revenue: [],
+      deductions: [{ tax: 'IRPJ', kind: 'WITHHOLDING', amountCents: 100, evidenceKind: 'RETENCAO_IRPJ', evidenceIndex: 0, ruleId: 'RETENCAO-1' }],
+      evidence: [{ kind: 'RETENCAO_IRPJ', description: 'Comprovante fiscal.', sourceReference: 'receipt:1', recognizedOn: '2026-02-15', amountCents: 100 }],
+      justification: 'Conferência estrutural das evidências anexadas.' };
+    expect(CorporateTaxDeclarationSchema.safeParse(declaration).success).toBe(true);
+    expect(CorporateTaxDeclarationSchema.safeParse({ ...declaration,
+      evidence: [{ ...declaration.evidence[0], recognizedOn: '2025-12-31' }] }).success).toBe(false);
+    expect(CorporateTaxDeclarationSchema.safeParse({ ...declaration,
+      evidence: [{ ...declaration.evidence[0], recognizedOn: null }] }).success).toBe(false);
+  });
 });

@@ -317,6 +317,10 @@ export const CorporateTaxDeclarationSchema = z.strictObject({
   };
   if (value.revenue.some((item) => !quarterMonths[value.quarter]?.includes(item.month)))
     context.addIssue({ code: 'custom', message: 'Receita fora do trimestre declarado.', path: ['revenue'] });
+  if (value.deductions.some((item) => {
+    const recognizedOn = value.evidence[item.evidenceIndex]?.recognizedOn;
+    return recognizedOn === undefined || recognizedOn === null || !quarterMonths[value.quarter]?.includes(recognizedOn.slice(0, 7));
+  })) context.addIssue({ code: 'custom', message: 'Dedução sem data comprovada no trimestre declarado.', path: ['deductions'] });
 });
 
 export const PrepareCorporateTaxAssessmentSchema = z.strictObject({
