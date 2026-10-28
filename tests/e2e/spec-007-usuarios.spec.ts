@@ -323,7 +323,7 @@ test('convite completo: convidar, capturar o e-mail, definir a senha e entrar se
   await expect(usuario.getByRole('link', { name: /Cadastrar empresa/ })).toHaveCount(0);
 
   // Contador não administra nem consulta usuários: o menu não os oferece...
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados', 'Motor tributário', 'Agenda de obrigações']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados', 'Motor tributário', 'Agenda de obrigações']);
 
   // ...e a API recusa o acesso direto mesmo assim.
   await usuario.goto('/configuracoes/usuarios');

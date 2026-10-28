@@ -427,6 +427,15 @@ describe('enviar: arquivo aceito (SPEC-013 §3.2, §6.1)', () => {
 
     expect(db.atual.tentativas[0]!.mapeamento).toEqual(MAPEAMENTO);
   });
+
+  it('preserva o mapeamento opcional da classe contábil', async () => {
+    const { servico } = montar();
+    const mapeamento = { ...MAPEAMENTO, classe_contabil: 'classe_contabil' };
+
+    await servico.enviar(CONTEXTO, EMPRESA, arquivo(Buffer.from(MODELO_CSV)), mapeamento);
+
+    expect(db.atual.tentativas[0]!.mapeamento).toEqual(mapeamento);
+  });
 });
 
 describe('enviar: rejeição antes do staging não cria nada (SPEC-013 §3.2, §7)', () => {

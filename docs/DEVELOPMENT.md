@@ -9,9 +9,9 @@
 
 - [x] Implementados CRUD versionado e hierárquico para plano de contas/centros de custo, classe contábil independente do saldo normal, política de centro de custo, estados incompletos, carteira/permissões, histórico append-only e acessos pela empresa e pelo módulo Contabilidade.
 - [x] F13 preserva CSV legado sem classe; classe opcional passa por CSV/XLSX e staging, e reimportação sem coluna preserva classificação manual. Migrations F39 e trigger de transição explícita para reativação incluídos.
-- [x] Validação local: domain 976/976; web 1337/1337; API base 1497/1497; regressão nova da API 1/1; workers 66/66; DB F39 4/4, integração F13 34/34, `plano-contas.integration` 28/28, anti-drift 17/17 e matriz RLS 5/5 com as novas tabelas F39. Typechecks passaram. Lint sem erros; um warning preexistente em `apps/web/src/features/empresa/aba-de-enderecos.tsx:104`.
+- [x] Validação local: domain 976/976; web 1337/1337; API base 1497/1497; testes direcionados API 93/93, incluindo DTO/mapeamento opcional F39 e auditoria; workers 66/66; DB F39 4/4, integração F13 34/34, `plano-contas.integration` 28/28, anti-drift 17/17 e matriz RLS 5/5 com as novas tabelas F39. Typechecks passaram. Lint sem erros; um warning preexistente em `apps/web/src/features/empresa/aba-de-enderecos.tsx:104`.
 - [ ] Regra material da classe incompatível com a hierarquia não está definida na SPEC-039; pendente decisão do PI antes de implementar esse diagnóstico.
-- [ ] Smoke E2E autenticado e capturas CLARO/ESCURO × 768/1024/1440 `not_run`: API/workers/dubles reiniciam por erro ao ler certificados (`EISDIR`), e bootstrap Vault falha HTTP 400 na instância compartilhada. Sem recriação de containers/volumes: backup validado é pré-requisito.
+- [ ] E2E CI do head `f893219`: 142 passaram, 3 falharam e 27 não rodaram; falhas eram menu desatualizado para consulta F39 e DTO estrito recusando `classe_contabil` opcional. Correções e regressões incluídas no head seguinte; rerun pendente. Smoke visual local CLARO/ESCURO × 768/1024/1440 `not_run`: API/workers/dubles locais reiniciam por `EISDIR` ao ler certificados e bootstrap Vault falha HTTP 400. Sem recriação de containers/volumes: backup validado é pré-requisito.
 - [ ] Detector/passe final Impeccable, revisão integral, PR, CI no head, merge confirmado, comentário de encerramento e `proplan:done` pendentes.
 
 ## 1. Ambiente
