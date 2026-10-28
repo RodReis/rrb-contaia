@@ -312,6 +312,9 @@ jobs:
       # Também gera o `dist` de @contaia/planilhas: a spec-015 monta as planilhas de teste com os construtores dele.
       - run: pnpm build
       - run: pnpm test:e2e
+      - name: Diagnóstico da API após falha E2E
+        if: failure()
+        run: docker compose --env-file .env -f infra/docker/compose.yml logs --no-color --tail=200 api
       - name: Resumo da categoria
         if: always()
         # O job pode abortar antes do checkout (falha ao subir container): sem
