@@ -40,6 +40,9 @@ const ESTRUTURA_CONTABIL_TODAS: readonly ChaveDePermissao[] = [
   'contabil.estrutura_contabil.arquivar',
   'contabil.estrutura_contabil.reativar',
 ];
+const LANCAMENTOS_LEITURA: readonly ChaveDePermissao[] = ['contabil.lancamentos.consultar'];
+const LANCAMENTOS_PREPARO: readonly ChaveDePermissao[] = [...LANCAMENTOS_LEITURA, 'contabil.lancamentos.preparar_rascunho'];
+const LANCAMENTOS_TODAS: readonly ChaveDePermissao[] = [...LANCAMENTOS_PREPARO, 'contabil.lancamentos.efetivar', 'contabil.lancamentos.cancelar_estornar'];
 
 // SPEC-014 §3.12: contador e auditor consultam e baixam; só o admin importa e confirma (o papel
 // `dp` entra no MVP-3). O auxiliar e os demais papéis padrão não têm acesso nesta fatia.
@@ -65,6 +68,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
   contador: [
     ...chavesDoModulo('empresas').filter((chave) => !chave.startsWith('empresas.empregados.')),
     ...ESTRUTURA_CONTABIL_TODAS,
+    ...LANCAMENTOS_TODAS,
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...chavesDoModulo('certificados'),
@@ -79,6 +83,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...CADASTRO_DE_EMPRESAS_SEM_ARQUIVAR,
     ...PLANO_DE_CONTAS_LEITURA,
     ...ESTRUTURA_CONTABIL_LEITURA,
+    ...LANCAMENTOS_PREPARO,
     ...OPERACAO,
     ...OBRIGACOES_OPERACAO,
     'certificados.cofre.consultar',
@@ -86,6 +91,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
   ],
   auditor_readonly: [
     ...ESTRUTURA_CONTABIL_LEITURA,
+    ...LANCAMENTOS_LEITURA,
     'escritorio.dados.consultar',
     'empresas.cadastro.consultar',
     'empresas.historico.consultar',

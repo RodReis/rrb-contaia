@@ -21,6 +21,7 @@ export const DialogoDeJustificativa = ({
   rotuloDeConfirmacao,
   destrutivo = false,
   ocupado,
+  limite = 500,
   aoConfirmar,
 }: {
   gatilho: ReactNode;
@@ -29,6 +30,7 @@ export const DialogoDeJustificativa = ({
   rotuloDeConfirmacao: string;
   destrutivo?: boolean;
   ocupado: boolean;
+  limite?: number;
   aoConfirmar: (justificativa: string) => Promise<unknown>;
 }) => {
   const [aberto, definirAberto] = useState(false);
@@ -84,7 +86,7 @@ export const DialogoDeJustificativa = ({
             }}
             erro={erro}
             ajuda="Fica registrada no Histórico de Informações, junto com o autor e a data."
-            maxLength={500}
+            maxLength={limite}
           />
 
           <div className="flex flex-wrap justify-end gap-sm">

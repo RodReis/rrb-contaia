@@ -58,6 +58,8 @@ import { PROVEDORES_DA_FILA_DO_PLANO } from './plano-contas/plano-contas.fila';
 import { PlanoContasService } from './plano-contas/plano-contas.service';
 import { CatalogoContabilController } from './plano-contas/catalogo-contabil.controller';
 import { CatalogoContabilService } from './plano-contas/catalogo-contabil.service';
+import { LancamentosContabeisController } from './lancamentos-contabeis/lancamentos-contabeis.controller';
+import { LancamentosContabeisService } from './lancamentos-contabeis/lancamentos-contabeis.service';
 import { GuardDoCatalogoTributario } from './auth/catalogo-tributario.guard';
 import { TaxRulesController } from './tax-rules/tax-rules.controller';
 import { TaxRulesService } from './tax-rules/tax-rules.service';
@@ -117,6 +119,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     DocumentosDaEmpresaController,
     PlanoContasDaEmpresaController,
     CatalogoContabilController,
+    LancamentosContabeisController,
     EmpregadosDaEmpresaController,
     EmpresaController,
     PendenciasController,
@@ -156,6 +159,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     ...PROVEDORES_DO_SIGNER,
     PlanoContasService,
     CatalogoContabilService,
+    LancamentosContabeisService,
     ...PROVEDORES_DA_FILA_DO_PLANO,
     EmpregadosService,
     ...PROVEDORES_DA_FILA_DOS_EMPREGADOS,
