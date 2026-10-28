@@ -130,7 +130,7 @@ const novaTentativa = (empresaId: string, opcoes: Readonly<{ hash?: string; mape
 const valida = (
   numeroDaLinha: number,
   codigo: string,
-  opcoes: Readonly<{ acao?: 'INCLUIR' | 'ATUALIZAR'; contaPai?: string | null; nome?: string }> = {},
+  opcoes: Readonly<{ acao?: 'INCLUIR' | 'ATUALIZAR'; contaPai?: string | null; nome?: string; classeContabil?: string }> = {},
 ): LinhaDeStaging => ({
   status: 'VALIDA',
   numeroDaLinha,
@@ -139,6 +139,7 @@ const valida = (
   tipo: 'sintetica',
   natureza: 'devedora',
   contaPai: opcoes.contaPai ?? null,
+  ...(opcoes.classeContabil === undefined ? {} : { classeContabil: opcoes.classeContabil }),
   acao: opcoes.acao ?? 'INCLUIR',
 });
 
@@ -596,6 +597,21 @@ describe('validação no worker: staging idempotente (SPEC-013 §3.4, §6.4)', (
 });
 
 describe('confirmação e aplicação transacional (SPEC-013 §3.6, §6.3)', () => {
+  it('F13 aplica classe quando mapeada e preserva classificação manual em reimportação legada', async () => {
+    const empresaId = await novaEmpresa();
+    await inserirContaComoAdmin(empresaId, '1');
+    await admin.query(`update app.conta_contabil set classe_contabil='ASSET' where empresa_id=$1 and codigo='1'`, [empresaId]);
+    const previa = await prepararPrevia(empresaId, [
+      valida(1, '1', { acao: 'ATUALIZAR', nome: 'Ativo reimportado' }),
+      valida(2, '2', { nome: 'Passivo', classeContabil: 'LIABILITY' }),
+    ]);
+
+    await confirmarEAplicar(empresaId, previa);
+    const { rows } = await admin.query<{ codigo: string; classe_contabil: string | null }>(
+      `select codigo,classe_contabil from app.conta_contabil where empresa_id=$1 order by codigo`, [empresaId]);
+    expect(rows).toEqual([{ codigo: '1', classe_contabil: 'ASSET' }, { codigo: '2', classe_contabil: 'LIABILITY' }]);
+  });
+
   it('inclui as novas, atualiza as existentes, mantém as ausentes e sobe a versão do plano', async () => {
     const empresaId = await novaEmpresa();
     await inserirContaComoAdmin(empresaId, '1');
@@ -1001,10 +1017,10 @@ describe('consultas (SPEC-013 §3.5, §3.9)', () => {
     expect(await contarContasValidasDe(empresaId)).toBe(3);
     const vigentes = await comoWorker(empresaId, (cli) => carregarContasVigentes(cli, empresaId));
     expect([...vigentes].sort((a, b) => a.codigo.localeCompare(b.codigo))).toEqual([
-      { codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: null },
-      { codigo: '1.1', tipo: 'analitica', arquivada: false, temFilhas: false, contaPai: '1' },
-      { codigo: '2', tipo: 'sintetica', arquivada: false, temFilhas: false, contaPai: null },
-      { codigo: '3', tipo: 'sintetica', arquivada: true, temFilhas: false, contaPai: null },
+      { codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: null, classeContabil: null },
+      { codigo: '1.1', tipo: 'analitica', arquivada: false, temFilhas: false, contaPai: '1', classeContabil: null },
+      { codigo: '2', tipo: 'sintetica', arquivada: false, temFilhas: false, contaPai: null, classeContabil: null },
+      { codigo: '3', tipo: 'sintetica', arquivada: true, temFilhas: false, contaPai: null, classeContabil: null },
     ]);
   });
 });

@@ -13,11 +13,13 @@ import type { LinhaBrutaDeEntrada } from './validacao.js';
 export const LIMITE_DE_LINHAS = 10_000;
 export const LIMITE_DE_BYTES = 10 * 1024 * 1024;
 
-export const CAMPOS_DO_CONTRATO = ['codigo', 'nome', 'tipo', 'natureza', 'conta_pai'] as const;
-export type CampoDoContrato = (typeof CAMPOS_DO_CONTRATO)[number];
+export const CAMPOS_OBRIGATORIOS = ['codigo', 'nome', 'tipo', 'natureza', 'conta_pai'] as const;
+export const CAMPO_CLASSE_CONTABIL = 'classe_contabil' as const;
+export const CAMPOS_DO_CONTRATO = CAMPOS_OBRIGATORIOS;
+export type CampoDoContrato = (typeof CAMPOS_DO_CONTRATO)[number] | typeof CAMPO_CLASSE_CONTABIL;
 
 /** Campo do contrato → nome da coluna de origem no cabeçalho do arquivo. */
-export type Mapeamento = Readonly<Record<CampoDoContrato, string>>;
+export type Mapeamento = Readonly<Record<(typeof CAMPOS_OBRIGATORIOS)[number], string> & Partial<Record<typeof CAMPO_CLASSE_CONTABIL, string>>>;
 
 export type Delimitador = ',' | ';' | '\t';
 
@@ -206,7 +208,11 @@ export const pendenciasDoMapeamento = <Campo extends string>(
 export const validarMapeamento = (
   cabecalho: readonly string[],
   mapeamento: Mapeamento,
-): readonly PendenciaDoMapeamento[] => pendenciasDoMapeamento(CAMPOS_DO_CONTRATO, cabecalho, mapeamento);
+): readonly PendenciaDoMapeamento[] => {
+  const obrigatorias = pendenciasDoMapeamento(CAMPOS_OBRIGATORIOS, cabecalho, mapeamento);
+  const classe = colunaMapeada(mapeamento, CAMPO_CLASSE_CONTABIL);
+  return classe === '' ? obrigatorias : [...obrigatorias, ...pendenciasDoMapeamento([CAMPO_CLASSE_CONTABIL], cabecalho, mapeamento)];
+};
 
 const semAcentoEmMinusculo = (valor: string): string =>
   valor.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -223,6 +229,14 @@ const normalizarEnumerado = (valor: string, validos: readonly string[]): string 
 
 const TIPOS = ['analitica', 'sintetica'] as const;
 const NATUREZAS = ['devedora', 'credora'] as const;
+const CLASSES_CONTABEIS: Readonly<Record<string, string>> = {
+  asset: 'ASSET', ativo: 'ASSET', liability: 'LIABILITY', passivo: 'LIABILITY', equity: 'EQUITY', 'patrimonio liquido': 'EQUITY',
+  revenue: 'REVENUE', receita: 'REVENUE', expense: 'EXPENSE', despesa: 'EXPENSE', compensation: 'COMPENSATION', compensacao: 'COMPENSATION', other: 'OTHER', outros: 'OTHER',
+};
+const classeContabil = (valor: string): string | null => {
+  const normalizado = semAcentoEmMinusculo(valor.trim());
+  return normalizado === '' ? null : CLASSES_CONTABEIS[normalizado] ?? valor.trim().toUpperCase();
+};
 
 /**
  * Posição, no cabeçalho, da coluna mapeada para cada campo. Mapeamento que não aponta para
@@ -280,15 +294,17 @@ export const normalizarLinhas = (
   mapeamento: Mapeamento,
   rejeicoesEstruturais?: ReadonlyMap<number, RejeicaoEstruturalDeCelula>,
 ): readonly LinhaBrutaDeEntrada[] => {
-  const indices = indicesDasColunasDe(CAMPOS_DO_CONTRATO, cabecalho, mapeamento);
+  const indices = indicesDasColunasDe(CAMPOS_OBRIGATORIOS, cabecalho, mapeamento);
+  const colunaClasse = colunaMapeada(mapeamento, CAMPO_CLASSE_CONTABIL);
+  const indiceClasse = colunaClasse === '' ? -1 : cabecalho.map(nomeDaColuna).indexOf(colunaClasse);
   // Só planilha precisa do mapa letra -> campo; o caminho do CSV não o constrói.
   const campoDaLetra =
     rejeicoesEstruturais === undefined
       ? undefined
-      : new Map(CAMPOS_DO_CONTRATO.map((campo) => [nomeDaColuna(mapeamento[campo]), campo] as const));
+      : new Map([...CAMPOS_DO_CONTRATO, CAMPO_CLASSE_CONTABIL].filter((campo) => colunaMapeada(mapeamento, campo) !== '').map((campo) => [nomeDaColuna(mapeamento[campo] ?? ''), campo] as const));
 
   return registros.map((registro) => {
-    const celula = (campo: CampoDoContrato): string => (registro.celulas[indices[campo]] ?? '').trim();
+    const celula = (campo: (typeof CAMPOS_OBRIGATORIOS)[number]): string => (registro.celulas[indices[campo]] ?? '').trim();
     const contaPai = celula('conta_pai');
     const rejeicaoEstrutural =
       campoDaLetra === undefined ? undefined : rejeicaoEstruturalDaLinha(rejeicoesEstruturais, registro.numeroDaLinha, campoDaLetra);
@@ -299,6 +315,7 @@ export const normalizarLinhas = (
       tipo: normalizarEnumerado(celula('tipo'), TIPOS),
       natureza: normalizarEnumerado(celula('natureza'), NATUREZAS),
       contaPai: contaPai === '' ? null : contaPai,
+      ...(() => { const classe = indiceClasse < 0 ? null : classeContabil((registro.celulas[indiceClasse] ?? '').trim()); return classe === null ? {} : { classeContabil: classe }; })(),
       ...(registro.camposAMais > 0 ? { defeitoDeEstrutura: 'CAMPOS_A_MAIS' as const } : {}),
       ...(rejeicaoEstrutural === undefined ? {} : { rejeicaoEstrutural }),
     };
@@ -307,12 +324,12 @@ export const normalizarLinhas = (
 
 /** Modelo oficial para download: cabeçalho fixo, `;`, CRLF e uma hierarquia mínima válida. */
 export const MODELO_CSV = [
-  'codigo;nome;tipo;natureza;conta_pai',
-  '1;Ativo;sintetica;devedora;',
-  '1.1;Ativo Circulante;sintetica;devedora;1',
-  '1.1.01;Caixa;analitica;devedora;1.1',
-  '1.1.02;Bancos;analitica;devedora;1.1',
-  '2;Passivo;sintetica;credora;',
-  '2.1;Fornecedores;analitica;credora;2',
+  'codigo;nome;tipo;natureza;conta_pai;classe_contabil',
+  '1;Ativo;sintetica;devedora;;ASSET',
+  '1.1;Ativo Circulante;sintetica;devedora;1;ASSET',
+  '1.1.01;Caixa;analitica;devedora;1.1;ASSET',
+  '1.1.02;Bancos;analitica;devedora;1.1;ASSET',
+  '2;Passivo;sintetica;credora;;LIABILITY',
+  '2.1;Fornecedores;analitica;credora;2;LIABILITY',
   '',
 ].join('\r\n');

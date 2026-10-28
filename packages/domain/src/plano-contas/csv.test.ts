@@ -125,6 +125,13 @@ describe('validarMapeamento', () => {
     expect(validarMapeamento(CABECALHO_PADRAO, MAPEAMENTO_PADRAO)).toEqual([]);
   });
 
+  it('coluna de classe é opcional no mapeamento legado e validada quando informada', () => {
+    expect(validarMapeamento([...CABECALHO_PADRAO, 'classe_contabil'], { ...MAPEAMENTO_PADRAO, classe_contabil: 'classe_contabil' })).toEqual([]);
+    expect(validarMapeamento(CABECALHO_PADRAO, { ...MAPEAMENTO_PADRAO, classe_contabil: 'classe_contabil' })).toEqual([
+      { campo: 'classe_contabil', motivo: 'COLUNA_INEXISTENTE' },
+    ]);
+  });
+
   it('faltando natureza → AUSENTE', () => {
     const semNatureza = Object.fromEntries(
       Object.entries(MAPEAMENTO_PADRAO).filter(([campo]) => campo !== 'natureza'),
@@ -255,6 +262,14 @@ describe('normalizarLinhas', () => {
     });
   });
 
+  it('normaliza classe opcional em enum contábil e preserva a natureza de saldo', () => {
+    const cabecalho = [...CABECALHO_PADRAO, 'Classe'];
+    const mapeamento = { ...MAPEAMENTO_PADRAO, classe_contabil: 'Classe' };
+    const [linha] = normalizarLinhas(cabecalho, [{ numeroDaLinha: 2, celulas: ['1', 'Caixa', 'analitica', 'devedora', '', 'Ativo'], camposAMais: 0 }], mapeamento);
+    expect(linha).toMatchObject({ classeContabil: 'ASSET', natureza: 'devedora' });
+    expect(validarLinhasDoPlano({ linhas: [linha!], contasVigentes: [] }).aceitas[0]?.classeContabil).toBe('ASSET');
+  });
+
   it('célula ausente em linha curta vira vazio, sem lançar', () => {
     const [linha] = normalizar([['1', 'A']]);
 
@@ -306,7 +321,7 @@ describe('normalizarLinhas', () => {
 
 describe('MODELO_CSV', () => {
   it('começa pelo cabeçalho oficial, usa CRLF e termina com quebra', () => {
-    expect(MODELO_CSV.startsWith('codigo;nome;tipo;natureza;conta_pai\r\n')).toBe(true);
+    expect(MODELO_CSV.startsWith('codigo;nome;tipo;natureza;conta_pai;classe_contabil\r\n')).toBe(true);
     expect(MODELO_CSV.endsWith('\r\n')).toBe(true);
     expect(MODELO_CSV.replaceAll('\r\n', '')).not.toMatch(/[\r\n]/u);
   });

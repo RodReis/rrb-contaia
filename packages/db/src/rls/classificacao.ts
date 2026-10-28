@@ -410,6 +410,8 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.corporate_tax_assessment', classe: 'empresa', origem: 'F38 / SPEC-038', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.corporate_tax_assessment_event', classe: 'empresa', origem: 'F38 / SPEC-038', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.corporate_tax_artifact', classe: 'empresa', origem: 'F38 / SPEC-038', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.centro_custo', classe: 'empresa', origem: 'F39 / SPEC-039' },
+  { tabela: 'app.catalogo_contabil_evento', classe: 'empresa', origem: 'F39 / SPEC-039', appendOnly: true, exigeIndiceEmpresa: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

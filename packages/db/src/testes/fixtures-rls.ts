@@ -651,6 +651,25 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       ),
     colunaDeAtualizacao: 'nome',
   },
+  'app.centro_custo': {
+    inserir: (banco, e) => unico(
+      banco,
+      `insert into app.centro_custo (tenant_id,empresa_id,codigo,nome,tipo)
+       values ($1,$2,$3,'Centro da prova','analitica') returning id`,
+      [e.tenantId,e.empresaId,`matriz-${e.sufixo}-${proximo()}`],
+    ),
+    colunaDeAtualizacao: 'nome',
+  },
+  'app.catalogo_contabil_evento': {
+    inserir: (banco, e) => unico(
+      banco,
+      `insert into app.catalogo_contabil_evento
+        (tenant_id,empresa_id,catalogo,codigo_item,acao,resultado,usuario_id,correlation_id)
+       values ($1,$2,'CENTRO_CUSTO',$3,'CRIACAO','SUCESSO',$4,'rls-f39-fixture') returning id`,
+      [e.tenantId,e.empresaId,`matriz-${e.sufixo}-${proximo()}`,e.autorId],
+    ),
+    colunaDeAtualizacao: 'acao',
+  },
   'app.empresa_plano_versao': {
     // Uma linha por empresa, e a matriz grava várias vezes na mesma (semente e tentativas, todas
     // revertidas): o upsert sem efeito mantém o controle positivo. Os negativos não chegam ao

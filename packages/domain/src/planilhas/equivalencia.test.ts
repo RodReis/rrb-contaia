@@ -86,6 +86,25 @@ describe('equivalência CSV × planilha — plano de contas', () => {
     expect(csv.rejeitadas.length).toBeGreaterThan(0);
   });
 
+  it('rejeita a mesma divergência de classe no pai em CSV e planilha', () => {
+    const nomes = [...NOMES, 'classe_contabil'];
+    const dados = [
+      ['1', 'Ativo', 'sintetica', 'devedora', '', 'ASSET'],
+      ['1.1', 'Despesa incompatível', 'analitica', 'devedora', '1', 'EXPENSE'],
+    ];
+    const porNome: Mapeamento = Object.fromEntries([...CAMPOS_DO_CONTRATO, 'classe_contabil'].map((campo) => [campo, campo])) as Mapeamento;
+    const csv = validarLinhasDoPlano({ linhas: normalizarLinhas(nomes, comoCsv(dados), porNome), contasVigentes: [] });
+    const porLetra = letras([...CAMPOS_DO_CONTRATO, 'classe_contabil']) as Mapeamento;
+    const tabela = tabelaParaRegistros(comoPlanilha(nomes, dados), 1, Object.values(porLetra));
+    const planilha = validarLinhasDoPlano({
+      linhas: normalizarLinhas(tabela.cabecalho, tabela.registros, porLetra, tabela.rejeicoesEstruturaisPorLinha),
+      contasVigentes: [],
+    });
+
+    expect(csv.rejeitadas).toMatchObject([{ codigo: '1.1', codigoDeErro: 'CLASSE_CONTABIL_INCOMPATIVEL' }]);
+    expect(planilha).toEqual(csv);
+  });
+
   it('colunas fora de ordem, título acima do cabeçalho e linhas em branco não mudam o resultado', () => {
     const porNome: Mapeamento = Object.fromEntries(CAMPOS_DO_CONTRATO.map((c) => [c, c])) as Mapeamento;
     const csv = validarLinhasDoPlano({

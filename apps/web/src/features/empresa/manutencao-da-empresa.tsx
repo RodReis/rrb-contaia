@@ -30,6 +30,7 @@ import { AbaEmpregados } from '../empregados/aba-empregados';
 import { consultaEmpregados } from '../empregados/permissoes';
 import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
+import { CatalogoOperacional } from '../plano-contas/catalogo-operacional';
 import { AbaCapturaDfe } from '../dfe-capture/aba-captura-dfe';
 import { PainelDeDocumentosFiscais } from '../fiscal-documents/painel-de-documentos-fiscais';
 import { PainelDeRiscoFiscal } from '../fiscal-documents/painel-de-risco-fiscal';
@@ -59,6 +60,7 @@ const ABAS = [
   { id: 'enderecos', rotulo: 'Endereços' },
   { id: 'documentos', rotulo: 'Documentos' },
   { id: 'plano-contas', rotulo: 'Plano de contas' },
+  { id: 'estrutura-contabil', rotulo: 'Estrutura contábil' },
   { id: 'empregados', rotulo: 'Empregados' },
   { id: 'captura-dfe', rotulo: 'Captura DF-e' },
   { id: 'apuracao-fiscal', rotulo: 'Apuração fiscal' },
@@ -102,7 +104,7 @@ const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
 };
 
 /** Abas que só existem depois que a sessão diz o que o papel pode. */
-const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'empregados', 'captura-dfe', 'apuracao-fiscal', 'colaboradores'];
+const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'estrutura-contabil', 'empregados', 'captura-dfe', 'apuracao-fiscal', 'colaboradores'];
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
@@ -208,6 +210,7 @@ export const ManutencaoDaEmpresa = ({
   const administraCarteira = sessao !== undefined && pode(sessao, ADMINISTRACAO_DE_USUARIOS);
   // Plano de contas aparece para quem consulta (SPEC-013 §3.12); a API revalida em cada rota.
   const consultaPlano = sessao !== undefined && concede(sessao, CONSULTA_DO_PLANO);
+  const consultaEstruturaContabil = sessao !== undefined && concede(sessao, 'contabil.estrutura_contabil.consultar');
   // Empregados idem, com a permissão própria (SPEC-014 §3.12).
   const consultaDeEmpregados = consultaEmpregados(sessao);
   const consultaDfe = sessao !== undefined && concede(sessao, 'empresas.cadastro.consultar');
@@ -216,6 +219,7 @@ export const ManutencaoDaEmpresa = ({
     (aba) =>
       (aba.id !== 'colaboradores' || administraCarteira) &&
       (aba.id !== 'plano-contas' || consultaPlano) &&
+      (aba.id !== 'estrutura-contabil' || consultaEstruturaContabil) &&
       (aba.id !== 'empregados' || consultaDeEmpregados) &&
       (aba.id !== 'captura-dfe' || consultaDfe) &&
       (aba.id !== 'apuracao-fiscal' || consultaApuracao),
@@ -327,6 +331,12 @@ export const ManutencaoDaEmpresa = ({
           {consultaPlano ? (
             <Tabs.Content value="plano-contas" className="focus-visible:outline-none">
               <AbaPlanoDeContas empresaId={visao.id} somenteLeitura={arquivada} />
+            </Tabs.Content>
+          ) : null}
+
+          {consultaEstruturaContabil ? (
+            <Tabs.Content value="estrutura-contabil" className="focus-visible:outline-none">
+              <CatalogoOperacional empresaId={visao.id} somenteLeitura={arquivada} />
             </Tabs.Content>
           ) : null}
 

@@ -26,6 +26,7 @@ export const AbaPlanoDeContas = ({
   /** Falso quando quem hospeda a aba (a etapa do cadastro) já tem o próprio título e introdução. */
   comCabecalho?: boolean;
 }) => (
+  <>
   <AbaDeImportacao
     dominio={DOMINIO_DO_PLANO}
     empresaId={empresaId}
@@ -35,4 +36,5 @@ export const AbaPlanoDeContas = ({
     avisoDeSomenteLeitura="Empresa arquivada: o plano e o histórico ficam para consulta, sem novas importações."
     base={(url) => <PlanoVigente empresaId={empresaId} url={url} />}
   />
+  </>
 );

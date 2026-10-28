@@ -12,6 +12,7 @@ import {
   type RejeicaoEstruturalDaLinha,
 } from '../planilhas/rejeicao-estrutural.js';
 import type { CampoDoContrato } from './csv.js';
+import type { ClasseContabil } from '../catalogo-contabil.js';
 import { resolverHierarquia, type MotivoDeRejeicaoNaHierarquia } from './hierarquia.js';
 
 export type TipoDaConta = 'analitica' | 'sintetica';
@@ -24,6 +25,7 @@ export interface LinhaDeEntrada {
   readonly tipo: TipoDaConta;
   readonly natureza: NaturezaDaConta;
   readonly contaPai: string | null;
+  readonly classeContabil?: ClasseContabil | null;
 }
 
 /**
@@ -40,6 +42,7 @@ export interface LinhaBrutaDeEntrada {
   readonly tipo: string;
   readonly natureza: string;
   readonly contaPai: string | null;
+  readonly classeContabil?: string | null;
   /**
    * Defeito de leitura da linha (não do conteúdo): `CAMPOS_A_MAIS` = mais campos preenchidos que
    * o cabeçalho, o que torna as colunas da linha inconfiáveis. A linha é rejeitada.
@@ -60,6 +63,7 @@ export interface ContaVigente {
   readonly temFilhas: boolean;
   /** Pai no plano vigente (`null` na raiz): o ciclo é avaliado no plano resultante (SPEC §3.4). */
   readonly contaPai: string | null;
+  readonly classeContabil?: ClasseContabil | null;
 }
 
 /**
@@ -73,6 +77,7 @@ export const CODIGOS_DE_ERRO_DA_LINHA = [
   'CONTA_PAI_INEXISTENTE',
   'CONTA_PAI_REJEITADA',
   'CICLO_HIERARQUICO',
+  'CLASSE_CONTABIL_INCOMPATIVEL',
   'SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA',
   'CONTA_ARQUIVADA',
   'CELULA_COM_FORMULA',
@@ -96,6 +101,7 @@ export interface LinhaAceita {
   readonly tipo: TipoDaConta;
   readonly natureza: NaturezaDaConta;
   readonly contaPai: string | null;
+  readonly classeContabil?: ClasseContabil | null;
 }
 
 export interface ResultadoDaValidacao {
@@ -122,6 +128,9 @@ const ehTipoDaConta = (valor: string): valor is TipoDaConta =>
 const ehNaturezaDaConta = (valor: string): valor is NaturezaDaConta =>
   (NATUREZAS_VALIDAS as readonly string[]).includes(valor);
 
+const ehClasseContabil = (valor: string): valor is ClasseContabil =>
+  ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'COMPENSATION', 'OTHER'].includes(valor);
+
 /**
  * Campo de cada rejeição (SPEC-013 §3.4: linha, código, **campo**, código de erro e mensagem).
  * Determinístico pelo código de erro quando a regra é sobre um campo só: repetição e conflito com
@@ -137,6 +146,7 @@ const CAMPO_DO_ERRO: Readonly<Record<CodigoDeErroDaLinha, string | null>> = {
   CONTA_PAI_INEXISTENTE: 'conta_pai',
   CONTA_PAI_REJEITADA: 'conta_pai',
   CICLO_HIERARQUICO: 'conta_pai',
+  CLASSE_CONTABIL_INCOMPATIVEL: 'conta_pai',
   SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA: 'tipo',
   CONTA_ARQUIVADA: 'codigo',
   CELULA_COM_FORMULA: null,
@@ -203,8 +213,22 @@ const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | Linh
   if (!ehNaturezaDaConta(linha.natureza)) {
     return rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'natureza');
   }
+  const classe = linha.classeContabil;
+  let classeValidada: ClasseContabil | null = null;
+  if (classe !== null && classe !== undefined) {
+    if (!ehClasseContabil(classe)) return rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'classe_contabil');
+    classeValidada = classe;
+  }
 
-  return { ...linha, tipo: linha.tipo, natureza: linha.natureza };
+  return {
+    numeroDaLinha: linha.numeroDaLinha,
+    codigo: linha.codigo,
+    nome: linha.nome,
+    tipo: linha.tipo,
+    natureza: linha.natureza,
+    contaPai: linha.contaPai,
+    ...(classeValidada === null ? {} : { classeContabil: classeValidada }),
+  };
 };
 
 const ehRejeicao = (resultado: LinhaRejeitada | LinhaDeEntrada): resultado is LinhaRejeitada =>
@@ -215,6 +239,8 @@ const rejeicaoDaHierarquia = (linha: LinhaDeEntrada, motivo: MotivoDeRejeicaoNaH
     ? // Interpretação da SPEC §3.4 ("analítica não tem filhas") sem código novo: o valor da conta-pai
       // está fora do domínio aceito para uma filha. A filha é a linha recusada.
       { ...rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'conta_pai'), mensagem: MENSAGEM_PAI_ANALITICO }
+    : motivo === 'CLASSE_CONTABIL_INCOMPATIVEL'
+      ? { ...rejeicao(linha, motivo), mensagem: 'A classe contábil da filha deve ser igual à classe da conta-pai.' }
     : rejeicao(linha, motivo);
 
 /**
@@ -287,9 +313,29 @@ export const validarLinhasDoPlano = (entrada: {
     }
   }
 
+  const candidataPorCodigo = new Map(candidatas.map((linha) => [linha.codigo, linha]));
+  const paisComFilhaIncompativel = new Set<string>();
+  for (const linha of candidatas) {
+    const classeDoPai = linha.classeContabil ?? vigentePorCodigo.get(linha.codigo)?.classeContabil ?? null;
+    if (classeDoPai === null) continue;
+    const filhaVigenteIncompativel = contasVigentes.some((filha) => {
+      if (filha.contaPai !== linha.codigo || candidataPorCodigo.has(filha.codigo) || filha.classeContabil === null || filha.classeContabil === undefined) return false;
+      return filha.classeContabil !== classeDoPai;
+    });
+    if (filhaVigenteIncompativel) paisComFilhaIncompativel.add(linha.codigo);
+  }
+  const candidatasCompativeis = candidatas.filter((linha) => {
+    if (!paisComFilhaIncompativel.has(linha.codigo)) return true;
+    rejeitadas.push({
+      ...rejeicao(linha, 'CLASSE_CONTABIL_INCOMPATIVEL'),
+      mensagem: 'A classe da conta-pai diverge da classe de filha já existente; mantenha classes iguais ou ajuste as filhas no mesmo arquivo.',
+    });
+    return false;
+  });
+
   // 4) hierarquia resultante: pai inexistente ou rejeitado, pai analítico e ciclo — com o vigente.
   const codigosRejeitados = new Set(rejeitadas.map((r) => r.codigo).filter((c): c is string => c !== null));
-  const hierarquia = resolverHierarquia(candidatas, vigentePorCodigo, codigosRejeitados);
+  const hierarquia = resolverHierarquia(candidatasCompativeis, vigentePorCodigo, codigosRejeitados);
   for (const { linha, motivo } of hierarquia.rejeicoes) {
     rejeitadas.push(rejeicaoDaHierarquia(linha, motivo));
   }

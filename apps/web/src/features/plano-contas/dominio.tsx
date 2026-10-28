@@ -2,7 +2,7 @@
  * O plano de contas como domínio do fluxo comum de importação (SPEC-013): rota, campos, colunas da
  * rejeição, regras do arquivo, permissões e textos. Os textos são os que a tela da F13 sempre teve.
  */
-import { CAMPOS_DO_CONTRATO } from '@contaia/domain';
+import { CAMPOS_DO_CONTRATO, CAMPO_CLASSE_CONTABIL } from '@contaia/domain';
 import { PaginaDeRejeicoesDaImportacaoSchema, PreviaDaImportacaoSchema, type CodigoDeErroDaLinha } from '@contaia/shared';
 
 import { mensagemDoCodigo } from '@/lib/mensagens';
@@ -28,7 +28,7 @@ const CodigoDaConta = ({ rejeicao }: { rejeicao: RejeicaoBase }) => {
 const REGRAS: readonly string[] = [
   'A ordem das linhas não importa: a conta-pai pode vir depois da filha.',
   'Código repetido no arquivo rejeita todas as linhas com esse código.',
-  'Código novo inclui a conta; código existente atualiza nome, tipo, natureza e conta-pai.',
+  'Código novo inclui a conta; código existente atualiza nome, tipo, natureza e conta-pai. A classe só muda quando a coluna opcional é informada.',
   'Contas que não estão no arquivo continuam como estão.',
   'Conta arquivada não é alterada nem reativada pela importação.',
 ];
@@ -64,7 +64,7 @@ export const DOMINIO_DO_PLANO: DominioDaImportacao = {
   tipoDeArquivo: 'IMPORTACAO_PLANO_CONTAS',
   lerPrevia: (corpo) => PreviaDaImportacaoSchema.parse(corpo),
   lerRejeicoes: (corpo) => PaginaDeRejeicoesDaImportacaoSchema.parse(corpo),
-  campos: CAMPOS_DO_CONTRATO,
+  campos: [...CAMPOS_DO_CONTRATO, CAMPO_CLASSE_CONTABIL],
   rotuloDoCampo,
   ajudaDoCampo: (campo) => (ehCampo(campo) ? AJUDA_DO_CAMPO[campo] : ''),
   mapeamentoSugerido,

@@ -108,6 +108,17 @@ describe('POST importacoes (multipart)', () => {
     );
   });
 
+  it('aceita o mapeamento opcional da classe contábil F39', async () => {
+    const mapeamento = { ...MAPEAMENTO, classe_contabil: 'F' };
+    await request(app.getHttpServer())
+      .post(`${BASE}/importacoes`)
+      .attach('arquivo', CSV, { filename: 'plano.csv', contentType: 'text/csv' })
+      .field('mapeamento', JSON.stringify(mapeamento))
+      .expect(202);
+
+    expect(servico.enviar).toHaveBeenCalledWith(expect.anything(), EMPRESA, expect.anything(), mapeamento);
+  });
+
   it.each([
     ['JSON malformado', '{codigo:'],
     ['campo fora do contrato', JSON.stringify({ ...MAPEAMENTO, centro_de_custo: 'cc' })],

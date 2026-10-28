@@ -36,6 +36,7 @@ import { EscritorioController } from '../escritorio/escritorio.controller';
 import { NotificacoesController } from '../notificacoes/notificacoes.controller';
 import { PapeisController } from '../papeis/papeis.controller';
 import { PlanoContasDaEmpresaController } from '../plano-contas/plano-contas.controller';
+import { CatalogoContabilController } from '../plano-contas/catalogo-contabil.controller';
 import {
   PendenciasController,
   PendenciasDaEmpresaController,
@@ -84,6 +85,24 @@ describe('cobertura de ações nas rotas autenticadas', () => {
       .filter((nome) => !PUBLICOS.has(nome) && !INTERNOS.has(nome) && !DO_CATALOGO.has(nome));
 
     expect(semSessao).toEqual([]);
+  });
+
+  it('declara permissões por ação na F39', () => {
+    const reflector = new Reflector();
+    const permissoes = new Map([
+      ['conta', 'contabil.estrutura_contabil.manter_plano_contas'],
+      ['criarConta', 'contabil.estrutura_contabil.manter_plano_contas'],
+      ['centro', 'contabil.estrutura_contabil.manter_centros_custo'],
+      ['criarCentro', 'contabil.estrutura_contabil.manter_centros_custo'],
+      ['arquivarConta', 'contabil.estrutura_contabil.arquivar'],
+      ['arquivarCentro', 'contabil.estrutura_contabil.arquivar'],
+      ['reativarConta', 'contabil.estrutura_contabil.reativar'],
+      ['reativarCentro', 'contabil.estrutura_contabil.reativar'],
+    ]);
+    for (const [metodo, esperado] of permissoes) {
+      const alvo = (CatalogoContabilController.prototype as unknown as Record<string, object>)[metodo];
+      expect(reflector.get(ACAO_EXIGIDA, alvo as (...argumentos: never[]) => unknown)).toEqual([esperado]);
+    }
   });
 
   it('controller do catálogo usa o guard do catálogo, e só ele, e toda rota declara o nível', () => {

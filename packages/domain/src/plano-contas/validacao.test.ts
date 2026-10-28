@@ -16,6 +16,36 @@ const linha = (dados: Partial<LinhaDeEntrada> & { numeroDaLinha: number }): Linh
 });
 
 describe('validarLinhasDoPlano — SPEC-013 §3.4', () => {
+  it('rejeita filha com classe diferente da conta-pai no mesmo lote', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [
+        linha({ numeroDaLinha: 1, codigo: '1', classeContabil: 'ASSET' }),
+        linha({ numeroDaLinha: 2, codigo: '1.1', contaPai: '1', tipo: 'analitica', classeContabil: 'EXPENSE' }),
+      ],
+      contasVigentes: [],
+    });
+
+    expect(resultado.aceitas.map((item) => item.codigo)).toEqual(['1']);
+    expect(resultado.rejeitadas).toMatchObject([
+      { codigo: '1.1', campo: 'conta_pai', codigoDeErro: 'CLASSE_CONTABIL_INCOMPATIVEL' },
+    ]);
+  });
+
+  it('rejeita reclassificação do pai que diverge de filha vigente fora do lote', () => {
+    const resultado = validarLinhasDoPlano({
+      linhas: [linha({ numeroDaLinha: 1, codigo: '1', classeContabil: 'LIABILITY' })],
+      contasVigentes: [
+        { codigo: '1', tipo: 'sintetica', arquivada: false, temFilhas: true, contaPai: null, classeContabil: 'ASSET' },
+        { codigo: '1.1', tipo: 'analitica', arquivada: false, temFilhas: false, contaPai: '1', classeContabil: 'ASSET' },
+      ],
+    });
+
+    expect(resultado.aceitas).toEqual([]);
+    expect(resultado.rejeitadas).toMatchObject([
+      { codigo: '1', campo: 'conta_pai', codigoDeErro: 'CLASSE_CONTABIL_INCOMPATIVEL' },
+    ]);
+  });
+
   it('aceita linha raiz sem conta-pai e linha filha com pai válido no mesmo lote', () => {
     const linhas: LinhaDeEntrada[] = [
       linha({ numeroDaLinha: 1, codigo: '1', nome: 'Ativo', contaPai: null }),

@@ -310,9 +310,11 @@ describe('conta contábil: chave natural por empresa (SPEC-013 §3.6)', () => {
       'arquivada',
       'arquivada_em',
       'atualizado_em',
+      'classe_contabil',
       'conta_pai',
       'natureza',
       'nome',
+      'politica_centro_custo',
       'tipo',
     ]);
   });

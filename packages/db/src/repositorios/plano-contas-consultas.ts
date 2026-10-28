@@ -240,8 +240,9 @@ export const carregarContasVigentes = async (
     arquivada: boolean;
     tem_filhas: boolean;
     conta_pai: string | null;
+    classe_contabil: ContaVigente['classeContabil'];
   }>(
-    `select cc.codigo, cc.tipo, cc.arquivada, cc.conta_pai,
+    `select cc.codigo, cc.tipo, cc.arquivada, cc.conta_pai, cc.classe_contabil,
             exists (select 1 from app.conta_contabil f
                      where f.empresa_id = cc.empresa_id and f.conta_pai = cc.codigo) as tem_filhas
        from app.conta_contabil cc
@@ -255,6 +256,7 @@ export const carregarContasVigentes = async (
     arquivada: linha.arquivada,
     temFilhas: linha.tem_filhas,
     contaPai: linha.conta_pai,
+    classeContabil: linha.classe_contabil ?? null,
   }));
 };
 

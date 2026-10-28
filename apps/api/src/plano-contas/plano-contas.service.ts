@@ -8,6 +8,7 @@
  */
 import {
   CAMPOS_DO_CONTRATO,
+  CAMPO_CLASSE_CONTABIL,
   CODIGOS_DE_ERRO,
   ErroDeDominio,
   gerarRelatorioCsv,
@@ -87,12 +88,14 @@ export const ITENS_POR_PAGINA_DO_PLANO = 50;
 export const chaveDoOriginal = (tenantId: string, empresaId: string, hash: string, extensao: string): string =>
   `${tenantId}/${empresaId}/plano-contas/${hash}.${extensao}`;
 
-/** Os cinco campos do contrato, aparados: a identidade idempotente não depende de espaço. */
+/** Campos do contrato, aparados: a identidade idempotente não depende de espaço. */
 const validarMapeamentoDoPlano = (informado: unknown, cabecalho: readonly string[]): Mapeamento => {
   const origem = (informado ?? {}) as MapeamentoInformado;
-  const mapeamento = Object.fromEntries(
-    CAMPOS_DO_CONTRATO.map((campo) => [campo, (origem[campo] ?? '').trim()]),
-  ) as Mapeamento;
+  const classeContabil = (origem[CAMPO_CLASSE_CONTABIL] ?? '').trim();
+  const mapeamento = {
+    ...Object.fromEntries(CAMPOS_DO_CONTRATO.map((campo) => [campo, (origem[campo] ?? '').trim()])),
+    ...(classeContabil === '' ? {} : { [CAMPO_CLASSE_CONTABIL]: classeContabil }),
+  } as Mapeamento;
   const pendencias = validarMapeamento(cabecalho, mapeamento);
 
   if (pendencias.length > 0) {

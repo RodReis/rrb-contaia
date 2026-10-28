@@ -44,6 +44,14 @@ const PLANO_CONTAS_LEITURA = [
   'empresas.plano_contas.consultar',
   'empresas.plano_contas.baixar_relatorio',
 ];
+const ESTRUTURA_CONTABIL_TODAS = [
+  'contabil.estrutura_contabil.consultar',
+  'contabil.estrutura_contabil.manter_plano_contas',
+  'contabil.estrutura_contabil.manter_centros_custo',
+  'contabil.estrutura_contabil.arquivar',
+  'contabil.estrutura_contabil.reativar',
+];
+const ESTRUTURA_CONTABIL_LEITURA = ['contabil.estrutura_contabil.consultar'];
 // SPEC-014 §3.12: só admin_escritorio importa e confirma (o `dp` entra no MVP-3). Contador e
 // auditor consultam e baixam; o auxiliar e os demais papéis padrão não têm acesso nesta fatia.
 const EMPREGADOS_TODAS = [
@@ -98,6 +106,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.reativar',
     'empresas.historico.consultar',
     ...PLANO_CONTAS_TODAS,
+    ...ESTRUTURA_CONTABIL_TODAS,
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...CERTIFICADOS_TODAS,
@@ -112,6 +121,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.criar',
     'empresas.cadastro.editar',
     ...PLANO_CONTAS_LEITURA,
+    ...ESTRUTURA_CONTABIL_LEITURA,
     ...OPERACAO,
     ...OBRIGACOES,
     'certificados.cofre.consultar',
@@ -122,6 +132,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     'empresas.cadastro.consultar',
     'empresas.historico.consultar',
     ...PLANO_CONTAS_LEITURA,
+    ...ESTRUTURA_CONTABIL_LEITURA,
     ...EMPREGADOS_LEITURA,
     ...DOCUMENTOS_LEITURA,
     'pendencias.pendencias.consultar',

@@ -5,6 +5,15 @@
 
 ---
 
+## Card #53 — `[MVP2][SPEC-039][F39]` Catálogo contábil operacional
+
+- [x] Implementados CRUD versionado e hierárquico para plano de contas/centros de custo, classe contábil independente do saldo normal, política de centro de custo, estados incompletos, carteira/permissões, histórico append-only e acessos pela empresa e pelo módulo Contabilidade.
+- [x] F13 preserva CSV legado sem classe; classe opcional passa por CSV/XLSX e staging, e reimportação sem coluna preserva classificação manual. Migrations F39 e trigger de transição explícita para reativação incluídos.
+- [x] Validação local: domain 976/976; web 1337/1337; API base 1497/1497; testes direcionados API 93/93, incluindo DTO/mapeamento opcional F39 e auditoria; workers 66/66; DB F39 4/4, integração F13 34/34, `plano-contas.integration` 28/28, anti-drift 17/17 e matriz RLS 5/5 com as novas tabelas F39. Typechecks passaram. Lint sem erros; um warning preexistente em `apps/web/src/features/empresa/aba-de-enderecos.tsx:104`.
+- [x] Regra definida pelo PI em 27/10/2026: bloquear se classe da filha diferir da classe do pai. Aplicada ao catálogo CRUD/reativação e à validação de importação do plano, inclusive ao reclassificar pai com filhas fora do lote; regressões de domínio e API incluídas.
+- [ ] CI do head `9aafab7`: regras, build, tela e banco verdes; E2E 158 passaram, 2 falharam por expectativas de menu desatualizadas nos testes SPEC-007/008 e 12 não rodaram. Correções nos dois testes estão no próximo head, aguardando CI. Smoke visual local CLARO/ESCURO × 768/1024/1440 `not_run`: API/workers/dubles locais reiniciam por `EISDIR` ao ler certificados e bootstrap Vault falha HTTP 400. Sem recriação de containers/volumes: backup validado é pré-requisito.
+- [ ] Detector/passe final Impeccable, revisão integral, PR, CI no head, merge confirmado, comentário de encerramento e `proplan:done` pendentes.
+
 ## 1. Ambiente
 
 Do MVP-1 ao MVP-4, existe somente o ambiente Docker local definido na [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md). Build, CI e homologação não publicam aplicação. Produção, piloto real e infraestrutura de nuvem são uma etapa posterior ao último MVP.

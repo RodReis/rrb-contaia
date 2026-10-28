@@ -125,6 +125,15 @@ describe('mapeamentoSugerido', () => {
   it('deixa sem sugestão o campo cujo nome não aparece no arquivo legado', () => {
     expect(mapeamentoSugerido(['Cod', 'Descricao', 'tipo'])).toEqual({ tipo: 'tipo' });
   });
+
+  it('sugere classe contábil quando existe coluna, sem torná-la obrigatória', () => {
+    expect(mapeamentoSugerido(['codigo', 'nome', 'tipo', 'natureza', 'conta_pai', 'classe_contabil'])).toMatchObject({
+      classe_contabil: 'classe_contabil',
+    });
+    expect(pendenciasDoRascunho(['codigo', 'nome', 'tipo', 'natureza', 'conta_pai'], {
+      codigo: 'codigo', nome: 'nome', tipo: 'tipo', natureza: 'natureza', conta_pai: 'conta_pai',
+    })).toEqual([]);
+  });
 });
 
 describe('pendenciasDoRascunho', () => {

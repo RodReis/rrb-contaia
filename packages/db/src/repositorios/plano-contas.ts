@@ -74,6 +74,7 @@ export type LinhaDeStagingValida = Readonly<{
   tipo: TipoDaConta;
   natureza: NaturezaDaConta;
   contaPai: string | null;
+  classeContabil?: string | null;
   acao: AcaoDaLinha;
 }>;
 
@@ -86,6 +87,7 @@ export type LinhaDeStagingRejeitada = Readonly<{
   tipo: string | null;
   natureza: string | null;
   contaPai: string | null;
+  classeContabil?: string | null;
   codigoDeErro: CodigoDeErroDaLinha;
   campo: string | null;
   mensagem: string;
@@ -170,13 +172,13 @@ const inserirStaging = async (
 
   await cliente.query(
     `insert into app.importacao_plano_contas_linha
-       (tenant_id, empresa_id, tentativa_id, numero_linha, codigo, nome, tipo, natureza, conta_pai,
+       (tenant_id, empresa_id, tentativa_id, numero_linha, codigo, nome, tipo, natureza, conta_pai, classe_contabil,
         status, acao, codigo_de_erro, campo, mensagem)
-     select $1, $2, $3, l.numero_linha, l.codigo, l.nome, l.tipo, l.natureza, l.conta_pai,
+     select $1, $2, $3, l.numero_linha, l.codigo, l.nome, l.tipo, l.natureza, l.conta_pai, l.classe_contabil,
             l.status, l.acao, l.codigo_de_erro, l.campo, l.mensagem
        from unnest($4::int[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[],
-                   $10::text[], $11::text[], $12::text[], $13::text[], $14::text[])
-         as l(numero_linha, codigo, nome, tipo, natureza, conta_pai, status, acao, codigo_de_erro, campo, mensagem)
+                   $10::text[], $11::text[], $12::text[], $13::text[], $14::text[], $15::text[])
+         as l(numero_linha, codigo, nome, tipo, natureza, conta_pai, classe_contabil, status, acao, codigo_de_erro, campo, mensagem)
      on conflict (tentativa_id, numero_linha) do nothing`,
     [
       tentativa.tenantId,
@@ -188,6 +190,7 @@ const inserirStaging = async (
       coluna((l) => l.tipo),
       coluna((l) => l.natureza),
       coluna((l) => l.contaPai),
+      coluna((l) => l.classeContabil ?? null),
       coluna((l) => l.status),
       coluna((l) => (l.status === 'VALIDA' ? l.acao : null)),
       coluna((l) => (l.status === 'REJEITADA' ? l.codigoDeErro : null)),
@@ -251,21 +254,22 @@ export const aplicarLinhas = async (
 
   const { rows } = await cliente.query<{ incluidas: number; atualizadas: number; ignoradas: string[] }>(
     `with validas as (
-       select codigo, nome, tipo, natureza, conta_pai
+       select codigo, nome, tipo, natureza, conta_pai, classe_contabil
          from app.importacao_plano_contas_linha
         where tentativa_id = $1 and empresa_id = $2 and status = 'VALIDA'
      ), aplicadas as (
        insert into app.conta_contabil as cc
-         (tenant_id, empresa_id, codigo, nome, tipo, natureza, conta_pai, criado_em, atualizado_em)
-       select $3, $2, codigo, nome, tipo, natureza, conta_pai, $4, $4 from validas
+         (tenant_id, empresa_id, codigo, nome, tipo, natureza, conta_pai, classe_contabil, criado_em, atualizado_em)
+       select $3, $2, codigo, nome, tipo, natureza, conta_pai, classe_contabil, $4, $4 from validas
        on conflict (empresa_id, codigo) do update
          set nome = excluded.nome,
              tipo = excluded.tipo,
              natureza = excluded.natureza,
              conta_pai = excluded.conta_pai,
+             classe_contabil = coalesce(excluded.classe_contabil, cc.classe_contabil),
              atualizado_em = case
-               when (cc.nome, cc.tipo, cc.natureza, cc.conta_pai)
-                    is distinct from (excluded.nome, excluded.tipo, excluded.natureza, excluded.conta_pai)
+               when (cc.nome, cc.tipo, cc.natureza, cc.conta_pai, cc.classe_contabil)
+                    is distinct from (excluded.nome, excluded.tipo, excluded.natureza, excluded.conta_pai, coalesce(excluded.classe_contabil, cc.classe_contabil))
                then excluded.atualizado_em
                else cc.atualizado_em
              end
