@@ -20,8 +20,8 @@ export class CatalogoContabilService {
   async registrarTentativaNegada(ator: AtorCatalogo, empresaId: string, catalogo: Catalogo, codigo: string, correlationId: string, codigoErro: string): Promise<void> {
     try {
       await this.contexto(ator, async (cliente) => {
-        const { rows } = await cliente.query(`select id from app.empresa where id=$1`, [empresaId]);
-        if (rows[0] !== undefined) await cliente.query(`insert into app.catalogo_contabil_evento(tenant_id,empresa_id,catalogo,codigo_item,acao,resultado,codigo_erro,usuario_id,correlation_id) values($1,$2,$3,$4,'TENTATIVA_NEGADA','RECUSADO',$5,$6,$7)`, [ator.tenantId,empresaId,catalogo,codigo,codigoErro,ator.usuarioId,correlationId]);
+        // A FK composta valida tenant/empresa mesmo quando RLS oculta a empresa por falta de carteira.
+        await cliente.query(`insert into app.catalogo_contabil_evento(tenant_id,empresa_id,catalogo,codigo_item,acao,resultado,codigo_erro,usuario_id,correlation_id) values($1,$2,$3,$4,'TENTATIVA_NEGADA','RECUSADO',$5,$6,$7)`, [ator.tenantId,empresaId,catalogo,codigo,codigoErro,ator.usuarioId,correlationId]);
       });
     } catch { /* negação original mantém precedência; fora do escopo nem identifica empresa */ }
   }
