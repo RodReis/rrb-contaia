@@ -70,7 +70,7 @@ ALTER TABLE app.centro_custo FORCE ROW LEVEL SECURITY;
 CREATE POLICY centro_custo_select ON app.centro_custo FOR SELECT USING (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
 CREATE POLICY centro_custo_insert ON app.centro_custo FOR INSERT WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
 CREATE POLICY centro_custo_update ON app.centro_custo FOR UPDATE USING (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id)) WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
-CREATE TRIGGER centro_custo_escopo_imutavel BEFORE UPDATE ON app.centro_custo FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.centro_custo FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 
 CREATE TABLE app.catalogo_contabil_evento (
   id uuid NOT NULL DEFAULT app.uuid_v7(), tenant_id uuid NOT NULL REFERENCES app.tenant(id), empresa_id uuid NOT NULL,
@@ -92,7 +92,7 @@ CREATE POLICY catalogo_evento_select ON app.catalogo_contabil_evento FOR SELECT 
 CREATE POLICY catalogo_evento_insert ON app.catalogo_contabil_evento FOR INSERT WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
 CREATE POLICY catalogo_evento_negacao_tenant ON app.catalogo_contabil_evento FOR INSERT WITH CHECK (tenant_id=app.tenant_atual() AND app.contexto_humano());
 CREATE TRIGGER catalogo_evento_append_only BEFORE UPDATE OR DELETE ON app.catalogo_contabil_evento FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
-CREATE TRIGGER catalogo_evento_escopo_imutavel BEFORE UPDATE ON app.catalogo_contabil_evento FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
+CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.catalogo_contabil_evento FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 
 GRANT SELECT,INSERT,UPDATE ON app.centro_custo TO contaia_app;
 GRANT SELECT ON app.catalogo_contabil_evento TO contaia_app;
