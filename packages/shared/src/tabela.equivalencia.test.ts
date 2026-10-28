@@ -127,6 +127,7 @@ describe('plano de contas — CSV × XLSX', () => {
         'VALOR_FORA_DO_DOMINIO',
         'CONTA_PAI_INEXISTENTE',
         'CICLO_HIERARQUICO',
+        'CLASSE_CONTABIL_INCOMPATIVEL',
       ]),
     );
     expect(viaCsv.aceitas.length + viaCsv.rejeitadas.length).toBe(csv.registros.length);

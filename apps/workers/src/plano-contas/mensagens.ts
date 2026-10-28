@@ -35,6 +35,7 @@ const MENSAGENS_FIXAS: Readonly<Record<Exclude<CodigoDeErroDaLinha, 'CAMPO_OBRIG
   CONTA_PAI_INEXISTENTE: 'A conta-pai não existe no plano de contas nem entre as linhas válidas do arquivo.',
   CONTA_PAI_REJEITADA: 'A conta-pai foi rejeitada neste arquivo; corrija a linha dela e envie de novo.',
   CICLO_HIERARQUICO: 'A conta faz parte de um ciclo de conta-pai; revise a hierarquia.',
+  CLASSE_CONTABIL_INCOMPATIVEL: 'A classe contábil da filha deve ser igual à classe da conta-pai.',
   SINTETICA_COM_FILHAS_NAO_PODE_VIRAR_ANALITICA:
     'A conta é sintética e tem filhas no plano de contas; ela não pode virar analítica.',
   CONTA_ARQUIVADA: 'A conta está arquivada e a importação não a altera; reative-a separadamente antes de importar.',

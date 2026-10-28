@@ -29,6 +29,7 @@ export type MotivoDeRejeicaoNaHierarquia =
   | 'CONTA_PAI_INEXISTENTE'
   | 'CONTA_PAI_REJEITADA'
   | 'CICLO_HIERARQUICO'
+  | 'CLASSE_CONTABIL_INCOMPATIVEL'
   /** A conta-pai é analítica no plano final (SPEC §3.4: analítica não tem filhas). */
   | 'PAI_ANALITICO';
 
@@ -101,6 +102,13 @@ const tipoNoPlanoFinal = (estado: Estado, codigo: string): ContaVigente['tipo'] 
     ? estado.linhaPorCodigo.get(codigo)!.tipo
     : estado.vigentePorCodigo.get(codigo)!.tipo;
 
+const classeNoPlanoFinal = (estado: Estado, codigo: string): ContaVigente['classeContabil'] => {
+  if (estado.situacao.get(codigo) === 'aceita') {
+    return estado.linhaPorCodigo.get(codigo)!.classeContabil ?? estado.vigentePorCodigo.get(codigo)?.classeContabil ?? null;
+  }
+  return estado.vigentePorCodigo.get(codigo)?.classeContabil ?? null;
+};
+
 const ancorar = (estado: Estado, codigo: string): void => {
   if (estado.ancorados.has(codigo)) return;
   estado.ancorados.add(codigo);
@@ -151,6 +159,10 @@ const avaliar = (estado: Estado, codigo: string): void => {
   }
   if (!estado.ancorados.has(pai)) return; // espera o pai ancorar, ser rejeitado ou cair num ciclo
   if (tipoNoPlanoFinal(estado, pai) === 'analitica') return rejeitar(estado, linha, 'PAI_ANALITICO');
+  const classeDaFilha = linha.classeContabil ?? estado.vigentePorCodigo.get(codigo)?.classeContabil ?? null;
+  if (classeDaFilha !== null && classeDaFilha !== classeNoPlanoFinal(estado, pai)) {
+    return rejeitar(estado, linha, 'CLASSE_CONTABIL_INCOMPATIVEL');
+  }
   aceitar(estado, linha);
 };
 

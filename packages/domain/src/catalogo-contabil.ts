@@ -3,7 +3,13 @@ export type ClasseContabil = (typeof CLASSES_CONTABEIS)[number];
 export type TipoCatalogo = 'ANALYTICAL' | 'SYNTHETIC';
 export type PoliticaCentroCusto = 'REQUIRED' | 'OPTIONAL' | 'FORBIDDEN';
 
-export type ItemHierarquico = Readonly<{ code: string; parentCode: string | null; type: TipoCatalogo; archived: boolean }>;
+export type ItemHierarquico = Readonly<{
+  code: string;
+  parentCode: string | null;
+  type: TipoCatalogo;
+  archived: boolean;
+  accountClass?: ClasseContabil | null;
+}>;
 
 export type ErroCatalogo = 'ACCOUNTING_CATALOG_PARENT_INVALID' | 'ACCOUNTING_CATALOG_CYCLE' |
   'ACCOUNTING_CATALOG_ACTIVE_DESCENDANTS' | 'ACCOUNTING_ACCOUNT_HIERARCHY_INCOMPATIBLE' |
@@ -17,6 +23,12 @@ export const validarHierarquia = (
   const pai = item.parentCode === null ? null : itens.find((candidato) => candidato.code === item.parentCode);
   if (item.parentCode !== null && (pai === null || pai === undefined || pai.archived)) return 'ACCOUNTING_CATALOG_PARENT_INVALID';
   if (pai !== null && pai !== undefined && pai.type === 'ANALYTICAL') return 'ACCOUNTING_ACCOUNT_HIERARCHY_INCOMPATIBLE';
+  if (item.accountClass !== null && item.accountClass !== undefined && pai !== null && pai !== undefined && item.accountClass !== pai.accountClass) {
+    return 'ACCOUNTING_ACCOUNT_HIERARCHY_INCOMPATIBLE';
+  }
+  if (item.accountClass !== null && item.accountClass !== undefined && itens.some(
+    (filha) => filha.parentCode === item.code && filha.accountClass !== null && filha.accountClass !== undefined && filha.accountClass !== item.accountClass,
+  )) return 'ACCOUNTING_ACCOUNT_HIERARCHY_INCOMPATIBLE';
   if (item.parentCode === item.code) return 'ACCOUNTING_CATALOG_CYCLE';
 
   const porCodigo = new Map(itens.map((candidato) => [candidato.code, candidato]));

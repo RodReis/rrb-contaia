@@ -16,4 +16,16 @@ describe('catálogo contábil', () => {
     expect(statusDaConta('OTHER', false)).toBe('ACTIVE');
     expect(statusDaConta(null, true)).toBe('ARCHIVED');
   });
+
+  it('bloqueia filha com classe diferente da classe do pai', () => {
+    const pai = { ...item('1', null), accountClass: 'ASSET' as const };
+    const filha = { ...item('1.1', '1', 'ANALYTICAL'), accountClass: 'EXPENSE' as const };
+    expect(validarHierarquia(filha, [pai])).toBe('ACCOUNTING_ACCOUNT_HIERARCHY_INCOMPATIBLE');
+  });
+
+  it('bloqueia reclassificar o pai quando filha existente passaria a divergir', () => {
+    const pai = { ...item('1', null), accountClass: 'EXPENSE' as const };
+    const filha = { ...item('1.1', '1', 'ANALYTICAL'), accountClass: 'ASSET' as const };
+    expect(validarHierarquia(pai, [filha])).toBe('ACCOUNTING_ACCOUNT_HIERARCHY_INCOMPATIBLE');
+  });
 });

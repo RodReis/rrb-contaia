@@ -65,11 +65,11 @@ export class CatalogoContabilService {
   async salvarConta(ator: AtorCatalogo, empresaId: string, codigo: string, campos: CamposItem & Readonly<{ accountClass: ClasseContabil | null; normalBalance: 'DEBIT' | 'CREDIT'; costCenterPolicy: PoliticaCentroCusto; version?: number | undefined; archived?: boolean | undefined }>, correlationId: string) {
     return this.contexto(ator, async (cliente) => {
       await this.travarEmpresa(cliente,empresaId);
-      const { rows: hierarquia } = await cliente.query<{ code: string; parentCode: string | null; type: TipoCatalogo; archived: boolean }>(
-        `select codigo as code,conta_pai as "parentCode",case tipo when 'analitica' then 'ANALYTICAL' else 'SYNTHETIC' end as type,arquivada as archived from app.conta_contabil where empresa_id=$1`, [empresaId]);
+      const { rows: hierarquia } = await cliente.query<{ code: string; parentCode: string | null; type: TipoCatalogo; archived: boolean; accountClass: ClasseContabil | null }>(
+        `select codigo as code,conta_pai as "parentCode",case tipo when 'analitica' then 'ANALYTICAL' else 'SYNTHETIC' end as type,arquivada as archived,classe_contabil as "accountClass" from app.conta_contabil where empresa_id=$1`, [empresaId]);
       const codigoExistente = hierarquia.find((item) => item.code === codigo);
       if (codigoExistente === undefined && campos.accountClass === null) throw new ErroDeDominio(CODIGOS_DE_ERRO.ACCOUNTING_ACCOUNT_CLASS_REQUIRED, 'Classifique a conta antes de criá-la.');
-      const erro = validarHierarquia({ code: codigo, parentCode: campos.parentCode, type: campos.type, archived: false }, hierarquia, campos.type === 'SYNTHETIC' ? 'FORBIDDEN' : campos.costCenterPolicy);
+      const erro = validarHierarquia({ code: codigo, parentCode: campos.parentCode, type: campos.type, archived: false, accountClass: campos.accountClass }, hierarquia, campos.type === 'SYNTHETIC' ? 'FORBIDDEN' : campos.costCenterPolicy);
       if (erro !== null) throw new ErroDeDominio(erro, 'Hierarquia ou política incompatível com o catálogo.');
       if (codigoExistente === undefined) {
         try {
@@ -145,8 +145,8 @@ export class CatalogoContabilService {
         if (ativos.length) throw new ErroDeDominio(CODIGOS_DE_ERRO.ACCOUNTING_CATALOG_ACTIVE_DESCENDANTS, 'Arquive descendentes ativos antes do item pai.');
       } else {
         if (catalogo==='CONTA' && atual.accountClass===null) throw new ErroDeDominio(CODIGOS_DE_ERRO.ACCOUNTING_ACCOUNT_CLASS_REQUIRED,'Classifique a conta antes de reativá-la.');
-        const { rows: hierarquia } = await cliente.query<{ code: string; parentCode: string | null; type: TipoCatalogo; archived: boolean }>(`select codigo as code,${colunaPai} as "parentCode",case tipo when 'analitica' then 'ANALYTICAL' else 'SYNTHETIC' end as type,arquivada as archived from app.${tabela} where empresa_id=$1`,[empresaId]);
-        const erro=validarHierarquia({code:codigo,parentCode:atual.parentCode,type:atual.type,archived:false},hierarquia,catalogo==='CONTA'&&atual.type==='ANALYTICAL'?(atual.policy??'FORBIDDEN'):'FORBIDDEN');
+        const { rows: hierarquia } = await cliente.query<{ code: string; parentCode: string | null; type: TipoCatalogo; archived: boolean; accountClass?: ClasseContabil | null }>(`select codigo as code,${colunaPai} as "parentCode",case tipo when 'analitica' then 'ANALYTICAL' else 'SYNTHETIC' end as type,arquivada as archived${catalogo === 'CONTA' ? ',classe_contabil as "accountClass"' : ''} from app.${tabela} where empresa_id=$1`,[empresaId]);
+        const erro=validarHierarquia({code:codigo,parentCode:atual.parentCode,type:atual.type,archived:false,accountClass:atual.accountClass},hierarquia,catalogo==='CONTA'&&atual.type==='ANALYTICAL'?(atual.policy??'FORBIDDEN'):'FORBIDDEN');
         if(erro!==null)throw new ErroDeDominio(erro,'Hierarquia incompatível para reativação.');
       }
       await cliente.query(`select set_config('app.catalogo_contabil_transicao','true',true)`);
