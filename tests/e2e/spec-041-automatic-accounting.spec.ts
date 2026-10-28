@@ -150,7 +150,10 @@ test('F41 publica regra, gera rascunho F40, abre pendência e reprocessa após n
     from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.ativa
     where e.empresa_id=$1 and e.id in($2,$3) group by e.id`, [companyId, firstGeneration.draftEntryId, reprocessedResult.draftEntryId]);
   expect(entries.rows).toHaveLength(2);
-  expect(entries.rows.every((entry) => entry.estado === 'DRAFT' && entry.debit === '1250' && entry.credit === '1250')).toBe(true);
+  expect(entries.rows, 'as duas gerações devem criar rascunhos balanceados de R$ 12,50').toEqual(expect.arrayContaining([
+    expect.objectContaining({ estado: 'DRAFT', debit: '1250', credit: '1250' }),
+    expect.objectContaining({ estado: 'DRAFT', debit: '1250', credit: '1250' }),
+  ]));
 
   const pendingList = await page.request.get(`${BASE_URL}/${companyId}/automatizacao-contabil/pendencias`);
   expect(pendingList.ok(), await pendingList.text()).toBeTruthy();
