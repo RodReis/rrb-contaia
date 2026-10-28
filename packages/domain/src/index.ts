@@ -64,6 +64,8 @@ export type {
 } from './tax-resolution/build-icms-st-history.js';
 
 export { PAPEIS_PADRAO, ehPapelPadrao } from './usuarios/papeis.js';
+export { CLASSES_CONTABEIS, statusDaConta, validarHierarquia } from './catalogo-contabil.js';
+export type { ClasseContabil, ErroCatalogo, ItemHierarquico, PoliticaCentroCusto, TipoCatalogo } from './catalogo-contabil.js';
 export type { PapelPadrao } from './usuarios/papeis.js';
 export {
   AREA_EXCLUSIVA,
@@ -424,6 +426,8 @@ export {
   LIMITE_DE_LINHAS,
   LIMITE_DE_BYTES,
   CAMPOS_DO_CONTRATO,
+  CAMPOS_OBRIGATORIOS,
+  CAMPO_CLASSE_CONTABIL,
   MODELO_CSV,
   decodificarCsv,
   validarMapeamento,

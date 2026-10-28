@@ -12,6 +12,7 @@
 import type { LinhaDeStaging, MapeamentoDaImportacao } from '@contaia/db';
 import {
   CAMPOS_DO_CONTRATO,
+  CAMPO_CLASSE_CONTABIL,
   CODIGOS_DE_ERRO,
   conferirCabecalho,
   normalizarLinhas,
@@ -40,7 +41,7 @@ export type ResultadoDaAnalise =
 
 /** O mapeamento gravado é JSON do banco: só os campos do contrato, texto; o resto vira ausente. */
 const paraMapeamento = (gravado: MapeamentoDaImportacao): Mapeamento => {
-  const campos = CAMPOS_DO_CONTRATO.map((campo) => {
+  const campos = [...CAMPOS_DO_CONTRATO, CAMPO_CLASSE_CONTABIL].map((campo) => {
     const coluna: unknown = gravado[campo];
 
     return [campo, typeof coluna === 'string' ? coluna : ''] as const;
@@ -59,6 +60,9 @@ const linhaValida = (aceita: LinhaAceita, codigosVigentes: ReadonlySet<string>):
   tipo: aceita.tipo,
   natureza: aceita.natureza,
   contaPai: aceita.contaPai,
+  ...(aceita.classeContabil === null || aceita.classeContabil === undefined
+    ? {}
+    : { classeContabil: aceita.classeContabil }),
   acao: codigosVigentes.has(aceita.codigo) ? 'ATUALIZAR' : 'INCLUIR',
 });
 
@@ -71,6 +75,7 @@ const linhaRejeitada = (rejeicao: LinhaRejeitada, bruta: LinhaBrutaDeEntrada): L
   tipo: vazioParaNulo(bruta.tipo),
   natureza: vazioParaNulo(bruta.natureza),
   contaPai: vazioParaNulo(bruta.contaPai),
+  classeContabil: vazioParaNulo(bruta.classeContabil ?? null),
   codigoDeErro: rejeicao.codigoDeErro,
   campo: rejeicao.campo,
   mensagem: mensagemDaRejeicao(rejeicao),
@@ -126,7 +131,7 @@ export const analisarAba = (
       return { tipo: 'ARQUIVO_RECUSADO', codigo: CODIGOS_DE_ERRO.MAPEAMENTO_INCOMPLETO } as const;
     }
 
-    const tabela = tabelaParaRegistros(leitura, linhaCabecalho, Object.values(mapeamento));
+    const tabela = tabelaParaRegistros(leitura, linhaCabecalho, Object.values(mapeamento).filter((coluna) => coluna !== ''));
     const linhas = normalizarLinhas(tabela.cabecalho, tabela.registros, mapeamento, tabela.rejeicoesEstruturaisPorLinha);
 
     return { tipo: 'LINHAS', linhas: paraStaging(linhas, contasVigentes), leitura: leituraRegistravel(tabela) } as const;

@@ -5,6 +5,15 @@
 
 ---
 
+## Card #53 — `[MVP2][SPEC-039][F39]` Catálogo contábil operacional
+
+- [x] Implementados CRUD versionado e hierárquico para plano de contas/centros de custo, classe contábil independente do saldo normal, política de centro de custo, estados incompletos, carteira/permissões, histórico append-only e acessos pela empresa e pelo módulo Contabilidade.
+- [x] F13 preserva CSV legado sem classe; classe opcional passa por CSV/XLSX e staging, e reimportação sem coluna preserva classificação manual. Migrations F39 e trigger de transição explícita para reativação incluídos.
+- [x] Validação local: domain 976/976; web 1337/1337; API 1497/1497 (`pool=forks --maxWorkers=1`, pool paralelo encerrou com código nativo); workers 66/66; DB F39 3/3, regressão de conta arquivada 1/1 e repositório F13 34/34. Typechecks e builds do workspace passaram. Lint sem erros; um warning preexistente em `apps/web/src/features/empresa/aba-de-enderecos.tsx:104`.
+- [ ] Regra material da classe incompatível com a hierarquia não está definida na SPEC-039; pendente decisão do PI antes de implementar esse diagnóstico.
+- [ ] Smoke E2E autenticado e capturas CLARO/ESCURO × 768/1024/1440 `not_run`: API/workers/dubles reiniciam por erro ao ler certificados (`EISDIR`), e bootstrap Vault falha HTTP 400 na instância compartilhada. Sem recriação de containers/volumes: backup validado é pré-requisito.
+- [ ] Detector/passe final Impeccable, revisão integral, PR, CI no head, merge confirmado, comentário de encerramento e `proplan:done` pendentes.
+
 ## 1. Ambiente
 
 Do MVP-1 ao MVP-4, existe somente o ambiente Docker local definido na [ADR-012](adr/ADR-012-ambiente-local-ate-ultimo-mvp.md). Build, CI e homologação não publicam aplicação. Produção, piloto real e infraestrutura de nuvem são uma etapa posterior ao último MVP.

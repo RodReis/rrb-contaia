@@ -8,12 +8,15 @@
  * Esquecer a anotação nunca abre acesso — e `cobertura-de-acoes.spec.ts`
  * reprova a rota esquecida antes de chegar a produção.
  */
-import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable, Optional, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { CODIGOS_DE_ERRO, ErroDeDominio, type ChaveDePermissao } from '@contaia/domain';
 
 import type { RequisicaoAutenticada } from './sessao.guard';
+import { CatalogoContabilService } from '../plano-contas/catalogo-contabil.service';
+import { obterCorrelationId } from '../comum/problema';
+import { autorDa, tenantDa } from './contexto-da-sessao';
 
 export const ACAO_EXIGIDA = 'acaoExigida';
 
@@ -33,7 +36,7 @@ const semAutorizacao = (): ErroDeDominio =>
 
 @Injectable()
 export class GuardDeAcao implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector, @Optional() @Inject(CatalogoContabilService) private readonly catalogo?: CatalogoContabilService) {}
 
   canActivate(contexto: ExecutionContext): boolean {
     const exigida = this.reflector.getAllAndOverride<AcaoExigida | undefined>(ACAO_EXIGIDA, [
@@ -55,6 +58,15 @@ export class GuardDeAcao implements CanActivate {
       exigida.every((chave) => permissoes.includes(chave));
 
     if (!autorizado) {
+      const requisicao = contexto.switchToHttp().getRequest<RequisicaoAutenticada>();
+      const empresaId = requisicao.params?.['empresaId'];
+      const caminho = requisicao.path ?? '';
+      const catalogo = caminho.includes('/contas') ? 'CONTA' : caminho.includes('/centros-de-custo') ? 'CENTRO_CUSTO' : null;
+      if (this.catalogo !== undefined && typeof empresaId === 'string' && catalogo !== null && requisicao.sessao !== undefined) {
+        const parametroCodigo = requisicao.params?.['codigo'];
+        const codigo = (typeof parametroCodigo === 'string' ? parametroCodigo : String((requisicao.body as { code?: unknown } | undefined)?.code ?? '*')).slice(0, 120);
+        void this.catalogo.registrarTentativaNegada({ tenantId: tenantDa(requisicao), usuarioId: autorDa(requisicao).usuarioId }, empresaId, catalogo, codigo, obterCorrelationId(requisicao), 'ACCOUNTING_CATALOG_FORBIDDEN').catch(() => undefined);
+      }
       throw semAutorizacao();
     }
 

@@ -11,6 +11,7 @@ export const ROTULO_DO_CAMPO: Readonly<Record<CampoDoContrato, string>> = {
   tipo: 'Tipo',
   natureza: 'Natureza',
   conta_pai: 'Conta-pai',
+  classe_contabil: 'Classe contábil',
 };
 
 export const AJUDA_DO_CAMPO: Readonly<Record<CampoDoContrato, string>> = {
@@ -19,6 +20,7 @@ export const AJUDA_DO_CAMPO: Readonly<Record<CampoDoContrato, string>> = {
   tipo: 'Valores aceitos: analítica ou sintética.',
   natureza: 'Valores aceitos: devedora ou credora.',
   conta_pai: 'Código da conta superior; vazia só na conta raiz.',
+  classe_contabil: 'Classe opcional no arquivo. Classe ausente continua pendente de classificação manual.',
 };
 
 const ehCampoDoContrato = (campo: string): campo is CampoDoContrato => campo in ROTULO_DO_CAMPO;

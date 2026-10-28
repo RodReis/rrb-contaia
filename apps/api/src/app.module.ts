@@ -56,6 +56,8 @@ import { PendenciasService } from './pendencias/pendencias.service';
 import { PlanoContasDaEmpresaController } from './plano-contas/plano-contas.controller';
 import { PROVEDORES_DA_FILA_DO_PLANO } from './plano-contas/plano-contas.fila';
 import { PlanoContasService } from './plano-contas/plano-contas.service';
+import { CatalogoContabilController } from './plano-contas/catalogo-contabil.controller';
+import { CatalogoContabilService } from './plano-contas/catalogo-contabil.service';
 import { GuardDoCatalogoTributario } from './auth/catalogo-tributario.guard';
 import { TaxRulesController } from './tax-rules/tax-rules.controller';
 import { TaxRulesService } from './tax-rules/tax-rules.service';
@@ -114,6 +116,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     SignerDaEmpresaController,
     DocumentosDaEmpresaController,
     PlanoContasDaEmpresaController,
+    CatalogoContabilController,
     EmpregadosDaEmpresaController,
     EmpresaController,
     PendenciasController,
@@ -152,6 +155,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     CofreClient,
     ...PROVEDORES_DO_SIGNER,
     PlanoContasService,
+    CatalogoContabilService,
     ...PROVEDORES_DA_FILA_DO_PLANO,
     EmpregadosService,
     ...PROVEDORES_DA_FILA_DOS_EMPREGADOS,

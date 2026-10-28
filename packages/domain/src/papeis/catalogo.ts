@@ -28,6 +28,8 @@ export const ROTULO_DA_ACAO = {
   confirmar_importacao: 'Confirmar importação',
   baixar_relatorio: 'Baixar relatório',
   simular: 'Simular',
+  manter_plano_contas: 'Manter plano de contas',
+  manter_centros_custo: 'Manter centros de custo',
   reabrir: 'Reabrir',
   reprocessar: 'Reprocessar',
   publicar: 'Publicar',
@@ -78,6 +80,17 @@ export const CATALOGO = [
         id: 'empregados',
         rotulo: 'Empregados',
         acoes: ['consultar', 'importar', 'confirmar_importacao', 'baixar_relatorio'],
+      },
+    ],
+  },
+  {
+    id: 'contabil',
+    rotulo: 'Contabilidade',
+    funcionalidades: [
+      {
+        id: 'estrutura_contabil',
+        rotulo: 'Estrutura contábil',
+        acoes: ['consultar', 'manter_plano_contas', 'manter_centros_custo', 'arquivar', 'reativar'],
       },
     ],
   },

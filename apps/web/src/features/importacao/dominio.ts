@@ -110,9 +110,9 @@ export type DominioDaImportacao = Readonly<{
   textos: TextosDaImportacao;
 }>;
 
-/** Mapeamento completo para o envio: todo campo do domínio, vazio quando não associado. */
+/** Mapeamento para o envio: campos opcionais sem associação são omitidos. */
 export const mapeamentoCompleto = (
   dominio: DominioDaImportacao,
   rascunho: RascunhoDoMapeamento,
 ): Readonly<Record<string, string>> =>
-  Object.fromEntries(dominio.campos.map((campo) => [campo, rascunho[campo] ?? '']));
+  Object.fromEntries(dominio.campos.flatMap((campo) => rascunho[campo] ? [[campo, rascunho[campo]]] : []));

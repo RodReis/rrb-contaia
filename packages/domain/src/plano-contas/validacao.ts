@@ -12,6 +12,7 @@ import {
   type RejeicaoEstruturalDaLinha,
 } from '../planilhas/rejeicao-estrutural.js';
 import type { CampoDoContrato } from './csv.js';
+import type { ClasseContabil } from '../catalogo-contabil.js';
 import { resolverHierarquia, type MotivoDeRejeicaoNaHierarquia } from './hierarquia.js';
 
 export type TipoDaConta = 'analitica' | 'sintetica';
@@ -24,6 +25,7 @@ export interface LinhaDeEntrada {
   readonly tipo: TipoDaConta;
   readonly natureza: NaturezaDaConta;
   readonly contaPai: string | null;
+  readonly classeContabil?: ClasseContabil | null;
 }
 
 /**
@@ -40,6 +42,7 @@ export interface LinhaBrutaDeEntrada {
   readonly tipo: string;
   readonly natureza: string;
   readonly contaPai: string | null;
+  readonly classeContabil?: string | null;
   /**
    * Defeito de leitura da linha (não do conteúdo): `CAMPOS_A_MAIS` = mais campos preenchidos que
    * o cabeçalho, o que torna as colunas da linha inconfiáveis. A linha é rejeitada.
@@ -96,6 +99,7 @@ export interface LinhaAceita {
   readonly tipo: TipoDaConta;
   readonly natureza: NaturezaDaConta;
   readonly contaPai: string | null;
+  readonly classeContabil?: ClasseContabil | null;
 }
 
 export interface ResultadoDaValidacao {
@@ -121,6 +125,9 @@ const ehTipoDaConta = (valor: string): valor is TipoDaConta =>
 
 const ehNaturezaDaConta = (valor: string): valor is NaturezaDaConta =>
   (NATUREZAS_VALIDAS as readonly string[]).includes(valor);
+
+const ehClasseContabil = (valor: string): valor is ClasseContabil =>
+  ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'COMPENSATION', 'OTHER'].includes(valor);
 
 /**
  * Campo de cada rejeição (SPEC-013 §3.4: linha, código, **campo**, código de erro e mensagem).
@@ -203,8 +210,22 @@ const validarCamposDaLinha = (linha: LinhaBrutaDeEntrada): LinhaRejeitada | Linh
   if (!ehNaturezaDaConta(linha.natureza)) {
     return rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'natureza');
   }
+  const classe = linha.classeContabil;
+  let classeValidada: ClasseContabil | null = null;
+  if (classe !== null && classe !== undefined) {
+    if (!ehClasseContabil(classe)) return rejeicao(linha, 'VALOR_FORA_DO_DOMINIO', 'classe_contabil');
+    classeValidada = classe;
+  }
 
-  return { ...linha, tipo: linha.tipo, natureza: linha.natureza };
+  return {
+    numeroDaLinha: linha.numeroDaLinha,
+    codigo: linha.codigo,
+    nome: linha.nome,
+    tipo: linha.tipo,
+    natureza: linha.natureza,
+    contaPai: linha.contaPai,
+    ...(classeValidada === null ? {} : { classeContabil: classeValidada }),
+  };
 };
 
 const ehRejeicao = (resultado: LinhaRejeitada | LinhaDeEntrada): resultado is LinhaRejeitada =>
