@@ -6,7 +6,7 @@ export type LinhaLancamento=Readonly<{lineId?:string;accountId:string;side:'DEBI
 export type Lancamento=Readonly<{entryId:string;entryNumber:number|null;accountingDate:string;competence:string;history:string;externalReference?:string|null;status:EstadoLancamento;version:number;debitCents:string;creditCents:string;lines?:readonly LinhaLancamento[];events?:readonly {id:string;action:string;occurredAt:string|null}[]}>;
 const cabecalhos=()=>({'content-type':'application/json','x-correlation-id':novoCorrelationId()});
 const caminho=(empresaId:string)=>`/empresas/${empresaId}/lancamentos-contabeis`;
-export const listarLancamentos=(empresaId:string,competence:string,status:string)=>requisitar<readonly Lancamento[]>(`${caminho(empresaId)}?${new URLSearchParams({competence,status})}`);
+export const listarLancamentos=(empresaId:string,competence:string,status:string)=>{const filtros=new URLSearchParams({competence});if(status)filtros.set('status',status);return requisitar<readonly Lancamento[]>(`${caminho(empresaId)}?${filtros}`)};
 export const obterLancamento=(empresaId:string,id:string)=>requisitar<Lancamento>(`${caminho(empresaId)}/${id}`);
 export const salvarLancamento=(empresaId:string,dados:unknown,id?:string)=>requisitar<{entryId:string;version:number}>(id?`${caminho(empresaId)}/${id}`:caminho(empresaId),{method:id?'PUT':'POST',headers:cabecalhos(),body:JSON.stringify(dados)});
 export const efetivarLancamento=(empresaId:string,id:string,version:number)=>requisitar(`${caminho(empresaId)}/${id}/efetivar`,{method:'POST',headers:cabecalhos(),body:JSON.stringify({version})});
