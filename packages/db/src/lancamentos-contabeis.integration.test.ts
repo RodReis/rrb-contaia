@@ -34,7 +34,7 @@ describe('F40: lançamentos contábeis no PostgreSQL',()=>{
       const seq=await client.query<{ultimo_numero:number}>(`insert into app.lancamento_contabil_sequencia(tenant_id,empresa_id,exercicio,ultimo_numero) values($1,$2,$3,1) returning ultimo_numero`,[c.tenantA,c.empresaA1,ano]);
       await client.query(`select set_config('app.lancamento_contabil_transicao','true',true)`);await client.query(`update app.lancamento_contabil set estado='POSTED',numero=$1,efetivado_por=$2 where id=$3`,[seq.rows[0]!.ultimo_numero,c.usuarios.naCarteira,entryId]);return seq.rows[0]!.ultimo_numero;
     });
-    expect(efetivado).toBe(1);
+    expect(Number(efetivado)).toBe(1);
     await expect(comoA(client=>client.query(`update app.lancamento_contabil_partida set valor_centavos=valor_centavos where lancamento_id=$1`,[entryId]))).rejects.toMatchObject({code:'23001'});
   });
 });
