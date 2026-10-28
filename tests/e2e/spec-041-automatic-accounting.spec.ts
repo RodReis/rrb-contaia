@@ -48,7 +48,7 @@ const createFiscalDocument = async (model: '55' | '65', suffix: string): Promise
   const parserVersion = `${PREFIXO}-parser-${suffix}`;
   const documentId = (await pool.query<{ id: string }>(`insert into app.fiscal_document(tenant_id,empresa_id,primary_staging_id,especie,chave_acesso,hash_sha256,
     original_key,tamanho_bytes,media_type,modelo,versao_layout,protocolo,protocolo_recebido_em,emitido_em,emitente,destinatario,total,estado,parser_version)
-    values($1,$2,$3,'NFE_55',$4,$5,$6,100,'application/xml',$7,'4.00',$8,now(),'2026-02-15',$9,'99999999000199',1250,'PROCESSADO',$10) returning id`,
+    values($1,$2,$3,'NFE_55',$4,$5,$6,100,'application/xml',$7,'4.00',$8,now(),'2026-02-15',$9,'99999999000199',12.50,'PROCESSADO',$10) returning id`,
   [tenantId, companyId, stagingId, accessKey, hash(`${PREFIXO}-${suffix}`), `${tenantId}/${PREFIXO}-${suffix}.xml`, model,
     `${PREFIXO}-protocol-${suffix}`, model === '55' ? cnpj : '99999999000199', parserVersion])).rows[0]?.id;
   if (!documentId) throw new Error('Documento fiscal sintético F41 não foi persistido.');
