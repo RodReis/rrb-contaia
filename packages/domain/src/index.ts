@@ -580,3 +580,17 @@ export type { DecisaoDaMatrizFiscal, EntradaDaMatrizFiscal, EvidenciaConclusivaD
 export { TIPOS_MANIFESTACAO_CONCLUSIVA, MOTIVOS_REJEICAO_MANIFESTACAO, validarJustificativaManifestacao, chaveIdempotenteManifestacao, hashPayloadManifestacao, ordenarInboxManifestacao, elegivelManifestacao } from './fiscal-manifestations.js';
 export type { TipoManifestacaoConclusiva, MotivoRejeicaoManifestacao } from './fiscal-manifestations.js';
 export * from './obligations.js';
+export {
+  ESTADOS_DO_LANCAMENTO,
+  LADOS_DA_PARTIDA,
+  validarCabecalhoContabil,
+  validarPartidasContabeis,
+  ladosInvertidos,
+  podeEstornar,
+  type EstadoDoLancamento,
+  type LadoDaPartida,
+  type PartidaContabil,
+  type CabecalhoContabil,
+  type CodigoDeErroDeLancamento,
+  type ErroDeValidacaoDeLancamento,
+} from './lancamentos-contabeis.js';

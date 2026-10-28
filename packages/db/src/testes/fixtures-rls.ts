@@ -670,6 +670,45 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     ),
     colunaDeAtualizacao: 'acao',
   },
+  'app.lancamento_contabil': {
+    inserir: (banco,e) => unico(banco, `insert into app.lancamento_contabil
+      (tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
+      values($1,$2,2026,'2026-01-15','2026-01','Fixture F40',$3) returning id`, [e.tenantId,e.empresaId,e.autorId]),
+    colunaDeAtualizacao: 'historico',
+    atualizacao: "historico='Fixture F40 atualizada',atualizado_em=now()",
+  },
+  'app.lancamento_contabil_partida': {
+    preparar: async(admin,e) => {
+      const contaId = await unico(admin, `insert into app.conta_contabil
+        (tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo)
+        values($1,$2,$3,'Conta analítica F40','analitica','devedora','ASSET','OPTIONAL') returning id`,
+        [e.tenantId,e.empresaId,`f40-${e.sufixo}-${proximo()}`]);
+      const lancamentoId = await unico(admin, `insert into app.lancamento_contabil
+        (tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
+        values($1,$2,2026,'2026-01-15','2026-01','Fixture F40',$3) returning id`, [e.tenantId,e.empresaId,e.autorId]);
+      return { contaId,lancamentoId };
+    },
+    inserir: (banco,e,r) => unico(banco, `insert into app.lancamento_contabil_partida
+      (tenant_id,empresa_id,lancamento_id,conta_id,lado,valor_centavos,posicao)
+      values($1,$2,$3,$4,'DEBIT',100,0) returning id`, [e.tenantId,e.empresaId,r['lancamentoId'],r['contaId']]),
+    colunaDeAtualizacao: 'valor_centavos',
+    atualizacao: 'valor_centavos=valor_centavos',
+  },
+  'app.lancamento_contabil_sequencia': {
+    inserir: (banco,e) => unico(banco, `insert into app.lancamento_contabil_sequencia
+      (tenant_id,empresa_id,exercicio,ultimo_numero) values($1,$2,2026,1) returning empresa_id as id`, [e.tenantId,e.empresaId]),
+    colunaDeLeitura: 'empresa_id', colunaDeChave: 'empresa_id',
+    colunaDeAtualizacao: 'ultimo_numero', atualizacao: 'ultimo_numero=ultimo_numero',
+  },
+  'app.lancamento_contabil_evento': {
+    preparar: async(admin,e) => ({ lancamentoId: await unico(admin, `insert into app.lancamento_contabil
+      (tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
+      values($1,$2,2026,'2026-01-15','2026-01','Fixture F40',$3) returning id`, [e.tenantId,e.empresaId,e.autorId]) }),
+    inserir: (banco,e,r) => unico(banco, `insert into app.lancamento_contabil_evento
+      (tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,usuario_id,correlation_id)
+      values($1,$2,$3,'CRIADO',null,'DRAFT',$4,'f40-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['lancamentoId'],e.autorId]),
+    colunaDeAtualizacao: 'acao',
+  },
   'app.empresa_plano_versao': {
     // Uma linha por empresa, e a matriz grava várias vezes na mesma (semente e tentativas, todas
     // revertidas): o upsert sem efeito mantém o controle positivo. Os negativos não chegam ao
