@@ -31,7 +31,6 @@ const ITENS: readonly ItemDoMenu[] = [
   { href: '/empresas', rotulo: 'Empresas', consultas: ['empresas.cadastro.consultar'] },
   { href: '/contabil/estrutura-contabil', rotulo: 'Estrutura contábil', consultas: ['contabil.estrutura_contabil.consultar'] },
   { href: '/contabil/lancamentos', rotulo: 'Lançamentos', consultas: ['contabil.lancamentos.consultar'] },
-  { href: '/contabil/lancamentos', rotulo: 'Lançamentos', consultas: ['contabil.lancamentos.consultar'] },
   // O Histórico de Informações é área global do escritório, não de uma empresa
   // (SPEC-003 §3.6): o acesso é de menu, não de tela. A API exige o histórico global e o
   // cadastral (SPEC-008 §3.2); oferecer o item só com um deles abriria uma tela negada.
