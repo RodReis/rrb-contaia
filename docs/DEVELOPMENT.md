@@ -896,5 +896,6 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] API valida origem elegível DF-e/F36–F38, campos normalizados, hierarquia de classes pai/filha, contas/centros ativos e política de rateio; cria somente rascunho F40 e mantém auditoria/pendência em falha.
 - [x] Tela compartilhada `Empresa → Regras contábeis` / `Contábil → Automatização`, com editor versionado, origem selecionável, simulação explicada, gerações e pendências. Menu e permissões de admin/contador, auxiliar e auditor alinhados à SPEC.
 - [x] Validação local focada: domínio 5/5, tela/axe 3/3, DB anti-drift 17/17 e matriz RLS 5/5; typecheck API/Web/DB e lint API/Web/Domain/DB passaram (warning preexistente `aba-de-enderecos.tsx:104`).
-- [ ] E2E autenticado e provas visuais CLARO/ESCURO × 768/1024/1440: pendentes; serviços locais de API/workers/Vault não ficaram disponíveis nesta execução.
+- [x] Spec E2E autenticada cobre publicação de duas regras, seleção por modelo, geração F40 balanceada, repetição idempotente, pendência `NO_MATCH`, resolução por reprocessamento e abertura do rascunho para revisão; inclui prova visual CLARO/ESCURO × 768/1024/1440 com verificação de rolagem e axe crítico.
+- [ ] E2E local `not_run`: Playwright não iniciou o Cofre por ausência de `COFRE_SERVICE_TOKEN`; as provas visuais autenticadas serão produzidas pela CI no HEAD.
 - [ ] Revisão final, PR com `refs #55`, CI verde no HEAD, merge confirmado, comentário de encerramento e `proplan:done` pendentes. Issue permanece aberta para aceite do PI.
