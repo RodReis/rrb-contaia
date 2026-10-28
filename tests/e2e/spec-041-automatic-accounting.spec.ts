@@ -165,6 +165,8 @@ test('F41 publica regra, gera rascunho F40, abre pendência e reprocessa após n
   const listaDeLancamentos = page.getByRole('region', { name: 'Lançamentos' });
   await listaDeLancamentos.getByLabel('Competência').fill('2026-02');
   await expect(listaDeLancamentos.getByLabel('Competência')).toHaveValue('2026-02');
+  const listedEntries = await page.request.get(`${BASE_URL}/${companyId}/lancamentos-contabeis?competence=2026-02`);
+  expect(listedEntries.ok(), `listagem F40: ${listedEntries.status()} ${await listedEntries.text()}`).toBeTruthy();
   const draftRow = page.getByRole('button', { name: new RegExp(`Geração automática F41.*${matchingDocumentId}`, 'u') });
   await expect(draftRow).toBeVisible();
   await expect(draftRow).toContainText('D R$ 12,50 · C R$ 12,50');
