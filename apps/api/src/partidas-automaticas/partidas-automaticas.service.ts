@@ -14,7 +14,7 @@ type OrigemRow = { id:string; especie:string; emitido_em:string; total:string|nu
 type ApuracaoRow = { id:string; competencia:string; kind:string; total:string|null };
 const erro = (code:keyof typeof CODIGOS_DE_ERRO,message:string):ErroDeDominio => new ErroDeDominio(CODIGOS_DE_ERRO[code],message);
 const hash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const centsFromDecimal=(value:string|null):bigint|null=>{if(value===null||!/^\d+(\.\d{1,10})?$/u.test(value))return null;const [whole,frac='']=value.split('.');const rounded=BigInt(frac.padEnd(3,'0').slice(0,3));return BigInt(whole!)*100n+BigInt(frac.padEnd(3,'0').slice(0,2))+(rounded>=50n?1n:0n)};
+const centsFromDecimal=(value:string|null):bigint|null=>{if(value===null||!/^\d+(\.\d{1,10})?$/u.test(value))return null;const [whole,frac='']=value.split('.');const cents=BigInt(whole!)*100n+BigInt(frac.padEnd(2,'0').slice(0,2))+(Number(frac[2]??'0')>=5?1n:0n);return cents};
 const flatten=(value:unknown,prefix='',result:Record<string,string|number|boolean|null>={}):Record<string,string|number|boolean|null>=>{
   if(Array.isArray(value)) return result;
   if(typeof value==='object'&&value!==null){for(const [key,child] of Object.entries(value))flatten(child,prefix?`${prefix}.${key}`:key,result);return result;}
