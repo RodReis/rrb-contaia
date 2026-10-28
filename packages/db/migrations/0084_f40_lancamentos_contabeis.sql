@@ -105,7 +105,9 @@ DECLARE estado_atual text; alvo uuid;
 BEGIN
   alvo:=CASE WHEN TG_OP='DELETE' THEN OLD.lancamento_id ELSE NEW.lancamento_id END;
   SELECT estado INTO estado_atual FROM app.lancamento_contabil WHERE id=alvo AND tenant_id=coalesce(NEW.tenant_id,OLD.tenant_id) FOR UPDATE;
-  IF estado_atual IS DISTINCT FROM 'DRAFT' THEN RAISE EXCEPTION 'ACCOUNTING_ENTRY_IMMUTABLE' USING ERRCODE='restrict_violation'; END IF;
+  -- Se o pai não está visível neste contexto, a política RLS da tabela filha
+  -- precisa produzir a negação. Só avaliar a imutabilidade do pai visível.
+  IF estado_atual IS NOT NULL AND estado_atual<>'DRAFT' THEN RAISE EXCEPTION 'ACCOUNTING_ENTRY_IMMUTABLE' USING ERRCODE='restrict_violation'; END IF;
   IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
 END; $$;
 CREATE TRIGGER partida_lancamento_protegida BEFORE INSERT OR UPDATE OR DELETE ON app.lancamento_contabil_partida FOR EACH ROW EXECUTE FUNCTION app.proteger_partida_lancamento();

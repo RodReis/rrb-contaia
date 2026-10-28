@@ -696,7 +696,9 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   },
   'app.lancamento_contabil_sequencia': {
     inserir: (banco,e) => unico(banco, `insert into app.lancamento_contabil_sequencia
-      (tenant_id,empresa_id,exercicio,ultimo_numero) values($1,$2,2026,1) returning empresa_id as id`, [e.tenantId,e.empresaId]),
+      (tenant_id,empresa_id,exercicio,ultimo_numero) values($1,$2,2026,1)
+      on conflict(tenant_id,empresa_id,exercicio) do update set ultimo_numero=app.lancamento_contabil_sequencia.ultimo_numero
+      returning empresa_id as id`, [e.tenantId,e.empresaId]),
     colunaDeLeitura: 'empresa_id', colunaDeChave: 'empresa_id',
     colunaDeAtualizacao: 'ultimo_numero', atualizacao: 'ultimo_numero=ultimo_numero',
   },
