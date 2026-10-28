@@ -513,8 +513,8 @@ test('papel personalizado atribuído a um usuário novo vale: acesso conforme a 
   await entrarComo(usuario, EMAIL_U, SENHA_U);
   await usuario.waitForURL(/\/empresas/);
 
-  // A matriz do papel: Empresas e o Histórico; nunca Usuários e permissões.
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
+  // A matriz do papel preserva a consulta/preparo contábil da F40; nunca Usuários e permissões.
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
 
   await usuario.goto('/configuracoes/usuarios');
   await expect(usuario.getByText('Você não tem permissão para ver esta área')).toBeVisible();
