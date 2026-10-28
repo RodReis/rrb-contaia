@@ -31,7 +31,8 @@ let achados: AchadosVisuais | null = null;
 const createFiscalDocument = async (model: '55' | '65', suffix: string): Promise<string> => {
   const cnpj = CNPJ_EMPRESA.replace(/\D/gu, '');
   const stateId = (await pool.query<{ id: string }>(`insert into app.dfe_capture_state(tenant_id,empresa_id,cnpj)
-    values($1,$2,$3) returning id`, [tenantId, companyId, cnpj])).rows[0]?.id;
+    values($1,$2,$3) on conflict(tenant_id,empresa_id,cnpj) do update set atualizado_em=app.dfe_capture_state.atualizado_em returning id`,
+  [tenantId, companyId, cnpj])).rows[0]?.id;
   if (!stateId) throw new Error('Estado de captura sintético F41 não foi criado.');
   const correlation = `${PREFIXO}-${suffix}`;
   const runId = (await pool.query<{ id: string }>(`insert into app.dfe_capture_run(tenant_id,empresa_id,estado_id,cnpj,origem,usuario_originador_id,
