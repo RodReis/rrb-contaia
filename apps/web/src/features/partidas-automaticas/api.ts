@@ -1,0 +1,26 @@
+import { requisitar } from '@/lib/http';
+import { novoCorrelationId } from '../importacao/api';
+
+export type FamiliaOrigem='DFE'|'TAX_ASSESSMENT';
+export type CriterioRegra=Readonly<{field:string;operator:'EQ'|'IN'|'GTE'|'LTE'|'EXPLICIT_ANY';value:string|readonly string[]|null}>;
+export type AlocacaoRegra=Readonly<{costCenterId:string;percentageBasisPoints:number;position:number}>;
+export type LinhaRegra=Readonly<{side:'DEBIT'|'CREDIT';accountId:string;amountExpression:string;position:number;allocation:readonly AlocacaoRegra[]}>;
+export type RegraInput=Readonly<{name:string;source:FamiliaOrigem;validFrom:string;validUntil:string|null;criteria:readonly CriterioRegra[];lines:readonly LinhaRegra[]}>;
+export type RegraResumo=Readonly<{ruleId:string;name:string;source:FamiliaOrigem;currentVersion:number;versionId:string;version:number;status:'DRAFT'|'PUBLISHED'|'SUPERSEDED'|'ARCHIVED';validFrom:string;validUntil:string|null}>;
+export type OrigemDisponivel=Readonly<{id:string;familia:FamiliaOrigem;rotulo:string;competencia:string;data:string;valor:string|null}>;
+export type ResultadoGeracao=Readonly<{generationId:string;result:'DRAFT_GENERATED'|'NO_MATCH'|'AMBIGUOUS_MATCH'|'INVALID_CONFIGURATION'|'ALREADY_GENERATED';draftEntryId:string|null;pendingId:string|null}>;
+const headers=()=>({'content-type':'application/json','x-correlation-id':novoCorrelationId()});
+const path=(companyId:string)=>`/empresas/${companyId}/automatizacao-contabil`;
+export const listarRegrasAutomaticas=(companyId:string)=>requisitar<{items:readonly RegraResumo[]}>(`${path(companyId)}/regras`);
+export const listarOrigensAutomaticas=(companyId:string,familia:FamiliaOrigem)=>requisitar<{items:readonly OrigemDisponivel[]}>(`${path(companyId)}/origens?familia=${familia}`);
+export const obterRegraAutomatica=(companyId:string,id:string)=>requisitar<{rule:RegraInput&RegraResumo;versions:readonly (RegraInput&RegraResumo&{versionId:string})[]}>(`${path(companyId)}/regras/${id}`);
+export const criarRegraAutomatica=(companyId:string,input:RegraInput)=>requisitar<{ruleId:string;versionId:string;version:number}>(`${path(companyId)}/regras`,{method:'POST',headers:headers(),body:JSON.stringify(input)});
+export const criarVersaoRegraAutomatica=(companyId:string,id:string,input:RegraInput)=>requisitar<{ruleId:string;versionId:string;version:number}>(`${path(companyId)}/regras/${id}/versoes`,{method:'PUT',headers:headers(),body:JSON.stringify(input)});
+export const salvarRascunhoRegraAutomatica=(companyId:string,id:string,input:RegraInput)=>requisitar<{ruleId:string;versionId:string;version:number}>(`${path(companyId)}/regras/${id}`,{method:'PUT',headers:headers(),body:JSON.stringify(input)});
+export const publicarRegraAutomatica=(companyId:string,id:string,versionId:string)=>requisitar(`${path(companyId)}/regras/${id}/versoes/${versionId}/publicar`,{method:'POST',headers:headers(),body:'{}'});
+export const arquivarRegraAutomatica=(companyId:string,id:string)=>requisitar(`${path(companyId)}/regras/${id}/arquivar`,{method:'POST',headers:headers(),body:'{}'});
+export const simularOrigemAutomatica=(companyId:string,sourceType:FamiliaOrigem,sourceId:string)=>requisitar<{result:string;source:Readonly<{attributes:Record<string,unknown>}>;evaluations:readonly Readonly<{ruleId:string;version:number;criteria:readonly Readonly<{field:string;operator:string;matched:boolean;value:unknown}>[];validityMatches:boolean;configurationValid:boolean}>[];rule?:RegraResumo;ruleIds?:readonly string[]}>(`${path(companyId)}/simulacoes`,{method:'POST',headers:headers(),body:JSON.stringify({sourceType,sourceId})});
+export const gerarOrigemAutomatica=(companyId:string,sourceType:FamiliaOrigem,sourceId:string)=>requisitar<ResultadoGeracao>(`${path(companyId)}/geracoes`,{method:'POST',headers:headers(),body:JSON.stringify({sourceType,sourceId})});
+export const listarGeracoesAutomaticas=(companyId:string)=>requisitar<{items:readonly Readonly<{generationId:string;sourceType:FamiliaOrigem;sourceId:string;sourceVersion:number;result:string;draftEntryId:string|null;createdAt:string}>[]}>(`${path(companyId)}/geracoes`);
+export const listarPendenciasAutomaticas=(companyId:string)=>requisitar<{items:readonly Readonly<{pendingId:string;reason:string;diagnostic:unknown;status:string;sourceType:FamiliaOrigem;sourceId:string;createdAt:string}>[]}>(`${path(companyId)}/pendencias`);
+export const reprocessarPendenciaAutomatica=(companyId:string,id:string)=>requisitar<ResultadoGeracao>(`${path(companyId)}/pendencias/${id}/reprocessar`,{method:'POST',headers:headers(),body:'{}'});

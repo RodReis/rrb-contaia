@@ -32,6 +32,7 @@ import { AlertaDePendencias } from '../pendencias/alerta-de-pendencias';
 import { AbaPlanoDeContas } from '../plano-contas/aba-plano-de-contas';
 import { CatalogoOperacional } from '../plano-contas/catalogo-operacional';
 import { LancamentosContabeis } from '../lancamentos-contabeis/lancamentos-contabeis';
+import { PartidasAutomaticas } from '../partidas-automaticas/partidas-automaticas';
 import { AbaCapturaDfe } from '../dfe-capture/aba-captura-dfe';
 import { PainelDeDocumentosFiscais } from '../fiscal-documents/painel-de-documentos-fiscais';
 import { PainelDeRiscoFiscal } from '../fiscal-documents/painel-de-risco-fiscal';
@@ -63,6 +64,7 @@ const ABAS = [
   { id: 'plano-contas', rotulo: 'Plano de contas' },
   { id: 'estrutura-contabil', rotulo: 'Estrutura contábil' },
   { id: 'lancamentos-contabeis', rotulo: 'Lançamentos contábeis' },
+  { id: 'automatizacao-contabil', rotulo: 'Regras contábeis' },
   { id: 'empregados', rotulo: 'Empregados' },
   { id: 'captura-dfe', rotulo: 'Captura DF-e' },
   { id: 'apuracao-fiscal', rotulo: 'Apuração fiscal' },
@@ -106,7 +108,7 @@ const useAbaNaUrl = (empresaId: string, permitidas: readonly IdDaAba[]) => {
 };
 
 /** Abas que só existem depois que a sessão diz o que o papel pode. */
-const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'estrutura-contabil', 'lancamentos-contabeis', 'empregados', 'captura-dfe', 'apuracao-fiscal', 'colaboradores'];
+const ABAS_QUE_DEPENDEM_DA_SESSAO: readonly string[] = ['plano-contas', 'estrutura-contabil', 'lancamentos-contabeis', 'automatizacao-contabil', 'empregados', 'captura-dfe', 'apuracao-fiscal', 'colaboradores'];
 
 // Ativo e inativo com a mesma métrica de fonte: trocar o peso mudaria a largura
 // e deslocaria o layout (COMPONENTS.md §2.5).
@@ -214,6 +216,7 @@ export const ManutencaoDaEmpresa = ({
   const consultaPlano = sessao !== undefined && concede(sessao, CONSULTA_DO_PLANO);
   const consultaEstruturaContabil = sessao !== undefined && concede(sessao, 'contabil.estrutura_contabil.consultar');
   const consultaLancamentos = sessao !== undefined && concede(sessao, 'contabil.lancamentos.consultar');
+  const consultaAutomatizacao = sessao !== undefined && concede(sessao, 'contabil.automatizacao.consultar');
   // Empregados idem, com a permissão própria (SPEC-014 §3.12).
   const consultaDeEmpregados = consultaEmpregados(sessao);
   const consultaDfe = sessao !== undefined && concede(sessao, 'empresas.cadastro.consultar');
@@ -224,6 +227,7 @@ export const ManutencaoDaEmpresa = ({
       (aba.id !== 'plano-contas' || consultaPlano) &&
       (aba.id !== 'estrutura-contabil' || consultaEstruturaContabil) &&
       (aba.id !== 'lancamentos-contabeis' || consultaLancamentos) &&
+      (aba.id !== 'automatizacao-contabil' || consultaAutomatizacao) &&
       (aba.id !== 'empregados' || consultaDeEmpregados) &&
       (aba.id !== 'captura-dfe' || consultaDfe) &&
       (aba.id !== 'apuracao-fiscal' || consultaApuracao),
@@ -347,6 +351,12 @@ export const ManutencaoDaEmpresa = ({
           {consultaLancamentos ? (
             <Tabs.Content value="lancamentos-contabeis" className="focus-visible:outline-none">
               <LancamentosContabeis empresaId={visao.id} />
+            </Tabs.Content>
+          ) : null}
+
+          {consultaAutomatizacao ? (
+            <Tabs.Content value="automatizacao-contabil" className="focus-visible:outline-none">
+              <PartidasAutomaticas empresaId={visao.id} somenteLeitura={arquivada} />
             </Tabs.Content>
           ) : null}
 
