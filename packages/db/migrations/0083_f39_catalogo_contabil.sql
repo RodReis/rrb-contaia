@@ -89,8 +89,12 @@ CREATE INDEX catalogo_evento_item_idx ON app.catalogo_contabil_evento(empresa_id
 ALTER TABLE app.catalogo_contabil_evento ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app.catalogo_contabil_evento FORCE ROW LEVEL SECURITY;
 CREATE POLICY catalogo_evento_select ON app.catalogo_contabil_evento FOR SELECT USING (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
-CREATE POLICY catalogo_evento_insert ON app.catalogo_contabil_evento FOR INSERT WITH CHECK (tenant_id=app.tenant_atual() AND app.empresa_autorizada(empresa_id));
-CREATE POLICY catalogo_evento_negacao_tenant ON app.catalogo_contabil_evento FOR INSERT WITH CHECK (tenant_id=app.tenant_atual() AND app.contexto_humano());
+CREATE POLICY catalogo_evento_insert ON app.catalogo_contabil_evento FOR INSERT WITH CHECK (
+  tenant_id=app.tenant_atual() AND (
+    app.empresa_autorizada(empresa_id) OR
+    (app.contexto_humano() AND resultado='RECUSADO' AND codigo_erro IS NOT NULL AND item_id IS NULL)
+  )
+);
 CREATE TRIGGER catalogo_evento_append_only BEFORE UPDATE OR DELETE ON app.catalogo_contabil_evento FOR EACH ROW EXECUTE FUNCTION app.rejeitar_escrita_em_historico();
 CREATE TRIGGER escopo_imutavel BEFORE UPDATE ON app.catalogo_contabil_evento FOR EACH ROW EXECUTE FUNCTION app.proteger_escopo_empresa();
 

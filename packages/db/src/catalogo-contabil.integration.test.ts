@@ -44,4 +44,18 @@ describe('F39: isolamento e catálogo contábil no PostgreSQL',()=>{
     const cruzada=await codeError(()=>comContextoHumano(app,{tenantId:c.tenantA,usuarioId:c.usuarios.duasEmpresas},(client)=>client.query(`insert into app.centro_custo(tenant_id,empresa_id,codigo,nome,tipo,centro_pai) values($1,$2,$3,'Fora','analitica',$4)`,[c.tenantA,c.empresaA2,`X-${randomUUID()}`,`C-${c.sufixo}`])));
     expect(cruzada).toBe('23503');
   });
+
+  it('permite somente registrar recusa humana fora da carteira, sem conceder INSERT operacional',async()=>{
+    const semCarteira={tenantId:c.tenantA,usuarioId:c.usuarios.fora,correlationId:'f39-denied-audit'};
+    await expect(comContextoHumano(app,semCarteira,(client)=>client.query(
+      `insert into app.catalogo_contabil_evento(tenant_id,empresa_id,catalogo,codigo_item,acao,resultado,codigo_erro,usuario_id,correlation_id)
+       values($1,$2,'CONTA','C-NEGADA','TENTATIVA_NEGADA','RECUSADO','SEM_ACESSO',$3,$4)`,
+      [c.tenantA,c.empresaA1,c.usuarios.fora,'f39-denied-audit'],
+    ))).resolves.toBeDefined();
+    expect(await codeError(()=>comContextoHumano(app,semCarteira,(client)=>client.query(
+      `insert into app.catalogo_contabil_evento(tenant_id,empresa_id,catalogo,codigo_item,acao,resultado,usuario_id,correlation_id)
+       values($1,$2,'CONTA','C-NAO-AUTORIZADA','CRIACAO','SUCESSO',$3,'f39-denied-audit')`,
+      [c.tenantA,c.empresaA1,c.usuarios.fora],
+    )))).toBe('42501');
+  });
 });
