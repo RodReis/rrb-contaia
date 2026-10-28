@@ -11,8 +11,8 @@
 - [x] F13 preserva CSV legado sem classe; classe opcional passa por CSV/XLSX e staging, e reimportação sem coluna preserva classificação manual. Migrations F39 e trigger de transição explícita para reativação incluídos.
 - [x] Validação local: domain 976/976; web 1337/1337; API base 1497/1497; testes direcionados API 93/93, incluindo DTO/mapeamento opcional F39 e auditoria; workers 66/66; DB F39 4/4, integração F13 34/34, `plano-contas.integration` 28/28, anti-drift 17/17 e matriz RLS 5/5 com as novas tabelas F39. Typechecks passaram. Lint sem erros; um warning preexistente em `apps/web/src/features/empresa/aba-de-enderecos.tsx:104`.
 - [x] Regra definida pelo PI em 27/10/2026: bloquear se classe da filha diferir da classe do pai. Aplicada ao catálogo CRUD/reativação e à validação de importação do plano, inclusive ao reclassificar pai com filhas fora do lote; regressões de domínio e API incluídas.
-- [ ] CI do head `9aafab7`: regras, build, tela e banco verdes; E2E 158 passaram, 2 falharam por expectativas de menu desatualizadas nos testes SPEC-007/008 e 12 não rodaram. Correções nos dois testes estão no próximo head, aguardando CI. Smoke visual local CLARO/ESCURO × 768/1024/1440 `not_run`: API/workers/dubles locais reiniciam por `EISDIR` ao ler certificados e bootstrap Vault falha HTTP 400. Sem recriação de containers/volumes: backup validado é pré-requisito.
-- [ ] Detector/passe final Impeccable, revisão integral, PR, CI no head, merge confirmado, comentário de encerramento e `proplan:done` pendentes.
+- [x] CI verde no head `a990cd0`: build, quality, regras, banco, tela, E2E (172/172) e gate. Smoke visual local CLARO/ESCURO × 768/1024/1440 `not_run`: serviço do Cofre não iniciou sem `COFRE_SERVICE_TOKEN`; sem recriação de containers ou volumes.
+- [x] Passe final de acabamento e revisão integral concluídos; PR #159 integrada por squash (`eb73f976543aeeea00fcbe255faea49f8eb8f7be`), comentário publicado na issue e `proplan:done` aplicado. Aceite do PI permanece pendente.
 
 ## 1. Ambiente
 
