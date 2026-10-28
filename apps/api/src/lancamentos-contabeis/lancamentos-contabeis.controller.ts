@@ -5,7 +5,7 @@ import { GuardDeEscopoDeEmpresa } from '../auth/escopo';
 import { GuardDeCadastro, GuardDeSessao, type RequisicaoAutenticada } from '../auth/sessao.guard';
 import { obterCorrelationId } from '../comum/problema';
 import { analisar } from '../escritorio/escritorio.dto';
-import { cancelamentoSchema, consultaLancamentosSchema, descarteSchema, efetivacaoSchema, estornoSchema, idSchema, motivoSchema, rascunhoSchema } from './lancamentos-contabeis.dto';
+import { cancelamentoSchema, consultaLancamentosSchema, descarteSchema, efetivacaoSchema, estornoSchema, idSchema, rascunhoSchema } from './lancamentos-contabeis.dto';
 import { LancamentosContabeisService } from './lancamentos-contabeis.service';
 
 @Controller('empresas/:empresaId/lancamentos-contabeis')
