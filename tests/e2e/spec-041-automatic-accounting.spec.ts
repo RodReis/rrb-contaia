@@ -100,7 +100,8 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
   pendingDocumentId = await createFiscalDocument('65', 'pending');
   context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   page = await context.newPage();
-  await entrarComo(page, CONTADOR, `/empresas/${companyId}?aba=automatizacao-contabil`);
+  await entrarComo(page, CONTADOR, `/empresas/${companyId}`);
+  await page.goto(`/empresas/${companyId}?aba=automatizacao-contabil`);
 });
 
 test.afterAll(async () => {
