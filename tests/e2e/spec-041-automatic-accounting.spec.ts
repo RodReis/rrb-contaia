@@ -14,7 +14,7 @@ const CNPJ_ESCRITORIO = cnpjValido(randomUUID().replace(/\D/gu, '').slice(0, 12)
 const CNPJ_EMPRESA = cnpjValido(randomUUID().replace(/\D/gu, '').slice(0, 12));
 const CAMINHO = resolve('test-results', process.env['PROVA_ESCOPO'] ?? 'SPEC-041', 'e2e/provas/spec-041');
 const pool = new Pool({ connectionString: process.env['DATABASE_URL'] ?? 'postgresql://contaia:contaia_local@127.0.0.1:15432/contaia' });
-const BASE_URL = '/api/proxy/companies';
+const BASE_URL = '/api/proxy/empresas';
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 
 let context: BrowserContext;
