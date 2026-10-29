@@ -81,6 +81,29 @@ const prepararGeracaoF41 = async (admin: Consultavel,e:Escopo):Promise<Referenci
   return {generationId};
 };
 
+const prepararRazaoF42 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const marker = `${e.sufixo}-${proximo()}`;
+  const accountId = await unico(admin, `insert into app.conta_contabil
+    (tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo)
+    values($1,$2,$3,'Conta F42 RLS','analitica','devedora','ASSET','OPTIONAL') returning id`,
+  [e.tenantId,e.empresaId,`f42-${marker}`]);
+  const entryId = await unico(admin, `insert into app.lancamento_contabil
+    (tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
+    values($1,$2,2098,'2098-01-15','2098-01','Fixture F42 RLS',$3) returning id`, [e.tenantId,e.empresaId,e.autorId]);
+  const lineId = await unico(admin, `insert into app.lancamento_contabil_partida
+    (tenant_id,empresa_id,lancamento_id,conta_id,lado,valor_centavos,posicao)
+    values($1,$2,$3,$4,'DEBIT',100,0) returning id`, [e.tenantId,e.empresaId,entryId,accountId]);
+  const sourceEventId = await unico(admin, `insert into app.lancamento_contabil_evento
+    (tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,numero,usuario_id,correlation_id)
+    values($1,$2,$3,'EFETIVADO','DRAFT','POSTED',1,$4,'f42-rls-fixture') returning id`,
+  [e.tenantId,e.empresaId,entryId,e.autorId]);
+  const versionId = await unico(admin, `insert into app.projecao_razao_versao
+    (tenant_id,empresa_id,numero,estado,criado_por,correlation_id)
+    values($1,$2,$3,'BUILDING',$4,'f42-rls-fixture') returning id`,
+  [e.tenantId,e.empresaId,1000+proximo(),e.autorId]);
+  return { accountId, entryId, lineId, sourceEventId, versionId, marker };
+};
+
 const regraObrigacao = async (admin: Consultavel): Promise<Readonly<{ id: string; codigo: string; versao: number }>> => {
   const { rows } = await admin.query<{ id: string; codigo: string; versao: number }>(
     `select id,codigo,versao from app.obligation_rule where codigo='DAS_SIMPLES' and estado='PUBLICADA' limit 1`,
@@ -789,6 +812,50 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     preparar:prepararRegraF41,
     inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_rule_event(tenant_id,empresa_id,rule_id,rule_version_id,acao,ator_id,correlation_id) values($1,$2,$3,$4,'CREATED',$5,'f41-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['ruleId'],r['versionId'],e.autorId]),
     colunaDeAtualizacao:'acao',
+  },
+  'app.projecao_razao_versao': {
+    preparar: prepararRazaoF42,
+    inserir: (banco,e) => unico(banco, `insert into app.projecao_razao_versao
+      (tenant_id,empresa_id,numero,estado,criado_por,correlation_id)
+      values($1,$2,$3,'BUILDING',$4,'f42-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,1000+proximo(),e.autorId]),
+    colunaDeAtualizacao: 'estado',
+    atualizacao: "estado='FAILED'",
+  },
+  'app.projecao_razao': {
+    preparar: prepararRazaoF42,
+    inserir: (banco,e,r) => unico(banco, `insert into app.projecao_razao
+      (tenant_id,empresa_id,versao_ativa_id,numero_versao) values($1,$2,$3,1)
+      on conflict(tenant_id,empresa_id) do update set numero_versao=app.projecao_razao.numero_versao
+      returning empresa_id as id`, [e.tenantId,e.empresaId,r['versionId']]),
+    colunaDeLeitura: 'empresa_id',
+    colunaDeChave: 'empresa_id',
+    colunaDeAtualizacao: 'numero_versao',
+  },
+  'app.movimento_razao': {
+    preparar: prepararRazaoF42,
+    inserir: (banco,e,r) => unico(banco, `insert into app.movimento_razao
+      (tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,competencia,data_contabil,
+       conta_id,codigo_conta,nome_conta,historico,numero_lancamento,posicao,lado,valor_centavos,tipo)
+      values($1,$2,$3,$4,$5,$6,'2098-01','2098-01-15',$7,$8,'Conta F42 RLS','Fixture F42 RLS',1,0,'DEBIT',100,'POSTING') returning id`,
+    [e.tenantId,e.empresaId,r['versionId'],r['entryId'],r['lineId'],r['sourceEventId'],r['accountId'],`f42-${r['marker']}`]),
+  },
+  'app.saldo_mensal_razao': {
+    preparar: prepararRazaoF42,
+    inserir: (banco,e,r) => unico(banco, `insert into app.saldo_mensal_razao
+      (tenant_id,empresa_id,versao_id,competencia,conta_id,debitos_centavos,movimentos)
+      values($1,$2,$3,'2098-01',$4,100,1) returning versao_id as id`,
+    [e.tenantId,e.empresaId,r['versionId'],r['accountId']]),
+    colunaDeLeitura: 'versao_id',
+    colunaDeChave: 'versao_id',
+    colunaDeAtualizacao: 'movimentos',
+  },
+  'app.evento_razao': {
+    preparar: prepararRazaoF42,
+    inserir: (banco,e,r) => unico(banco, `insert into app.evento_razao
+      (tenant_id,empresa_id,versao_id,acao,resultado,usuario_id,correlation_id)
+      values($1,$2,$3,'MOVIMENTO_CRIADO','SUCESSO',$4,'f42-rls-fixture') returning id`,
+    [e.tenantId,e.empresaId,r['versionId'],e.autorId]),
   },
   'app.empresa_plano_versao': {
     // Uma linha por empresa, e a matriz grava várias vezes na mesma (semente e tentativas, todas

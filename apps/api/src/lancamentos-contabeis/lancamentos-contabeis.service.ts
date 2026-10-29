@@ -3,6 +3,7 @@ import { comContextoHumano } from '@contaia/db';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { PoolDoBanco } from '../banco/pool.provider';
+import { RazaoContabilService } from '../razao-contabil/razao-contabil.service';
 
 export type AtorLancamento = Readonly<{ tenantId: string; usuarioId: string }>;
 export type DadosRascunho = Readonly<{ version?: number | undefined; accountingDate: string; competence: string; history: string; externalReference: string | null; lines: readonly (Omit<PartidaContabil, 'lineId'> & { lineId?: string | undefined })[] }>;
@@ -10,14 +11,15 @@ const erro = (code: string, message: string): ErroDeDominio => new ErroDeDominio
 
 @Injectable()
 export class LancamentosContabeisService {
-  constructor(private readonly pool: PoolDoBanco) {}
+  constructor(private readonly pool: PoolDoBanco, private readonly razao: RazaoContabilService) {}
   private contexto<T>(a: AtorLancamento, fn: (c: PoolClient) => Promise<T>) { return comContextoHumano(this.pool.instancia, a, fn); }
   private validar(d: DadosRascunho, efetivar: boolean) {
     const errors = [...validarCabecalhoContabil(d), ...validarPartidasContabeis(d.lines as readonly PartidaContabil[], efetivar)];
     if (errors.length) throw new ErroDeDominio(errors[0]!.code as never, errors.map((e) => e.message).join(' '), errors.map((e) => ({ campo: e.field, codigo: e.code as never })));
   }
-  private async gravarEvento(c: PoolClient, a: AtorLancamento, companyId: string, id: string, action: string, previous: string | null, next: string | null, corr: string, number: number | null = null, reason: string | null = null) {
-    await c.query(`insert into app.lancamento_contabil_evento(tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,numero,motivo,usuario_id,correlation_id) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [a.tenantId, companyId, id, action, previous, next, number, reason, a.usuarioId, corr]);
+  private async gravarEvento(c: PoolClient, a: AtorLancamento, companyId: string, id: string, action: string, previous: string | null, next: string | null, corr: string, number: number | null = null, reason: string | null = null): Promise<string> {
+    const { rows } = await c.query<{ id: string }>(`insert into app.lancamento_contabil_evento(tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,numero,motivo,usuario_id,correlation_id) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id`, [a.tenantId, companyId, id, action, previous, next, number, reason, a.usuarioId, corr]);
+    return rows[0]!.id;
   }
   private async gravarPartidas(c: PoolClient, a: AtorLancamento, companyId: string, id: string, lines: DadosRascunho['lines']) {
     for (const [position, line] of lines.entries()) await c.query(`insert into app.lancamento_contabil_partida(tenant_id,empresa_id,lancamento_id,conta_id,centro_custo_id,lado,valor_centavos,complemento,posicao) values($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [a.tenantId, companyId, id, line.accountId, line.costCenterId, line.side, line.amountCents, line.memo, position]);
@@ -37,7 +39,10 @@ export class LancamentosContabeisService {
       this.validar(d, true);
       for (const l of d.lines) { if (l.accountType !== 'analitica' || l.accountArchived || !l.accountClass || !l.costCenterPolicy) throw erro(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_ACCOUNT_INVALID, 'A conta precisa ser analítica, completa e ativa.'); if (l.costCenterPolicy === 'REQUIRED' && !l.costCenterId) throw erro(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_COST_CENTER_REQUIRED, 'Esta conta exige centro de custo.'); if (l.costCenterPolicy === 'FORBIDDEN' && l.costCenterId) throw erro(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_COST_CENTER_FORBIDDEN, 'Esta conta não aceita centro de custo.'); if (l.costCenterId && (l.costCenterType !== 'analitica' || l.costCenterArchived)) throw erro(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_COST_CENTER_INVALID, 'O centro precisa ser analítico e ativo.'); }
       const year = Number(d.accountingDate.slice(0, 4)); const seq = await c.query(`insert into app.lancamento_contabil_sequencia(tenant_id,empresa_id,exercicio,ultimo_numero) values($1,$2,$3,1) on conflict(tenant_id,empresa_id,exercicio) do update set ultimo_numero=app.lancamento_contabil_sequencia.ultimo_numero+1 returning ultimo_numero`, [a.tenantId, companyId, year]); const number = Number(seq.rows[0]!.ultimo_numero);
-      await c.query(`select set_config('app.lancamento_contabil_transicao','true',true)`); await c.query(`update app.lancamento_contabil set estado='POSTED',numero=$1,efetivado_por=$2 where id=$3`, [number, a.usuarioId, id]); await this.gravarEvento(c, a, companyId, id, 'EFETIVADO', 'DRAFT', 'POSTED', corr, number); return {entryId:id,status:'POSTED',entryNumber:number};
+      await c.query(`select set_config('app.lancamento_contabil_transicao','true',true)`); await c.query(`update app.lancamento_contabil set estado='POSTED',numero=$1,efetivado_por=$2 where id=$3`, [number, a.usuarioId, id]);
+      const eventId = await this.gravarEvento(c, a, companyId, id, 'EFETIVADO', 'DRAFT', 'POSTED', corr, number);
+      await this.razao.projetarEfetivacao(c, a, companyId, id, eventId, corr);
+      return {entryId:id,status:'POSTED',entryNumber:number};
     });
   }
   async detalhe(a: AtorLancamento, companyId: string, id: string) {
@@ -84,7 +89,9 @@ export class LancamentosContabeisService {
       // F40 não entrega fechamento nem integrações externas estruturadas; enquanto esses módulos não existirem, o lançamento permanece cancelável.
       await c.query(`select set_config('app.lancamento_contabil_transicao','true',true)`);
       await c.query(`update app.lancamento_contabil set estado='CANCELLED',cancelamento_motivo=$1 where id=$2`, [reason.trim(), id]);
-      await this.gravarEvento(c, a, companyId, id, 'CANCELADO', 'POSTED', 'CANCELLED', corr, entry.entryNumber, reason); return {entryId:id,status:'CANCELLED'};
+      const eventId = await this.gravarEvento(c, a, companyId, id, 'CANCELADO', 'POSTED', 'CANCELLED', corr, entry.entryNumber, reason);
+      await this.razao.projetarCancelamento(c, a, companyId, id, eventId, corr);
+      return {entryId:id,status:'CANCELLED'};
     });
   }
   async estornar(a: AtorLancamento, companyId: string, id: string, date: string, competence: string, reason: string, corr: string) {
@@ -97,7 +104,10 @@ export class LancamentosContabeisService {
       const year=Number(date.slice(0,4));const seq=await c.query(`insert into app.lancamento_contabil_sequencia(tenant_id,empresa_id,exercicio,ultimo_numero) values($1,$2,$3,1) on conflict(tenant_id,empresa_id,exercicio) do update set ultimo_numero=app.lancamento_contabil_sequencia.ultimo_numero+1 returning ultimo_numero`,[a.tenantId,companyId,year]);const number=Number(seq.rows[0]!.ultimo_numero);
       const created=await c.query(`insert into app.lancamento_contabil(tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,estorno_de_id,criado_por) values($1,$2,$3,$4,$5,$6,$7,$8) returning id`,[a.tenantId,companyId,year,date,competence,history,id,a.usuarioId]);const reversalId=created.rows[0]!.id as string;
       await this.gravarPartidas(c,a,companyId,reversalId,d.lines);await c.query(`select set_config('app.lancamento_contabil_transicao','true',true)`);await c.query(`update app.lancamento_contabil set estado='POSTED',numero=$1,efetivado_por=$2 where id=$3`,[number,a.usuarioId,reversalId]);await c.query(`update app.lancamento_contabil set estado='REVERSED' where id=$1`,[id]);
-      await this.gravarEvento(c,a,companyId,reversalId,'ESTORNADO',null,'POSTED',corr,number,reason);await this.gravarEvento(c,a,companyId,id,'ESTORNADO','POSTED','REVERSED',corr,original.entryNumber,reason);return{entryId:reversalId,status:'POSTED',entryNumber:number,reversalOfEntryId:id};
+      const eventId = await this.gravarEvento(c,a,companyId,reversalId,'ESTORNADO',null,'POSTED',corr,number,reason);
+      await this.gravarEvento(c,a,companyId,id,'ESTORNADO','POSTED','REVERSED',corr,original.entryNumber,reason);
+      await this.razao.projetarEfetivacao(c, a, companyId, reversalId, eventId, corr);
+      return{entryId:reversalId,status:'POSTED',entryNumber:number,reversalOfEntryId:id};
     });
   }
 }

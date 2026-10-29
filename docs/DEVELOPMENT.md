@@ -5,12 +5,15 @@
 
 ---
 
-## Correção #163 — `[MVP2][FIX]` Motivo de cancelamento F40
+## Card #56 — `[MVP2][SPEC-042][F42]` Razão contábil e balancete por período
 
-- [x] Migration 0087 permite gravar `cancelamento_motivo` apenas na transição `POSTED → CANCELLED`; demais campos e alterações posteriores continuam imutáveis.
-- [x] Regressão PostgreSQL cobre persistência do motivo e bloqueio de alterações posteriores.
-- [x] Validação local: typecheck, build e lint de `@contaia/db`; teste de integração direcionado 1/1. Suíte completa de banco: 513 passaram, 54 ignorados e 5 falhas ambientais, detalhadas na PR.
-- [ ] CI verde, merge confirmado e encerramento da issue #163.
+- [x] Projeção versionada, imutável, com RLS, trilha e consolidação mensal; efetivação e cancelamento F40 atualizam a projeção na mesma transação.
+- [x] API de razão, balancete, detalhe, integridade e reconstrução; permissões por papel e rotas da empresa e do módulo Contabilidade.
+- [x] Interface CLARO/ESCURO por tokens, filtros URL, hierarquia, saldo normal e canônico, marco inicial, estados e diálogo de reconstrução.
+- [x] Validação local: `pnpm test:regras` passou; `pnpm test:tela` 106 arquivos / 1.345 testes; direcionados F42: domínio 29/29, DB 3/3, API PostgreSQL 1/1 e tela 1/1; lint, typecheck e build passaram. Lint mantém 1 warning preexistente em `empresa/aba-de-enderecos.tsx:104`.
+- [x] `pnpm test:banco` local: 517 passaram, 54 ignorados e 4 arquivos falharam por CNPJ/e-mails fixos já existentes no banco compartilhado; a matriz RLS F42 passou (5 testes) e o anti-drift passou (17). API, Signer e workers passaram. E2E local `not_run`; smoke visual autenticado CLARO/ESCURO × 768/1024/1440 `not_run`: o `sub` do Keycloak difere de `app.usuario.sub_oidc`. Vault bootstrap não encontra `init.json`; conta e volumes preservados.
+- [x] CI run `40928878981` no SHA `09228ad`: build, quality, regras, banco e tela passaram; E2E falhou apenas em `spec-012-signer-mtls.spec.ts:464`, ao não exibir “Incidente em andamento” em 20s após o Signer ser parado (168 E2E passaram). A falha não é F42; gate agregado reprovou por E2E.
+- [ ] PR `refs #56` aberta; CI verde, merge confirmado e comentário de encerramento pendentes.
 
 ---
 
