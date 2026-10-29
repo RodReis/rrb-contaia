@@ -5,6 +5,15 @@
 
 ---
 
+## Correção #163 — `[MVP2][FIX]` Motivo de cancelamento F40
+
+- [x] Migration 0087 permite gravar `cancelamento_motivo` apenas na transição `POSTED → CANCELLED`; demais campos e alterações posteriores continuam imutáveis.
+- [x] Regressão PostgreSQL cobre persistência do motivo e bloqueio de alterações posteriores.
+- [x] Validação local: typecheck, build e lint de `@contaia/db`; teste de integração direcionado 1/1. Suíte completa de banco: 513 passaram, 54 ignorados e 5 falhas ambientais, detalhadas na PR.
+- [ ] CI verde, merge confirmado e encerramento da issue #163.
+
+---
+
 ## Card #53 — `[MVP2][SPEC-039][F39]` Catálogo contábil operacional
 
 - [x] Implementados CRUD versionado e hierárquico para plano de contas/centros de custo, classe contábil independente do saldo normal, política de centro de custo, estados incompletos, carteira/permissões, histórico append-only e acessos pela empresa e pelo módulo Contabilidade.
