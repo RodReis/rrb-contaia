@@ -160,6 +160,9 @@ test('F41 publica regra, gera rascunho F40, abre pendência e reprocessa após n
   const pendingItems = (await pendingList.json() as { items: { pendingId: string; status: string }[] }).items;
   expect(pendingItems.find((item) => item.pendingId === pendingGeneration.pendingId)?.status).toBe('RESOLVED');
 
+  // As mutações acima usam a API diretamente; recarregar elimina o cache anterior ao processamento.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Automatização contábil' })).toBeVisible();
   await page.getByRole('tab', { name: 'Lançamentos contábeis' }).click();
   await expect(page.getByRole('heading', { name: 'Lançamentos' })).toBeVisible();
   const listaDeLancamentos = page.getByRole('region', { name: 'Lançamentos' });
