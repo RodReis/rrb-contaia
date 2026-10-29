@@ -121,6 +121,9 @@ const classificarErro = (erro: unknown): Resultado => {
   if (code === '23503') {
     return 'rejeitado_por_integridade';
   }
+  if (code === '23514') {
+    return 'rejeitado_por_integridade';
+  }
 
   return `outro:${code ?? 'sem-codigo'}`;
 };
@@ -182,7 +185,7 @@ const apagar = (tabela: string, linhaId: string, colunaChave = 'id') => async (c
 
 type Privilegios = Readonly<{ insert: boolean; update: boolean; atualizaTenant: boolean; atualizaEmpresa: boolean }>;
 
-const privilegiosDe = async (pool: Pool, tabela: string): Promise<Privilegios> => {
+const privilegiosDe = async (pool: Pool, tabela: string, colunaDeEmpresa = 'empresa_id'): Promise<Privilegios> => {
   const coluna = (nome: string): string =>
     `coalesce((select has_column_privilege(current_user, $1::regclass, a.attnum, 'UPDATE')
                  from pg_attribute a
@@ -190,7 +193,7 @@ const privilegiosDe = async (pool: Pool, tabela: string): Promise<Privilegios> =
   const { rows } = await pool.query<{ inserir: boolean; pode: boolean; tenant: boolean; empresa: boolean }>(
     `select has_table_privilege(current_user, $1::regclass, 'INSERT') as inserir,
             has_any_column_privilege(current_user, $1::regclass, 'UPDATE') as pode,
-            ${coluna('tenant_id')} as tenant, ${coluna('empresa_id')} as empresa`,
+            ${coluna('tenant_id')} as tenant, ${coluna(colunaDeEmpresa)} as empresa`,
     [tabela],
   );
 
@@ -283,7 +286,8 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       continue; // a ausência é reprovada pelo teste de cobertura, com mensagem própria.
     }
 
-    const { insert: temInsert, update: temUpdate, atualizaTenant, atualizaEmpresa } = await privilegiosDe(app, tabela);
+    const colunaDeEmpresa = fixture.colunaDeEmpresa ?? 'empresa_id';
+    const { insert: temInsert, update: temUpdate, atualizaTenant, atualizaEmpresa } = await privilegiosDe(app, tabela, colunaDeEmpresa);
     const moverTenant: Resultado = atualizaTenant ? 'rejeitado_por_escopo_imutavel' : 'negado_por_privilegio';
     const moverEmpresa: Resultado = atualizaEmpresa ? 'rejeitado_por_escopo_imutavel' : 'negado_por_privilegio';
     const coluna = fixture.colunaDeAtualizacao ?? 'id';
@@ -421,8 +425,18 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
       } else {
         await alteracao('append-only sem UPDATE', humano(u.naCarteira), 'negado_por_privilegio');
       }
-      const apagada = await tentar(app, humano(u.naCarteira), apagar(tabela, linhaA1));
+      const apagada = await tentar(app, humano(u.naCarteira), apagar(tabela, linhaA1, fixture.colunaDeChave));
       registrar(tabela, classe, 'DELETE sem privilégio', 'DELETE', 'negado_por_privilegio', apagada);
+    } else if (classe === 'empresa' && tabela === 'app.accounting_period_cycle') {
+      await leitura('carteira da empresa (controle positivo)', humano(u.naCarteira), 'visivel');
+      await leitura('fora da carteira', humano(u.fora), 'invisivel');
+      await leitura('outro tenant', humano(u.deB,'COMUM',c.tenantB), 'invisivel');
+      await leitura('sem contexto', nenhum, 'invisivel');
+      await insercao('carteira da empresa (controle positivo)', humano(u.naCarteira), 'inserido');
+      await insercao('fora da carteira', humano(u.fora), 'rejeitado_por_rls');
+      await insercao('outro tenant', humano(u.deB,'COMUM',c.tenantB), 'rejeitado_por_rls');
+      await insercao('sem contexto', nenhum, 'rejeitado_por_rls');
+      await alteracao('transição inválida é recusada pela tabela',humano(u.naCarteira),'rejeitado_por_integridade',linhaA1,"status='CLOSED',latest_version=1");
     } else if (classe === 'empresa') {
       // A exceção da F9 vale para os filhos também: o administrador sem vínculo alcança a empresa
       // ARQUIVADA (consulta e reativação gravam histórico), o colaborador comum não.
@@ -509,7 +523,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
         humano(u.duasEmpresas),
         temUpdate ? moverEmpresa : negadoSemUpdate,
         linhaA1,
-        `empresa_id = '${c.empresaA2}'`,
+        `${colunaDeEmpresa} = '${c.empresaA2}'`,
       );
       await alteracao(
         'mover a linha para outro tenant',
@@ -555,7 +569,7 @@ export const executarMatriz = async (entrada: EntradaDaMatriz): Promise<CasoDaMa
         humano(u.admin, 'ADMIN_ACESSO'),
         'rejeitado_por_escopo_imutavel',
         linhaA1,
-        `empresa_id = '${c.empresaA2}'`,
+        `${colunaDeEmpresa} = '${c.empresaA2}'`,
       );
     }
 

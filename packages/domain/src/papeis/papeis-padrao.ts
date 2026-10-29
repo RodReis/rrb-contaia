@@ -45,6 +45,8 @@ const LANCAMENTOS_PREPARO: readonly ChaveDePermissao[] = [...LANCAMENTOS_LEITURA
 const LANCAMENTOS_TODAS: readonly ChaveDePermissao[] = [...LANCAMENTOS_PREPARO, 'contabil.lancamentos.efetivar', 'contabil.lancamentos.cancelar_estornar'];
 const RAZAO_LEITURA: readonly ChaveDePermissao[] = ['contabil.razao.consultar'];
 const RAZAO_VERIFICACAO: readonly ChaveDePermissao[] = [...RAZAO_LEITURA, 'contabil.razao.verificar_integridade'];
+const FECHAMENTO_LEITURA: readonly ChaveDePermissao[] = ['contabil.fechamento.consultar'];
+const FECHAMENTO_OPERACAO: readonly ChaveDePermissao[] = [...FECHAMENTO_LEITURA, 'contabil.fechamento.fechar_competencia'];
 const AUTOMATIZACAO_LEITURA: readonly ChaveDePermissao[] = ['contabil.automatizacao.consultar'];
 const AUTOMATIZACAO_OPERACAO: readonly ChaveDePermissao[] = [...AUTOMATIZACAO_LEITURA, 'contabil.automatizacao.simular', 'contabil.automatizacao.processar_origens'];
 const AUTOMATIZACAO_TODAS: readonly ChaveDePermissao[] = [...AUTOMATIZACAO_OPERACAO, 'contabil.automatizacao.manter_regras', 'contabil.automatizacao.publicar'];
@@ -75,6 +77,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...ESTRUTURA_CONTABIL_TODAS,
     ...LANCAMENTOS_TODAS,
     ...RAZAO_VERIFICACAO,
+    ...FECHAMENTO_OPERACAO,
     ...AUTOMATIZACAO_TODAS,
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
@@ -92,6 +95,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...ESTRUTURA_CONTABIL_LEITURA,
     ...LANCAMENTOS_PREPARO,
     ...RAZAO_LEITURA,
+    ...FECHAMENTO_LEITURA,
     ...AUTOMATIZACAO_OPERACAO,
     ...OPERACAO,
     ...OBRIGACOES_OPERACAO,
@@ -102,6 +106,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...ESTRUTURA_CONTABIL_LEITURA,
     ...LANCAMENTOS_LEITURA,
     ...RAZAO_LEITURA,
+    ...FECHAMENTO_LEITURA,
     ...AUTOMATIZACAO_LEITURA,
     'escritorio.dados.consultar',
     'empresas.cadastro.consultar',

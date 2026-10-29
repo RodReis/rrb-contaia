@@ -14,6 +14,8 @@ export type LinhaBalancete = Readonly<{
   parentAccountId: string | null; openingBalanceCents: number; debitCents: number; creditCents: number;
   closingBalanceCents: number; closingNature: 'DEBIT' | 'CREDIT' | 'ZERO'; movementCount: number;
 }>;
+export type FechamentoContabil = Readonly<{closeId:string;competence:string;version:number;projectionVersion:number;kind:'REGULAR'|'EMPTY_CONFIRMED';debitCents:number|string;creditCents:number|string;movementCount:number|string;entryCount:number|string;firstCompetence:string;contentHash:string;closedBy:string;closedAt:string;correlationId:string;content:Record<string,unknown>;closedByName:string|null;cycleStatus:'OPEN'|'CLOSED'|'REOPENED';snapshotValid:boolean}>;
+export type CicloContabil = Readonly<{competence:string;status:'OPEN'|'CLOSED'|'REOPENED';activeCloseId:string|null;latestVersion:number}>;
 
 const caminho = (empresaId: string) => `/empresas/${empresaId}/razao`;
 const periodParams = (from: string, to: string, extra: Record<string, string | undefined> = {}) => {
@@ -27,6 +29,10 @@ export const listarMovimentosRazao = (empresaId: string, from: string, to: strin
 
 export const obterBalancete = (empresaId: string, from: string, to: string, costCenterId: string, onlyWithMovement: boolean) =>
   requisitar<{ lines: readonly LinhaBalancete[]; totalDebitCents: number; totalCreditCents: number; firstCompetence: string | null; projectionVersion: number; integrity: 'CONSISTENT' | 'INCONSISTENT' }>(`${caminho(empresaId)}/balancete?${periodParams(from, to, { centroId: costCenterId, somenteMovimento: String(onlyWithMovement) })}`);
+
+export const consultarFechamentos = (empresaId:string,from:string,to:string) => requisitar<{cycles:readonly CicloContabil[];closes:readonly FechamentoContabil[];events:readonly {competence:string;action:string;result:string;version:number|null;reason:string|null;blockers:readonly string[];actorId:string;actorName:string|null;correlationId:string;occurredAt:string}[];correlationId:string}>(`${caminho(empresaId)}/fechamentos?${periodParams(from,to)}`);
+export const fecharCompetencia=(empresaId:string,competence:string,expectedVersion:number,confirmEmpty:boolean)=>{const idempotencyKey=crypto.randomUUID();return requisitar<{status:string;competence:string;version?:number;contentHash?:string;blockers?:readonly string[];correlationId:string;code?:string}>(`${caminho(empresaId)}/fechamentos`,{method:'POST',headers:{...headers(),'idempotency-key':idempotencyKey},body:JSON.stringify({competence,expectedVersion,confirmEmpty,idempotencyKey})});};
+export const reabrirCompetencia=(empresaId:string,competence:string,expectedVersion:number,reason:string)=>{const idempotencyKey=crypto.randomUUID();return requisitar<{status:string;competence:string;version:number;correlationId:string;code?:string}>(`${caminho(empresaId)}/fechamentos/${competence}/reabrir`,{method:'POST',headers:{...headers(),'idempotency-key':idempotencyKey},body:JSON.stringify({competence,expectedVersion,reason,idempotencyKey})});};
 
 export const obterDetalheDoMovimento = (empresaId: string, movementId: string) =>
   requisitar<MovimentoRazao & { memo: string | null; entryStatus: string; events: readonly { action: string; reason: string | null; correlationId: string; occurredAt: string }[] }>(`${caminho(empresaId)}/${movementId}`);

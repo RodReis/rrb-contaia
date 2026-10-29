@@ -27,6 +27,10 @@ export const resultadoReconstrucaoSchema = z.object({
   confirmacaoPeriodoAte: competencia,
 });
 export const movementIdSchema = z.object({ movementId: uuid });
+export const consultaFechamentosSchema = z.object({ de: competencia, ate: competencia });
+const comandoBase = z.object({ competence: competencia, expectedVersion: z.number().int().min(0), idempotencyKey: z.string().min(8).max(128).optional() });
+export const fecharCompetenciaSchema = comandoBase.extend({ confirmEmpty: z.boolean() });
+export const reabrirCompetenciaSchema = comandoBase.extend({ reason: z.string().trim().min(1).max(2000) });
 
 export type ConsultaRazao = z.infer<typeof consultaRazaoSchema>;
 export type ConsultaBalancete = z.infer<typeof consultaBalanceteSchema>;

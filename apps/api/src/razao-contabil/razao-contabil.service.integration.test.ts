@@ -69,7 +69,7 @@ afterAll(async () => {
   await Promise.all([admin.end(), app.end()]);
 });
 
-describe('F42: projeção da API no PostgreSQL', () => {
+describe('F42/F43: razão e fechamento da API no PostgreSQL', () => {
   it('projeta uma efetivação de forma idempotente e gera o balancete', async () => {
     await context(async (client) => {
       await service.projetarEfetivacao(client, actor(), scenario.empresaA1, entryId, sourceEventId, correlationId);
@@ -86,6 +86,31 @@ describe('F42: projeção da API no PostgreSQL', () => {
     )).rows[0]!);
     expect(counts).toEqual({ count: '2', movements: '2' });
     expect((await service.verificar(actor(), scenario.empresaA1, correlationId)).status).toBe('CONSISTENT');
+
+    const competingCloses=await Promise.all([
+      service.fecharCompetencia(actor(),scenario.empresaA1,competence,0,'f43-close-001',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId),
+      service.fecharCompetencia(actor(),scenario.empresaA1,competence,0,'f43-close-race-002',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId),
+    ]);
+    const closed=competingCloses.find((result)=>result['status']==='CLOSED');
+    expect(competingCloses.filter((result)=>result['status']==='CLOSED')).toHaveLength(1);
+    expect(competingCloses.some((result)=>result['status']==='CONFLICT'&&result['code']==='ACCOUNTING_PERIOD_ALREADY_CLOSED')).toBe(true);
+    if(!closed)throw new Error('fechamento concorrente não escolheu vencedor');
+    expect(closed).toMatchObject({status:'CLOSED',competence,version:1});
+    const repeated=await service.fecharCompetencia(actor(),scenario.empresaA1,competence,0,'f43-close-001',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId);
+    expect(repeated).toEqual(closed);
+    await expect(entries.criar(actor(),scenario.empresaA1,{accountingDate:'2097-04-23',competence,history:'Bloqueado após fechamento',externalReference:null,lines:[{accountId:accountIds[0],costCenterId:null,side:'DEBIT',amountCents:100,memo:null,position:0},{accountId:accountIds[1],costCenterId:null,side:'CREDIT',amountCents:100,memo:null,position:1}]},correlationId)).rejects.toMatchObject({codigo:'ACCOUNTING_PERIOD_ALREADY_CLOSED'});
+    const closeRead=await service.consultarFechamentos(actor(),scenario.empresaA1,competence,competence,correlationId);
+    expect(closeRead.closes[0]).toMatchObject({version:1,snapshotValid:true,cycleStatus:'CLOSED'});
+    const laterClose=await service.fecharCompetencia(actor(),scenario.empresaA1,'2097-05',0,'f43-close-empty-001',true,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId);
+    expect(laterClose).toMatchObject({status:'CLOSED',competence:'2097-05',version:1,kind:'EMPTY_CONFIRMED'});
+    const blockedReopen=await service.reabrirCompetencia(actor(),scenario.empresaA1,competence,1,'f43-reopen-blocked-001','Correção autorizada',['contabil.fechamento.consultar','contabil.fechamento.reabrir'],correlationId);
+    expect(blockedReopen).toMatchObject({status:'BLOCKED',code:'ACCOUNTING_PERIOD_LATER_CLOSE_EXISTS'});
+    const laterReopen=await service.reabrirCompetencia(actor(),scenario.empresaA1,'2097-05',1,'f43-reopen-empty-001','Ajustar sequência',['contabil.fechamento.consultar','contabil.fechamento.reabrir'],correlationId);
+    expect(laterReopen).toMatchObject({status:'REOPENED',version:1});
+    const reopened=await service.reabrirCompetencia(actor(),scenario.empresaA1,competence,1,'f43-reopen-001','Correção autorizada',['contabil.fechamento.consultar','contabil.fechamento.reabrir'],correlationId);
+    expect(reopened).toMatchObject({status:'REOPENED',version:1,reason:'Correção autorizada'});
+    const reopenedAgain=await service.reabrirCompetencia(actor(),scenario.empresaA1,competence,1,'f43-reopen-001','Correção autorizada',['contabil.fechamento.consultar','contabil.fechamento.reabrir'],correlationId);
+    expect(reopenedAgain).toEqual(reopened);
     const rebuilt = await service.reconstruir(actor(), scenario.empresaA1, competence, competence, scenario.empresaA1, correlationId);
     expect(rebuilt).toMatchObject({ status: 'CONSISTENT', projectionVersion: 2, movementCount: 2 });
     expect((await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId)).totalDebitCents).toBe(1200);
@@ -94,6 +119,8 @@ describe('F42: projeção da API no PostgreSQL', () => {
     expect(cancelledBalance.totalDebitCents).toBe(2400);
     expect(cancelledBalance.totalCreditCents).toBe(2400);
     expect((await service.verificar(actor(), scenario.empresaA1, correlationId)).status).toBe('CONSISTENT');
+    const secondClose=await service.fecharCompetencia(actor(),scenario.empresaA1,competence,1,'f43-close-002',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId);
+    expect(secondClose).toMatchObject({status:'CLOSED',competence,version:2});
 
     await context(async (client) => {
       const brokenSource = await client.query<{ id: string }>(
@@ -115,5 +142,8 @@ describe('F42: projeção da API no PostgreSQL', () => {
     expect(failedRebuild).toMatchObject({ status: 'FAILED', code: 'LEDGER_REBUILD_FAILED', projectionVersion: 2 });
     const preserved = await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId);
     expect(preserved).toMatchObject({ projectionVersion: 2, totalDebitCents: 2400, totalCreditCents: 2400 });
+
+    // The malformed source leaves the projection inconsistent; restore scenario isolation by
+    // recording no successful close. The standalone integration below uses its own clean database.
   });
 });

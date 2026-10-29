@@ -31,6 +31,7 @@ export type FixtureDeTabela = Readonly<{
   colunaDeLeitura?: string;
   colunaDeChave?: string;
   colunaDeAtualizacao?: string;
+  colunaDeEmpresa?: string;
   /** UPDATE que a própria tabela aceita, quando `set c = c` não serve (ex.: só arquivar). */
   atualizacao?: string;
 }>;
@@ -87,12 +88,16 @@ const prepararRazaoF42 = async (admin: Consultavel, e: Escopo): Promise<Referenc
     (tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo)
     values($1,$2,$3,'Conta F42 RLS','analitica','devedora','ASSET','OPTIONAL') returning id`,
   [e.tenantId,e.empresaId,`f42-${marker}`]);
+  const creditAccountId = await unico(admin, `insert into app.conta_contabil
+    (tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo)
+    values($1,$2,$3,'Conta de crédito F42 RLS','analitica','credora','LIABILITY','OPTIONAL') returning id`,
+  [e.tenantId,e.empresaId,`f42-credit-${marker}`]);
   const entryId = await unico(admin, `insert into app.lancamento_contabil
     (tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
     values($1,$2,2098,'2098-01-15','2098-01','Fixture F42 RLS',$3) returning id`, [e.tenantId,e.empresaId,e.autorId]);
   const lineId = await unico(admin, `insert into app.lancamento_contabil_partida
     (tenant_id,empresa_id,lancamento_id,conta_id,lado,valor_centavos,posicao)
-    values($1,$2,$3,$4,'DEBIT',100,0) returning id`, [e.tenantId,e.empresaId,entryId,accountId]);
+    values($1,$2,$3,$4,'DEBIT',100,0),($1,$2,$3,$5,'CREDIT',100,1) returning id`, [e.tenantId,e.empresaId,entryId,accountId,creditAccountId]);
   const sourceEventId = await unico(admin, `insert into app.lancamento_contabil_evento
     (tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,numero,usuario_id,correlation_id)
     values($1,$2,$3,'EFETIVADO','DRAFT','POSTED',1,$4,'f42-rls-fixture') returning id`,
@@ -101,7 +106,7 @@ const prepararRazaoF42 = async (admin: Consultavel, e: Escopo): Promise<Referenc
     (tenant_id,empresa_id,numero,estado,criado_por,correlation_id)
     values($1,$2,$3,'BUILDING',$4,'f42-rls-fixture') returning id`,
   [e.tenantId,e.empresaId,1000+proximo(),e.autorId]);
-  return { accountId, entryId, lineId, sourceEventId, versionId, marker };
+  return { accountId, creditAccountId, entryId, lineId, sourceEventId, versionId, marker };
 };
 
 const regraObrigacao = async (admin: Consultavel): Promise<Readonly<{ id: string; codigo: string; versao: number }>> => {
@@ -1805,5 +1810,38 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       (tenant_id,empresa_id,assessment_id,format,storage_key,artifact_sha256,canonical_sha256,created_by,created_at)
       values($1,$2,$3,'PDF',$4,repeat(md5($5||'a'),2),repeat(md5($5||'c'),2),$6,now()) returning id`,
     [e.tenantId,e.empresaId,r['assessmentId'],`fiscal/f38/artifact/${proximo()}`,`${r['marker']}-${proximo()}`,e.autorId]),
+  },
+  'app.accounting_period_cycle': {
+    inserir: async (banco,e) => {
+      const competencia = `2099-${String((proximo() % 12) + 1).padStart(2,'0')}`;
+      return unico(banco, `insert into app.accounting_period_cycle(tenant_id,company_id,competence,status,latest_version)
+        values($1,$2,$3,'OPEN',0) returning competence as id`, [e.tenantId,e.empresaId,competencia]);
+    },
+    colunaDeLeitura: 'competence', colunaDeChave: 'competence', colunaDeAtualizacao: 'updated_at', colunaDeEmpresa: 'company_id',
+    atualizacao: 'updated_at=now()',
+  },
+  'app.accounting_period_close': {
+    preparar: async(admin,e)=>{const refs=await prepararRazaoF42(admin,e);await admin.query(`insert into app.accounting_period_cycle(tenant_id,company_id,competence,status,latest_version) values($1,$2,'2098-01','OPEN',0) on conflict do nothing`,[e.tenantId,e.empresaId]);return refs;},
+    inserir: (banco,e,r) => unico(banco, `insert into app.accounting_period_close(tenant_id,company_id,competence,version,projection_version,kind,debit_cents,credit_cents,movement_count,entry_count,first_competence,content,content_hash,closed_by,closed_at,correlation_id)
+      values($1,$2,'2098-01',$5,1,'EMPTY_CONFIRMED',0,0,0,0,'2098-01','{}'::jsonb,repeat('a',64),$3,now(),'f43-rls-'||$4) returning id`, [e.tenantId,e.empresaId,e.autorId,r['marker'],900000+proximo()]),
+    colunaDeEmpresa:'company_id',
+  },
+  'app.accounting_period_close_snapshot_line': {
+    preparar: async(admin,e)=>{const refs=await prepararRazaoF42(admin,e);await admin.query(`insert into app.accounting_period_cycle(tenant_id,company_id,competence,status,latest_version) values($1,$2,'2098-01','OPEN',0) on conflict do nothing`,[e.tenantId,e.empresaId]);const closeId=await unico(admin,`insert into app.accounting_period_close(tenant_id,company_id,competence,version,projection_version,kind,debit_cents,credit_cents,movement_count,entry_count,first_competence,content,content_hash,closed_by,closed_at,correlation_id) values($1,$2,'2098-01',$5,1,'EMPTY_CONFIRMED',0,0,0,0,'2098-01','{}'::jsonb,repeat('a',64),$3,now(),'f43-rls-line-'||$4) returning id`,[e.tenantId,e.empresaId,e.autorId,refs['marker'],910000+proximo()]);return {...refs,closeId};},
+    inserir: (banco,e,r) => unico(banco, `insert into app.accounting_period_close_snapshot_line(tenant_id,company_id,close_id,account_id,code,name,account_type,normal_balance,level,opening_balance_cents,debit_cents,credit_cents,closing_balance_cents,closing_nature,movement_count)
+      values($1,$2,$3,$4,'F43.1','Fixture F43','ANALYTICAL','DEBIT',0,0,0,0,0,'ZERO',0) returning close_id as id`, [e.tenantId,e.empresaId,r['closeId'],r['accountId']]),
+    colunaDeLeitura:'close_id',colunaDeChave:'close_id',colunaDeAtualizacao:'close_id',colunaDeEmpresa:'company_id',
+  },
+  'app.accounting_period_idempotency': {
+    inserir: (banco,e) => unico(banco, `insert into app.accounting_period_idempotency(tenant_id,company_id,competence,operation,expected_version,idempotency_key,request_hash,response)
+      values($1,$2,'2098-01','CLOSE',999,$3,repeat('a',64),'{}'::jsonb) returning idempotency_key as id`, [e.tenantId,e.empresaId,`f43-rls-idem-${e.sufixo}-${proximo()}`]),
+    colunaDeLeitura: 'idempotency_key', colunaDeChave: 'idempotency_key', colunaDeAtualizacao: 'created_at', colunaDeEmpresa:'company_id',
+    atualizacao: 'created_at=created_at',
+  },
+  'app.accounting_period_event': {
+    preparar: async(admin,e)=>{const refs=await prepararRazaoF42(admin,e);const idempotencyKey=`f43-rls-event-${proximo()}`;await admin.query(`insert into app.accounting_period_idempotency(tenant_id,company_id,competence,operation,expected_version,idempotency_key,request_hash,response) values($1,$2,'2098-01','CLOSE',0,$3,repeat('c',64),'{}'::jsonb)`,[e.tenantId,e.empresaId,idempotencyKey]);return {...refs,idempotencyKey};},
+    inserir: (banco,e,r) => unico(banco, `insert into app.accounting_period_event(tenant_id,company_id,competence,action,result,actor_id,correlation_id,operation,expected_version,idempotency_key)
+      values($1,$2,'2098-01','CLOSE_REJECTED','RECUSADO',$3,'f43-rls-fixture','CLOSE',0,$4) returning id`, [e.tenantId,e.empresaId,e.autorId,r['idempotencyKey']]),
+    colunaDeEmpresa:'company_id',
   },
 };

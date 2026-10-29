@@ -76,7 +76,7 @@ export const calcularBalancete = (
       throw new RangeError('LEDGER_SOURCE_INVALID');
     }
     const sourceAccount = accountById.get(movement.accountId);
-    if (!sourceAccount || sourceAccount.type !== 'ANALYTICAL') throw new RangeError('LEDGER_SOURCE_INVALID');
+    if (!sourceAccount || sourceAccount.type !== 'ANALYTICAL') throw new RangeError(`LEDGER_SOURCE_INVALID:account:${movement.accountId}`);
     if (costCenterFilter.tipo === 'SEM_CENTRO' && movement.costCenterId !== null) continue;
     if (costCenterFilter.tipo === 'CENTRO' && movement.costCenterId !== costCenterFilter.centroCustoId) continue;
 
@@ -84,10 +84,10 @@ export const calcularBalancete = (
     let targetId: string | undefined = movement.accountId;
     const visited = new Set<string>();
     while (targetId) {
-      if (visited.has(targetId)) throw new RangeError('LEDGER_SOURCE_INVALID');
+      if (visited.has(targetId)) throw new RangeError(`LEDGER_SOURCE_INVALID:parent-cycle:${targetId}`);
       visited.add(targetId);
       const target = accountById.get(targetId);
-      if (!target) throw new RangeError('LEDGER_SOURCE_INVALID');
+      if (!target) throw new RangeError(`LEDGER_SOURCE_INVALID:missing-parent:${targetId}`);
       const totals = values.get(targetId)!;
       if (movement.competence < fromCompetence) totals.opening += movement.side === 'DEBIT' ? amount : -amount;
       if (movement.competence >= fromCompetence && movement.competence <= toCompetence) {

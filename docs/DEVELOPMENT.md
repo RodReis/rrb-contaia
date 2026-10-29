@@ -913,3 +913,12 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] CI verde no HEAD `8a5d006`: run `40907826508` concluiu build, quality, test-regras, test-banco, test-tela, E2E (174/174) e gate.
 - [ ] E2E local `not_run`: o worktree não tem `DATABASE_URL` nem `COFRE_SERVICE_TOKEN`; CI executou a composição e as provas autenticadas.
 - [ ] Merge confirmado, comentário de encerramento e `proplan:done` pendentes. Issue permanece aberta para aceite do PI.
+
+## Card #57 — `[MVP2][SPEC-043][F43]` Fechamento e reabertura de competência contábil
+
+- [x] Ciclo mensal, gates de sequência/integridade/rascunho/equilíbrio, snapshots SHA-256 reproduzíveis, idempotência, histórico append-only, bloqueios da F40 e reabertura administrativa com motivo.
+- [x] Permissões, API e painel integrado ao razão: estados mensais, detalhe do snapshot, histórico, confirmação de fechamento normal/vazio e confirmação de reabertura.
+- [x] Validação focada: domínio 1.006/1.006; API 1.502/1.502; telas 1.347/1.347; typecheck, lint e build completos passaram. Integração PostgreSQL F42/F43 1/1, regra F42 3/3, RLS 5/5 e anti-drift 17/17 passaram.
+- [ ] `pnpm test:banco` completo local: 37 suítes passaram; 4 suítes legadas falharam em fixtures fixas/colisões no banco persistente compartilhado (`tenant_cnpj_key`, `usuario_email_unico`) e cleanup após setup falho. Nenhuma nova falha F43.
+- [ ] E2E local e prova autenticada F43 `not_run`: Playwright expirou aguardando servidores do ambiente; login seed volta para `/acesso` por incompatibilidade entre sujeito OIDC e usuário fixture do banco. Screenshots de acesso público não contam como prova F43.
+- [ ] Revisão do diff, PR `refs #57`, CI verde no HEAD, merge confirmado, comentário de encerramento e `proplan:done` pendentes. Issue permanece aberta para aceite do PI.
