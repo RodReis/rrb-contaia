@@ -594,3 +594,14 @@ export {
   type CodigoDeErroDeLancamento,
   type ErroDeValidacaoDeLancamento,
 } from './lancamentos-contabeis.js';
+export {
+  avaliarExpressaoMonetaria,
+  balancearPartidas,
+  campoDaExpressaoMonetaria,
+  criterioCorresponde,
+  ratearCentavos,
+  regraCorresponde,
+  selecionarRegraUnica,
+  vigenciaDaOrigem,
+} from './partidas-automaticas.js';
+export type { CriterioRegra, FamiliaOrigem, OrigemContabil, PartidaGerada, RegraElegivel, ResultadoGeracao } from './partidas-automaticas.js';

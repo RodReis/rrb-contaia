@@ -53,6 +53,34 @@ const unico = async (banco: Consultavel, sql: string, parametros: unknown[]): Pr
   return linha.id;
 };
 
+const prepararIdentidadeRegraF41 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const ruleId = await unico(admin, `insert into app.accounting_rule(tenant_id,empresa_id,nome,origem,criado_por)
+    values($1,$2,$3,'DFE',$4) returning id`, [e.tenantId,e.empresaId,`F41 ${e.sufixo}-${proximo()}`,e.autorId]);
+  return {ruleId};
+};
+
+const prepararRegraF41 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const identity=await prepararIdentidadeRegraF41(admin,e);
+  const versionId = await unico(admin, `insert into app.accounting_rule_version(tenant_id,empresa_id,regra_id,versao,vigencia_inicio)
+    values($1,$2,$3,1,'2026-01-01') returning id`, [e.tenantId,e.empresaId,identity['ruleId']]);
+  return {...identity,versionId};
+};
+
+const prepararLinhaF41 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const base = await prepararRegraF41(admin,e);
+  const accountId = await unico(admin, `insert into app.conta_contabil(tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo)
+    values($1,$2,$3,'Conta F41','analitica','devedora','ASSET','OPTIONAL') returning id`,[e.tenantId,e.empresaId,`f41-${e.sufixo}-${proximo()}`]);
+  const lineId = await unico(admin, `insert into app.accounting_rule_line(tenant_id,empresa_id,rule_version_id,conta_id,lado,expressao_valor,posicao)
+    values($1,$2,$3,$4,'DEBIT','amountCents',0) returning id`,[e.tenantId,e.empresaId,base['versionId'],accountId]);
+  return {...base,accountId,lineId};
+};
+
+const prepararGeracaoF41 = async (admin: Consultavel,e:Escopo):Promise<Referencias> => {
+  const generationId=await unico(admin,`insert into app.accounting_generation(tenant_id,empresa_id,origem,origem_id,origem_versao,chave_idempotente,resultado,detalhes,correlation_id,criado_por)
+    values($1,$2,'DFE',app.uuid_v7(),1,repeat(md5($3),2),'NO_MATCH','{}'::jsonb,'f41-rls-fixture',$4) returning id`,[e.tenantId,e.empresaId,`${e.sufixo}-${proximo()}`,e.autorId]);
+  return {generationId};
+};
+
 const regraObrigacao = async (admin: Consultavel): Promise<Readonly<{ id: string; codigo: string; versao: number }>> => {
   const { rows } = await admin.query<{ id: string; codigo: string; versao: number }>(
     `select id,codigo,versao from app.obligation_rule where codigo='DAS_SIMPLES' and estado='PUBLICADA' limit 1`,
@@ -710,6 +738,57 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       (tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,usuario_id,correlation_id)
       values($1,$2,$3,'CRIADO',null,'DRAFT',$4,'f40-rls-fixture') returning id`, [e.tenantId,e.empresaId,r['lancamentoId'],e.autorId]),
     colunaDeAtualizacao: 'acao',
+  },
+  'app.accounting_rule': {
+    inserir:(banco,e)=>unico(banco,`insert into app.accounting_rule(tenant_id,empresa_id,nome,origem,criado_por) values($1,$2,$3,'DFE',$4) returning id`,[e.tenantId,e.empresaId,`F41 ${e.sufixo}-${proximo()}`,e.autorId]),
+    colunaDeAtualizacao:'nome',
+    atualizacao:"nome='F41 regra atualizada',atualizado_em=now()",
+  },
+  'app.accounting_rule_version': {
+    preparar:prepararIdentidadeRegraF41,
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_rule_version(tenant_id,empresa_id,regra_id,versao,vigencia_inicio) values($1,$2,$3,1,'2026-01-01') returning id`,[e.tenantId,e.empresaId,r['ruleId']]),
+    colunaDeAtualizacao:'vigencia_inicio',
+    atualizacao:"vigencia_inicio=vigencia_inicio",
+  },
+  'app.accounting_rule_criterion': {
+    preparar:prepararRegraF41,
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_rule_criterion(tenant_id,empresa_id,rule_version_id,campo,operador,valor,posicao) values($1,$2,$3,'model','EQ','"55"'::jsonb,0) returning id`,[e.tenantId,e.empresaId,r['versionId']]),
+    colunaDeAtualizacao:'campo',
+    atualizacao:"campo='model'",
+  },
+  'app.accounting_rule_line': {
+    preparar:prepararRegraF41,
+    inserir:async(banco,e,r)=>{
+      const accountId=await unico(banco,`insert into app.conta_contabil(tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo) values($1,$2,$3,'Conta F41','analitica','devedora','ASSET','OPTIONAL') returning id`,[e.tenantId,e.empresaId,`f41-${e.sufixo}-${proximo()}`]);
+      return unico(banco,`insert into app.accounting_rule_line(tenant_id,empresa_id,rule_version_id,conta_id,lado,expressao_valor,posicao) values($1,$2,$3,$4,'DEBIT','amountCents',0) returning id`,[e.tenantId,e.empresaId,r['versionId'],accountId]);
+    },
+    colunaDeAtualizacao:'expressao_valor',
+    atualizacao:"expressao_valor='amountCents'",
+  },
+  'app.accounting_rule_allocation': {
+    preparar:async(admin,e)=>{const refs=await prepararLinhaF41(admin,e);const centerId=await unico(admin,`insert into app.centro_custo(tenant_id,empresa_id,codigo,nome,tipo) values($1,$2,$3,'Centro F41','analitica') returning id`,[e.tenantId,e.empresaId,`f41cc-${e.sufixo}-${proximo()}`]);await admin.query(`insert into app.accounting_rule_allocation(tenant_id,empresa_id,rule_line_id,centro_custo_id,percentual_bp,posicao) values($1,$2,$3,$4,10000,0)`,[e.tenantId,e.empresaId,refs['lineId'],centerId]);return {...refs,allocationId:(await unico(admin,`select id from app.accounting_rule_allocation where rule_line_id=$1`,[refs['lineId']]))};},
+    inserir:async(banco,e,r)=>{
+      const centerId=await unico(banco,`insert into app.centro_custo(tenant_id,empresa_id,codigo,nome,tipo) values($1,$2,$3,'Centro F41','analitica') returning id`,[e.tenantId,e.empresaId,`f41cc-${e.sufixo}-${proximo()}`]);
+      return unico(banco,`insert into app.accounting_rule_allocation(tenant_id,empresa_id,rule_line_id,centro_custo_id,percentual_bp,posicao) values($1,$2,$3,$4,10000,1) returning id`,[e.tenantId,e.empresaId,r['lineId'],centerId]);
+    },
+    colunaDeAtualizacao:'percentual_bp',
+    atualizacao:'percentual_bp=10000',
+  },
+  'app.accounting_generation': {
+    inserir:(banco,e)=>unico(banco,`insert into app.accounting_generation(tenant_id,empresa_id,origem,origem_id,origem_versao,chave_idempotente,resultado,detalhes,correlation_id,criado_por)
+      values($1,$2,'DFE',app.uuid_v7(),1,repeat(md5($3),2),'NO_MATCH','{}'::jsonb,'f41-rls-fixture',$4) returning id`,[e.tenantId,e.empresaId,`${e.sufixo}-${proximo()}`,e.autorId]),
+    colunaDeAtualizacao:'detalhes',
+  },
+  'app.accounting_generation_pending': {
+    preparar:prepararGeracaoF41,
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_generation_pending(tenant_id,empresa_id,generation_id,motivo,diagnostico) values($1,$2,$3,'NO_MATCH','{}'::jsonb) returning id`,[e.tenantId,e.empresaId,r['generationId']]),
+    colunaDeAtualizacao:'diagnostico',
+    atualizacao:"status='RESOLVED',resolvido_em=now()",
+  },
+  'app.accounting_rule_event': {
+    preparar:prepararRegraF41,
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_rule_event(tenant_id,empresa_id,rule_id,rule_version_id,acao,ator_id,correlation_id) values($1,$2,$3,$4,'CREATED',$5,'f41-rls-fixture') returning id`,[e.tenantId,e.empresaId,r['ruleId'],r['versionId'],e.autorId]),
+    colunaDeAtualizacao:'acao',
   },
   'app.empresa_plano_versao': {
     // Uma linha por empresa, e a matriz grava várias vezes na mesma (semente e tentativas, todas

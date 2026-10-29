@@ -55,6 +55,9 @@ const ESTRUTURA_CONTABIL_LEITURA = ['contabil.estrutura_contabil.consultar'];
 const LANCAMENTOS_TODAS = ['contabil.lancamentos.consultar','contabil.lancamentos.preparar_rascunho','contabil.lancamentos.efetivar','contabil.lancamentos.cancelar_estornar'];
 const LANCAMENTOS_PREPARO = ['contabil.lancamentos.consultar','contabil.lancamentos.preparar_rascunho'];
 const LANCAMENTOS_LEITURA = ['contabil.lancamentos.consultar'];
+const AUTOMATIZACAO_TODAS = ['contabil.automatizacao.consultar','contabil.automatizacao.simular','contabil.automatizacao.processar_origens','contabil.automatizacao.manter_regras','contabil.automatizacao.publicar'];
+const AUTOMATIZACAO_OPERACAO = ['contabil.automatizacao.consultar','contabil.automatizacao.simular','contabil.automatizacao.processar_origens'];
+const AUTOMATIZACAO_LEITURA = ['contabil.automatizacao.consultar'];
 // SPEC-014 §3.12: só admin_escritorio importa e confirma (o `dp` entra no MVP-3). Contador e
 // auditor consultam e baixam; o auxiliar e os demais papéis padrão não têm acesso nesta fatia.
 const EMPREGADOS_TODAS = [
@@ -111,6 +114,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...PLANO_CONTAS_TODAS,
     ...ESTRUTURA_CONTABIL_TODAS,
     ...LANCAMENTOS_TODAS,
+    ...AUTOMATIZACAO_TODAS,
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
     ...CERTIFICADOS_TODAS,
@@ -127,6 +131,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...PLANO_CONTAS_LEITURA,
     ...ESTRUTURA_CONTABIL_LEITURA,
     ...LANCAMENTOS_PREPARO,
+    ...AUTOMATIZACAO_OPERACAO,
     ...OPERACAO,
     ...OBRIGACOES,
     'certificados.cofre.consultar',
@@ -139,6 +144,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...PLANO_CONTAS_LEITURA,
     ...ESTRUTURA_CONTABIL_LEITURA,
     ...LANCAMENTOS_LEITURA,
+    ...AUTOMATIZACAO_LEITURA,
     ...EMPREGADOS_LEITURA,
     ...DOCUMENTOS_LEITURA,
     'pendencias.pendencias.consultar',

@@ -40,6 +40,8 @@ export const ROTULO_DA_ACAO = {
   confirmar: 'Confirmar',
   operar: 'Operar',
   revogar: 'Revogar',
+  manter_regras: 'Manter regras',
+  processar_origens: 'Processar origens',
 } as const;
 
 export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
@@ -99,6 +101,11 @@ export const CATALOGO = [
         id: 'lancamentos',
         rotulo: 'Lançamentos',
         acoes: ['consultar', 'preparar_rascunho', 'efetivar', 'cancelar_estornar'],
+      },
+      {
+        id: 'automatizacao',
+        rotulo: 'Automatização contábil',
+        acoes: ['consultar', 'simular', 'manter_regras', 'publicar', 'processar_origens'],
       },
     ],
   },
