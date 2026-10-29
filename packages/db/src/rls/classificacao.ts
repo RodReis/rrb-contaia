@@ -424,6 +424,11 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.accounting_generation', classe: 'empresa', origem: 'F41 / SPEC-041', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.accounting_generation_pending', classe: 'empresa', origem: 'F41 / SPEC-041', exigeIndiceEmpresa: true },
   { tabela: 'app.accounting_rule_event', classe: 'empresa', origem: 'F41 / SPEC-041', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.projecao_razao_versao', classe: 'empresa', origem: 'F42 / SPEC-042' },
+  { tabela: 'app.projecao_razao', classe: 'empresa', origem: 'F42 / SPEC-042' },
+  { tabela: 'app.movimento_razao', classe: 'empresa', origem: 'F42 / SPEC-042', appendOnly: true },
+  { tabela: 'app.saldo_mensal_razao', classe: 'empresa', origem: 'F42 / SPEC-042' },
+  { tabela: 'app.evento_razao', classe: 'empresa', origem: 'F42 / SPEC-042', appendOnly: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',
