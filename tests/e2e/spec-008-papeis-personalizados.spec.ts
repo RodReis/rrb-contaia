@@ -555,7 +555,7 @@ test('reduzir o papel nega na próxima requisição da mesma sessão, depois de 
   await admin.getByRole('button', { name: 'Ocultar módulo Histórico de Informações' }).click();
   await admin.getByRole('alertdialog').getByRole('button', { name: /Ocultar e remover/ }).click();
 
-  // Papel atribuído: a redução passa por uma confirmação que diz quem é afetado.
+  // Papel atribuído: a redução passa por uma confirmação que diz quem é afetado. F44 mantém a leitura de abertura até removida explicitamente.
   await admin.getByRole('button', { name: 'Salvar alterações' }).click();
 
   const dialogo = admin.getByRole('alertdialog');
@@ -568,7 +568,7 @@ test('reduzir o papel nega na próxima requisição da mesma sessão, depois de 
 
   // A mesma sessão, o mesmo token: a revisão vigente já vale.
   await usuario.goto('/empresas');
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'Automatização contábil', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'Saldos de abertura', 'Automatização contábil', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
   expect((await usuario.request.get('/api/proxy/historico')).status()).toBe(403);
 
   // Revisão concorrente: quem escreve com a revisão antiga é recusado e nada muda.

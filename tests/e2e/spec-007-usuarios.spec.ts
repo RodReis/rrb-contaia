@@ -341,11 +341,11 @@ test('alterar papéis vale na próxima requisição, com a mesma sessão', async
   await admin.getByRole('button', { name: 'Salvar alterações' }).click();
   await expect(admin.getByText('Usuário atualizado.')).toBeVisible();
 
-  // A mesma sessão, o mesmo token: a união dos papéis já vale.
+  // A mesma sessão, o mesmo token: a união dos papéis já vale; ambas as funções consultam abertura.
   await usuario.goto('/empresas');
   await expect
     .poll(() => itensDoMenu(usuario))
-    .toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'Automatização contábil', 'Histórico de Informações', 'Trilha de auditoria', 'Minha carteira', 'Cofre de certificados', 'Motor tributário', 'Agenda de obrigações', 'Usuários e permissões']);
+    .toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'Saldos de abertura', 'Automatização contábil', 'Histórico de Informações', 'Trilha de auditoria', 'Minha carteira', 'Cofre de certificados', 'Motor tributário', 'Agenda de obrigações', 'Usuários e permissões']);
 
   await usuario.getByRole('link', { name: 'Usuários e permissões' }).click();
   await expect(usuario.getByRole('table')).toBeVisible();
