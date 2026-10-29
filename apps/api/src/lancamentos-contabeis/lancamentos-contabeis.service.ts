@@ -1,4 +1,4 @@
-import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, validarCabecalhoContabil, validarPartidasContabeis, type PartidaContabil } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeConflito, ErroDeDominio, openingMovementDate, validarCabecalhoContabil, validarPartidasContabeis, type PartidaContabil } from '@contaia/domain';
 import { comContextoHumano } from '@contaia/db';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -19,6 +19,8 @@ export class LancamentosContabeisService {
   }
   private async exigirCompetenciaAberta(c: PoolClient, a: AtorLancamento, companyId: string, competence: string): Promise<void> {
     await c.query(`select pg_advisory_xact_lock(hashtextextended($1,0))`, [`${a.tenantId}:${companyId}:accounting-period:ledger`]);
+    const opening=await c.query<{baseDate:string}>(`select base_date::text as "baseDate" from app.opening_balance_version where tenant_id=$1 and empresa_id=$2 and status='APPROVED'`,[a.tenantId,companyId]);
+    if(opening.rows[0]&&competence<openingMovementDate(opening.rows[0].baseDate).competence) throw erro(CODIGOS_DE_ERRO.OPENING_BALANCE_MOVEMENT_EXISTS,'Movimentos operacionais devem começar após a data-base da abertura.');
     const cycle = await c.query(`select status from app.accounting_period_cycle where tenant_id=$1 and company_id=$2 and competence=$3`, [a.tenantId,companyId,competence]);
     if (cycle.rows[0]?.status === 'CLOSED') throw erro('ACCOUNTING_PERIOD_ALREADY_CLOSED', 'Competência fechada aceita somente estorno.');
   }
@@ -111,6 +113,7 @@ export class LancamentosContabeisService {
   }
   async estornar(a: AtorLancamento, companyId: string, id: string, date: string, competence: string, reason: string, corr: string) {
     return this.contexto(a, async (c) => {
+      await this.exigirCompetenciaAberta(c,a,companyId,competence);
       const {rows}=await c.query(`select estado as status,numero as "entryNumber",exercicio as "fiscalYear" from app.lancamento_contabil where empresa_id=$1 and id=$2 for update`,[companyId,id]);
       const original=rows[0] as {status:string;entryNumber:number;fiscalYear:number}|undefined;
       if(!original||original.status!=='POSTED')throw erro(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_REVERSAL_FORBIDDEN,'Lançamento não pode ser estornado.');

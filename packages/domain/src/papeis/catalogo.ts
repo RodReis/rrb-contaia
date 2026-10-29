@@ -31,6 +31,7 @@ export const ROTULO_DA_ACAO = {
   manter_plano_contas: 'Manter plano de contas',
   manter_centros_custo: 'Manter centros de custo',
   preparar_rascunho: 'Preparar rascunho',
+  preparar: 'Preparar',
   efetivar: 'Efetivar',
   cancelar_estornar: 'Cancelar e estornar',
   reabrir: 'Reabrir',
@@ -114,6 +115,11 @@ export const CATALOGO = [
         id: 'fechamento',
         rotulo: 'Fechamento',
         acoes: ['consultar', 'fechar_competencia', 'reabrir'],
+      },
+      {
+        id: 'saldos_abertura',
+        rotulo: 'Saldos de abertura',
+        acoes: ['consultar', 'preparar', 'aprovar'],
       },
       {
         id: 'automatizacao',

@@ -4,11 +4,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PoolDoBanco } from '../banco/pool.provider';
 import { LancamentosContabeisService } from '../lancamentos-contabeis/lancamentos-contabeis.service';
 import { RazaoContabilService } from './razao-contabil.service';
+import { SaldosAberturaService } from '../saldos-abertura/saldos-abertura.service';
 
 const admin = criarPool();
 const app = criarPoolDaAplicacao();
 const service = new RazaoContabilService({ instancia: app } as PoolDoBanco);
 const entries = new LancamentosContabeisService({ instancia: app } as PoolDoBanco, service);
+const openings = new SaldosAberturaService({ instancia: app } as PoolDoBanco, service);
 let scenario: { sufixo: string; tenantA: string; empresaA1: string; usuarios: { naCarteira: string } };
 let accountIds: [string, string];
 let entryId: string;
@@ -70,6 +72,66 @@ afterAll(async () => {
 });
 
 describe('F42/F43: razão e fechamento da API no PostgreSQL', () => {
+  it('aprova abertura de forma idempotente, reconstrói o razão e acumula o saldo no balancete', async () => {
+    const draft = await openings.criar(actor(), scenario.empresaA1, {
+      baseDate: '2097-03-31', source: 'MANUAL', lines: [
+        { accountId: accountIds[0], costCenterId: null, debitCents: 500, creditCents: 0, note: null },
+        { accountId: accountIds[1], costCenterId: null, debitCents: 0, creditCents: 500, note: null },
+      ],
+    }, `f44-draft-${scenario.sufixo}`, correlationId);
+    const command = { expectedRevision: 1, expectedActiveVersion: null, replacementReason: null };
+    const approved = await openings.aprovar(actor(), scenario.empresaA1, draft.openingBalanceId, command, `f44-approve-${scenario.sufixo}`, correlationId);
+    const repeated = await openings.aprovar(actor(), scenario.empresaA1, draft.openingBalanceId, command, `f44-approve-${scenario.sufixo}`, correlationId);
+    expect(approved).toMatchObject({ status: 'APPROVED', activeVersion: 1 });
+    expect(repeated).toEqual(approved);
+    const trialBalance = await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId);
+    expect(Object.fromEntries(trialBalance.lines.map((line) => [line.accountId, [line.debitCents, line.creditCents]]))).toEqual({
+      [accountIds[0]]: [1700, 0], [accountIds[1]]: [0, 1700],
+    });
+  });
+
+  it('edita rascunho e confirma CSV atômico sem DELETE direto', async () => {
+    const draft = await openings.criar(actor(), scenario.empresaA1, {
+      baseDate: '2097-03-31', source: 'MANUAL', lines: [
+        { accountId: accountIds[0], costCenterId: null, debitCents: 100, creditCents: 0, note: 'Antes' },
+        { accountId: accountIds[1], costCenterId: null, debitCents: 0, creditCents: 100, note: 'Antes' },
+      ],
+    }, `f44-draft-edit-${scenario.sufixo}`, correlationId);
+    const edited = await openings.editar(actor(), scenario.empresaA1, draft.openingBalanceId, {
+      baseDate: '2097-03-31', source: 'MANUAL', expectedRevision: 1, lines: [
+        { accountId: accountIds[0], costCenterId: null, debitCents: 250, creditCents: 0, note: 'Editado' },
+        { accountId: accountIds[1], costCenterId: null, debitCents: 0, creditCents: 250, note: 'Editado' },
+      ],
+    }, `f44-draft-edit-save-${scenario.sufixo}`, correlationId);
+    expect(edited).toMatchObject({ status: 'DRAFT', revision: 2 });
+    const csv = Buffer.from(`codigo_conta;codigo_centro_custo;debito;credito;observacao\nF42-${scenario.sufixo}-D;;5,00;;Saldo inicial\nF42-${scenario.sufixo}-C;;;5,00;Contrapartida`, 'utf8');
+    const invalidCsv = Buffer.from(`codigo_conta;codigo_centro_custo;debito;credito;observacao\nF42-${scenario.sufixo}-D;;5,00;;Débito válido\nF42-${scenario.sufixo}-C;;;5,00;Crédito válido\nCONTA-INEXISTENTE;;;;Linha recusada`, 'utf8');
+    const invalidPreview = await openings.previsualizarCsv(actor(), scenario.empresaA1, draft.openingBalanceId, invalidCsv,
+      `f44-csv-invalid-${scenario.sufixo}`, correlationId);
+    expect(invalidPreview).toMatchObject({ status: 'INVALID', acceptedRows: 2, rejectedRows: 1 });
+    const malformedCsv = Buffer.from(`codigo_conta;codigo_centro_custo;debito;credito;observacao\nF42-${scenario.sufixo}-D;;5,00;;Saldo válido\nF42-${scenario.sufixo}-C;;;5,x;Valor inválido\nF42-${scenario.sufixo}-C;;;5,00;Coluna extra;surpresa`, 'utf8');
+    const malformedPreview = await openings.previsualizarCsv(actor(), scenario.empresaA1, draft.openingBalanceId, malformedCsv,
+      `f44-csv-malformed-${scenario.sufixo}`, correlationId);
+    const malformedResult = malformedPreview as { status: string; acceptedRows: number; rejectedRows: number; errors: readonly { code: string; line: number | null }[] };
+    expect(malformedResult).toMatchObject({ status: 'INVALID', acceptedRows: 0, rejectedRows: 3 });
+    expect(malformedResult.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'OPENING_BALANCE_LINE_INVALID', line: 3 }),
+      expect.objectContaining({ code: 'CSV_ROW_INVALID', line: 4 }),
+    ]));
+    const unchanged = await openings.consultar(actor(), scenario.empresaA1);
+    const unchangedDraft = (unchanged as { drafts: readonly { openingBalanceId: string; lines: readonly { note: string | null }[] }[] }).drafts.find((item) => item.openingBalanceId === draft.openingBalanceId);
+    expect(unchangedDraft?.lines.map((line) => line.note)).toEqual(['Editado', 'Editado']);
+    const preview = await openings.previsualizarCsv(actor(), scenario.empresaA1, draft.openingBalanceId, csv,
+      `f44-csv-preview-${scenario.sufixo}`, correlationId);
+    const validPreview = preview as { status: string; acceptedRows: number; rejectedRows: number; expectedRevision: number; previewId: string; fileHash: string; expectedPreviewRevision: number };
+    expect(validPreview).toMatchObject({ status: 'VALID', acceptedRows: 2, rejectedRows: 0, expectedRevision: 2 });
+    const command = { previewId: validPreview.previewId, fileHash: validPreview.fileHash, expectedRevision: 2, expectedPreviewRevision: validPreview.expectedPreviewRevision };
+    const confirmed = await openings.confirmarCsv(actor(), scenario.empresaA1, draft.openingBalanceId, command,
+      `f44-csv-confirm-${scenario.sufixo}`, correlationId);
+    expect(await openings.confirmarCsv(actor(), scenario.empresaA1, draft.openingBalanceId, command,
+      `f44-csv-confirm-${scenario.sufixo}`, correlationId)).toEqual(confirmed);
+    expect(confirmed).toMatchObject({ status: 'DRAFT', revision: 3, source: 'CSV', lineCount: 2 });
+  });
   it('projeta uma efetivação de forma idempotente e gera o balancete', async () => {
     await context(async (client) => {
       await service.projetarEfetivacao(client, actor(), scenario.empresaA1, entryId, sourceEventId, correlationId);
@@ -77,14 +139,14 @@ describe('F42/F43: razão e fechamento da API no PostgreSQL', () => {
     });
     const result = await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId);
     expect(Object.fromEntries(result.lines.map((line) => [line.accountId, [line.debitCents, line.creditCents]]))).toEqual({
-      [accountIds[0]]: [1200, 0], [accountIds[1]]: [0, 1200],
+      [accountIds[0]]: [1700, 0], [accountIds[1]]: [0, 1700],
     });
     const counts = await context(async (client) => (await client.query<{ count: string; movements: string }>(
-      `select (select count(*) from app.movimento_razao where empresa_id=$1)::text as count,
-              (select sum(movimentos) from app.saldo_mensal_razao where empresa_id=$1)::text as movements`,
+      `select (select count(*) from app.movimento_razao where empresa_id=$1 and versao_id=(select versao_ativa_id from app.projecao_razao where empresa_id=$1))::text as count,
+              (select sum(movimentos) from app.saldo_mensal_razao where empresa_id=$1 and versao_id=(select versao_ativa_id from app.projecao_razao where empresa_id=$1))::text as movements`,
       [scenario.empresaA1],
     )).rows[0]!);
-    expect(counts).toEqual({ count: '2', movements: '2' });
+    expect(counts).toEqual({ count: '4', movements: '4' });
     expect((await service.verificar(actor(), scenario.empresaA1, correlationId)).status).toBe('CONSISTENT');
 
     const competingCloses=await Promise.all([
@@ -112,12 +174,12 @@ describe('F42/F43: razão e fechamento da API no PostgreSQL', () => {
     const reopenedAgain=await service.reabrirCompetencia(actor(),scenario.empresaA1,competence,1,'f43-reopen-001','Correção autorizada',['contabil.fechamento.consultar','contabil.fechamento.reabrir'],correlationId);
     expect(reopenedAgain).toEqual(reopened);
     const rebuilt = await service.reconstruir(actor(), scenario.empresaA1, competence, competence, scenario.empresaA1, correlationId);
-    expect(rebuilt).toMatchObject({ status: 'CONSISTENT', projectionVersion: 2, movementCount: 2 });
-    expect((await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId)).totalDebitCents).toBe(1200);
+    expect(rebuilt).toMatchObject({ status: 'CONSISTENT', projectionVersion: 3, movementCount: 4 });
+    expect((await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId)).totalDebitCents).toBe(1700);
     await entries.cancelar(actor(), scenario.empresaA1, entryId, 'Correção de integração', 1, correlationId);
     const cancelledBalance = await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId);
-    expect(cancelledBalance.totalDebitCents).toBe(2400);
-    expect(cancelledBalance.totalCreditCents).toBe(2400);
+    expect(cancelledBalance.totalDebitCents).toBe(2900);
+    expect(cancelledBalance.totalCreditCents).toBe(2900);
     expect((await service.verificar(actor(), scenario.empresaA1, correlationId)).status).toBe('CONSISTENT');
     const secondClose=await service.fecharCompetencia(actor(),scenario.empresaA1,competence,1,'f43-close-002',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId);
     expect(secondClose).toMatchObject({status:'CLOSED',competence,version:2});
@@ -139,9 +201,9 @@ describe('F42/F43: razão e fechamento da API no PostgreSQL', () => {
     });
 
     const failedRebuild = await service.reconstruir(actor(), scenario.empresaA1, competence, competence, scenario.empresaA1, correlationId);
-    expect(failedRebuild).toMatchObject({ status: 'FAILED', code: 'LEDGER_REBUILD_FAILED', projectionVersion: 2 });
+    expect(failedRebuild).toMatchObject({ status: 'FAILED', code: 'LEDGER_REBUILD_FAILED', projectionVersion: 3 });
     const preserved = await service.balancete(actor(), scenario.empresaA1, { de: competence, ate: competence, somenteMovimento: true }, correlationId);
-    expect(preserved).toMatchObject({ projectionVersion: 2, totalDebitCents: 2400, totalCreditCents: 2400 });
+    expect(preserved).toMatchObject({ projectionVersion: 3, totalDebitCents: 2900, totalCreditCents: 2900 });
 
     // The malformed source leaves the projection inconsistent; restore scenario isolation by
     // recording no successful close. The standalone integration below uses its own clean database.

@@ -1,4 +1,4 @@
-import { accountingPeriodGateBlockers, calcularBalancete, CODIGOS_DE_ERRO, ErroDeDominio, hashAccountingClose, previousAccountingCompetence, type AccountingCloseKind, type AccountingCloseSnapshotInput, type AccountingPeriodStatus, type ContaParaBalancete, type MovimentoParaBalancete } from '@contaia/domain';
+import { accountingPeriodGateBlockers, calcularBalancete, CODIGOS_DE_ERRO, ErroDeDominio, hashAccountingClose, openingMovementDate, previousAccountingCompetence, type AccountingCloseKind, type AccountingCloseSnapshotInput, type AccountingPeriodStatus, type ContaParaBalancete, type MovimentoParaBalancete } from '@contaia/domain';
 import { comContextoHumano } from '@contaia/db';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -26,6 +26,23 @@ export class RazaoContabilService {
 
   private async lockAccountingPeriod(client: PoolClient, tenantId: string, companyId: string): Promise<void> {
     await client.query(`select pg_advisory_xact_lock(hashtextextended($1,0))`, [`${tenantId}:${companyId}:accounting-period:ledger`]);
+  }
+
+  private async linhasDeAbertura(client:PoolClient,tenantId:string,companyId:string,competence?:string){
+    return client.query<{id:string;tenantId:string;companyId:string;versionId:string;baseDate:string;version:number;lineId:string;lineNumber:number;accountId:string;costCenterId:string|null;accountCode:string;accountName:string;costCenterCode:string|null;costCenterName:string|null;note:string|null;debitCents:string;creditCents:string;eventId:string}>(
+      `select v.id as "versionId",v.tenant_id as "tenantId",v.empresa_id as "companyId",v.base_date::text as "baseDate",v.version,l.id as "lineId",l.line_number as "lineNumber",l.account_id as "accountId",l.cost_center_id as "costCenterId",l.account_code as "accountCode",l.account_name as "accountName",l.cost_center_code as "costCenterCode",l.cost_center_name as "costCenterName",l.note,l.debit_cents::text as "debitCents",l.credit_cents::text as "creditCents",e.id as "eventId"
+       from app.opening_balance_version v join app.opening_balance_line l on l.version_id=v.id and l.tenant_id=v.tenant_id and l.empresa_id=v.empresa_id join lateral(select id from app.opening_balance_event e where e.version_id=v.id and e.tenant_id=v.tenant_id and e.empresa_id=v.empresa_id and e.action in ('APPROVED','REPLACED') and e.result='SUCESSO' order by e.occurred_at,e.id limit 1)e on true where v.tenant_id=$1 and v.empresa_id=$2 and v.status='APPROVED' and ($3::text is null or to_char(v.base_date+1,'YYYY-MM')=$3) order by l.line_number`,[tenantId,companyId,competence??null],
+    );
+  }
+
+  private async inserirMovimentosAbertura(client:PoolClient,tenantId:string,companyId:string,projectionId:string,lines:readonly Awaited<ReturnType<RazaoContabilService['linhasDeAbertura']>>['rows'][number][],applyToMonthly=true):Promise<number>{
+    let count=0;
+    for(const line of lines){
+      const movementDate=openingMovementDate(line.baseDate);
+      const result=await client.query(`insert into app.movimento_razao(tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,opening_version_id,opening_line_id,competencia,data_contabil,conta_id,centro_custo_id,codigo_conta,nome_conta,codigo_centro,nome_centro,historico,referencia_externa,numero_lancamento,posicao,lado,valor_centavos,tipo) values($1,$2,$3,null,null,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,coalesce($15,'Saldo de abertura · versão '||$16),null,null,$17,case when $18::bigint>0 then 'DEBIT' else 'CREDIT' end,greatest($18::bigint,$19::bigint),'OPENING') on conflict do nothing returning id`,[line.tenantId,line.companyId,projectionId,line.eventId,line.versionId,line.lineId,movementDate.competence,movementDate.accountingDate,line.accountId,line.costCenterId,line.accountCode,line.accountName,line.costCenterCode,line.costCenterName,line.note,line.version,line.lineNumber,line.debitCents,line.creditCents]);
+      if(result.rowCount){if(applyToMonthly){const side=Number(line.debitCents)>0?'DEBIT':'CREDIT';const amountCents=line.debitCents==='0'?line.creditCents:line.debitCents;await this.aplicarSaldo(client,tenantId,companyId,projectionId,{competence:movementDate.competence,accountId:line.accountId,costCenterId:line.costCenterId,side,amountCents});}count++;}
+    }
+    return count;
   }
 
   private async periodCycle(client: PoolClient, tenantId: string, companyId: string, competence: string): Promise<PeriodCycleRow> {
@@ -59,16 +76,16 @@ export class RazaoContabilService {
     const projection = await client.query<{ id: string; version: number; integrity: 'CONSISTENT' | 'INCONSISTENT' }>(
       `select versao_ativa_id as id,numero_versao::int as version,integridade as integrity from app.projecao_razao where tenant_id=$1 and empresa_id=$2 for update`,[actor.tenantId,companyId],
     );
-    const initial = await client.query<{ competence: string | null }>(`select to_char(min(to_date(competencia||'-01','YYYY-MM-DD')),'YYYY-MM') as competence from app.movimento_razao where tenant_id=$1 and empresa_id=$2`,[actor.tenantId,companyId]);
+    const initial = await client.query<{ competence: string | null }>(`select min(competence) competence from (select min(competencia) competence from app.movimento_razao where tenant_id=$1 and empresa_id=$2 union all select min(to_char(base_date+1,'YYYY-MM')) from app.opening_balance_version where tenant_id=$1 and empresa_id=$2 and status='APPROVED') starts`,[actor.tenantId,companyId]);
     const firstCompetence = initial.rows[0]?.competence;
     if (!firstCompetence || !projection.rows[0]) throw erro('ACCOUNTING_PERIOD_SEQUENCE_GAP','Razão ainda não possui marco inicial conhecido para fechar.');
     const prior = competence <= firstCompetence ? { rows: [{ status: 'CLOSED' }] } : await client.query(
       `select c.status from app.accounting_period_cycle c where c.tenant_id=$1 and c.company_id=$2 and c.competence=$3`,[actor.tenantId,companyId,previousAccountingCompetence(competence)],
     );
     const source = await client.query<{ drafts: string; debit: string; credit: string; movements: string; entries: string; projectionIntegrity: string }>(
-      `with source as (select e.id,p.lado,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.competencia=$3 and e.numero is not null and e.estado in ('POSTED','CANCELLED','REVERSED') union all select e.id,case p.lado when 'DEBIT' then 'CREDIT' else 'DEBIT' end,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.competencia=$3 and e.estado='CANCELLED')
+      `with source as (select e.id,p.lado,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.competencia=$3 and e.numero is not null and e.estado in ('POSTED','CANCELLED','REVERSED') union all select e.id,case p.lado when 'DEBIT' then 'CREDIT' else 'DEBIT' end,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.competencia=$3 and e.estado='CANCELLED' union all select v.id,case when l.debit_cents>0 then 'DEBIT' else 'CREDIT' end,greatest(l.debit_cents,l.credit_cents) from app.opening_balance_version v join app.opening_balance_line l on l.version_id=v.id and l.tenant_id=v.tenant_id and l.empresa_id=v.empresa_id where v.tenant_id=$1 and v.empresa_id=$2 and v.status='APPROVED' and to_char(v.base_date+1,'YYYY-MM')=$3)
        select (select count(*) from app.lancamento_contabil where tenant_id=$1 and empresa_id=$2 and competencia=$3 and estado='DRAFT')::text drafts,
-       coalesce((select sum(valor_centavos) from source where lado='DEBIT'),0)::text debit,coalesce((select sum(valor_centavos) from source where lado='CREDIT'),0)::text credit,count(m.id)::text movements,count(distinct m.lancamento_id)::text entries,
+       coalesce((select sum(valor_centavos) from source where lado='DEBIT'),0)::text debit,coalesce((select sum(valor_centavos) from source where lado='CREDIT'),0)::text credit,count(m.id)::text movements,(count(distinct m.lancamento_id) + (select count(distinct opening_version_id) from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$4 and competencia=$3 and tipo='OPENING'))::text entries,
        (select integridade from app.projecao_razao where tenant_id=$1 and empresa_id=$2) as "projectionIntegrity"
        from app.movimento_razao m where m.tenant_id=$1 and m.empresa_id=$2 and m.versao_id=$4 and m.competencia=$3`,[actor.tenantId,companyId,competence,projection.rows[0].id],
     );
@@ -158,6 +175,9 @@ export class RazaoContabilService {
   }
 
   private async construirVersao(client: PoolClient, tenantId: string, companyId: string, versionId: string): Promise<number> {
+    let openingCount=0;
+    const opening = await this.linhasDeAbertura(client,tenantId,companyId);
+    openingCount=await this.inserirMovimentosAbertura(client,tenantId,companyId,versionId,opening.rows,false);
     const posts = await client.query(
       `insert into app.movimento_razao(tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,competencia,data_contabil,conta_id,centro_custo_id,codigo_conta,nome_conta,codigo_centro,nome_centro,historico,referencia_externa,numero_lancamento,posicao,lado,valor_centavos,tipo)
        select e.tenant_id,e.empresa_id,$3,e.id,p.id,ev.id,e.competencia,e.data_contabil,p.conta_id,p.centro_custo_id,cc.codigo,cc.nome,ct.codigo,ct.nome,e.historico,e.referencia_externa,e.numero,p.posicao,p.lado,p.valor_centavos,'POSTING'
@@ -185,7 +205,21 @@ export class RazaoContabilService {
        from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3
        group by tenant_id,empresa_id,versao_id,competencia,conta_id,centro_custo_id`, [tenantId, companyId, versionId],
     );
-    return posts.rowCount ?? 0;
+    return (posts.rowCount ?? 0) + openingCount;
+  }
+
+  async projetarAbertura(client:PoolClient,actor:AtorRazao,companyId:string,versionId:string,correlationId:string):Promise<Readonly<{status:string;projectionVersion:number;movementCount:number;correlationId:string}>>{
+    const active=await this.versaoAtiva(client,actor,companyId,correlationId);
+    const lines=await this.linhasDeAbertura(client,actor.tenantId,companyId);
+    const lineVersion=lines.rows[0]?.versionId;
+    if(lineVersion!==versionId)throw erro(CODIGOS_DE_ERRO.OPENING_BALANCE_CONFLICT,'A versão aprovada não é a abertura ativa.');
+    const movementCount=await this.inserirMovimentosAbertura(client,actor.tenantId,companyId,active.id,lines.rows);
+    if(movementCount!==lines.rows.length)throw erro(CODIGOS_DE_ERRO.OPENING_BALANCE_CONFLICT,'Movimentos da abertura já existem nesta projeção.');
+    const differences=await this.compararFonte(client,actor.tenantId,companyId,active.id);
+    if(differences.length)throw erro(CODIGOS_DE_ERRO.OPENING_BALANCE_CONFLICT,'A fonte da abertura divergiu da projeção.');
+    await client.query(`update app.projecao_razao set integridade='CONSISTENT',atualizado_em=now() where tenant_id=$1 and empresa_id=$2`,[actor.tenantId,companyId]);
+    await this.evento(client,actor,companyId,active.id,'MOVIMENTO_CRIADO','SUCESSO',correlationId,{openingVersionId:versionId,movements:movementCount});
+    return {status:'CONSISTENT',projectionVersion:active.numero,movementCount,correlationId};
   }
 
   private async versaoAtiva(client: PoolClient, actor: AtorRazao, companyId: string, correlationId: string): Promise<VersaoAtiva> {
@@ -280,7 +314,7 @@ export class RazaoContabilService {
          order by m.data_contabil,m.numero_lancamento,m.posicao,m.id limit $11 offset $12`,
         [actor.tenantId, companyId, version.id, query.de, query.ate, query.contaId ?? null, query.lado ?? null, query.centroId ?? null, query.centroId && !['todos','sem-centro'].includes(query.centroId) ? query.centroId : null, query.busca?.trim() || null, query.limite + 1, (query.pagina - 1) * query.limite],
       );
-      const initial = await client.query<{ competence: string | null }>(`select min(competencia) as competence from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3`, [actor.tenantId, companyId, version.id]);
+      const initial = await client.query<{ competence: string | null }>(`select min(competence) competence from (select min(competencia) competence from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3 union all select min(to_char(base_date+1,'YYYY-MM')) from app.opening_balance_version where tenant_id=$1 and empresa_id=$2 and status='APPROVED') starts`, [actor.tenantId, companyId, version.id]);
       return { items: rows.slice(0, query.limite), hasMore: rows.length > query.limite, page: query.pagina, pageSize: query.limite, firstCompetence: initial.rows[0]?.competence ?? null, projectionVersion: version.numero, integrity: version.integridade };
     });
   }
@@ -318,10 +352,11 @@ export class RazaoContabilService {
     return this.contexto(actor, async (client) => {
       const version = await this.versaoAtiva(client, actor, companyId, correlationId);
       const result = await client.query(
-        `select m.id as "movementId",m.data_contabil::text as "accountingDate",m.competencia as competence,m.numero_lancamento::text as "entryNumber",m.conta_id as "accountId",m.codigo_conta as "accountCode",m.nome_conta as "accountName",m.centro_custo_id as "costCenterId",m.codigo_centro as "costCenterCode",m.nome_centro as "costCenterName",m.historico as history,m.referencia_externa as "externalReference",m.lado as side,m.valor_centavos::text as "amountCents",m.tipo as kind,m.lancamento_id as "entryId",m.partida_id as "entryLineId",m.ajuste_de_id as "adjustmentOfMovementId",m.posicao as position,e.estado as "entryStatus",e.estorno_de_id as "reversalOfEntryId",p.complemento as memo,
+      `select m.id as "movementId",m.data_contabil::text as "accountingDate",m.competencia as competence,m.numero_lancamento::text as "entryNumber",m.conta_id as "accountId",m.codigo_conta as "accountCode",m.nome_conta as "accountName",m.centro_custo_id as "costCenterId",m.codigo_centro as "costCenterCode",m.nome_centro as "costCenterName",m.historico as history,m.referencia_externa as "externalReference",m.lado as side,m.valor_centavos::text as "amountCents",m.tipo as kind,m.lancamento_id as "entryId",m.partida_id as "entryLineId",m.ajuste_de_id as "adjustmentOfMovementId",m.opening_version_id as "openingVersionId",e.estado as "entryStatus",e.estorno_de_id as "reversalOfEntryId",coalesce(p.complemento,ol.note) as memo,
          (select jsonb_agg(jsonb_build_object('action',ev.acao,'previousStatus',ev.estado_anterior,'newStatus',ev.estado_novo,'reason',ev.motivo,'correlationId',ev.correlation_id,'occurredAt',ev.ocorrido_em) order by ev.ocorrido_em,ev.sequencia) from app.lancamento_contabil_evento ev where ev.lancamento_id=e.id) as events
-         from app.movimento_razao m join app.lancamento_contabil e on e.id=m.lancamento_id and e.tenant_id=m.tenant_id and e.empresa_id=m.empresa_id
-         join app.lancamento_contabil_partida p on p.id=m.partida_id and p.tenant_id=m.tenant_id and p.empresa_id=m.empresa_id
+         from app.movimento_razao m left join app.lancamento_contabil e on e.id=m.lancamento_id and e.tenant_id=m.tenant_id and e.empresa_id=m.empresa_id
+         left join app.lancamento_contabil_partida p on p.id=m.partida_id and p.tenant_id=m.tenant_id and p.empresa_id=m.empresa_id
+         left join app.opening_balance_line ol on ol.id=m.opening_line_id and ol.version_id=m.opening_version_id and ol.tenant_id=m.tenant_id and ol.empresa_id=m.empresa_id
          where m.tenant_id=$1 and m.empresa_id=$2 and m.versao_id=$3 and m.id=$4`, [actor.tenantId, companyId, version.id, movementId],
       );
       if (!result.rows[0]) throw erro('LEDGER_SOURCE_INVALID', 'Movimento do razão não encontrado.');
@@ -345,7 +380,7 @@ export class RazaoContabilService {
         `with source as (
            select e.competencia,p.conta_id,p.centro_custo_id,p.lado,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.numero is not null and e.estado in ('POSTED','CANCELLED','REVERSED')
            union all select e.competencia,p.conta_id,p.centro_custo_id,case p.lado when 'DEBIT' then 'CREDIT' else 'DEBIT' end,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.estado='CANCELLED'
-         ), src as (select competencia,conta_id,centro_custo_id,count(*)::text n,coalesce(sum(valor_centavos) filter(where lado='DEBIT'),0)::text d,coalesce(sum(valor_centavos) filter(where lado='CREDIT'),0)::text c from source group by competencia,conta_id,centro_custo_id), prj as (select competencia,conta_id,centro_custo_id,count(*)::text n,coalesce(sum(valor_centavos) filter(where lado='DEBIT'),0)::text d,coalesce(sum(valor_centavos) filter(where lado='CREDIT'),0)::text c from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3 group by competencia,conta_id,centro_custo_id)
+         ), opening as (select to_char(v.base_date+1,'YYYY-MM') competencia,l.account_id conta_id,l.cost_center_id,case when l.debit_cents>0 then 'DEBIT' else 'CREDIT' end lado,greatest(l.debit_cents,l.credit_cents) valor_centavos from app.opening_balance_version v join app.opening_balance_line l on l.version_id=v.id and l.tenant_id=v.tenant_id and l.empresa_id=v.empresa_id where v.tenant_id=$1 and v.empresa_id=$2 and v.status='APPROVED'), all_source as (select * from source union all select * from opening), src as (select competencia,conta_id,centro_custo_id,count(*)::text n,coalesce(sum(valor_centavos) filter(where lado='DEBIT'),0)::text d,coalesce(sum(valor_centavos) filter(where lado='CREDIT'),0)::text c from all_source group by competencia,conta_id,centro_custo_id), prj as (select competencia,conta_id,centro_custo_id,count(*)::text n,coalesce(sum(valor_centavos) filter(where lado='DEBIT'),0)::text d,coalesce(sum(valor_centavos) filter(where lado='CREDIT'),0)::text c from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3 group by competencia,conta_id,centro_custo_id)
          select coalesce(src.competencia,prj.competencia) competence,coalesce(src.conta_id,prj.conta_id) as "accountId",coalesce(src.centro_custo_id,prj.centro_custo_id) as "costCenterId",coalesce(src.n,'0') as "sourceCount",coalesce(src.d,'0') as "sourceDebit",coalesce(src.c,'0') as "sourceCredit",coalesce(prj.n,'0') as "projectionCount",coalesce(prj.d,'0') as "projectionDebit",coalesce(prj.c,'0') as "projectionCredit"
          from src full join prj on src.competencia=prj.competencia and src.conta_id=prj.conta_id and src.centro_custo_id is not distinct from prj.centro_custo_id
             where src.n is distinct from prj.n or src.d is distinct from prj.d or src.c is distinct from prj.c`,
@@ -354,8 +389,7 @@ export class RazaoContabilService {
     return rows;
   }
 
-  async reconstruir(actor: AtorRazao, companyId: string, from: string, to: string, confirmationCompany: string, correlationId: string) {
-    return this.contexto(actor, async (client) => {
+  async reconstruirDentro(client: PoolClient, actor: AtorRazao, companyId: string, from: string, to: string, confirmationCompany: string, correlationId: string) {
       if (companyId !== confirmationCompany) throw erro('LEDGER_REBUILD_FAILED', 'Confirmação da empresa não corresponde à operação.');
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(from) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(to) || from > to) throw erro('LEDGER_PERIOD_INVALID', 'Período informado é inválido.');
       const active = await this.versaoAtiva(client, actor, companyId, correlationId);
@@ -379,6 +413,16 @@ export class RazaoContabilService {
         await this.evento(client, actor, companyId, next, 'RECONSTRUCAO_FALHOU', 'FALHA', correlationId, { code: 'LEDGER_REBUILD_FAILED', reason: message, activeVersionPreserved: active.numero });
         return { status: 'FAILED', code: 'LEDGER_REBUILD_FAILED', projectionVersion: active.numero, correlationId };
       }
+  }
+
+  async reconstruirAtomico(actor: AtorRazao, companyId: string, from: string, to: string, confirmationCompany: string, correlationId: string) {
+    return this.contexto(actor, async (client) => {
+      await this.lockAccountingPeriod(client, actor.tenantId, companyId);
+      return this.reconstruirDentro(client, actor, companyId, from, to, confirmationCompany, correlationId);
     });
+  }
+
+  async reconstruir(actor: AtorRazao, companyId: string, from: string, to: string, confirmationCompany: string, correlationId: string) {
+    return this.reconstruirAtomico(actor,companyId,from,to,confirmationCompany,correlationId);
   }
 }
