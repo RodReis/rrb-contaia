@@ -24,6 +24,8 @@ let userId = '';
 let companyId = '';
 let matchingDocumentId = '';
 let pendingDocumentId = '';
+let matchingAccessKey = '';
+let pendingAccessKey = '';
 let debitAccountId = '';
 let creditAccountId = '';
 let achados: AchadosVisuais | null = null;
@@ -98,6 +100,9 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
   if (!debitAccountId || !creditAccountId) throw new Error('Contas analíticas sintéticas F41 não foram criadas.');
   matchingDocumentId = await createFiscalDocument('55', 'match');
   pendingDocumentId = await createFiscalDocument('65', 'pending');
+  matchingAccessKey = (await pool.query<{ chave_acesso: string }>('select chave_acesso from app.fiscal_document where id=$1', [matchingDocumentId])).rows[0]?.chave_acesso ?? '';
+  pendingAccessKey = (await pool.query<{ chave_acesso: string }>('select chave_acesso from app.fiscal_document where id=$1', [pendingDocumentId])).rows[0]?.chave_acesso ?? '';
+  if (!matchingAccessKey || !pendingAccessKey) throw new Error('Chaves de acesso sintéticas F41 não foram persistidas.');
   context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   page = await context.newPage();
   await entrarComo(page, CONTADOR, `/empresas/${companyId}`);
@@ -120,7 +125,7 @@ test('F41 publica regra, gera rascunho F40, abre pendência e reprocessa após n
   const firstRule = await criarRegra('Regra sintética F41 para modelo 55', '55');
   await page.getByRole('tab', { name: 'Simulação' }).click();
   await page.getByRole('combobox', { name: 'Origem aprovada' }).click();
-  await page.getByRole('option', { name: /NFE_55/u }).click();
+  await page.getByRole('option', { name: new RegExp(matchingAccessKey, 'u') }).click();
   await page.getByRole('button', { name: 'Simular' }).click();
   await expect(page.getByRole('heading', { name: 'Resultado: MATCH' })).toBeVisible();
   await expect(page.getByText('Partidas balanceadas')).toBeVisible();
@@ -128,7 +133,7 @@ test('F41 publica regra, gera rascunho F40, abre pendência e reprocessa após n
 
   const invalidRule = await criarRegra('Regra sintética F41 desbalanceada', '65', 'amountCents + 1');
   await page.getByRole('combobox', { name: 'Origem aprovada' }).click();
-  await page.getByRole('option', { name: /NFE_65/u }).click();
+  await page.getByRole('option', { name: new RegExp(pendingAccessKey, 'u') }).click();
   await page.getByRole('button', { name: 'Simular' }).click();
   await expect(page.getByRole('heading', { name: 'Resultado: INVALID_CONFIGURATION' })).toBeVisible();
   await expect(page.getByText('Partidas desbalanceadas')).toBeVisible();
