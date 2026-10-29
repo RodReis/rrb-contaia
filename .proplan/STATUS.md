@@ -67,9 +67,8 @@ updated: 2026-10-29
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
-- [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58)
 - [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57)
-- [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56)
+- [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58)
 
 ## Em Andamento
 
@@ -83,6 +82,8 @@ _(vazio)_
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56, finalizado em: 2026-10-29)
+- [MVP2][FIX] Trigger bloqueia motivo ao cancelar lançamento contábil efetivado (#163, finalizado em: 2026-10-29)
 - [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55, finalizado em: 2026-10-29)
 - [MVP2][SPEC-039][F39] Catálogo contábil operacional (#53, finalizado em: 2026-10-28)
 - [MVP2][SPEC-040][F40] Lançamentos contábeis manuais balanceados (#54, finalizado em: 2026-10-28)
