@@ -5,12 +5,14 @@
 
 ---
 
-## Correção #163 — `[MVP2][FIX]` Motivo de cancelamento F40
+## Card #56 — `[MVP2][SPEC-042][F42]` Razão contábil e balancete por período
 
-- [x] Migration 0087 permite gravar `cancelamento_motivo` apenas na transição `POSTED → CANCELLED`; demais campos e alterações posteriores continuam imutáveis.
-- [x] Regressão PostgreSQL cobre persistência do motivo e bloqueio de alterações posteriores.
-- [x] Validação local: typecheck, build e lint de `@contaia/db`; teste de integração direcionado 1/1. Suíte completa de banco: 513 passaram, 54 ignorados e 5 falhas ambientais, detalhadas na PR.
-- [ ] CI verde, merge confirmado e encerramento da issue #163.
+- [x] Projeção versionada, imutável, com RLS, trilha e consolidação mensal; efetivação e cancelamento F40 atualizam a projeção na mesma transação.
+- [x] API de razão, balancete, detalhe, integridade e reconstrução; permissões por papel e rotas da empresa e do módulo Contabilidade.
+- [x] Interface CLARO/ESCURO por tokens, filtros URL, hierarquia, saldo normal e canônico, marco inicial, estados e diálogo de reconstrução.
+- [x] Validação local: `pnpm test:regras` passou; `pnpm test:tela` 106 arquivos / 1.345 testes; direcionados F42: domínio 29/29, DB 3/3, API PostgreSQL 1/1 e tela 1/1; lint, typecheck e build passaram. Lint mantém 1 warning preexistente em `empresa/aba-de-enderecos.tsx:104`.
+- [ ] `pnpm test:banco` local: 512 passaram, 54 ignorados e 5 testes falharam em 8 arquivos por dados fixos já existentes no banco compartilhado, anti-drift que detecta tabelas F42 pré-instaladas e timeouts sob concorrência; workers/API/Signer passaram. E2E local `not_run`; CI será a fonte limpa. Smoke visual autenticado CLARO/ESCURO × 768/1024/1440 `not_run`: o `sub` do Keycloak difere de `app.usuario.sub_oidc`. Vault bootstrap não encontra `init.json`; conta e volumes preservados.
+- [ ] Autorrevisão final, PR `refs #56`, CI verde, merge confirmado e comentário de encerramento.
 
 ---
 

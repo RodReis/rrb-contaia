@@ -33,6 +33,7 @@ import { EmpregadosDaEmpresaController } from '../empregados/empregados.controll
 import { EmpresaController } from '../empresa/empresa.controller';
 import { HistoricoController, ManutencaoDaEmpresaController } from '../empresa/manutencao.controller';
 import { EscritorioController } from '../escritorio/escritorio.controller';
+import { RazaoContabilController } from '../razao-contabil/razao-contabil.controller';
 import { NotificacoesController } from '../notificacoes/notificacoes.controller';
 import { PapeisController } from '../papeis/papeis.controller';
 import { PlanoContasDaEmpresaController } from '../plano-contas/plano-contas.controller';
@@ -102,6 +103,21 @@ describe('cobertura de ações nas rotas autenticadas', () => {
     for (const [metodo, esperado] of permissoes) {
       const alvo = (CatalogoContabilController.prototype as unknown as Record<string, object>)[metodo];
       expect(reflector.get(ACAO_EXIGIDA, alvo as (...argumentos: never[]) => unknown)).toEqual([esperado]);
+    }
+  });
+
+  it('declara as três ações de razão com permissões próprias', () => {
+    const reflector = new Reflector();
+    const permissoes = new Map([
+      ['listar', 'contabil.razao.consultar'],
+      ['balancete', 'contabil.razao.consultar'],
+      ['detalhe', 'contabil.razao.consultar'],
+      ['verificar', 'contabil.razao.verificar_integridade'],
+      ['reconstruir', 'contabil.razao.reconstruir_projecao'],
+    ]);
+    for (const [method, expected] of permissoes) {
+      const target = (RazaoContabilController.prototype as unknown as Record<string, object>)[method];
+      expect(reflector.get(ACAO_EXIGIDA, target as (...args: never[]) => unknown)).toEqual([expected]);
     }
   });
 

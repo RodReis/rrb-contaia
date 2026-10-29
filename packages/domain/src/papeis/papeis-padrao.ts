@@ -43,6 +43,8 @@ const ESTRUTURA_CONTABIL_TODAS: readonly ChaveDePermissao[] = [
 const LANCAMENTOS_LEITURA: readonly ChaveDePermissao[] = ['contabil.lancamentos.consultar'];
 const LANCAMENTOS_PREPARO: readonly ChaveDePermissao[] = [...LANCAMENTOS_LEITURA, 'contabil.lancamentos.preparar_rascunho'];
 const LANCAMENTOS_TODAS: readonly ChaveDePermissao[] = [...LANCAMENTOS_PREPARO, 'contabil.lancamentos.efetivar', 'contabil.lancamentos.cancelar_estornar'];
+const RAZAO_LEITURA: readonly ChaveDePermissao[] = ['contabil.razao.consultar'];
+const RAZAO_VERIFICACAO: readonly ChaveDePermissao[] = [...RAZAO_LEITURA, 'contabil.razao.verificar_integridade'];
 const AUTOMATIZACAO_LEITURA: readonly ChaveDePermissao[] = ['contabil.automatizacao.consultar'];
 const AUTOMATIZACAO_OPERACAO: readonly ChaveDePermissao[] = [...AUTOMATIZACAO_LEITURA, 'contabil.automatizacao.simular', 'contabil.automatizacao.processar_origens'];
 const AUTOMATIZACAO_TODAS: readonly ChaveDePermissao[] = [...AUTOMATIZACAO_OPERACAO, 'contabil.automatizacao.manter_regras', 'contabil.automatizacao.publicar'];
@@ -72,6 +74,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...chavesDoModulo('empresas').filter((chave) => !chave.startsWith('empresas.empregados.')),
     ...ESTRUTURA_CONTABIL_TODAS,
     ...LANCAMENTOS_TODAS,
+    ...RAZAO_VERIFICACAO,
     ...AUTOMATIZACAO_TODAS,
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
@@ -88,6 +91,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...PLANO_DE_CONTAS_LEITURA,
     ...ESTRUTURA_CONTABIL_LEITURA,
     ...LANCAMENTOS_PREPARO,
+    ...RAZAO_LEITURA,
     ...AUTOMATIZACAO_OPERACAO,
     ...OPERACAO,
     ...OBRIGACOES_OPERACAO,
@@ -97,6 +101,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
   auditor_readonly: [
     ...ESTRUTURA_CONTABIL_LEITURA,
     ...LANCAMENTOS_LEITURA,
+    ...RAZAO_LEITURA,
     ...AUTOMATIZACAO_LEITURA,
     'escritorio.dados.consultar',
     'empresas.cadastro.consultar',
