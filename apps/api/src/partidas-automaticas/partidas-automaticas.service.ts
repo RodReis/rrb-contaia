@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { CODIGOS_DE_ERRO, ErroDeDominio, balancearPartidas, avaliarExpressaoMonetaria, ratearCentavos, selecionarRegraUnica, criterioCorresponde, type CriterioRegra, type OrigemContabil, type PartidaGerada, type RegraElegivel, type ClasseContabil } from '@contaia/domain';
+import { CODIGOS_DE_ERRO, ErroDeDominio, balancearPartidas, avaliarExpressaoMonetaria, campoDaExpressaoMonetaria, ratearCentavos, selecionarRegraUnica, criterioCorresponde, regraCorresponde, type CriterioRegra, type OrigemContabil, type PartidaGerada, type RegraElegivel, type ClasseContabil } from '@contaia/domain';
 import { comContextoHumano } from '@contaia/db';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -54,7 +54,60 @@ export class PartidasAutomaticasService {
     const q=await c.query(`select a.id,a.tenant_id,a.empresa_id,a.competence::text competence,a.kind,a.revision,a.status,a.canonical_json::text,a.content_sha256 from app.tax_monthly_assessment a where a.id=$1 and a.tenant_id=$2 and a.empresa_id=$3 and a.status='APPROVED' and not exists(select 1 from app.tax_monthly_assessment_event e where e.assessment_id=a.id and e.action in('INVALIDATED','SUPERSEDED')) and not exists(select 1 from app.tax_monthly_assessment newer where newer.tenant_id=a.tenant_id and newer.empresa_id=a.empresa_id and newer.competence=a.competence and newer.kind=a.kind and newer.revision>a.revision) union all select a.id,a.tenant_id,a.empresa_id,a.quarter competence,a.quarter kind,a.revision,a.status,a.canonical_json::text,a.content_sha256 from app.corporate_tax_assessment a where a.id=$1 and a.tenant_id=$2 and a.empresa_id=$3 and a.status='APPROVED' and not exists(select 1 from app.corporate_tax_assessment_event e where e.assessment_id=a.id and e.action in('INVALIDATED','SUPERSEDED')) and not exists(select 1 from app.corporate_tax_assessment newer where newer.tenant_id=a.tenant_id and newer.empresa_id=a.empresa_id and newer.quarter=a.quarter and newer.revision>a.revision)`,[sourceId,actor.tenantId,companyId]);const row=q.rows[0];if(!row)throw erro('ACCOUNTING_RULE_SOURCE_INELIGIBLE','Apuração não está aprovada ou foi invalidada ou substituída.');const canonical=JSON.parse(String(row.canonical_json)) as unknown;const assessment=flatten(canonical);assessment['assessmentType']=String(row.kind);const competence=String(row.competence);const dateMatch=/^(\d{4})-Q([1-4])$/u.exec(competence);const month=dateMatch?String((Number(dateMatch[2])-1)*3+1).padStart(2,'0'):competence.slice(5,7);const civilCompetence=dateMatch?`${dateMatch[1]}-${month}`:competence.slice(0,7);assessment['competence']=civilCompetence;assessment['contentHash']=String(row.content_sha256);return{sourceType,sourceId,tenantId:actor.tenantId,companyId,sourceVersion:Number(row.revision),effectiveDate:`${civilCompetence}-01`,competence:civilCompetence,attributes:assessment};
   }
   private async regrasAplicaveis(c:PoolClient,companyId:string,source:'DFE'|'TAX_ASSESSMENT',origin:OrigemContabil){const rows=await c.query(`select r.id as "ruleId",v.id as "versionId",v.versao as version,r.origem as source,v.vigencia_inicio::text as "validFrom",v.vigencia_fim::text as "validUntil" from app.accounting_rule r join app.accounting_rule_version v on v.regra_id=r.id and v.estado='PUBLISHED' where r.empresa_id=$1 and r.origem=$2 and not r.arquivada`,[companyId,source]);const result: RegraMotor[]=[];for(const row of rows.rows){const criteria=await c.query(`select campo field,operador operator,valor value from app.accounting_rule_criterion where rule_version_id=$1 order by posicao`,[row.versionId]);const lines=await c.query(`select l.conta_id,l.lado,l.expressao_valor,cc.tipo,cc.arquivada,cc.classe_contabil,cc.politica_centro_custo,(cc.classe_contabil is not null and (cc.conta_pai is null or pai.classe_contabil=cc.classe_contabil)) hierarchy_compatible,(select coalesce(sum(a.percentual_bp),0)::int from app.accounting_rule_allocation a where a.rule_line_id=l.id) rate_total,(select count(*)::int from app.accounting_rule_allocation a where a.rule_line_id=l.id) rate_count,exists(select 1 from app.accounting_rule_allocation a join app.centro_custo ct on ct.id=a.centro_custo_id and ct.empresa_id=a.empresa_id where a.rule_line_id=l.id and (ct.tipo<>'analitica' or ct.arquivada)) invalid_center from app.accounting_rule_line l join app.conta_contabil cc on cc.id=l.conta_id and cc.empresa_id=l.empresa_id left join app.conta_contabil pai on pai.empresa_id=cc.empresa_id and pai.codigo=cc.conta_pai where l.rule_version_id=$1`,[row.versionId]);const valid=criteria.rows.length>0&&criteria.rows.every((criterion: {field:string})=>Object.hasOwn(origin.attributes,criterion.field))&&lines.rows.length>=2&&lines.rows.some(line=>line.lado==='DEBIT')&&lines.rows.some(line=>line.lado==='CREDIT')&&lines.rows.every(line=>line.tipo==='analitica'&&!line.arquivada&&line.classe_contabil&&line.politica_centro_custo&&/^(amountCents|tax\.amountCents)(?:\s*[+*/-]\s*\d+)?$/u.test(String(line.expressao_valor))&&(Number(line.rate_count)===0||Number(line.rate_total)===10000)&&!line.invalid_center&&line.hierarchy_compatible);result.push({...row,criteria:criteria.rows as CriterioRegra[],invalid:!valid,configurationValid:valid});}return result;}
-  async simular(actor:Ator,companyId:string,correlationId:string,sourceType:'DFE'|'TAX_ASSESSMENT',sourceId:string){return this.contexto(actor,companyId,correlationId,async c=>{const origin=await this.carregarOrigem(c,actor,companyId,sourceType,sourceId);const rules=await this.regrasAplicaveis(c,companyId,sourceType,origin);const selection=selecionarRegraUnica(origin,rules);const evaluations=rules.map(rule=>({ruleId:rule.ruleId,version:rule.version,criteria:rule.criteria.map(criterion=>({field:criterion.field,operator:criterion.operator,matched:criterioCorresponde(origin,criterion),value:criterion.value})),validityMatches:origin.effectiveDate>=rule.validFrom&&(rule.validUntil===null||origin.effectiveDate<=rule.validUntil),configurationValid:rule.configurationValid===true}));await this.evento(c,actor,companyId,correlationId,'SIMULATED',{sourceType,sourceId,result:selection.result,evaluations},null);return{source:origin,result:selection.result,evaluations,...(selection.result==='MATCH'?{rule:selection.rule}:selection.result==='AMBIGUOUS_MATCH'||selection.result==='INVALID_CONFIGURATION'?{ruleIds:selection.ruleIds}:{})};});}
+  private async calcularPartidas(c:PoolClient,versionId:string,origin:OrigemContabil):Promise<PartidaGerada[]>{
+    const rows=await c.query<{conta_id:string;lado:'DEBIT'|'CREDIT';expressao_valor:string;tipo:string;arquivada:boolean;classe_contabil:string|null;politica_centro_custo:string|null;allocations:unknown}>(`select l.conta_id,l.lado,l.expressao_valor,l.posicao,cc.tipo,cc.arquivada,cc.classe_contabil,cc.politica_centro_custo,
+      coalesce((select jsonb_agg(jsonb_build_object('costCenterId',a.centro_custo_id,'percentageBasisPoints',a.percentual_bp,'position',a.posicao) order by a.posicao) from app.accounting_rule_allocation a where a.rule_line_id=l.id),'[]') allocations
+      from app.accounting_rule_line l join app.conta_contabil cc on cc.id=l.conta_id and cc.empresa_id=l.empresa_id
+      where l.rule_version_id=$1 order by l.posicao`,[versionId]);
+    const lines:PartidaGerada[]=[];
+    for(const row of rows.rows){
+      if(row.tipo!=='analitica'||row.arquivada||!row.classe_contabil||!row.politica_centro_custo)throw new Error('ACCOUNT_INVALID');
+      const expression=row.expressao_valor;
+      const field=campoDaExpressaoMonetaria(expression);
+      const raw=origin.attributes[field];
+      if(raw===undefined||raw===null||raw==='')throw new Error('AMOUNT_FIELD_MISSING');
+      const amount=avaliarExpressaoMonetaria(expression,{[field]:BigInt(String(raw))});
+      const allocations=Array.isArray(row.allocations)?row.allocations as {costCenterId:string;percentageBasisPoints:number;position:number}[]:[];
+      if(allocations.length){
+        if(row.politica_centro_custo==='FORBIDDEN')throw new Error('COST_CENTER_FORBIDDEN');
+        for(const allocation of ratearCentavos(amount,allocations))lines.push({side:row.lado,accountId:row.conta_id,amountCents:allocation.amountCents,costCenterId:allocation.costCenterId,position:lines.length});
+      }else{
+        if(row.politica_centro_custo==='REQUIRED')throw new Error('COST_CENTER_REQUIRED');
+        lines.push({side:row.lado,accountId:row.conta_id,amountCents:amount,costCenterId:null,position:lines.length});
+      }
+    }
+    return lines;
+  }
+  private resumoPartidas(lines:readonly PartidaGerada[]){
+    const debitos=lines.filter(line=>line.side==='DEBIT').reduce((total,line)=>total+line.amountCents,0n);
+    const creditos=lines.filter(line=>line.side==='CREDIT').reduce((total,line)=>total+line.amountCents,0n);
+    return{balanced:balancearPartidas(lines),debitCents:debitos.toString(),creditCents:creditos.toString(),differenceCents:(debitos>=creditos?debitos-creditos:creditos-debitos).toString(),lines:lines.map(line=>({...line,amountCents:line.amountCents.toString()}))};
+  }
+  async simular(actor:Ator,companyId:string,correlationId:string,sourceType:'DFE'|'TAX_ASSESSMENT',sourceId:string){
+    return this.contexto(actor,companyId,correlationId,async c=>{
+      const origin=await this.carregarOrigem(c,actor,companyId,sourceType,sourceId);
+      const rules=await this.regrasAplicaveis(c,companyId,sourceType,origin);
+      const calculations=new Map<string,ReturnType<PartidasAutomaticasService['resumoPartidas']>>();
+      const calculationErrors=new Map<string,string>();
+      const evaluatedRules=await Promise.all(rules.map(async rule=>{
+        if(!regraCorresponde(origin,rule)||rule.configurationValid!==true)return rule;
+        try{
+          const lines=await this.calcularPartidas(c,rule.versionId,origin);
+          const calculation=this.resumoPartidas(lines);
+          calculations.set(rule.ruleId,calculation);
+          if(!calculation.balanced){calculationErrors.set(rule.ruleId,'ENTRY_UNBALANCED');return{...rule,configurationValid:false};}
+          return rule;
+        }catch(cause){
+          calculationErrors.set(rule.ruleId,cause instanceof Error?cause.message:'INVALID_CONFIGURATION');
+          return{...rule,configurationValid:false};
+        }
+      }));
+      const selection=selecionarRegraUnica(origin,evaluatedRules);
+      const evaluations=evaluatedRules.map(rule=>({ruleId:rule.ruleId,version:rule.version,criteria:rule.criteria.map(criterion=>({field:criterion.field,operator:criterion.operator,matched:criterioCorresponde(origin,criterion),value:criterion.value})),validityMatches:rule.source===sourceType&&origin.effectiveDate>=rule.validFrom&&(rule.validUntil===null||origin.effectiveDate<=rule.validUntil),configurationValid:rule.configurationValid===true,configurationError:calculationErrors.get(rule.ruleId)??null,calculation:calculations.get(rule.ruleId)??null}));
+      await this.evento(c,actor,companyId,correlationId,'SIMULATED',{sourceType,sourceId,result:selection.result,evaluations},null);
+      return{source:origin,result:selection.result,evaluations,...(selection.result==='MATCH'?{rule:selection.rule}:selection.result==='AMBIGUOUS_MATCH'||selection.result==='INVALID_CONFIGURATION'?{ruleIds:selection.ruleIds}:{})};
+    });
+  }
   async gerar(actor:Ator,companyId:string,correlationId:string,sourceType:'DFE'|'TAX_ASSESSMENT',sourceId:string){
     return this.contexto(actor,companyId,correlationId,async c=>{
       const origin=await this.carregarOrigem(c,actor,companyId,sourceType,sourceId);
@@ -71,26 +124,10 @@ export class PartidasAutomaticasService {
       else if(selection.result==='INVALID_CONFIGURATION'){result='INVALID_CONFIGURATION';diagnostics={ruleIds:selection.ruleIds,message:'A regra correspondente tem configuração inválida.'};}
       else {
         versionId=(await c.query<{id:string}>(`select id from app.accounting_rule_version where regra_id=$1 and versao=$2`,[selection.rule.ruleId,selection.rule.version])).rows[0]?.id??null;
+        if(!versionId)throw erro('ACCOUNTING_RULE_VERSION_CONFLICT','Versão da regra não encontrada.');
         await c.query('savepoint f41_create_draft');
         try {
-          const rows=await c.query(`select l.id,l.conta_id,l.lado,l.expressao_valor,l.posicao,cc.tipo,cc.arquivada,cc.classe_contabil,cc.politica_centro_custo,
-            coalesce((select jsonb_agg(jsonb_build_object('costCenterId',a.centro_custo_id,'percentageBasisPoints',a.percentual_bp,'position',a.posicao) order by a.posicao) from app.accounting_rule_allocation a where a.rule_line_id=l.id),'[]') allocations
-            from app.accounting_rule_line l join app.conta_contabil cc on cc.id=l.conta_id and cc.empresa_id=l.empresa_id left join app.conta_contabil pai on pai.empresa_id=cc.empresa_id and pai.codigo=cc.conta_pai where l.rule_version_id=$1 order by l.posicao`,[versionId]);
-          const lines:PartidaGerada[]=[];
-          for(const row of rows.rows){
-            if(row.tipo!=='analitica'||row.arquivada||!row.classe_contabil||!row.politica_centro_custo)throw new Error('ACCOUNT_INVALID');
-            const expression=String(row.expressao_valor);const field=expression.match(/^(\w+)/u)?.[1]??'';const raw=origin.attributes[field];
-            if(raw===undefined||raw===null||raw==='')throw new Error('AMOUNT_FIELD_MISSING');
-            const amount=avaliarExpressaoMonetaria(expression,{[field]:BigInt(String(raw))});
-            const allocations=Array.isArray(row.allocations)?row.allocations as {costCenterId:string;percentageBasisPoints:number;position:number}[]:[];
-            if(allocations.length){
-              if(row.politica_centro_custo==='FORBIDDEN')throw new Error('COST_CENTER_FORBIDDEN');
-              for(const allocation of ratearCentavos(amount,allocations))lines.push({side:row.lado,accountId:row.conta_id,amountCents:allocation.amountCents,costCenterId:allocation.costCenterId,position:lines.length});
-            }else{
-              if(row.politica_centro_custo==='REQUIRED')throw new Error('COST_CENTER_REQUIRED');
-              lines.push({side:row.lado,accountId:row.conta_id,amountCents:amount,costCenterId:null,position:lines.length});
-            }
-          }
+          const lines=await this.calcularPartidas(c,versionId,origin);
           if(!balancearPartidas(lines))throw new Error('ENTRY_UNBALANCED');
           const date=origin.effectiveDate;const competence=origin.competence;
           const created=await c.query<{id:string}>(`insert into app.lancamento_contabil(tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,referencia_externa,criado_por) values($1,$2,$3,$4,$5,$6,$7,$8) returning id`,[actor.tenantId,companyId,Number(date.slice(0,4)),date,competence,`Geração automática F41 · ${sourceType} ${sourceId}`,sourceId,actor.usuarioId]);

@@ -597,6 +597,7 @@ export {
 export {
   avaliarExpressaoMonetaria,
   balancearPartidas,
+  campoDaExpressaoMonetaria,
   criterioCorresponde,
   ratearCentavos,
   regraCorresponde,

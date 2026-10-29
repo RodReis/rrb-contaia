@@ -60,13 +60,13 @@ const createFiscalDocument = async (model: '55' | '65', suffix: string): Promise
   return documentId;
 };
 
-const criarRegra = async (name: string, model: string) => {
+const criarRegra = async (name: string, model: string, creditExpression = 'amountCents') => {
   const response = await page.request.post(`${BASE_URL}/${companyId}/automatizacao-contabil/regras`, { data: {
     name, source: 'DFE', validFrom: '2026-01-01', validUntil: null,
     criteria: [{ field: 'model', operator: 'EQ', value: model }],
     lines: [
       { side: 'DEBIT', accountId: debitAccountId, amountExpression: 'amountCents', position: 0, allocation: [] },
-      { side: 'CREDIT', accountId: creditAccountId, amountExpression: 'amountCents', position: 1, allocation: [] },
+      { side: 'CREDIT', accountId: creditAccountId, amountExpression: creditExpression, position: 1, allocation: [] },
     ],
   } });
   expect(response.status(), await response.text()).toBe(201);
@@ -118,6 +118,26 @@ test('F41 publica regra, gera rascunho F40, abre pendência e reprocessa após n
   await expect(page.getByRole('heading', { name: 'Automatização contábil' })).toBeVisible();
 
   const firstRule = await criarRegra('Regra sintética F41 para modelo 55', '55');
+  await page.getByRole('tab', { name: 'Simulação' }).click();
+  await page.getByRole('combobox', { name: 'Origem aprovada' }).click();
+  await page.getByRole('option', { name: /NFE_55/u }).click();
+  await page.getByRole('button', { name: 'Simular' }).click();
+  await expect(page.getByRole('heading', { name: 'Resultado: MATCH' })).toBeVisible();
+  await expect(page.getByText('Partidas balanceadas')).toBeVisible();
+  await expect(page.getByText('R$ 12,50').first()).toBeVisible();
+
+  const invalidRule = await criarRegra('Regra sintética F41 desbalanceada', '65', 'amountCents + 1');
+  await page.getByRole('combobox', { name: 'Origem aprovada' }).click();
+  await page.getByRole('option', { name: /NFE_65/u }).click();
+  await page.getByRole('button', { name: 'Simular' }).click();
+  await expect(page.getByRole('heading', { name: 'Resultado: INVALID_CONFIGURATION' })).toBeVisible();
+  await expect(page.getByText('Partidas desbalanceadas')).toBeVisible();
+  await expect(page.getByText('R$ 0,01')).toBeVisible();
+  const archiveInvalidRule = await page.request.post(`${BASE_URL}/${companyId}/automatizacao-contabil/regras/${invalidRule.ruleId}/arquivar`);
+  expect(archiveInvalidRule.status(), await archiveInvalidRule.text()).toBe(201);
+  const generationCountBeforeProcessing = await pool.query<{ count: string }>(`select count(*)::text count from app.accounting_generation where empresa_id=$1 and origem_id=$2`, [companyId, pendingDocumentId]);
+  expect(generationCountBeforeProcessing.rows[0]?.count).toBe('0');
+
   const generated = await page.request.post(`${BASE_URL}/${companyId}/automatizacao-contabil/geracoes`,
     { data: { sourceType: 'DFE', sourceId: matchingDocumentId } });
   expect(generated.status(), await generated.text()).toBe(201);

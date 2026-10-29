@@ -69,20 +69,27 @@ export const selecionarRegraUnica = (origem: OrigemContabil, regras: readonly Re
   return { result: 'MATCH', rule: matches[0]! };
 };
 
-/** Gramática fechada v1: campo monetário, inteiro positivo e operações +, -, *, / com inteiros. */
-export const avaliarExpressaoMonetaria = (expression: string, fields: Readonly<Record<string, bigint>>): bigint => {
-  const match = /^(\w+)(?:\s*([+*/-])\s*(\d+))?$/u.exec(expression);
+/** Gramática fechada v1: campo monetário (inclusive caminho pontuado), inteiro positivo e operação inteira. */
+const analisarExpressaoMonetaria = (expression: string): Readonly<{ field: string; operator: string | undefined; operand: bigint | undefined }> => {
+  const match = /^([a-zA-Z][a-zA-Z0-9]*(?:\.[a-zA-Z][a-zA-Z0-9]*)*)(?:\s*([+*/-])\s*(\d+))?$/u.exec(expression);
   if (!match) throw new Error('ACCOUNTING_RULE_INVALID_EXPRESSION');
-  const amount = fields[match[1]!];
+  return { field: match[1]!, operator: match[2], operand: match[3] === undefined ? undefined : BigInt(match[3]) };
+};
+
+export const campoDaExpressaoMonetaria = (expression: string): string => analisarExpressaoMonetaria(expression).field;
+
+export const avaliarExpressaoMonetaria = (expression: string, fields: Readonly<Record<string, bigint>>): bigint => {
+  const parsed = analisarExpressaoMonetaria(expression);
+  const amount = fields[parsed.field];
   if (amount === undefined || amount <= 0n) throw new Error('ACCOUNTING_RULE_INVALID_EXPRESSION');
-  if (match[2] === undefined) {
+  if (parsed.operator === undefined) {
     if (amount > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('ACCOUNTING_RULE_INVALID_EXPRESSION');
     return amount;
   }
-  const operand = BigInt(match[3]!);
+  const operand = parsed.operand!;
   if (operand <= 0n) throw new Error('ACCOUNTING_RULE_INVALID_EXPRESSION');
   let result: bigint;
-  switch (match[2]) {
+  switch (parsed.operator) {
     case '+': result = amount + operand; break;
     case '-': result = amount - operand; break;
     case '*': result = amount * operand; break;

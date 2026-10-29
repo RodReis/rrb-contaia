@@ -24,6 +24,7 @@ describe('F41 motor determinístico',()=>{
   });
   it('avalia expressão limitada a campos monetários declarados e confere balanceamento em bigint',()=>{
     expect(avaliarExpressaoMonetaria('amountCents * 2',{amountCents:501n})).toBe(1002n);
+    expect(avaliarExpressaoMonetaria('tax.amountCents / 2',{'tax.amountCents':1000n})).toBe(500n);
     expect(balancearPartidas([{side:'DEBIT',accountId:'a',amountCents:100n,costCenterId:null,position:0},{side:'CREDIT',accountId:'b',amountCents:100n,costCenterId:null,position:1}])).toBe(true);
   });
 });
