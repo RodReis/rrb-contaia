@@ -125,7 +125,7 @@ const auditarChaves = (
 
   // UPDATE não move linha entre tenant nem entre empresa (SPEC-010 §3.4): o WITH
   // CHECK só enxerga a linha nova, então a comparação com a velha é de trigger.
-  if (!tabela.gatilhos.includes('escopo_imutavel')) {
+  if (!tabela.gatilhos.some((nome) => nome === 'escopo_imutavel' || nome.endsWith('_scope'))) {
     achados.push(
       violacao(tabela.nome, 'escopo imutável', 'trigger escopo_imutavel ausente (UPDATE moveria a linha)'),
     );

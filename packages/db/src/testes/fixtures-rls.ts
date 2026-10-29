@@ -1872,6 +1872,7 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
     colunaDeAtualizacao:'id',atualizacao:'id=id',
   },
   'app.opening_balance_event': {
-    inserir:(banco,e)=>unico(banco,`insert into app.opening_balance_event(tenant_id,empresa_id,action,result,actor_id,correlation_id) values($1,$2,'CONFLICT','RECUSADO',$3,'f44-rls') returning id`,[e.tenantId,e.empresaId,e.autorId]),
+    preparar: async(admin,e)=>FIXTURES['app.opening_balance_version']!.inserir(admin,e,{}).then(versionId=>({versionId})),
+    inserir:(banco,e,r)=>unico(banco,`insert into app.opening_balance_event(tenant_id,empresa_id,version_id,action,result,actor_id,correlation_id) values($1,$2,$3,'CONFLICT','RECUSADO',$4,'f44-rls') returning id`,[e.tenantId,e.empresaId,r['versionId'],e.autorId]),
   },
 };
