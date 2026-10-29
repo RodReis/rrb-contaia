@@ -132,14 +132,15 @@ const auditarChaves = (
   }
 
   if (CLASSES_COM_EMPRESA.includes(classe)) {
-    if (tabela.colunas['empresa_id'] !== false) {
+    const colunaEmpresa = entrada.colunaEmpresa ?? 'empresa_id';
+    if (tabela.colunas[colunaEmpresa] !== false) {
       achados.push(
         violacao(
           tabela.nome,
-          'empresa_id NOT NULL',
-          tabela.colunas['empresa_id'] === undefined
-            ? 'coluna empresa_id ausente'
-            : 'empresa_id aceita NULL',
+          `${colunaEmpresa} NOT NULL`,
+          tabela.colunas[colunaEmpresa] === undefined
+            ? `coluna ${colunaEmpresa} ausente`
+            : `${colunaEmpresa} aceita NULL`,
         ),
       );
     }
@@ -147,13 +148,13 @@ const auditarChaves = (
     const temIndice = tabela.indices.some(
       (indice) =>
         !indice.parcial &&
-        (indice.colunas[0] === 'empresa_id' ||
-          (indice.colunas[0] === 'tenant_id' && indice.colunas[1] === 'empresa_id')),
+        (indice.colunas[0] === colunaEmpresa ||
+          (indice.colunas[0] === 'tenant_id' && indice.colunas[1] === colunaEmpresa)),
     );
 
     if (entrada.exigeIndiceEmpresa === true) {
       const temIndiceEmpresa = tabela.indices.some(
-        (indice) => !indice.parcial && indice.colunas[0] === 'empresa_id',
+        (indice) => !indice.parcial && indice.colunas[0] === colunaEmpresa,
       );
       if (!temIndiceEmpresa) {
         achados.push(

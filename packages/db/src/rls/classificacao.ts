@@ -30,6 +30,8 @@ export type EntradaDeClassificacao = Readonly<{
   exigirContextoTecnicoNasEscritas?: boolean;
   exigirHelperRfbNasEscritas?: boolean;
   /** Tabela temporal que exige índice independente por empresa, além do composto tenant/empresa. */
+  /** Nome legado equivalente à coluna de escopo da empresa, quando o schema usa `company_id`. */
+  colunaEmpresa?: string;
   /** Obrigatória nas classes sem `empresa_id`: por que a tabela não é por empresa. */
   justificativa?: string;
   /** I-6: o papel da aplicação nunca tem UPDATE nem DELETE. */
@@ -429,6 +431,11 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.movimento_razao', classe: 'empresa', origem: 'F42 / SPEC-042', appendOnly: true },
   { tabela: 'app.saldo_mensal_razao', classe: 'empresa', origem: 'F42 / SPEC-042' },
   { tabela: 'app.evento_razao', classe: 'empresa', origem: 'F42 / SPEC-042', appendOnly: true },
+  { tabela: 'app.accounting_period_cycle', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id' },
+  { tabela: 'app.accounting_period_close', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_period_close_snapshot_line', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_period_event', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_period_idempotency', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

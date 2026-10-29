@@ -1,7 +1,8 @@
-import { calcularBalancete, CODIGOS_DE_ERRO, ErroDeDominio, type MovimentoParaBalancete } from '@contaia/domain';
+import { accountingPeriodGateBlockers, calcularBalancete, CODIGOS_DE_ERRO, ErroDeDominio, hashAccountingClose, previousAccountingCompetence, type AccountingCloseKind, type AccountingCloseSnapshotInput, type AccountingPeriodStatus, type ContaParaBalancete, type MovimentoParaBalancete } from '@contaia/domain';
 import { comContextoHumano } from '@contaia/db';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
+import { createHash } from 'node:crypto';
 import { PoolDoBanco } from '../banco/pool.provider';
 import type { ConsultaBalancete, ConsultaRazao } from './razao-contabil.dto';
 
@@ -12,6 +13,7 @@ type LinhaFonte = Readonly<{
   accountCode: string; accountName: string; costCenterCode: string | null; costCenterName: string | null;
   history: string; externalReference: string | null; entryNumber: string; position: number; side: 'DEBIT' | 'CREDIT'; amountCents: string;
 }>;
+type PeriodCycleRow = Readonly<{ status: AccountingPeriodStatus; activeCloseId: string | null; latestVersion: number }>;
 
 const erro = (codigo: string, mensagem: string): ErroDeDominio => new ErroDeDominio(codigo as never, mensagem);
 @Injectable()
@@ -20,6 +22,122 @@ export class RazaoContabilService {
 
   private contexto<T>(ator: AtorRazao, executar: (client: PoolClient) => Promise<T>): Promise<T> {
     return comContextoHumano(this.pool.instancia, ator, executar);
+  }
+
+  private async lockAccountingPeriod(client: PoolClient, tenantId: string, companyId: string): Promise<void> {
+    await client.query(`select pg_advisory_xact_lock(hashtextextended($1,0))`, [`${tenantId}:${companyId}:accounting-period:ledger`]);
+  }
+
+  private async periodCycle(client: PoolClient, tenantId: string, companyId: string, competence: string): Promise<PeriodCycleRow> {
+    await client.query(`insert into app.accounting_period_cycle(tenant_id,company_id,competence,status,latest_version) values($1,$2,$3,'OPEN',0) on conflict(tenant_id,company_id,competence) do nothing`,[tenantId,companyId,competence]);
+    const result = await client.query<{ status: AccountingPeriodStatus; activeCloseId: string | null; latestVersion: number }>(
+      `select status,active_close_id as "activeCloseId",latest_version as "latestVersion" from app.accounting_period_cycle where tenant_id=$1 and company_id=$2 and competence=$3 for update`, [tenantId,companyId,competence],
+    );
+    return result.rows[0]!;
+  }
+
+  private async closeSnapshot(client: PoolClient, actor: AtorRazao, companyId: string, competence: string, expectedVersion: number, correlationId: string, permissions: readonly string[], idempotencyKey: string, confirmEmpty: boolean): Promise<Readonly<Record<string, unknown>>> {
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/u.test(competence)) throw erro('ACCOUNTING_PERIOD_INVALID','Competência contábil inválida.');
+    await this.lockAccountingPeriod(client,actor.tenantId,companyId);
+    const key = await client.query<{ requestHash: string; response: Record<string, unknown> }>(
+      `select request_hash as "requestHash",response from app.accounting_period_idempotency where tenant_id=$1 and company_id=$2 and competence=$3 and operation='CLOSE' and expected_version=$4 and idempotency_key=$5`,
+      [actor.tenantId,companyId,competence,expectedVersion,idempotencyKey],
+    );
+    const keyHash = createHash('sha256').update(JSON.stringify({competence,expectedVersion,confirmEmpty,permissions:[...permissions].sort()})).digest('hex');
+    if (key.rows[0]) {
+      if (key.rows[0].requestHash !== keyHash) throw erro('ACCOUNTING_PERIOD_CONFLICT','Chave de idempotência reutilizada com outro comando.');
+      return key.rows[0].response;
+    }
+    const cycle = await this.periodCycle(client,actor.tenantId,companyId,competence);
+    if (cycle.status === 'CLOSED' || expectedVersion !== cycle.latestVersion) {
+      const code=cycle.status==='CLOSED'?'ACCOUNTING_PERIOD_ALREADY_CLOSED':'ACCOUNTING_PERIOD_CONFLICT';
+      const response={status:'CONFLICT',code,competence,latestVersion:cycle.latestVersion,correlationId};
+      await client.query(`insert into app.accounting_period_event(tenant_id,company_id,competence,action,result,actor_id,correlation_id,operation,expected_version,idempotency_key,blockers) values($1,$2,$3,'CONFLICT','RECUSADO',$4,$5,'CLOSE',$6,$7,$8::jsonb)`,[actor.tenantId,companyId,competence,actor.usuarioId,correlationId,expectedVersion,idempotencyKey,JSON.stringify([code])]);
+      await this.saveIdempotency(client,actor,companyId,competence,'CLOSE',expectedVersion,idempotencyKey,keyHash,response); return response;
+    }
+
+    const projection = await client.query<{ id: string; version: number; integrity: 'CONSISTENT' | 'INCONSISTENT' }>(
+      `select versao_ativa_id as id,numero_versao::int as version,integridade as integrity from app.projecao_razao where tenant_id=$1 and empresa_id=$2 for update`,[actor.tenantId,companyId],
+    );
+    const initial = await client.query<{ competence: string | null }>(`select to_char(min(to_date(competencia||'-01','YYYY-MM-DD')),'YYYY-MM') as competence from app.movimento_razao where tenant_id=$1 and empresa_id=$2`,[actor.tenantId,companyId]);
+    const firstCompetence = initial.rows[0]?.competence;
+    if (!firstCompetence || !projection.rows[0]) throw erro('ACCOUNTING_PERIOD_SEQUENCE_GAP','Razão ainda não possui marco inicial conhecido para fechar.');
+    const prior = competence <= firstCompetence ? { rows: [{ status: 'CLOSED' }] } : await client.query(
+      `select c.status from app.accounting_period_cycle c where c.tenant_id=$1 and c.company_id=$2 and c.competence=$3`,[actor.tenantId,companyId,previousAccountingCompetence(competence)],
+    );
+    const source = await client.query<{ drafts: string; debit: string; credit: string; movements: string; entries: string; projectionIntegrity: string }>(
+      `with source as (select e.id,p.lado,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.competencia=$3 and e.numero is not null and e.estado in ('POSTED','CANCELLED','REVERSED') union all select e.id,case p.lado when 'DEBIT' then 'CREDIT' else 'DEBIT' end,p.valor_centavos from app.lancamento_contabil e join app.lancamento_contabil_partida p on p.lancamento_id=e.id and p.tenant_id=e.tenant_id and p.empresa_id=e.empresa_id and p.ativa where e.tenant_id=$1 and e.empresa_id=$2 and e.competencia=$3 and e.estado='CANCELLED')
+       select (select count(*) from app.lancamento_contabil where tenant_id=$1 and empresa_id=$2 and competencia=$3 and estado='DRAFT')::text drafts,
+       coalesce((select sum(valor_centavos) from source where lado='DEBIT'),0)::text debit,coalesce((select sum(valor_centavos) from source where lado='CREDIT'),0)::text credit,count(m.id)::text movements,count(distinct m.lancamento_id)::text entries,
+       (select integridade from app.projecao_razao where tenant_id=$1 and empresa_id=$2) as "projectionIntegrity"
+       from app.movimento_razao m where m.tenant_id=$1 and m.empresa_id=$2 and m.versao_id=$4 and m.competencia=$3`,[actor.tenantId,companyId,competence,projection.rows[0].id],
+    );
+    const totals=source.rows[0]!;
+    const projectionTotals=await client.query<{debit:string;credit:string}>(`select coalesce(sum(valor_centavos) filter(where lado='DEBIT'),0)::text debit,coalesce(sum(valor_centavos) filter(where lado='CREDIT'),0)::text credit from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3 and competencia=$4`,[actor.tenantId,companyId,projection.rows[0].id,competence]);
+    const blockers = accountingPeriodGateBlockers({ competence, firstCompetence, previousClosed: prior.rows[0]?.status === 'CLOSED', integrity: totals.projectionIntegrity === 'CONSISTENT' ? projection.rows[0].integrity : 'INCONSISTENT', draftCount:Number(totals.drafts), sourceDebitCents:Number(totals.debit),sourceCreditCents:Number(totals.credit),projectionDebitCents:Number(projectionTotals.rows[0]!.debit),projectionCreditCents:Number(projectionTotals.rows[0]!.credit),movementCount:Number(totals.movements),confirmEmpty });
+    if (blockers.length) {
+      await client.query(`insert into app.accounting_period_event(tenant_id,company_id,competence,action,result,actor_id,correlation_id,operation,expected_version,idempotency_key,blockers) values($1,$2,$3,'CLOSE_REJECTED','RECUSADO',$4,$5,'CLOSE',$6,$7,$8::jsonb)`,[actor.tenantId,companyId,competence,actor.usuarioId,correlationId,expectedVersion,idempotencyKey,JSON.stringify(blockers)]);
+      const response={ status:'BLOCKED',blockers,competence,latestVersion:cycle.latestVersion,correlationId };
+      await this.saveIdempotency(client,actor,companyId,competence,'CLOSE',expectedVersion,idempotencyKey,keyHash,response); return response;
+    }
+    const balances = await this.trialBalanceInTransaction(client,actor.tenantId,companyId,projection.rows[0].id,competence,firstCompetence);
+    const closedAt = new Date().toISOString(); const version=cycle.latestVersion+1; const kind:AccountingCloseKind=Number(totals.movements)===0?'EMPTY_CONFIRMED':'REGULAR';
+    const snapshot={tenantId:actor.tenantId,companyId,competence,version,ledgerProjectionVersion:projection.rows[0].version,firstCompetence,kind,debitCents:Number(totals.debit),creditCents:Number(totals.credit),movementCount:Number(totals.movements),entryCount:Number(totals.entries),lines:balances.lines,closedBy:actor.usuarioId,closedAt,correlationId,permissions:permissions.filter((permission)=>permission==='contabil.fechamento.consultar'||permission==='contabil.fechamento.fechar_competencia').sort(),emptyConfirmation:confirmEmpty};
+    const content=JSON.parse(JSON.stringify(snapshot)) as Record<string,unknown>; const hash=hashAccountingClose(snapshot);
+    const close=await client.query<{id:string}>(`insert into app.accounting_period_close(tenant_id,company_id,competence,version,projection_version,kind,debit_cents,credit_cents,movement_count,entry_count,first_competence,content,content_hash,closed_by,closed_at,correlation_id) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16) returning id`,[actor.tenantId,companyId,competence,version,projection.rows[0].version,kind,totals.debit,totals.credit,totals.movements,totals.entries,firstCompetence,JSON.stringify(content),hash,actor.usuarioId,closedAt,correlationId]);
+    for(const line of balances.lines) await client.query(`insert into app.accounting_period_close_snapshot_line(tenant_id,company_id,close_id,account_id,code,name,account_type,normal_balance,level,parent_account_id,opening_balance_cents,debit_cents,credit_cents,closing_balance_cents,closing_nature,movement_count) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,[actor.tenantId,companyId,close.rows[0]!.id,line.accountId,line.code,line.name,line.type,line.normalBalance,line.level,line.parentAccountId,line.openingBalanceCents,line.debitCents,line.creditCents,line.closingBalanceCents,line.closingNature,line.movementCount]);
+    await client.query(`update app.accounting_period_cycle set status='CLOSED',active_close_id=$1,latest_version=$2,updated_at=now() where tenant_id=$3 and company_id=$4 and competence=$5 and latest_version=$6`,[close.rows[0]!.id,version,actor.tenantId,companyId,competence,expectedVersion]);
+    await client.query(`insert into app.accounting_period_event(tenant_id,company_id,competence,action,result,close_id,version,actor_id,correlation_id,operation,expected_version,idempotency_key,blockers) values($1,$2,$3,'CLOSED','SUCESSO',$4,$5,$6,$7,'CLOSE',$8,$9,'[]'::jsonb)`,[actor.tenantId,companyId,competence,close.rows[0]!.id,version,actor.usuarioId,correlationId,expectedVersion,idempotencyKey]);
+    const response={status:'CLOSED',closeId:close.rows[0]!.id,competence,version,projectionVersion:projection.rows[0].version,kind,contentHash:hash,closedAt,correlationId};
+    await this.saveIdempotency(client,actor,companyId,competence,'CLOSE',expectedVersion,idempotencyKey,keyHash,response); return response;
+  }
+
+  private async saveIdempotency(client:PoolClient,actor:AtorRazao,companyId:string,competence:string,operation:'CLOSE'|'REOPEN',expectedVersion:number,key:string,requestHash:string,response:Readonly<Record<string,unknown>>):Promise<void>{
+    await client.query(`insert into app.accounting_period_idempotency(tenant_id,company_id,competence,operation,expected_version,idempotency_key,request_hash,response) values($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`,[actor.tenantId,companyId,competence,operation,expectedVersion,key,requestHash,JSON.stringify(response)]);
+  }
+
+  private async trialBalanceInTransaction(client:PoolClient,tenantId:string,companyId:string,projectionId:string,competence:string,firstCompetence:string){
+    const balances=await client.query<{accountId:string;costCenterId:string|null;competence:string;debitCents:string;creditCents:string;movementCount:string}>(`select conta_id as "accountId",centro_custo_id as "costCenterId",to_char(to_date(competencia||'-01','YYYY-MM-DD'),'YYYY-MM') as "competence",debitos_centavos::text as "debitCents",creditos_centavos::text as "creditCents",movimentos::text as "movementCount" from app.saldo_mensal_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3 and competencia<=$4`,[tenantId,companyId,projectionId,competence]);
+    const catalog=await client.query<ContaParaBalancete>(`select child.id as "accountId",child.codigo as code,child.nome as name,parent.id as "parentAccountId",case when child.tipo='analitica' then 'ANALYTICAL' else 'SYNTHETIC' end as type,case when child.natureza='devedora' then 'DEBIT' else 'CREDIT' end as "normalBalance" from app.conta_contabil child left join app.conta_contabil parent on parent.empresa_id=child.empresa_id and parent.tenant_id=child.tenant_id and parent.codigo=child.conta_pai where child.tenant_id=$1 and child.empresa_id=$2 and not child.arquivada order by child.codigo`,[tenantId,companyId]);
+    const movements:MovimentoParaBalancete[]=balances.rows.flatMap((row)=>{const out:MovimentoParaBalancete[]=[]; const d=Number(row.debitCents);const c=Number(row.creditCents);if(d>0)out.push({accountId:row.accountId,costCenterId:row.costCenterId,competence:row.competence,side:'DEBIT',amountCents:d});if(c>0)out.push({accountId:row.accountId,costCenterId:row.costCenterId,competence:row.competence,side:'CREDIT',amountCents:c});return out;});
+    return calcularBalancete(movements,catalog.rows,firstCompetence,competence,{tipo:'TODOS'},true);
+  }
+
+  async fecharCompetencia(actor:AtorRazao,companyId:string,competence:string,expectedVersion:number,idempotencyKey:string,confirmEmpty:boolean,permissions:readonly string[],correlationId:string){
+    return this.contexto(actor,(client)=>this.closeSnapshot(client,actor,companyId,competence,expectedVersion,correlationId,permissions,idempotencyKey,confirmEmpty));
+  }
+
+  async reabrirCompetencia(actor:AtorRazao,companyId:string,competence:string,expectedVersion:number,idempotencyKey:string,reason:string,permissions:readonly string[],correlationId:string){
+    return this.contexto(actor,async(client)=>{
+      await this.lockAccountingPeriod(client,actor.tenantId,companyId);
+      const keyHash=createHash('sha256').update(JSON.stringify({competence,expectedVersion,reason:reason.trim(),permissions:[...permissions].sort()})).digest('hex');
+      const key=await client.query<{requestHash:string;response:Record<string,unknown>}>(`select request_hash as "requestHash",response from app.accounting_period_idempotency where tenant_id=$1 and company_id=$2 and competence=$3 and operation='REOPEN' and expected_version=$4 and idempotency_key=$5`,[actor.tenantId,companyId,competence,expectedVersion,idempotencyKey]);
+      if(key.rows[0]){if(key.rows[0].requestHash!==keyHash)throw erro('ACCOUNTING_PERIOD_CONFLICT','Chave de idempotência reutilizada com outro comando.');return key.rows[0].response;}
+      if(!reason.trim()) throw erro('ACCOUNTING_REOPEN_REASON_REQUIRED','Motivo da reabertura é obrigatório.');
+      const cycle=await this.periodCycle(client,actor.tenantId,companyId,competence);
+      if(cycle.status!=='CLOSED'||!cycle.activeCloseId||expectedVersion!==cycle.latestVersion){
+        const code='ACCOUNTING_PERIOD_CONFLICT';const response={status:'CONFLICT',code,competence,latestVersion:cycle.latestVersion,correlationId};
+        await client.query(`insert into app.accounting_period_event(tenant_id,company_id,competence,action,result,actor_id,reason,blockers,correlation_id,operation,expected_version,idempotency_key) values($1,$2,$3,'CONFLICT','RECUSADO',$4,$5,$6::jsonb,$7,'REOPEN',$8,$9)`,[actor.tenantId,companyId,competence,actor.usuarioId,reason.trim()||null,JSON.stringify([code]),correlationId,expectedVersion,idempotencyKey]);
+        await this.saveIdempotency(client,actor,companyId,competence,'REOPEN',expectedVersion,idempotencyKey,keyHash,response);return response;
+      }
+      const later=await client.query(`select 1 from app.accounting_period_cycle where tenant_id=$1 and company_id=$2 and competence>$3 and status='CLOSED' limit 1`,[actor.tenantId,companyId,competence]);
+      if(later.rowCount){const code='ACCOUNTING_PERIOD_LATER_CLOSE_EXISTS';const response={status:'BLOCKED',code,competence,latestVersion:cycle.latestVersion,correlationId};await client.query(`insert into app.accounting_period_event(tenant_id,company_id,competence,action,result,actor_id,reason,blockers,correlation_id,operation,expected_version,idempotency_key) values($1,$2,$3,'REOPEN_REJECTED','RECUSADO',$4,$5,$6::jsonb,$7,'REOPEN',$8,$9)`,[actor.tenantId,companyId,competence,actor.usuarioId,reason.trim(),JSON.stringify([code]),correlationId,expectedVersion,idempotencyKey]);await this.saveIdempotency(client,actor,companyId,competence,'REOPEN',expectedVersion,idempotencyKey,keyHash,response);return response;}
+      await client.query(`update app.accounting_period_cycle set status='REOPENED',active_close_id=null,updated_at=now() where tenant_id=$1 and company_id=$2 and competence=$3 and latest_version=$4`,[actor.tenantId,companyId,competence,expectedVersion]);
+      await client.query(`insert into app.accounting_period_event(tenant_id,company_id,competence,action,result,close_id,version,actor_id,reason,correlation_id,operation,expected_version,idempotency_key) values($1,$2,$3,'REOPENED','SUCESSO',$4,$5,$6,$7,$8,'REOPEN',$9,$10)`,[actor.tenantId,companyId,competence,cycle.activeCloseId,cycle.latestVersion,actor.usuarioId,reason.trim(),correlationId,expectedVersion,idempotencyKey]);
+      const response={status:'REOPENED',competence,version:cycle.latestVersion,closeId:cycle.activeCloseId,reason:reason.trim(),correlationId};
+      await this.saveIdempotency(client,actor,companyId,competence,'REOPEN',expectedVersion,idempotencyKey,keyHash,response);return response;
+    });
+  }
+
+  async consultarFechamentos(actor:AtorRazao,companyId:string,from:string,to:string,correlationId:string){
+    return this.contexto(actor,async(client)=>{
+      if(from>to)throw erro('ACCOUNTING_PERIOD_INVALID','Competência inicial posterior à final.');
+      const cycles=await client.query(`with months as(select to_char(g,'YYYY-MM') competence from generate_series(to_date($3||'-01','YYYY-MM-DD'),to_date($4||'-01','YYYY-MM-DD'),interval '1 month') g) select m.competence,coalesce(c.status,'OPEN') status,c.active_close_id as "activeCloseId",coalesce(c.latest_version,0) as "latestVersion" from months m left join app.accounting_period_cycle c on c.tenant_id=$1 and c.company_id=$2 and c.competence=m.competence order by m.competence`,[actor.tenantId,companyId,from,to]);
+      const closes=await client.query(`select c.id as "closeId",c.competence,c.version,c.projection_version as "projectionVersion",c.kind,c.debit_cents::text as "debitCents",c.credit_cents::text as "creditCents",c.movement_count::text as "movementCount",c.entry_count::text as "entryCount",c.first_competence as "firstCompetence",c.content_hash as "contentHash",c.closed_by as "closedBy",c.closed_at as "closedAt",c.correlation_id as "correlationId",c.content,c.created_at as "createdAt",u.nome as "closedByName",cy.status as "cycleStatus" from app.accounting_period_close c join app.accounting_period_cycle cy on cy.tenant_id=c.tenant_id and cy.company_id=c.company_id and cy.competence=c.competence left join app.usuario u on u.id=c.closed_by where c.tenant_id=$1 and c.company_id=$2 and c.competence between $3 and $4 order by c.competence,c.version desc`,[actor.tenantId,companyId,from,to]);
+      for(const close of closes.rows as Array<Record<string,unknown>>){const stored=close['content'] as AccountingCloseSnapshotInput;const content={...stored,closedAt:new Date(String(stored.closedAt)).toISOString()};let snapshotValid=false;try{snapshotValid=hashAccountingClose(content)===String(close['contentHash']).trim();}catch{snapshotValid=false;}close['snapshotValid']=snapshotValid;}
+      const events=await client.query(`select e.competence,e.action,e.result,e.version,e.reason,e.blockers,e.actor_id as "actorId",u.nome as "actorName",e.correlation_id as "correlationId",e.occurred_at as "occurredAt" from app.accounting_period_event e left join app.usuario u on u.id=e.actor_id where e.tenant_id=$1 and e.company_id=$2 and e.competence between $3 and $4 order by e.competence,e.occurred_at,e.id`,[actor.tenantId,companyId,from,to]);
+      return {cycles:cycles.rows,closes:closes.rows,events:events.rows,correlationId};
+    });
   }
 
   private async evento(client: PoolClient, actor: AtorRazao, companyId: string, versionId: string | null, action: string, result: string, correlationId: string, details: unknown): Promise<void> {
@@ -71,7 +189,7 @@ export class RazaoContabilService {
   }
 
   private async versaoAtiva(client: PoolClient, actor: AtorRazao, companyId: string, correlationId: string): Promise<VersaoAtiva> {
-    await client.query(`select pg_advisory_xact_lock(hashtextextended($1,0))`, [`${actor.tenantId}:${companyId}:razao`]);
+    await this.lockAccountingPeriod(client,actor.tenantId,companyId);
     const current = await client.query<{ id: string; numero: string; integridade: 'CONSISTENT' | 'INCONSISTENT' }>(
       `select v.id,p.numero_versao::text as numero,p.integridade from app.projecao_razao p
        join app.projecao_razao_versao v on v.id=p.versao_ativa_id and v.tenant_id=p.tenant_id and v.empresa_id=p.empresa_id

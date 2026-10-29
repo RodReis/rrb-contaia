@@ -44,6 +44,7 @@ export const ROTULO_DA_ACAO = {
   processar_origens: 'Processar origens',
   verificar_integridade: 'Verificar integridade',
   reconstruir_projecao: 'Reconstruir projeção',
+  fechar_competencia: 'Fechar competência',
 } as const;
 
 export type AcaoDoCatalogo = keyof typeof ROTULO_DA_ACAO;
@@ -108,6 +109,11 @@ export const CATALOGO = [
         id: 'razao',
         rotulo: 'Razão contábil',
         acoes: ['consultar', 'verificar_integridade', 'reconstruir_projecao'],
+      },
+      {
+        id: 'fechamento',
+        rotulo: 'Fechamento',
+        acoes: ['consultar', 'fechar_competencia', 'reabrir'],
       },
       {
         id: 'automatizacao',

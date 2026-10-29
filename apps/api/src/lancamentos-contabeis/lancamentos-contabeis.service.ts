@@ -17,6 +17,11 @@ export class LancamentosContabeisService {
     const errors = [...validarCabecalhoContabil(d), ...validarPartidasContabeis(d.lines as readonly PartidaContabil[], efetivar)];
     if (errors.length) throw new ErroDeDominio(errors[0]!.code as never, errors.map((e) => e.message).join(' '), errors.map((e) => ({ campo: e.field, codigo: e.code as never })));
   }
+  private async exigirCompetenciaAberta(c: PoolClient, a: AtorLancamento, companyId: string, competence: string): Promise<void> {
+    await c.query(`select pg_advisory_xact_lock(hashtextextended($1,0))`, [`${a.tenantId}:${companyId}:accounting-period:ledger`]);
+    const cycle = await c.query(`select status from app.accounting_period_cycle where tenant_id=$1 and company_id=$2 and competence=$3`, [a.tenantId,companyId,competence]);
+    if (cycle.rows[0]?.status === 'CLOSED') throw erro('ACCOUNTING_PERIOD_ALREADY_CLOSED', 'Competência fechada aceita somente estorno.');
+  }
   private async gravarEvento(c: PoolClient, a: AtorLancamento, companyId: string, id: string, action: string, previous: string | null, next: string | null, corr: string, number: number | null = null, reason: string | null = null): Promise<string> {
     const { rows } = await c.query<{ id: string }>(`insert into app.lancamento_contabil_evento(tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,numero,motivo,usuario_id,correlation_id) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id`, [a.tenantId, companyId, id, action, previous, next, number, reason, a.usuarioId, corr]);
     return rows[0]!.id;
@@ -32,6 +37,8 @@ export class LancamentosContabeisService {
   }
   async efetivar(a: AtorLancamento, companyId: string, id: string, version: number, corr: string) {
     return this.contexto(a, async (c) => {
+      const scope = await c.query<{ competence: string }>(`select competencia as competence from app.lancamento_contabil where id=$1 and empresa_id=$2`, [id,companyId]);
+      if (scope.rows[0]) await this.exigirCompetenciaAberta(c,a,companyId,scope.rows[0].competence);
       const { rows } = await c.query(`select * from app.lancamento_contabil where id=$1 and empresa_id=$2 and estado='DRAFT' for update`, [id, companyId]);
       const entry = rows[0]; if (!entry || Number(entry.versao) !== version) throw new ErroDeConflito(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_VERSION_CONFLICT, 'Rascunho não encontrado ou alterado.');
       const lines = await c.query(`select p.id as "lineId",p.conta_id as "accountId",p.centro_custo_id as "costCenterId",p.lado as side,p.valor_centavos::text as "amountCents",p.complemento as memo,p.posicao as position,cc.tipo as "accountType",cc.classe_contabil as "accountClass",cc.politica_centro_custo as "costCenterPolicy",cc.arquivada as "accountArchived",ct.tipo as "costCenterType",ct.arquivada as "costCenterArchived" from app.lancamento_contabil_partida p join app.conta_contabil cc on cc.id=p.conta_id and cc.empresa_id=p.empresa_id left join app.centro_custo ct on ct.id=p.centro_custo_id and ct.empresa_id=p.empresa_id where p.lancamento_id=$1 and p.empresa_id=$2 and p.ativa order by p.posicao`, [id, companyId]);
@@ -56,6 +63,7 @@ export class LancamentosContabeisService {
   }
   async criar(a: AtorLancamento, companyId: string, d: DadosRascunho, corr: string) {
     return this.contexto(a, async (c) => {
+      await this.exigirCompetenciaAberta(c,a,companyId,d.competence);
       this.validar(d, false);
       const { rows } = await c.query(`insert into app.lancamento_contabil(tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,referencia_externa,criado_por) values($1,$2,$3,$4,$5,$6,$7,$8) returning id,versao`, [a.tenantId, companyId, Number(d.accountingDate.slice(0, 4)), d.accountingDate, d.competence, d.history.trim(), d.externalReference, a.usuarioId]);
       const id = rows[0]!.id as string; await this.gravarPartidas(c, a, companyId, id, d.lines); await this.gravarEvento(c, a, companyId, id, 'CRIADO', null, 'DRAFT', corr);
@@ -65,6 +73,9 @@ export class LancamentosContabeisService {
   async editar(a: AtorLancamento, companyId: string, id: string, d: DadosRascunho, corr: string) {
     return this.contexto(a, async (c) => {
       this.validar(d, false); if (!d.version) throw new ErroDeConflito(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_VERSION_CONFLICT, 'Informe a versão do rascunho.');
+      const scope = await c.query<{ competence: string }>(`select competencia as competence from app.lancamento_contabil where id=$1 and empresa_id=$2`, [id,companyId]);
+      if (scope.rows[0]) await this.exigirCompetenciaAberta(c,a,companyId,scope.rows[0].competence);
+      await this.exigirCompetenciaAberta(c,a,companyId,d.competence);
       await c.query(`select id from app.lancamento_contabil where id=$1 and empresa_id=$2 for update`, [id, companyId]);
       const { rows } = await c.query(`update app.lancamento_contabil set data_contabil=$1,competencia=$2,exercicio=$3,historico=$4,referencia_externa=$5,atualizado_em=now() where id=$6 and empresa_id=$7 and estado='DRAFT' and versao=$8 returning versao`, [d.accountingDate, d.competence, Number(d.accountingDate.slice(0, 4)), d.history.trim(), d.externalReference, id, companyId, d.version]);
       if (!rows[0]) throw new ErroDeConflito(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_VERSION_CONFLICT, 'O rascunho mudou. Atualize os dados.');
@@ -74,6 +85,8 @@ export class LancamentosContabeisService {
   }
   async descartar(a: AtorLancamento, companyId: string, id: string, reason: string, version: number | undefined, corr: string) {
     return this.contexto(a, async (c) => {
+      const scope = await c.query<{ competence: string }>(`select competencia as competence from app.lancamento_contabil where id=$1 and empresa_id=$2`, [id,companyId]);
+      if (scope.rows[0]) await this.exigirCompetenciaAberta(c,a,companyId,scope.rows[0].competence);
       await c.query(`select set_config('app.lancamento_contabil_transicao','true',true)`);
       const { rows } = await c.query(`update app.lancamento_contabil set estado='DISCARDED',cancelamento_motivo=$1,atualizado_em=now() where id=$2 and empresa_id=$3 and estado='DRAFT' and ($4::int is null or versao=$4) returning numero`, [reason.trim(), id, companyId, version ?? null]);
       if (!rows[0]) throw new ErroDeConflito(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_VERSION_CONFLICT, 'Rascunho não encontrado ou alterado.');
@@ -82,6 +95,8 @@ export class LancamentosContabeisService {
   }
   async cancelar(a: AtorLancamento, companyId: string, id: string, reason: string, version: number, corr: string) {
     return this.contexto(a, async (c) => {
+      const scope = await c.query<{ competence: string }>(`select competencia as competence from app.lancamento_contabil where id=$1 and empresa_id=$2`, [id,companyId]);
+      if (scope.rows[0]) await this.exigirCompetenciaAberta(c,a,companyId,scope.rows[0].competence);
       const { rows } = await c.query(`select estado as status,numero as "entryNumber",versao as version from app.lancamento_contabil where empresa_id=$1 and id=$2 for update`, [companyId, id]);
       const entry = rows[0] as {status:string;entryNumber:number;version:number}|undefined;
       if (!entry || entry.status !== 'POSTED') throw erro(CODIGOS_DE_ERRO.ACCOUNTING_ENTRY_CANCELLATION_FORBIDDEN, 'Lançamento não pode ser cancelado.');
