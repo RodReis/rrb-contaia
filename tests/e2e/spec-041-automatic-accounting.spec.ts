@@ -172,7 +172,7 @@ test('F41 publica regra, gera rascunho F40, abre pendência e reprocessa após n
   await expect(draftRow).toContainText('D R$ 12,50 · C R$ 12,50');
   await draftRow.click();
   await expect(page.getByLabel('Histórico')).toHaveValue(new RegExp(`Geração automática F41.*${matchingDocumentId}`, 'u'));
-  await expect(page.getByRole('heading', { name: 'Detalhe do lançamento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Editar rascunho' })).toBeVisible();
 
   await page.getByRole('tab', { name: 'Regras contábeis' }).click();
   await expect(page.getByRole('heading', { name: 'Automatização contábil' })).toBeVisible();
