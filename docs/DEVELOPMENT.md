@@ -895,7 +895,9 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [x] Migration 0085 cria regras/versões/conteúdo, gerações idempotentes, pendências reprocessáveis e eventos append-only, com RLS, índices por empresa e permissão mínima; tabelas incluídas na matriz de classificação e fixtures RLS.
 - [x] API valida origem elegível DF-e/F36–F38, campos normalizados, hierarquia de classes pai/filha, contas/centros ativos e política de rateio; cria somente rascunho F40 e mantém auditoria/pendência em falha.
 - [x] Tela compartilhada `Empresa → Regras contábeis` / `Contábil → Automatização`, com editor versionado, origem selecionável, simulação explicada, gerações e pendências. Menu e permissões de admin/contador, auxiliar e auditor alinhados à SPEC.
-- [x] Validação local focada: domínio 5/5, tela/axe 3/3, DB anti-drift 17/17 e matriz RLS 5/5; typecheck API/Web/DB e lint API/Web/Domain/DB passaram (warning preexistente `aba-de-enderecos.tsx:104`).
-- [x] Spec E2E autenticada cobre publicação de duas regras, seleção por modelo, geração F40 balanceada, repetição idempotente, pendência `NO_MATCH`, resolução por reprocessamento e abertura do rascunho para revisão; inclui prova visual CLARO/ESCURO × 768/1024/1440 com verificação de rolagem e axe crítico.
-- [ ] E2E local `not_run`: Playwright não iniciou o Cofre por ausência de `COFRE_SERVICE_TOKEN`; as provas visuais autenticadas serão produzidas pela CI no HEAD.
-- [ ] Revisão final, PR com `refs #55`, CI verde no HEAD, merge confirmado, comentário de encerramento e `proplan:done` pendentes. Issue permanece aberta para aceite do PI.
+- [x] Validação local focada: domínio 5/5, tela/axe 4/4, API 1.501/1.501, telas 1.344/1.344, domínio completo 993/993; typecheck API/Web e lint API/Web/Domain passaram. Warning preexistente em `aba-de-enderecos.tsx:104`.
+- [x] Simulação calcula os mesmos valores/rateios da geração, apresenta débitos/créditos/diferença e rejeita partidas desbalanceadas; expressões aceitam caminhos monetários fiscais como `tax.amountCents`.
+- [x] E2E autenticada cobre publicação, simulação balanceada e desbalanceada, geração F40 balanceada e idempotente, pendência `NO_MATCH`, resolução por reprocessamento e abertura do rascunho; CI também executou provas visuais CLARO/ESCURO × 768/1024/1440, axe e rolagem.
+- [x] CI verde no HEAD `8a5d006`: run `40907826508` concluiu build, quality, test-regras, test-banco, test-tela, E2E (174/174) e gate.
+- [ ] E2E local `not_run`: o worktree não tem `DATABASE_URL` nem `COFRE_SERVICE_TOKEN`; CI executou a composição e as provas autenticadas.
+- [ ] Merge confirmado, comentário de encerramento e `proplan:done` pendentes. Issue permanece aberta para aceite do PI.
