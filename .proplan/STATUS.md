@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -73,9 +73,7 @@ updated: 2026-10-28
 
 ## Em Andamento
 
-### [MVP2] Fiscal, contábil e financeiro (#31)
-
-- [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55)
+_(vazio)_
 
 ## Feito
 
@@ -85,6 +83,7 @@ _(vazio)_
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55, finalizado em: 2026-10-29)
 - [MVP2][SPEC-039][F39] Catálogo contábil operacional (#53, finalizado em: 2026-10-28)
 - [MVP2][SPEC-040][F40] Lançamentos contábeis manuais balanceados (#54, finalizado em: 2026-10-28)
 - [MVP2][SPEC-038][F38] Apuração trimestral de IRPJ e CSLL para autopeças no Lucro Presumido (#44, finalizado em: 2026-10-27)
