@@ -59,9 +59,9 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
     if (!projectionVersion || !revenueAccountId || !expenseAccountId) throw new Error('Fixtures contábeis F45 incompletas.');
     await setup.query(`insert into app.projecao_razao(tenant_id,empresa_id,versao_ativa_id,numero_versao,integridade)
       values($1,$2,$3,1,'CONSISTENT')`, [tenantId, companyId, projectionVersion]);
-    for (const [accountId, code, name, side, cents] of [
-      [revenueAccountId, `${PREFIXO}-receita`, 'Receita sintética da demonstração', 'CREDIT', 12500],
-      [expenseAccountId, `${PREFIXO}-despesa`, 'Despesa sintética da demonstração', 'DEBIT', 4300],
+    for (const [accountId, code, name, side, cents, counterpartId, counterpartSide, counterpartCents] of [
+      [revenueAccountId, `${PREFIXO}-receita`, 'Receita sintética da demonstração', 'CREDIT', 12500, expenseAccountId, 'DEBIT', 12500],
+      [expenseAccountId, `${PREFIXO}-despesa`, 'Despesa sintética da demonstração', 'DEBIT', 4300, revenueAccountId, 'CREDIT', 4300],
     ] as const) {
       const entry = (await setup.query<{ id: string }>(
         `insert into app.lancamento_contabil(tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
@@ -69,23 +69,27 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
         [tenantId, companyId, competence, userId],
       )).rows[0]?.id;
       if (!entry) throw new Error(`Lançamento sintético da conta ${code} não foi criado.`);
-      const posting = (await setup.query<{ id: string }>(
+      const postings = (await setup.query<{ id: string }>(
         `insert into app.lancamento_contabil_partida(tenant_id,empresa_id,lancamento_id,conta_id,lado,valor_centavos,posicao)
-         values($1,$2,$3,$4,$5,$6,0) returning id`, [tenantId, companyId, entry, accountId, side, cents],
-      )).rows[0]?.id;
+         values($1,$2,$3,$4,$5,$6,0),($1,$2,$3,$7,$8,$9,1) returning id`,
+        [tenantId, companyId, entry, accountId, side, cents, counterpartId, counterpartSide, counterpartCents],
+      )).rows;
       const event = (await setup.query<{ id: string }>(
         `insert into app.lancamento_contabil_evento(tenant_id,empresa_id,lancamento_id,acao,estado_anterior,estado_novo,numero,usuario_id,correlation_id)
          values($1,$2,$3,'EFETIVADO','DRAFT','POSTED',$4,$5,$6) returning id`,
         [tenantId, companyId, entry, side === 'CREDIT' ? 1 : 2, userId, correlationId],
       )).rows[0]?.id;
-      if (!posting || !event) throw new Error(`Movimento sintético da conta ${code} não foi criado.`);
+      if (postings.length !== 2 || !event) throw new Error(`Movimento sintético da conta ${code} não foi criado.`);
       await setup.query(`select set_config('app.lancamento_contabil_transicao','true',true)`);
       await setup.query(`update app.lancamento_contabil set estado='POSTED',numero=$1,efetivado_por=$2 where id=$3`,
         [side === 'CREDIT' ? 1 : 2, userId, entry]);
-      await setup.query(
+      for (const [position, posting] of postings.entries()) await setup.query(
         `insert into app.movimento_razao(tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,competencia,data_contabil,conta_id,codigo_conta,nome_conta,historico,numero_lancamento,posicao,lado,valor_centavos,tipo)
-         values($1,$2,$3,$4,$5,$6,$7,'2097-04-15',$8,$9,$10,'Movimento sintético da prova visual F45',$11,0,$12,$13,'POSTING')`,
-        [tenantId, companyId, projectionVersion, entry, posting, event, competence, accountId, code, name, side === 'CREDIT' ? 1 : 2, side, cents],
+         values($1,$2,$3,$4,$5,$6,$7,'2097-04-15',$8,$9,$10,'Movimento sintético da prova visual F45',$11,$12,$13,$14,'POSTING')`,
+        [tenantId, companyId, projectionVersion, entry, posting.id, event, competence,
+          position === 0 ? accountId : counterpartId, position === 0 ? code : `${PREFIXO}-${side.toLowerCase()}-contrapartida`,
+          position === 0 ? name : 'Contrapartida sintética', side === 'CREDIT' ? 1 : 2, position,
+          position === 0 ? side : counterpartSide, position === 0 ? cents : counterpartCents],
       );
     }
     await setup.query(`insert into app.saldo_mensal_razao(tenant_id,empresa_id,versao_id,competencia,conta_id,debitos_centavos,creditos_centavos,movimentos)
