@@ -64,9 +64,9 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
       [expenseAccountId, `${PREFIXO}-despesa`, 'Despesa sintética da demonstração', 'DEBIT', 4300],
     ] as const) {
       const entry = (await setup.query<{ id: string }>(
-        `insert into app.lancamento_contabil(tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por,estado,numero,efetivado_por)
-         values($1,$2,2097,'2097-04-15',$3,'Movimento sintético da prova visual F45',$4,'POSTED',$5,$4) returning id`,
-        [tenantId, companyId, competence, userId, side === 'CREDIT' ? 1 : 2],
+        `insert into app.lancamento_contabil(tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
+         values($1,$2,2097,'2097-04-15',$3,'Movimento sintético da prova visual F45',$4) returning id`,
+        [tenantId, companyId, competence, userId],
       )).rows[0]?.id;
       if (!entry) throw new Error(`Lançamento sintético da conta ${code} não foi criado.`);
       const posting = (await setup.query<{ id: string }>(
@@ -79,6 +79,9 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
         [tenantId, companyId, entry, side === 'CREDIT' ? 1 : 2, userId, correlationId],
       )).rows[0]?.id;
       if (!posting || !event) throw new Error(`Movimento sintético da conta ${code} não foi criado.`);
+      await setup.query(`select set_config('app.lancamento_contabil_transicao','true',true)`);
+      await setup.query(`update app.lancamento_contabil set estado='POSTED',numero=$1,efetivado_por=$2 where id=$3`,
+        [side === 'CREDIT' ? 1 : 2, userId, entry]);
       await setup.query(
         `insert into app.movimento_razao(tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,competencia,data_contabil,conta_id,codigo_conta,nome_conta,historico,numero_lancamento,posicao,lado,valor_centavos)
          values($1,$2,$3,$4,$5,$6,$7,'2097-04-15',$8,$9,$10,'Movimento sintético da prova visual F45',$11,0,$12,$13)`,
