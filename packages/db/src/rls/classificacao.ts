@@ -441,6 +441,12 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.opening_balance_preview', classe: 'empresa', origem: 'F44 / SPEC-044', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.opening_balance_idempotency', classe: 'empresa', origem: 'F44 / SPEC-044', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.opening_balance_event', classe: 'empresa', origem: 'F44 / SPEC-044', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_version', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_line', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_mapping', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_component', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_event', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_export', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

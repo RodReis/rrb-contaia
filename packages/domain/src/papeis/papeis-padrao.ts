@@ -50,6 +50,8 @@ const FECHAMENTO_OPERACAO: readonly ChaveDePermissao[] = [...FECHAMENTO_LEITURA,
 const ABERTURA_LEITURA: readonly ChaveDePermissao[] = ['contabil.saldos_abertura.consultar'];
 const ABERTURA_PREPARO: readonly ChaveDePermissao[] = [...ABERTURA_LEITURA, 'contabil.saldos_abertura.preparar'];
 const ABERTURA_TODAS: readonly ChaveDePermissao[] = [...ABERTURA_PREPARO, 'contabil.saldos_abertura.aprovar'];
+const DRE_LEITURA: readonly ChaveDePermissao[] = ['contabil.dre_gerencial.consultar', 'contabil.dre_gerencial.baixar'];
+const DRE_TODAS: readonly ChaveDePermissao[] = [...DRE_LEITURA, 'contabil.dre_gerencial.editar', 'contabil.dre_gerencial.publicar'];
 const AUTOMATIZACAO_LEITURA: readonly ChaveDePermissao[] = ['contabil.automatizacao.consultar'];
 const AUTOMATIZACAO_OPERACAO: readonly ChaveDePermissao[] = [...AUTOMATIZACAO_LEITURA, 'contabil.automatizacao.simular', 'contabil.automatizacao.processar_origens'];
 const AUTOMATIZACAO_TODAS: readonly ChaveDePermissao[] = [...AUTOMATIZACAO_OPERACAO, 'contabil.automatizacao.manter_regras', 'contabil.automatizacao.publicar'];
@@ -82,6 +84,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...RAZAO_VERIFICACAO,
     ...FECHAMENTO_OPERACAO,
     ...ABERTURA_TODAS,
+    ...DRE_TODAS,
     ...AUTOMATIZACAO_TODAS,
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
@@ -101,6 +104,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...RAZAO_LEITURA,
     ...FECHAMENTO_LEITURA,
     ...ABERTURA_PREPARO,
+    ...DRE_LEITURA,
     ...AUTOMATIZACAO_OPERACAO,
     ...OPERACAO,
     ...OBRIGACOES_OPERACAO,
@@ -113,6 +117,7 @@ const PERMISSOES_DO_PAPEL: Readonly<Record<PapelPadrao, readonly ChaveDePermissa
     ...RAZAO_LEITURA,
     ...FECHAMENTO_LEITURA,
     ...ABERTURA_LEITURA,
+    ...DRE_LEITURA,
     ...AUTOMATIZACAO_LEITURA,
     'escritorio.dados.consultar',
     'empresas.cadastro.consultar',
