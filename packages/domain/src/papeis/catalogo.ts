@@ -122,6 +122,11 @@ export const CATALOGO = [
         acoes: ['consultar', 'preparar', 'aprovar'],
       },
       {
+        id: 'dre_gerencial',
+        rotulo: 'DRE gerencial',
+        acoes: ['consultar', 'baixar', 'editar', 'publicar'],
+      },
+      {
         id: 'automatizacao',
         rotulo: 'Automatização contábil',
         acoes: ['consultar', 'simular', 'manter_regras', 'publicar', 'processar_origens'],

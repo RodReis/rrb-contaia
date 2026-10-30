@@ -25,6 +25,8 @@ export type EmpresaId = Brand<string, 'EmpresaId'>;
 export { projetarSaudeEmpresa, FONTES_DA_SAUDE } from './dashboard/saude-empresa.js';
 export { calcularBalancete } from './razao-contabil.js';
 export type { ContaParaBalancete, FiltroCentroCusto, LinhaBalancete, LadoContabil, MovimentoParaBalancete, NaturezaSaldo, ResultadoBalancete } from './razao-contabil.js';
+export { calculateStatementReport, validateStatementStructure } from './dre-gerencial.js';
+export type { ContaResultadoDre, LinhaDre, LinhaRelatorioDre, ModoPeriodoDre, MovimentoDre, OperadorDre, RelatorioDre, TipoLinhaDre, VisaoDre } from './dre-gerencial.js';
 export { canonicalOpeningBalance, hashOpeningBalance, openingBalanceTotals, openingMovementDate, parseOpeningAmount, validateOpeningBaseDate, validateOpeningLines } from './saldos-abertura.js';
 export type { OpeningAccountRule, OpeningBalanceError, OpeningBalanceLine, OpeningBalanceSnapshot, OpeningBalanceSource, OpeningMovementDate, OpeningValidationContext } from './saldos-abertura.js';
 export type { CorDaSaude, EntradaDaProjecao, FonteDaSaude, MotivoDeSaude, ResultadoDaSaude, SinalDeSaude } from './dashboard/saude-empresa.js';

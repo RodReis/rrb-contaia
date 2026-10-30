@@ -43,6 +43,10 @@ const proximo = (): number => {
   return contador;
 };
 
+const criarVersaoDre = (banco: Consultavel, e: Escopo): Promise<string> => unico(banco, `insert into app.accounting_statement_version(tenant_id,company_id,version,status,created_by,correlation_id) values($1,$2,$3,'DRAFT',$4,'f45-rls') returning id`,[e.tenantId,e.empresaId,30000+proximo(),e.autorId]);
+const criarLinhaDre = (banco: Consultavel, e: Escopo, versionId: string, code: string): Promise<string> => unico(banco, `insert into app.accounting_statement_line(tenant_id,company_id,version_id,line_code,title,line_type,display_order,level,presentation_sign) values($1,$2,$3,$4,$5,'DETAIL',$6,0,1) returning id`,[e.tenantId,e.empresaId,versionId,code,`Linha ${code}`,proximo()]);
+const criarContaDre = (banco: Consultavel, e: Escopo): Promise<string> => unico(banco, `insert into app.conta_contabil(tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo) values($1,$2,$3,'Conta de receita F45','analitica','credora','REVENUE','OPTIONAL') returning id`,[e.tenantId,e.empresaId,`f45-${e.sufixo}-${proximo()}`]);
+
 const unico = async (banco: Consultavel, sql: string, parametros: unknown[]): Promise<string> => {
   const { rows } = await banco.query<{ id: string }>(sql, parametros);
   const linha = rows[0];
@@ -1874,5 +1878,28 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.opening_balance_event': {
     preparar: async(admin,e)=>FIXTURES['app.opening_balance_version']!.inserir(admin,e,{}).then(versionId=>({versionId})),
     inserir:(banco,e,r)=>unico(banco,`insert into app.opening_balance_event(tenant_id,empresa_id,version_id,action,result,actor_id,correlation_id) values($1,$2,$3,'CONFLICT','RECUSADO',$4,'f44-rls') returning id`,[e.tenantId,e.empresaId,r['versionId'],e.autorId]),
+  },
+  'app.accounting_statement_version': {
+    inserir:(banco,e)=>criarVersaoDre(banco,e), colunaDeAtualizacao:'revision', atualizacao:'revision=revision+1', colunaDeEmpresa:'company_id',
+  },
+  'app.accounting_statement_line': {
+    preparar:async(admin,e)=>({versionId:await criarVersaoDre(admin,e),code:`RLS-${proximo()}`}),
+    inserir:(banco,e,r)=>criarLinhaDre(banco,e,r['versionId']!,r['code']!), colunaDeAtualizacao:'title', atualizacao:'title=title', colunaDeEmpresa:'company_id',
+  },
+  'app.accounting_statement_mapping': {
+    preparar:async(admin,e)=>{const versionId=await criarVersaoDre(admin,e);const code=`MAP-${proximo()}`;await criarLinhaDre(admin,e,versionId,code);const accountId=await criarContaDre(admin,e);return {versionId,code,accountId};},
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_statement_mapping(tenant_id,company_id,version_id,line_code,account_id,account_class,account_code,account_name) values($1,$2,$3,$4,$5,'REVENUE','RLS','Conta de receita F45') returning account_id as id`,[e.tenantId,e.empresaId,r['versionId'],r['code'],r['accountId']]), colunaDeLeitura:'account_id',colunaDeChave:'account_id',colunaDeAtualizacao:'account_name',atualizacao:'account_name=account_name',colunaDeEmpresa:'company_id',
+  },
+  'app.accounting_statement_component': {
+    preparar:async(admin,e)=>{const versionId=await criarVersaoDre(admin,e);const lineCode=`SUB-${proximo()}`;const componentCode=`DET-${proximo()}`;await criarLinhaDre(admin,e,versionId,lineCode);await criarLinhaDre(admin,e,versionId,componentCode);return {versionId,lineCode,componentCode};},
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_statement_component(tenant_id,company_id,version_id,line_code,component_code,operator) values($1,$2,$3,$4,$5,'ADD') returning component_code as id`,[e.tenantId,e.empresaId,r['versionId'],r['lineCode'],r['componentCode']]), colunaDeLeitura:'component_code',colunaDeChave:'component_code',colunaDeAtualizacao:'operator',atualizacao:'operator=operator',colunaDeEmpresa:'company_id',
+  },
+  'app.accounting_statement_event': {
+    preparar:async(admin,e)=>({versionId:await criarVersaoDre(admin,e)}),
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_statement_event(tenant_id,company_id,version_id,action,result,actor_id,correlation_id) values($1,$2,$3,'DRAFT_CREATED','SUCESSO',$4,'f45-rls') returning id`,[e.tenantId,e.empresaId,r['versionId'],e.autorId]), colunaDeEmpresa:'company_id',
+  },
+  'app.accounting_statement_export': {
+    preparar:async(admin,e)=>({versionId:await criarVersaoDre(admin,e)}),
+    inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_statement_export(tenant_id,company_id,version_id,competence,period_mode,format,idempotency_key,request_hash,report_hash,canonical_result,actor_id,correlation_id) values($1,$2,$3,'2097-01','MONTH','CSV',$4,repeat('a',64),repeat('b',64),'{}'::jsonb,$5,'f45-rls') returning id`,[e.tenantId,e.empresaId,r['versionId'],`f45-export-${e.sufixo}-${proximo()}`,e.autorId]), colunaDeEmpresa:'company_id',
   },
 };
