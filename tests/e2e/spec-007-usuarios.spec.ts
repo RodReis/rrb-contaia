@@ -345,7 +345,7 @@ test('alterar papéis vale na próxima requisição, com a mesma sessão', async
   await usuario.goto('/empresas');
   await expect
     .poll(() => itensDoMenu(usuario))
-    .toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'Saldos de abertura', 'Automatização contábil', 'Histórico de Informações', 'Trilha de auditoria', 'Minha carteira', 'Cofre de certificados', 'Motor tributário', 'Agenda de obrigações', 'Usuários e permissões']);
+    .toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'DRE gerencial', 'Saldos de abertura', 'Automatização contábil', 'Histórico de Informações', 'Trilha de auditoria', 'Minha carteira', 'Cofre de certificados', 'Motor tributário', 'Agenda de obrigações', 'Usuários e permissões']);
 
   await usuario.getByRole('link', { name: 'Usuários e permissões' }).click();
   await expect(usuario.getByRole('table')).toBeVisible();
