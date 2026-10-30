@@ -25,6 +25,7 @@ let userId = '';
 let companyId = '';
 let revenueAccountId = '';
 let expenseAccountId = '';
+let counterpartAccountId = '';
 let achados: AchadosVisuais | null = null;
 
 test.describe.configure({ mode: 'serial' });
@@ -46,22 +47,25 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
     const accounts = await setup.query<{ id: string; class: string }>(
       `insert into app.conta_contabil(tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo)
        values($1,$2,$3,'Receita sintética da demonstração','analitica','credora','REVENUE','OPTIONAL'),
-         ($1,$2,$4,'Despesa sintética da demonstração','analitica','devedora','EXPENSE','OPTIONAL') returning id,classe_contabil as class`,
-      [tenantId, companyId, `${PREFIXO}-receita`, `${PREFIXO}-despesa`],
+         ($1,$2,$4,'Despesa sintética da demonstração','analitica','devedora','EXPENSE','OPTIONAL'),
+         ($1,$2,$5,'Caixa sintético da demonstração','analitica','devedora','ASSET','OPTIONAL') returning id,classe_contabil as class`,
+      [tenantId, companyId, `${PREFIXO}-receita`, `${PREFIXO}-despesa`, `${PREFIXO}-caixa`],
     );
     revenueAccountId = accounts.rows.find((item) => item.class === 'REVENUE')?.id ?? '';
     expenseAccountId = accounts.rows.find((item) => item.class === 'EXPENSE')?.id ?? '';
+    counterpartAccountId = accounts.rows.find((item) => item.class === 'ASSET')?.id ?? '';
 
     const projectionVersion = (await setup.query<{ id: string }>(
       `insert into app.projecao_razao_versao(tenant_id,empresa_id,numero,estado,criado_por,correlation_id,ativado_em)
        values($1,$2,1,'ACTIVE',$3,$4,now()) returning id`, [tenantId, companyId, userId, correlationId],
     )).rows[0]?.id;
-    if (!projectionVersion || !revenueAccountId || !expenseAccountId) throw new Error('Fixtures contábeis F45 incompletas.');
+    if (!projectionVersion || !revenueAccountId || !expenseAccountId || !counterpartAccountId)
+      throw new Error('Fixtures contábeis F45 incompletas.');
     await setup.query(`insert into app.projecao_razao(tenant_id,empresa_id,versao_ativa_id,numero_versao,integridade)
       values($1,$2,$3,1,'CONSISTENT')`, [tenantId, companyId, projectionVersion]);
     for (const [accountId, code, name, side, cents, counterpartId, counterpartSide, counterpartCents] of [
-      [revenueAccountId, `${PREFIXO}-receita`, 'Receita sintética da demonstração', 'CREDIT', 12500, expenseAccountId, 'DEBIT', 12500],
-      [expenseAccountId, `${PREFIXO}-despesa`, 'Despesa sintética da demonstração', 'DEBIT', 4300, revenueAccountId, 'CREDIT', 4300],
+      [revenueAccountId, `${PREFIXO}-receita`, 'Receita sintética da demonstração', 'CREDIT', 12500, counterpartAccountId, 'DEBIT', 12500],
+      [expenseAccountId, `${PREFIXO}-despesa`, 'Despesa sintética da demonstração', 'DEBIT', 4300, counterpartAccountId, 'CREDIT', 4300],
     ] as const) {
       const entry = (await setup.query<{ id: string }>(
         `insert into app.lancamento_contabil(tenant_id,empresa_id,exercicio,data_contabil,competencia,historico,criado_por)
@@ -87,14 +91,14 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
         `insert into app.movimento_razao(tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,competencia,data_contabil,conta_id,codigo_conta,nome_conta,historico,numero_lancamento,posicao,lado,valor_centavos,tipo)
          values($1,$2,$3,$4,$5,$6,$7,'2097-04-15',$8,$9,$10,'Movimento sintético da prova visual F45',$11,$12,$13,$14,'POSTING')`,
         [tenantId, companyId, projectionVersion, entry, posting.id, event, competence,
-          position === 0 ? accountId : counterpartId, position === 0 ? code : `${PREFIXO}-${side.toLowerCase()}-contrapartida`,
-          position === 0 ? name : 'Contrapartida sintética', side === 'CREDIT' ? 1 : 2, position,
+          position === 0 ? accountId : counterpartId, position === 0 ? code : `${PREFIXO}-caixa`,
+          position === 0 ? name : 'Caixa sintético da demonstração', side === 'CREDIT' ? 1 : 2, position,
           position === 0 ? side : counterpartSide, position === 0 ? cents : counterpartCents],
       );
     }
     await setup.query(`insert into app.saldo_mensal_razao(tenant_id,empresa_id,versao_id,competencia,conta_id,debitos_centavos,creditos_centavos,movimentos)
-      values($1,$2,$3,$4,$5,0,12500,1),($1,$2,$3,$4,$6,4300,0,1)`,
-    [tenantId, companyId, projectionVersion, competence, revenueAccountId, expenseAccountId]);
+      values($1,$2,$3,$4,$5,0,12500,1),($1,$2,$3,$4,$6,4300,0,1),($1,$2,$3,$4,$7,12500,4300,2)`,
+    [tenantId, companyId, projectionVersion, competence, revenueAccountId, expenseAccountId, counterpartAccountId]);
     await setup.query('commit');
   } catch (cause) {
     await setup.query('rollback');
@@ -146,7 +150,7 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await page.waitForTimeout(5_000);
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 });
 
-  await page.setViewportSize({ width: 768, height: 900 });
+  await page.setViewportSize({ width: 767, height: 900 });
   const mobile = page.locator('[aria-label="DRE em cards empilhados"]');
   await expect(mobile).toBeVisible();
   await expect(mobile.getByText('Atual')).toBeVisible();
