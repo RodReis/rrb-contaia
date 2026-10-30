@@ -83,8 +83,8 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
       await setup.query(`update app.lancamento_contabil set estado='POSTED',numero=$1,efetivado_por=$2 where id=$3`,
         [side === 'CREDIT' ? 1 : 2, userId, entry]);
       await setup.query(
-        `insert into app.movimento_razao(tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,competencia,data_contabil,conta_id,codigo_conta,nome_conta,historico,numero_lancamento,posicao,lado,valor_centavos)
-         values($1,$2,$3,$4,$5,$6,$7,'2097-04-15',$8,$9,$10,'Movimento sintético da prova visual F45',$11,0,$12,$13)`,
+        `insert into app.movimento_razao(tenant_id,empresa_id,versao_id,lancamento_id,partida_id,evento_origem_id,competencia,data_contabil,conta_id,codigo_conta,nome_conta,historico,numero_lancamento,posicao,lado,valor_centavos,tipo)
+         values($1,$2,$3,$4,$5,$6,$7,'2097-04-15',$8,$9,$10,'Movimento sintético da prova visual F45',$11,0,$12,$13,'POSTING')`,
         [tenantId, companyId, projectionVersion, entry, posting, event, competence, accountId, code, name, side === 'CREDIT' ? 1 : 2, side, cents],
       );
     }
