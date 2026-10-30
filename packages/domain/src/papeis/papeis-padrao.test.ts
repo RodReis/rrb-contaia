@@ -59,6 +59,9 @@ const RAZAO_VERIFICACAO = ['contabil.razao.consultar','contabil.razao.verificar_
 const RAZAO_LEITURA = ['contabil.razao.consultar'];
 const FECHAMENTO_CONTADOR = ['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'];
 const FECHAMENTO_LEITURA = ['contabil.fechamento.consultar'];
+const ABERTURA_TODAS = ['contabil.saldos_abertura.consultar','contabil.saldos_abertura.preparar','contabil.saldos_abertura.aprovar'];
+const ABERTURA_PREPARO = ['contabil.saldos_abertura.consultar','contabil.saldos_abertura.preparar'];
+const ABERTURA_LEITURA = ['contabil.saldos_abertura.consultar'];
 const AUTOMATIZACAO_TODAS = ['contabil.automatizacao.consultar','contabil.automatizacao.simular','contabil.automatizacao.processar_origens','contabil.automatizacao.manter_regras','contabil.automatizacao.publicar'];
 const AUTOMATIZACAO_OPERACAO = ['contabil.automatizacao.consultar','contabil.automatizacao.simular','contabil.automatizacao.processar_origens'];
 const AUTOMATIZACAO_LEITURA = ['contabil.automatizacao.consultar'];
@@ -120,6 +123,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...LANCAMENTOS_TODAS,
     ...RAZAO_VERIFICACAO,
     ...FECHAMENTO_CONTADOR,
+    ...ABERTURA_TODAS,
     ...AUTOMATIZACAO_TODAS,
     ...EMPREGADOS_LEITURA,
     ...OPERACAO,
@@ -139,6 +143,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...LANCAMENTOS_PREPARO,
     ...RAZAO_LEITURA,
     ...FECHAMENTO_LEITURA,
+    ...ABERTURA_PREPARO,
     ...AUTOMATIZACAO_OPERACAO,
     ...OPERACAO,
     ...OBRIGACOES,
@@ -154,6 +159,7 @@ const ESPERADO: Readonly<Record<PapelPadrao, readonly string[]>> = {
     ...LANCAMENTOS_LEITURA,
     ...RAZAO_LEITURA,
     ...FECHAMENTO_LEITURA,
+    ...ABERTURA_LEITURA,
     ...AUTOMATIZACAO_LEITURA,
     ...EMPREGADOS_LEITURA,
     ...DOCUMENTOS_LEITURA,

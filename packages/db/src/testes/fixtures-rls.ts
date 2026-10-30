@@ -1844,4 +1844,35 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
       values($1,$2,'2098-01','CLOSE_REJECTED','RECUSADO',$3,'f43-rls-fixture','CLOSE',0,$4) returning id`, [e.tenantId,e.empresaId,e.autorId,r['idempotencyKey']]),
     colunaDeEmpresa:'company_id',
   },
+  'app.opening_balance_version': {
+    inserir: (banco,e) => unico(banco, `insert into app.opening_balance_version(tenant_id,empresa_id,version,status,base_date,source,created_by,correlation_id)
+      values($1,$2,$3,'DRAFT','2097-01-31','MANUAL',$4,'f44-rls') returning id`,[e.tenantId,e.empresaId,100000+proximo(),e.autorId]),
+    atualizacao: 'revision=revision+1', colunaDeAtualizacao:'revision',
+  },
+  'app.opening_balance_line': {
+    preparar: async(admin,e)=>{
+      const versionId=await unico(admin,`insert into app.opening_balance_version(tenant_id,empresa_id,version,status,base_date,source,created_by,correlation_id) values($1,$2,$3,'DRAFT','2097-01-31','MANUAL',$4,'f44-rls-line') returning id`,[e.tenantId,e.empresaId,200000+proximo(),e.autorId]);
+      const accountId=await unico(admin,`insert into app.conta_contabil(tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo) values($1,$2,$3,'Conta F44 RLS','analitica','devedora','ASSET','OPTIONAL') returning id`,[e.tenantId,e.empresaId,`f44-${e.sufixo}-${proximo()}`]);
+      return {versionId,accountId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.opening_balance_line(tenant_id,empresa_id,version_id,line_number,account_id,account_code,account_name,debit_cents,credit_cents) values($1,$2,$3,1,$4,'F44','Conta F44',1,0) returning id`,[e.tenantId,e.empresaId,r['versionId'],r['accountId']]),
+    colunaDeAtualizacao:'note', atualizacao:'note=note',
+  },
+  'app.opening_balance_preview': {
+    preparar: async(admin,e)=>{
+      const refs=await FIXTURES['app.opening_balance_line']!.preparar!(admin,e);
+      const previewId=await unico(admin,`insert into app.opening_balance_preview(tenant_id,empresa_id,version_id,expected_revision,file_hash,status,rows,errors,idempotency_key,created_by,correlation_id) values($1,$2,$3,1,repeat('a',64),'VALID','[]'::jsonb,'[]'::jsonb,$4,$5,'f44-rls-preview') returning id`,[e.tenantId,e.empresaId,refs['versionId'],`f44-preview-${proximo()}`,e.autorId]);
+      return {...refs,previewId};
+    },
+    inserir:(banco,e,r)=>unico(banco,`insert into app.opening_balance_preview(tenant_id,empresa_id,version_id,expected_revision,file_hash,status,rows,errors,idempotency_key,created_by,correlation_id) values($1,$2,$3,1,repeat('b',64),'INVALID','[]'::jsonb,'[]'::jsonb,$4,$5,'f44-rls') returning id`,[e.tenantId,e.empresaId,r['versionId'],`f44-preview-${proximo()}`,e.autorId]),
+    colunaDeAtualizacao:'status', atualizacao:'status=status',
+  },
+  'app.opening_balance_idempotency': {
+    inserir:(banco,e)=>unico(banco,`insert into app.opening_balance_idempotency(tenant_id,empresa_id,operation,idempotency_key,request_hash,response) values($1,$2,'DRAFT',$3,repeat('c',64),'{}'::jsonb) returning id`,[e.tenantId,e.empresaId,`f44-idem-${e.sufixo}-${proximo()}`]),
+    colunaDeAtualizacao:'id',atualizacao:'id=id',
+  },
+  'app.opening_balance_event': {
+    preparar: async(admin,e)=>FIXTURES['app.opening_balance_version']!.inserir(admin,e,{}).then(versionId=>({versionId})),
+    inserir:(banco,e,r)=>unico(banco,`insert into app.opening_balance_event(tenant_id,empresa_id,version_id,action,result,actor_id,correlation_id) values($1,$2,$3,'CONFLICT','RECUSADO',$4,'f44-rls') returning id`,[e.tenantId,e.empresaId,r['versionId'],e.autorId]),
+  },
 };

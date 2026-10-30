@@ -436,6 +436,11 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.accounting_period_close_snapshot_line', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.accounting_period_event', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.accounting_period_idempotency', classe: 'empresa', origem: 'F43 / SPEC-043', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.opening_balance_version', classe: 'empresa', origem: 'F44 / SPEC-044', exigeIndiceEmpresa: true },
+  { tabela: 'app.opening_balance_line', classe: 'empresa', origem: 'F44 / SPEC-044', exigeIndiceEmpresa: true },
+  { tabela: 'app.opening_balance_preview', classe: 'empresa', origem: 'F44 / SPEC-044', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.opening_balance_idempotency', classe: 'empresa', origem: 'F44 / SPEC-044', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.opening_balance_event', classe: 'empresa', origem: 'F44 / SPEC-044', appendOnly: true, exigeIndiceEmpresa: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

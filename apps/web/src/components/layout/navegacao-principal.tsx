@@ -32,6 +32,7 @@ const ITENS: readonly ItemDoMenu[] = [
   { href: '/contabil/estrutura-contabil', rotulo: 'Estrutura contábil', consultas: ['contabil.estrutura_contabil.consultar'] },
   { href: '/contabil/lancamentos', rotulo: 'Lançamentos', consultas: ['contabil.lancamentos.consultar'] },
   { href: '/contabil/razao', rotulo: 'Razão contábil', consultas: ['contabil.razao.consultar'] },
+  { href: '/contabil/saldos-abertura', rotulo: 'Saldos de abertura', consultas: ['contabil.saldos_abertura.consultar'] },
   { href: '/contabil/automatizacao', rotulo: 'Automatização contábil', consultas: ['contabil.automatizacao.consultar'] },
   // O Histórico de Informações é área global do escritório, não de uma empresa
   // (SPEC-003 §3.6): o acesso é de menu, não de tela. A API exige o histórico global e o

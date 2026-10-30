@@ -64,6 +64,8 @@ import { PartidasAutomaticasController } from './partidas-automaticas/partidas-a
 import { PartidasAutomaticasService } from './partidas-automaticas/partidas-automaticas.service';
 import { RazaoContabilController } from './razao-contabil/razao-contabil.controller';
 import { RazaoContabilService } from './razao-contabil/razao-contabil.service';
+import { SaldosAberturaController } from './saldos-abertura/saldos-abertura.controller';
+import { SaldosAberturaService } from './saldos-abertura/saldos-abertura.service';
 import { GuardDoCatalogoTributario } from './auth/catalogo-tributario.guard';
 import { TaxRulesController } from './tax-rules/tax-rules.controller';
 import { TaxRulesService } from './tax-rules/tax-rules.service';
@@ -125,6 +127,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     CatalogoContabilController,
     LancamentosContabeisController,
     RazaoContabilController,
+    SaldosAberturaController,
     PartidasAutomaticasController,
     EmpregadosDaEmpresaController,
     EmpresaController,
@@ -167,6 +170,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     CatalogoContabilService,
     LancamentosContabeisService,
     RazaoContabilService,
+    SaldosAberturaService,
     PartidasAutomaticasService,
     ...PROVEDORES_DA_FILA_DO_PLANO,
     EmpregadosService,

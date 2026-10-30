@@ -5,6 +5,15 @@
 
 ---
 
+## Card #58 — `[MVP2][SPEC-044][F44]` Saldos de abertura contábil
+
+- [x] Domínio, API transacional, migrações RLS/auditáveis, movimento OPENING na projeção, restrição de operações anteriores ao marco inicial e tela manual/CSV/histórico implementados; prévias inválidas não alteram o rascunho.
+- [x] Validação local direcionada: domínio 7/7; API PostgreSQL 3/3 (aprovação idempotente, reconstrução/saldo, edição, prévia inválida sem mutação, CSV inválido por valor e coluna extra, CSV válido idempotente e bloqueio por data-base); matriz RLS 5/5; suíte completa da API 1.502/1.502; domínio 1.013/1.013; telas 1.348/1.348; typecheck API/DB/Web, lint API/Web e build Web passaram. Lint mantém 1 warning preexistente em `empresa/aba-de-enderecos.tsx:104`.
+- [x] Detector Impeccable retornou `[]`; acabamento manual equivalente aplicado porque o executável instalado não oferece o subcomando `polish`. Smoke autenticado e prova CLARO/ESCURO × 768/1024/1440 `not_run`: app redireciona para `/acesso` e a automação de navegador não conseguiu inspecionar uma sessão autenticada.
+- [ ] PR `refs #58`, CI verde, merge confirmado e comentário de encerramento pendentes.
+
+---
+
 ## Card #56 — `[MVP2][SPEC-042][F42]` Razão contábil e balancete por período
 
 - [x] Projeção versionada, imutável, com RLS, trilha e consolidação mensal; efetivação e cancelamento F40 atualizam a projeção na mesma transação.

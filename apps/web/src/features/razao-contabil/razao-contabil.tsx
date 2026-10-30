@@ -18,6 +18,8 @@ import { listarContasAnaliticas, listarCentrosAnaliticos } from '../lancamentos-
 import { listarEmpresas } from '../empresa/api';
 import { useSessao } from '../usuarios/queries';
 import { consultarFechamentos, fecharCompetencia, listarMovimentosRazao, obterBalancete, obterDetalheDoMovimento, reabrirCompetencia, reconstruirRazao, verificarIntegridadeRazao, type FechamentoContabil, type LinhaBalancete } from './api';
+import Link from 'next/link';
+import { SaldosAbertura } from '../saldos-abertura/saldos-abertura';
 
 const CAMPO = 'h-10 w-full min-w-0 rounded-md border border-input bg-background px-md text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 const rotuloSaldo = (nature: 'DEBIT' | 'CREDIT' | 'ZERO') => nature === 'DEBIT' ? 'Devedor' : nature === 'CREDIT' ? 'Credor' : 'Zero';
@@ -101,8 +103,10 @@ export const RazaoContabil = ({ empresaId, nomeEmpresa }: { empresaId: string; n
         {canVerify && <Button variante="contorno" disabled={verify.isPending} onClick={() => verify.mutate()}><ShieldCheck aria-hidden="true" />{verify.isPending ? 'Verificando…' : 'Verificar integridade'}</Button>}
         {canRebuild && <Dialog.Root><Dialog.Trigger asChild><Button variante="secundaria" disabled={rebuild.isPending}><RefreshCw aria-hidden="true" />Reconstruir projeção</Button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-50 bg-foreground/40"/><Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-[32rem] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-lg shadow-xl focus:outline-none"><Dialog.Title className="text-title-lg">Reconstruir projeção do razão?</Dialog.Title><Dialog.Description className="mt-sm text-body-sm text-muted-foreground">A projeção completa de <strong className="text-foreground">{nomeEmpresa ?? 'esta empresa'}</strong> será calculada de novo a partir dos lançamentos fonte. Período informado: {from} a {to}. A versão ativa só troca após validação integral.</Dialog.Description><div className="mt-lg flex justify-end gap-sm"><Dialog.Close asChild><Button variante="contorno">Cancelar</Button></Dialog.Close><Dialog.Close asChild><Button disabled={rebuild.isPending} onClick={() => rebuild.mutate()}>{rebuild.isPending ? 'Reconstruindo…' : 'Confirmar reconstrução'}</Button></Dialog.Close></div><Dialog.Close aria-label="Fechar" className="absolute right-md top-md rounded p-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><X size={18}/></Dialog.Close></Dialog.Content></Dialog.Portal></Dialog.Root>}
       </div>
+      {concede(session, 'contabil.saldos_abertura.consultar') && <Link href={`/contabil/saldos-abertura?empresaId=${encodeURIComponent(empresaId)}`} className="text-label-md text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Abrir saldos de abertura</Link>}
     </header>
 
+    {concede(session, 'contabil.saldos_abertura.consultar') && <SaldosAbertura empresaId={empresaId} nomeEmpresa={nomeEmpresa ?? 'Empresa'} />}
     <section className="grid gap-md rounded-lg border border-border bg-card p-md tablet:grid-cols-[minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(12rem,1.4fr)] tablet:items-end" aria-label="Filtros do razão">
       <Campo rotulo="Competência inicial" type="month" value={from} onValorChange={(value) => setParams({ de: value, pagina: '1' })}/>
       <Campo rotulo="Competência final" type="month" value={to} onValorChange={(value) => setParams({ ate: value, pagina: '1' })}/>
