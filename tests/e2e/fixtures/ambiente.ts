@@ -209,7 +209,7 @@ export const entrarComo = async (
   pessoa: Pick<Pessoa, 'usuario' | 'senha'>,
   destino = '/empresas',
 ): Promise<void> => {
-  const chegada = new RegExp(destino.replaceAll('/', '\\/'), 'u');
+  const urlDeChegada = (url: URL): boolean => `${url.pathname}${url.search}` === destino;
 
   await page.goto(`/api/auth/entrar?destino=${encodeURIComponent(destino)}`);
 
@@ -217,7 +217,7 @@ export const entrarComo = async (
 
   await Promise.race([
     campo.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined),
-    page.waitForURL(chegada, { timeout: 15_000 }).catch(() => undefined),
+    page.waitForURL(urlDeChegada, { timeout: 15_000 }).catch(() => undefined),
   ]);
 
   if (await campo.isVisible().catch(() => false)) {
@@ -226,5 +226,5 @@ export const entrarComo = async (
     await page.getByRole('button', { name: 'Sign In' }).click();
   }
 
-  await page.waitForURL(chegada);
+  await page.waitForURL(urlDeChegada);
 };
