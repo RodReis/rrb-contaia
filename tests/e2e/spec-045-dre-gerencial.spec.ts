@@ -126,6 +126,7 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await expect(page.getByRole('heading', { name: 'DRE gerencial' })).toBeVisible();
   await page.getByRole('button', { name: 'Configurar estrutura' }).click();
   await expect(page.getByRole('heading', { name: 'Rascunho da estrutura' })).toBeVisible();
+  await page.getByRole('button', { name: 'Adicionar linha' }).click();
   await page.getByLabel('Código', { exact: true }).nth(0).fill('REC');
   await page.getByLabel('Título', { exact: true }).nth(0).fill('Receita operacional');
   await page.getByLabel('Contas analíticas').nth(0).selectOption(revenueAccountId);
