@@ -149,6 +149,16 @@ describe('F42/F43: razão e fechamento da API no PostgreSQL', () => {
     expect(counts).toEqual({ count: '4', movements: '4' });
     expect((await service.verificar(actor(), scenario.empresaA1, correlationId)).status).toBe('CONSISTENT');
 
+    const dreVersion = await context(async (client) => {
+      const draft = (await client.query<{ id: string }>(
+        `insert into app.accounting_statement_version(tenant_id,company_id,version,status,created_by,correlation_id)
+         values($1,$2,1,'DRAFT',$3,$4) returning id`,
+        [scenario.tenantA, scenario.empresaA1, scenario.usuarios.naCarteira, correlationId],
+      )).rows[0]!.id;
+      await client.query(`update app.accounting_statement_version set status='ACTIVE',revision=1,effective_from=$1,published_by=$2,published_at=now() where id=$3`, [competence, scenario.usuarios.naCarteira, draft]);
+      return draft;
+    });
+
     const competingCloses=await Promise.all([
       service.fecharCompetencia(actor(),scenario.empresaA1,competence,0,'f43-close-001',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId),
       service.fecharCompetencia(actor(),scenario.empresaA1,competence,0,'f43-close-race-002',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId),
@@ -158,6 +168,11 @@ describe('F42/F43: razão e fechamento da API no PostgreSQL', () => {
     expect(competingCloses.some((result)=>result['status']==='CONFLICT'&&result['code']==='ACCOUNTING_PERIOD_ALREADY_CLOSED')).toBe(true);
     if(!closed)throw new Error('fechamento concorrente não escolheu vencedor');
     expect(closed).toMatchObject({status:'CLOSED',competence,version:1});
+    const closeAssociation = await context(async (client) => (await client.query<{ statementVersionId: string | null; snapshotVersionId: string | null }>(
+      `select c.statement_version_id as "statementVersionId",c.content->>'statementVersionId' as "snapshotVersionId"
+       from app.accounting_period_close c where c.id=$1`, [closed['closeId']],
+    )).rows[0]!);
+    expect(closeAssociation).toEqual({ statementVersionId: dreVersion, snapshotVersionId: dreVersion });
     const repeated=await service.fecharCompetencia(actor(),scenario.empresaA1,competence,0,'f43-close-001',false,['contabil.fechamento.consultar','contabil.fechamento.fechar_competencia'],correlationId);
     expect(repeated).toEqual(closed);
     await expect(entries.criar(actor(),scenario.empresaA1,{accountingDate:'2097-04-23',competence,history:'Bloqueado após fechamento',externalReference:null,lines:[{accountId:accountIds[0],costCenterId:null,side:'DEBIT',amountCents:100,memo:null,position:0},{accountId:accountIds[1],costCenterId:null,side:'CREDIT',amountCents:100,memo:null,position:1}]},correlationId)).rejects.toMatchObject({codigo:'ACCOUNTING_PERIOD_ALREADY_CLOSED'});
