@@ -136,7 +136,7 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await page.getByLabel('Título', { exact: true }).nth(1).fill('Despesas operacionais');
   await page.getByLabel('Contas analíticas').nth(1).selectOption(expenseAccountId);
   const saveResponse = page.waitForResponse((response) =>
-    response.request().method() === 'POST' && response.url().includes(`/empresas/${companyId}/contabilidade/dre/versoes/`),
+    response.request().method() === 'POST' && response.url().includes(`/empresas/${companyId}/dre-gerencial/versoes/`),
   );
   await page.getByRole('button', { name: 'Salvar rascunho' }).click();
   const saved = await saveResponse;
