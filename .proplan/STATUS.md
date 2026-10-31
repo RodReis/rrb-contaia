@@ -1,6 +1,6 @@
 ---
 proplan: v1
-updated: 2026-10-29
+updated: 2026-10-31
 ---
 <!-- gerado pelo ProPlan a partir das Issues — não edite à mão -->
 # Status
@@ -42,18 +42,6 @@ updated: 2026-10-29
 - [MVP2][SPEC-059][F59] Reprocessamento e reparo no Bloco K completo (#73)
 - [MVP2][SPEC-058][F58] Industrialização efetuada por terceiros no Bloco K completo (#72)
 - [MVP2][SPEC-057][F57] Desmontagem e movimentação interna no Bloco K completo (#71)
-- [MVP2][SPEC-056][F56] Produção própria e consumo no Bloco K completo (#70)
-- [MVP2][SPEC-055][F55] Bloco K de saldos e leiaute simplificado (#69)
-- [MVP2][SPEC-054][F54] Motor de estoque, inventário físico e Bloco H (#68)
-- [MVP2][SPEC-053][F53] Geração completa da EFD-Contribuições (#67)
-- [MVP2][SPEC-052][F52] Geração completa da EFD ICMS/IPI (#66)
-- [MVP2][SPEC-051][F51] Livros e fechamento fiscal (#65)
-- [MVP2][SPEC-050][F50] Geração completa da ECF (#64)
-- [MVP2][SPEC-049][F49] Geração completa da ECD (#63)
-- [MVP2][SPEC-048][F48] Livros contábeis formais por empresa (#62)
-- [MVP2][SPEC-047][F47] Plano referencial contábil por empresa (#61)
-- [MVP2][SPEC-046][F46] Modelos de DRE do escritório (#60)
-- [MVP2][SPEC-045][F45] DRE gerencial por empresa (#59)
 
 ### Sem épico
 
@@ -67,12 +55,23 @@ updated: 2026-10-29
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
-- [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57)
-- [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58)
+- [MVP2][SPEC-055][F55] Bloco K de saldos e leiaute simplificado (#69)
+- [MVP2][SPEC-056][F56] Produção própria e consumo no Bloco K completo (#70)
+- [MVP2][SPEC-054][F54] Motor de estoque, inventário físico e Bloco H (#68)
+- [MVP2][SPEC-052][F52] Geração completa da EFD ICMS/IPI (#66)
+- [MVP2][SPEC-053][F53] Geração completa da EFD-Contribuições (#67)
+- [MVP2][SPEC-051][F51] Livros e fechamento fiscal (#65)
+- [MVP2][SPEC-049][F49] Geração completa da ECD (#63)
+- [MVP2][SPEC-050][F50] Geração completa da ECF (#64)
+- [MVP2][SPEC-048][F48] Livros contábeis formais por empresa (#62)
+- [MVP2][SPEC-046][F46] Modelos de DRE do escritório (#60)
+- [MVP2][SPEC-047][F47] Plano referencial contábil por empresa (#61)
 
 ## Em Andamento
 
-_(vazio)_
+### [MVP2] Fiscal, contábil e financeiro (#31)
+
+- [MVP2][SPEC-045][F45] DRE gerencial por empresa (#59)
 
 ## Feito
 
@@ -82,6 +81,8 @@ _(vazio)_
 
 ### [MVP2] Fiscal, contábil e financeiro (#31)
 
+- [MVP2][SPEC-043][F43] Fechamento e reabertura de competência contábil (#57, finalizado em: 2026-10-31)
+- [MVP2][SPEC-044][F44] Saldos de abertura contábil (#58, finalizado em: 2026-10-31)
 - [MVP2][SPEC-042][F42] Razão contábil e balancete por período (#56, finalizado em: 2026-10-29)
 - [MVP2][FIX] Trigger bloqueia motivo ao cancelar lançamento contábil efetivado (#163, finalizado em: 2026-10-29)
 - [MVP2][SPEC-041][F41] Motor determinístico de partidas contábeis (#55, finalizado em: 2026-10-29)
