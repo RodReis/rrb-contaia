@@ -1130,7 +1130,7 @@ export class DreGerencialService {
         credit: string;
         count: string;
       }>(
-        `select conta_id as "accountId",competencia,coalesce(sum(valor_centavos) filter(where lado='DEBIT'),0)::text as debit,coalesce(sum(valor_centavos) filter(where lado='CREDIT'),0)::text as credit,count(*)::text as count from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3 and ((competencia between $4 and $5) or (competencia between $6 and $7)) group by conta_id,competencia order by conta_id,competencia`,
+        `select conta_id as "accountId",to_char(competencia,'YYYY-MM') as competence,coalesce(sum(valor_centavos) filter(where lado='DEBIT'),0)::text as debit,coalesce(sum(valor_centavos) filter(where lado='CREDIT'),0)::text as credit,count(*)::text as count from app.movimento_razao where tenant_id=$1 and empresa_id=$2 and versao_id=$3 and ((competencia between $4 and $5) or (competencia between $6 and $7)) group by conta_id,competencia order by conta_id,competencia`,
         [
           actor.tenantId,
           companyId,
