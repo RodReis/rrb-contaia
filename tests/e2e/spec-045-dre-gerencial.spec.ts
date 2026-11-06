@@ -141,7 +141,7 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await page.getByRole('button', { name: 'Salvar rascunho' }).click();
   const saved = await saveResponse;
   expect(saved.ok(), `Salvar DRE recusado: ${saved.status()} ${await saved.text()}`).toBe(true);
-  await expect(page.getByText('Estrutura salva.')).toBeVisible();
+  await expect(page.getByText('Estrutura salva.').last()).toBeVisible();
   await page.getByLabel('Título', { exact: true }).nth(0).fill('Receita operacional recorrente');
   const updateResponse = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().includes(`/empresas/${companyId}/dre-gerencial/versoes/`),
@@ -149,7 +149,7 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await page.getByRole('button', { name: 'Salvar rascunho' }).click();
   const updated = await updateResponse;
   expect(updated.ok(), `Atualizar rascunho recusado: ${updated.status()} ${await updated.text()}`).toBe(true);
-  await expect(page.getByText('Estrutura salva.')).toBeVisible();
+  await expect(page.getByText('Estrutura salva.').last()).toBeVisible();
   await page.getByLabel('Vigência inicial').fill(competence);
   await page.getByRole('button', { name: 'Validar e publicar' }).click();
   await expect(page.getByText('R$ 125,00')).toBeVisible();
