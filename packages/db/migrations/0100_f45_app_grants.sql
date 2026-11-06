@@ -1,5 +1,5 @@
--- A execução E2E da F45 observou `permission denied` no papel operacional após as migrations
--- iniciais da fatia. Reaplicar os grants explicitamente no fim garante escrita sem ampliar DELETE.
+-- Normaliza os grants de escrita do papel operacional depois de criadas as políticas e guards.
+-- DELETE e TRUNCATE continuam revogados; substituição de rascunho usa soft deactivation na API.
 GRANT SELECT, INSERT, UPDATE
   ON app.accounting_statement_version,
      app.accounting_statement_line,

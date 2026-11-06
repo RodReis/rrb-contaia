@@ -470,21 +470,23 @@ export class DreGerencialService {
           { accountId: id },
         );
     }
+    // As tabelas F45 revogam DELETE do papel operacional; substituições de rascunho
+    // desativam os vínculos antigos e reativam/upsertam somente os que continuam vigentes.
     await client.query(
-      `delete from app.accounting_statement_component where tenant_id=$1 and company_id=$2 and version_id=$3`,
+      `update app.accounting_statement_component set active=false where tenant_id=$1 and company_id=$2 and version_id=$3`,
       [actor.tenantId, companyId, versionId],
     );
     await client.query(
-      `delete from app.accounting_statement_mapping where tenant_id=$1 and company_id=$2 and version_id=$3`,
+      `update app.accounting_statement_mapping set active=false where tenant_id=$1 and company_id=$2 and version_id=$3`,
       [actor.tenantId, companyId, versionId],
     );
     await client.query(
-      `delete from app.accounting_statement_line where tenant_id=$1 and company_id=$2 and version_id=$3`,
+      `update app.accounting_statement_line set active=false where tenant_id=$1 and company_id=$2 and version_id=$3`,
       [actor.tenantId, companyId, versionId],
     );
     for (const line of lines)
       await client.query(
-        `insert into app.accounting_statement_line(tenant_id,company_id,version_id,line_code,title,line_type,display_order,level,parent_code,presentation_sign,vertical_basis) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        `insert into app.accounting_statement_line(tenant_id,company_id,version_id,line_code,title,line_type,display_order,level,parent_code,presentation_sign,vertical_basis,active) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true) on conflict(tenant_id,company_id,version_id,line_code) do update set title=excluded.title,line_type=excluded.line_type,display_order=excluded.display_order,level=excluded.level,parent_code=excluded.parent_code,presentation_sign=excluded.presentation_sign,vertical_basis=excluded.vertical_basis,active=true`,
         [
           actor.tenantId,
           companyId,
