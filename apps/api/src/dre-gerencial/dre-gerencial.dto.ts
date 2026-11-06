@@ -51,7 +51,13 @@ export const exportarDreSchema = z
     periodMode: z.enum(["MONTH", "YEAR_TO_DATE"]).default("MONTH"),
   })
   .strict();
-export const statementVersionIdSchema = z.object({ versionId: uuid }).strict();
+/**
+ * `@Param()` entrega ao handler TODOS os parâmetros de caminho da rota — aqui, além de
+ * `versionId`, o `empresaId` do controller. Um schema `.strict()` reprovaria esse parâmetro
+ * (`unrecognized_keys` sem caminho vira campo "corpo") e devolveria 422 antes do caso de uso.
+ * Validamos só o que é nosso; o mesmo formato de `idSchema` dos outros controllers.
+ */
+export const statementVersionIdSchema = z.object({ versionId: uuid });
 export type StatementLineInput = z.infer<typeof line>;
 export type ConsultaDre = z.infer<typeof consultaDreSchema>;
 export type ExportarDre = z.infer<typeof exportarDreSchema>;
