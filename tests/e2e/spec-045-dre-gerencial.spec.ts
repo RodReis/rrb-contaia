@@ -158,7 +158,7 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await page.getByLabel('Visão').selectOption('ANALYTIC');
   await expect(page.getByText('Receita operacional recorrente').first()).toBeVisible();
   await page.getByText(/Ver 1 contas/u).first().click();
-  await expect(page.getByText('Despesa sintética da demonstração')).toBeVisible();
+  await expect(page.locator('table').getByText('Despesa sintética da demonstração')).toBeVisible();
   await page.getByRole('button', { name: 'CSV analítico' }).click();
   await expect(page.getByText('Exportação concluída.')).toBeVisible();
   await page.waitForTimeout(5_000);
