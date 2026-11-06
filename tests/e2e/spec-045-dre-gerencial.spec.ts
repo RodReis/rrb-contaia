@@ -152,8 +152,8 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await expect(page.getByText('Estrutura salva.').last()).toBeVisible();
   await page.getByLabel('Vigência inicial').fill(competence);
   await page.getByRole('button', { name: 'Validar e publicar' }).click();
-  await expect(page.getByText('R$ 125,00')).toBeVisible();
-  await expect(page.getByText('R$ 43,00')).toBeVisible();
+  await expect(page.locator('table').getByText('R$ 125,00')).toBeVisible();
+  await expect(page.locator('table').getByText('R$ 43,00')).toBeVisible();
 
   await page.getByLabel('Visão').selectOption('ANALYTIC');
   await expect(page.getByText('Receita operacional recorrente').first()).toBeVisible();
