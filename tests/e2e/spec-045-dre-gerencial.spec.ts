@@ -160,9 +160,16 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   const expenseRow = page.getByRole('row').filter({ hasText: 'DESP · Despesas operacionais' });
   await expenseRow.locator('summary').click();
   await expect(expenseRow.getByText('Despesa sintética da demonstração')).toBeVisible();
+  const exportPath = `/empresas/${companyId}/dre-gerencial/exportacoes/CSV`;
+  const exportResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'GET' && response.url().includes(exportPath),
+  );
+  const csvDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'CSV analítico' }).click();
-  await expect(page.getByText('Exportação concluída.')).toBeVisible();
-  await page.waitForTimeout(5_000);
+  const exported = await exportResponse;
+  expect(exported.ok(), `Exportação CSV recusada: ${exported.status()} ${await exported.text()}`).toBe(true);
+  expect((await csvDownload).suggestedFilename()).toBe(`dre-${competence}-month.csv`);
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 });
 
   await page.setViewportSize({ width: 767, height: 900 });
