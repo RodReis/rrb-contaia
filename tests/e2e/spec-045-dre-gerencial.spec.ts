@@ -175,11 +175,11 @@ test('F45 consulta e configura a DRE pela tela autenticada com conciliação e c
   await page.setViewportSize({ width: 767, height: 900 });
   const mobile = page.locator('[aria-label="DRE em cards empilhados"]');
   await expect(mobile).toBeVisible();
-  await expect(mobile.getByText('Atual')).toBeVisible();
-  await expect(mobile.getByText('Anterior')).toBeVisible();
-  await expect(mobile.getByText('AV', { exact: true })).toBeVisible();
-  await expect(mobile.getByText('AH (R$)')).toBeVisible();
-  await expect(mobile.getByText('AH (%)')).toBeVisible();
+  for (const label of ['Atual', 'Anterior', 'AV', 'AH (R$)', 'AH (%)']) {
+    const values = mobile.getByText(label, { exact: true });
+    await expect(values).toHaveCount(2);
+    await expect(values.first()).toBeVisible();
+  }
 
   achados = await provarVisualmente(page, CAMINHO, 'f45-dre-completa-analitica', {
     pronto: (target) => target.locator('[aria-label="DRE em cards empilhados"], table').first(),
