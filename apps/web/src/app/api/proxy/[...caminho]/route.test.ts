@@ -61,6 +61,28 @@ describe('proxy autenticado', () => {
     expect(cabecalhosEnviados().get('authorization')).toBe('Bearer token-de-sessao');
   });
 
+  it('repassa a chave idempotente válida da tela para a API', async () => {
+    await GET(
+      requisicao('/api/proxy/empresas/e-1/dre-gerencial/exportacoes/CSV', {
+        headers: { 'idempotency-key': 'f45-export-key-1234' },
+      }),
+      contexto('empresas', 'e-1', 'dre-gerencial', 'exportacoes', 'CSV'),
+    );
+
+    expect(cabecalhosEnviados().get('idempotency-key')).toBe('f45-export-key-1234');
+  });
+
+  it('descarta chave idempotente fora do formato aceito pela API', async () => {
+    await GET(
+      requisicao('/api/proxy/empresas/e-1/dre-gerencial/exportacoes/CSV', {
+        headers: { 'idempotency-key': 'curta' },
+      }),
+      contexto('empresas', 'e-1', 'dre-gerencial', 'exportacoes', 'CSV'),
+    );
+
+    expect(cabecalhosEnviados().get('idempotency-key')).toBeNull();
+  });
+
   it('descarta x-correlation-id fora do formato aceito pela API', async () => {
     await GET(
       requisicao('/api/proxy/empresas/e-1/plano-contas/importacoes', {

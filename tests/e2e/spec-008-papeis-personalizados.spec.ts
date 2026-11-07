@@ -514,7 +514,7 @@ test('papel personalizado atribuído a um usuário novo vale: acesso conforme a 
   await usuario.waitForURL(/\/empresas/);
 
   // A matriz do papel preserva a consulta/preparo contábil da F40; nunca Usuários e permissões.
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'Saldos de abertura', 'Automatização contábil', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'DRE gerencial', 'Saldos de abertura', 'Automatização contábil', 'Histórico de Informações', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
 
   await usuario.goto('/configuracoes/usuarios');
   await expect(usuario.getByText('Você não tem permissão para ver esta área')).toBeVisible();
@@ -568,7 +568,7 @@ test('reduzir o papel nega na próxima requisição da mesma sessão, depois de 
 
   // A mesma sessão, o mesmo token: a revisão vigente já vale.
   await usuario.goto('/empresas');
-  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'Saldos de abertura', 'Automatização contábil', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
+  await expect.poll(() => itensDoMenu(usuario)).toEqual(['Dashboard', 'Empresas', 'Estrutura contábil', 'Lançamentos', 'Razão contábil', 'DRE gerencial', 'Saldos de abertura', 'Automatização contábil', 'Minha carteira', 'Cofre de certificados', 'Agenda de obrigações']);
   expect((await usuario.request.get('/api/proxy/historico')).status()).toBe(403);
 
   // Revisão concorrente: quem escreve com a revisão antiga é recusado e nada muda.

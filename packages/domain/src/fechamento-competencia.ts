@@ -9,6 +9,7 @@ export type SnapshotTrialBalanceLine = Readonly<{
 }>;
 export type AccountingCloseSnapshotInput = Readonly<{
   tenantId: string; companyId: string; competence: string; version: number; ledgerProjectionVersion: number;
+  statementVersionId?: string | null;
   firstCompetence: string; kind: AccountingCloseKind; debitCents: number; creditCents: number;
   movementCount: number; entryCount: number; lines: readonly SnapshotTrialBalanceLine[];
   closedBy: string; closedAt: string; correlationId: string; permissions: readonly string[];
@@ -58,7 +59,7 @@ export const canonicalAccountingClose = (snapshot: AccountingCloseSnapshotInput)
   const sortedLines = [...snapshot.lines].sort((left, right) => left.code.localeCompare(right.code, 'en')).map((line)=>canonicalValue(line));
   return JSON.stringify({
     tenantId: snapshot.tenantId, companyId: snapshot.companyId, competence: snapshot.competence,
-    version: snapshot.version, ledgerProjectionVersion: snapshot.ledgerProjectionVersion, firstCompetence: snapshot.firstCompetence,
+    version: snapshot.version, ledgerProjectionVersion: snapshot.ledgerProjectionVersion, ...(snapshot.statementVersionId === undefined ? {} : { statementVersionId: snapshot.statementVersionId }), firstCompetence: snapshot.firstCompetence,
     kind: snapshot.kind, debitCents: snapshot.debitCents, creditCents: snapshot.creditCents,
     movementCount: snapshot.movementCount, entryCount: snapshot.entryCount, lines: sortedLines,
     closedBy: snapshot.closedBy, closedAt: new Date(snapshot.closedAt).toISOString(), correlationId: snapshot.correlationId, emptyConfirmation: snapshot.emptyConfirmation,

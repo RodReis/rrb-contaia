@@ -5,6 +5,17 @@
 
 ---
 
+## Card #59 — `[MVP2][SPEC-045][F45]` DRE gerencial por empresa
+
+- [x] Motor determinístico em centavos, estrutura versionada de linhas/mapeamentos/componentes, publicação com vigência e validação de cobertura; API gera relatório mensal/acumulado, CSV e PDF com hash e idempotência.
+- [x] Migration 0097 cria estrutura, auditoria/exportações, vínculo imutável da versão DRE ao snapshot do fechamento F43 e RLS; migrations 0098–0099 corrigem negação de escopo e protegem ciclo de vida/conteúdo publicado. Tabelas e fixtures incluídas na matriz anti-drift/RLS.
+- [x] Painel CLARO/ESCURO com filtros, visão sintética/analítica, análise vertical/horizontal e estrutura editável; abaixo de 768 px, todas as métricas aparecem em cards empilhados e contas analíticas são expansíveis por teclado/ponteiro.
+- [x] Validação local: build recursivo; typechecks API/DB/Domain/Web; lint API/DB/Domain/Web (um warning preexistente em `empresa/aba-de-enderecos.tsx:104`); domínio 4/4, tela 3/3, integração F42/F43 PostgreSQL 3/3 e matriz geral RLS 5/5; `git diff --check` limpo.
+- [ ] E2E autenticada e prova visual CLARO/ESCURO × 768/1024/1440 `not_run` localmente; CI da PR deve executar gates obrigatórios e comprovar a tela.
+- [ ] Revisão final, PR `refs #59`, CI verde no HEAD, merge confirmado na origem, comentário de encerramento e `proplan:done` pendentes. Issue permanece aberta para aceite do PI.
+
+---
+
 ## Card #58 — `[MVP2][SPEC-044][F44]` Saldos de abertura contábil
 
 - [x] Domínio, API transacional, migrações RLS/auditáveis, movimento OPENING na projeção, restrição de operações anteriores ao marco inicial e tela manual/CSV/histórico implementados; prévias inválidas não alteram o rascunho.

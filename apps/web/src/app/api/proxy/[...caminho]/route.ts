@@ -20,6 +20,7 @@ const urlDaApi = (): string => process.env['API_ORIGIN'] ?? 'http://127.0.0.1:15
  * gera o seu.
  */
 const CORRELATION_ID_VALIDO = /^[A-Za-z0-9-]{8,64}$/u;
+const IDEMPOTENCY_KEY_VALIDO = /^[A-Za-z0-9._:-]{8,128}$/u;
 
 /**
  * Cabeçalhos da resposta repassados ao navegador (lista fechada): nome do arquivo baixado, id de
@@ -78,6 +79,12 @@ const encaminhar = async (
 
   if (correlacao !== null && CORRELATION_ID_VALIDO.test(correlacao)) {
     cabecalhos.set('x-correlation-id', correlacao);
+  }
+
+  const chaveIdempotencia = requisicao.headers.get('idempotency-key');
+
+  if (chaveIdempotencia !== null && IDEMPOTENCY_KEY_VALIDO.test(chaveIdempotencia)) {
+    cabecalhos.set('idempotency-key', chaveIdempotencia);
   }
 
   const tipoDoConteudo = requisicao.headers.get('content-type');
