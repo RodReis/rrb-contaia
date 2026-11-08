@@ -79,8 +79,12 @@ describe('plano referencial contábil — SPEC-047', () => {
     const override: DecisaoReferencial = { ...base, centerId: 'cc1', referenceCode: '2.01' };
     expect(resolverDecisaoReferencial([base, override], 'a1', 'cc1')).toEqual(override);
     expect(resolverDecisaoReferencial([base, override], 'a1', 'cc2')).toEqual(base);
-    const payload = { packageId: 'pkg', packageCanonicalSha256: 'a'.repeat(64), calendarYear: 2025, decisions: [base, override], centerCodes: [{ id: 'cc1', code: 'NORTE' }] };
+    const payload = { packageId: 'pkg', packageCanonicalSha256: 'a'.repeat(64), calendarYear: 2025,
+      taxRegime: 'LUCRO_PRESUMIDO' as const, specialSituation: null, decisions: [base, override], centerCodes: [{ id: 'cc1', code: 'NORTE' }] };
     expect(hashMapeamentoReferencial(payload)).toBe(hashMapeamentoReferencial({ ...payload, decisions: [override, base], centerCodes: [...payload.centerCodes].reverse() }));
+    expect(hashMapeamentoReferencial(payload)).toBe(hashMapeamentoReferencial({ ...payload,
+      decisions: payload.decisions.map((item) => ({ ...item, authorId: 'outro-autor', reviewedBy: 'outro-revisor' })) }));
+    expect(hashMapeamentoReferencial(payload)).not.toBe(hashMapeamentoReferencial({ ...payload, taxRegime: 'SIMPLES_NACIONAL' }));
     expect(hashMapeamentoReferencial(payload)).toMatch(/^[0-9a-f]{64}$/);
   });
 });

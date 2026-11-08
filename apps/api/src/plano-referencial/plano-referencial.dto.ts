@@ -12,3 +12,18 @@ export const criarRascunhoReferencialSchema = z.object({
   specialSituation: z.string().trim().min(1).max(80).nullable(),
   packageId: z.string().trim().min(1).max(120),
 });
+
+export const atualizarDecisoesReferencialSchema = z.object({
+  expectedRevision: z.number().int().nonnegative(),
+  decisions: z.array(z.object({
+    accountCode: z.string().trim().min(1).max(120),
+    centerCode: z.string().trim().min(1).max(120).nullable(),
+    kind: z.enum(['MAPPED', 'NOT_APPLICABLE']),
+    referenceCode: z.string().trim().min(1).max(120).nullable(),
+    reason: z.string().trim().max(1000).nullable(),
+  }).strict()).max(10000),
+}).strict();
+
+export const publicarReferencialSchema = z.object({
+  expectedRevision: z.number().int().nonnegative(),
+}).strict();

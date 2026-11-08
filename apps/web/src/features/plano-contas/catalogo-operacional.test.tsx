@@ -40,7 +40,7 @@ describe('catálogo contábil operacional', () => {
     ler.mockResolvedValueOnce({ items: [], nextCursor: null, incompleteCount: 0 }).mockResolvedValueOnce({
       company: { id: 'empresa-1', name: 'Empresa', cnpj: '12345678000190' }, calendarYear: 2025,
       taxRegime: 'LUCRO_PRESUMIDO', specialSituation: null, applicability: 'INDETERMINATE',
-      selectedPackageId: null, packages: [],
+      selectedPackageId: null, packages: [], mappings: [],
     });
     envolver(<CatalogoOperacional empresaId="empresa-1" somenteLeitura />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Plano referencial' }));

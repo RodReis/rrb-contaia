@@ -82,14 +82,18 @@ export const hashMapeamentoReferencial = (input: {
   readonly packageId: string;
   readonly packageCanonicalSha256: string;
   readonly calendarYear: number;
+  readonly taxRegime: RegimeReferencial;
+  readonly specialSituation: string | null;
   readonly decisions: readonly DecisaoReferencial[];
   readonly centerCodes: readonly { readonly id: string; readonly code: string }[];
 }): string => {
   const order = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
   const decisions = [...input.decisions].sort((a, b) => order(a.accountId, b.accountId)
-    || order(a.centerId ?? '', b.centerId ?? ''));
+    || order(a.centerId ?? '', b.centerId ?? '')).map(({ accountId, centerId, kind, referenceCode, reason }) =>
+    ({ accountId, centerId, kind, referenceCode, reason }));
   const centers = [...input.centerCodes].sort((a, b) => order(a.id, b.id));
-  const canonical = JSON.stringify({ packageId: input.packageId, packageCanonicalSha256: input.packageCanonicalSha256, calendarYear: input.calendarYear, decisions, centers });
+  const canonical = JSON.stringify({ packageId: input.packageId, packageCanonicalSha256: input.packageCanonicalSha256,
+    calendarYear: input.calendarYear, taxRegime: input.taxRegime, specialSituation: input.specialSituation, decisions, centers });
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
 };
 

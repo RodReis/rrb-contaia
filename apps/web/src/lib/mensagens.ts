@@ -100,6 +100,7 @@ const MENSAGENS: Readonly<Record<string, string>> = {
   [CODIGOS_DE_ERRO.REFERENCE_PACKAGE_NOT_FOUND]: 'O pacote referencial selecionado não está disponível.',
   [CODIGOS_DE_ERRO.REFERENCE_PACKAGE_NOT_APPLICABLE]: 'O pacote oficial não cobre o exercício ou a situação informada.',
   [CODIGOS_DE_ERRO.REFERENCE_PACKAGE_REVOKED]: 'O pacote foi revogado e não aceita novas publicações.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_NOT_FOUND]: 'O rascunho referencial não foi encontrado.',
   [CODIGOS_DE_ERRO.REFERENCE_MAPPING_INDETERMINATE]: 'Não há pacote oficial com cobertura comprovada para esta configuração.',
   [CODIGOS_DE_ERRO.REFERENCE_MAPPING_INCOMPLETE]: 'Mapeie todas as contas analíticas ativas antes de publicar.',
   [CODIGOS_DE_ERRO.REFERENCE_ACCOUNT_NATURE_MISMATCH]: 'A natureza da conta não corresponde à natureza da conta referencial.',

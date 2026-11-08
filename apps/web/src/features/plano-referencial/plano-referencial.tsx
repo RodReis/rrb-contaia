@@ -19,6 +19,10 @@ const ConsultaSchema = z.object({
   calendarYear: z.number(), taxRegime: z.enum(['LUCRO_PRESUMIDO', 'SIMPLES_NACIONAL']),
   specialSituation: z.string().nullable(), applicability: z.enum(['APPLICABLE', 'OPTIONAL', 'INDETERMINATE']),
   selectedPackageId: z.string().nullable(), packages: z.array(PacoteSchema),
+  mappings: z.array(z.object({ id: z.string(), calendarYear: z.number(), taxRegime: z.enum(['LUCRO_PRESUMIDO', 'SIMPLES_NACIONAL']),
+    specialSituation: z.string().nullable(), packageId: z.string(), applicability: z.enum(['APPLICABLE', 'OPTIONAL']),
+    status: z.enum(['DRAFT', 'PUBLISHED', 'SUPERSEDED']), version: z.number().nullable(), revision: z.number(),
+    canonicalSha256: z.string().nullable(), createdAt: z.string(), publishedAt: z.string().nullable() })),
 });
 
 const formatarHash = (hash: string): string => `${hash.slice(0, 12)}…${hash.slice(-8)}`;
@@ -82,6 +86,13 @@ export const PlanoReferencial = ({ empresaId }: { empresaId: string }) => {
     </> : null}
 
     {consulta.data !== undefined && consulta.data.packages.length === 0 ? <p className="text-body-sm text-muted-foreground">Nenhum pacote oficial curado no catálogo.</p> : null}
+    {consulta.data !== undefined && consulta.data.mappings.length > 0 ? <section aria-labelledby="plano-referencial-historico" className="grid gap-sm">
+      <h4 id="plano-referencial-historico" className="text-title-md">Rascunhos e versões</h4>
+      <ul className="grid gap-sm">{consulta.data.mappings.map((mapping) => <li key={mapping.id} className="flex flex-wrap items-center justify-between gap-sm rounded-md border border-border p-md">
+        <span className="text-body-sm">{mapping.status === 'DRAFT' ? 'Rascunho' : `Versão ${mapping.version ?? '—'}`} · {mapping.status}</span>
+        <span className="font-mono text-label-sm text-muted-foreground">{mapping.canonicalSha256 === null ? `revisão ${mapping.revision}` : formatarHash(mapping.canonicalSha256)}</span>
+      </li>)}</ul>
+    </section> : null}
     {pacotesHistoricos.length > 0 ? <details className="rounded-md border border-border p-md">
       <summary className="cursor-pointer text-label-md">Pacotes históricos ou indisponíveis</summary>
       <ul className="mt-sm grid gap-xs">{pacotesHistoricos.map((item) => <li key={item.id} className="text-body-sm">{item.sourceDocument} · {item.revision} · {item.status}</li>)}</ul>
