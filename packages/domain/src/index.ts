@@ -615,3 +615,5 @@ export {
 export type { CriterioRegra, FamiliaOrigem, OrigemContabil, PartidaGerada, RegraElegivel, ResultadoGeracao } from './partidas-automaticas.js';
 
 export { isAccountingCompetence, previousAccountingCompetence, accountingPeriodGateBlockers, canonicalAccountingClose, hashAccountingClose, type AccountingPeriodStatus, type AccountingCloseKind, type SnapshotTrialBalanceLine, type AccountingCloseSnapshotInput, type AccountingPeriodGateInput, type AccountingPeriodBlocker } from './fechamento-competencia.js';
+export { avaliarAplicabilidadeReferencial, hashMapeamentoReferencial, resolverDecisaoReferencial, validarPublicacaoReferencial } from './plano-referencial.js';
+export type { AplicabilidadeReferencial, CentroReferencialDaEmpresa, ContaReferencialDaEmpresa, DecisaoReferencial, ErroValidacaoPublicacaoReferencial, EstadoPacoteReferencial, NaturezaReferencial, PacoteReferencial, ReferenciaContabil, RegimeReferencial } from './plano-referencial.js';
