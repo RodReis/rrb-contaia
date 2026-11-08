@@ -447,6 +447,13 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.accounting_statement_component', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
   { tabela: 'app.accounting_statement_event', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.accounting_statement_export', classe: 'empresa', origem: 'F45 / SPEC-045', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_template', classe: 'tenant', origem: 'F46 / SPEC-046', justificativa: 'Biblioteca compartilhada por usuários do mesmo escritório; não pertence a uma empresa cliente.', leitura: 'comum', escrita: 'comum' },
+  { tabela: 'app.accounting_statement_template_version', classe: 'tenant', origem: 'F46 / SPEC-046', justificativa: 'Versões estruturais da biblioteca do escritório; sem conteúdo de empresa cliente.', leitura: 'comum', escrita: 'comum' },
+  { tabela: 'app.accounting_statement_template_line', classe: 'tenant', origem: 'F46 / SPEC-046', justificativa: 'Linhas estruturais do modelo do escritório; sem conteúdo de empresa cliente.', leitura: 'comum', escrita: 'comum' },
+  { tabela: 'app.accounting_statement_template_component', classe: 'tenant', origem: 'F46 / SPEC-046', justificativa: 'Componentes estruturais do modelo do escritório; sem conteúdo de empresa cliente.', leitura: 'comum', escrita: 'comum' },
+  { tabela: 'app.accounting_statement_template_event', classe: 'tenant', origem: 'F46 / SPEC-046', justificativa: 'Auditoria da biblioteca compartilhada do escritório; dados empresariais ficam nas tabelas de origem e aplicação.', appendOnly: true, leitura: 'comum', escrita: 'comum' },
+  { tabela: 'app.accounting_statement_template_source', classe: 'empresa', origem: 'F46 / SPEC-046', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.accounting_statement_template_application', classe: 'empresa', origem: 'F46 / SPEC-046', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

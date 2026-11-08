@@ -801,15 +801,25 @@ describe('retomada concorrente, operação presa e rotação (revisão final)', 
     ]);
 
     expect(vaultFalso.ler).toHaveBeenCalledTimes(1);
-    expect(resultados.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const concluidas = resultados.filter((r) => r.status === 'fulfilled');
+    expect(concluidas.length).toBeGreaterThanOrEqual(1);
+    expect(concluidas.length).toBeLessThanOrEqual(2);
     for (const resultado of resultados) {
       if (resultado.status === 'rejected') {
         expect((resultado.reason as ErroDoSigner).codigo).toBe('SIGNER_OPERACAO_EM_ANDAMENTO');
       }
     }
     expect((await operacaoPor(pedido.chaveIdempotente))?.estado).toBe('CONCLUIDA');
-    // FALHA (1ª tentativa) + SUCESSO (retomada): nenhuma execução fica sem evento.
-    expect((await eventosDe(empresa.empresaId)).map((e) => e.resultado)).toEqual(['FALHA', 'SUCESSO']);
+    // FALHA (1ª tentativa) + SUCESSO (retomada); a concorrente pode observar EM_ANDAMENTO
+    // ou chegar após o commit e reutilizar o resultado concluído. Ambos têm trilha própria.
+    const eventos = await eventosDe(empresa.empresaId);
+    expect(eventos.map((e) => [e.resultado, e.reutilizado])).toEqual(
+      expect.arrayContaining([
+        ['FALHA', false],
+        ['SUCESSO', false],
+      ]),
+    );
+    expect(eventos.filter((e) => e.reutilizado)).toHaveLength(concluidas.length - 1);
   });
 
   it('operação presa em andamento passado o prazo é retomada (a mesma); dentro do prazo segue em andamento', async () => {
