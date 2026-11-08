@@ -17,7 +17,8 @@ describe('PlanoReferencialService', () => {
   });
 
   it('retorna INDETERMINATE quando o catálogo oficial está vazio', async () => {
-    mocks.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 'company-1', name: 'Empresa', cnpj: '123' }] }).mockResolvedValueOnce({ rows: [] });
+    mocks.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 'company-1', name: 'Empresa', cnpj: '123' }] })
+      .mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
     const service = new PlanoReferencialService({ instancia: {} } as never);
     const result = await service.consultar({ tenantId: 'tenant-1', usuarioId: 'user-1' }, 'company-1', 2025, 'LUCRO_PRESUMIDO', null);
     expect(result).toMatchObject({ applicability: 'INDETERMINATE', selectedPackageId: null, packages: [] });

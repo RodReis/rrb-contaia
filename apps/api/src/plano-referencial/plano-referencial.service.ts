@@ -49,11 +49,27 @@ export class PlanoReferencialService {
         from app.company_reference_mapping where company_id=$1 and calendar_year=$2 and tax_regime=$3
           and special_situation is not distinct from $4 order by version desc nulls first,created_at desc`,
       [empresaId, calendarYear, taxRegime, specialSituation]);
+      const { rows: accounts } = await cliente.query(`select id,codigo as code,nome as name,natureza as nature,
+        classe_contabil as "accountClass",politica_centro_custo as "costCenterPolicy",
+        (classe_contabil is not null and politica_centro_custo is not null) as complete
+        from app.conta_contabil where empresa_id=$1 and tipo='analitica' and not arquivada order by codigo`, [empresaId]);
+      const selectedPackageId = applicability.packageId;
+      const referenceAccounts = selectedPackageId === null ? [] : (await cliente.query(`select code,description,source_nature as "sourceNature",
+        parent_code as "parentCode",valid_from as "validFrom",valid_to as "validTo",status
+        from app.list_reference_accounting_accounts($1) where status='ACTIVE' order by code`, [selectedPackageId])).rows;
+      const draft = mappings.find((item: { status: string }) => item.status === 'DRAFT') as { id: string } | undefined;
+      const decisions = draft === undefined ? [] : (await cliente.query(`select a.codigo as "accountCode",c.codigo as "centerCode",e.kind,
+        e.reference_code as "referenceCode",e.reason from app.company_reference_mapping_entry e
+        join app.conta_contabil a on a.id=e.account_id left join app.centro_custo c on c.id=e.center_id
+        where e.mapping_id=$1 and e.active order by a.codigo,c.codigo`, [draft.id])).rows;
       return {
         company: companies[0], calendarYear, taxRegime, specialSituation,
         applicability: applicability.status,
         selectedPackageId: applicability.packageId,
         mappings,
+        eligibleAccounts: accounts,
+        referenceAccounts,
+        draftDecisions: decisions,
         packages: packages.map(({ id, authority, sourceDocument, sourceUrl, layout, revision, coveredCalendarYears,
           coveredSpecialSituations, downloadedAt, sourceSha256, canonicalSha256, status }) => ({
           id, authority, sourceDocument, sourceUrl, layout, revision, coveredCalendarYears, coveredSpecialSituations,

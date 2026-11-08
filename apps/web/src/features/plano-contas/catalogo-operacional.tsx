@@ -266,7 +266,7 @@ export const CatalogoOperacional = ({
         </div>
       </header>
 
-      {aba === 'referencial' ? <div className="mt-lg"><PlanoReferencial empresaId={empresaId} /></div> : <div className="mt-lg grid gap-lg lg:grid-cols-[minmax(0,1fr)_20rem]">
+      {aba === 'referencial' ? <div className="mt-lg"><PlanoReferencial empresaId={empresaId} somenteLeitura={!podeManterConta} /></div> : <div className="mt-lg grid gap-lg lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0">
           <label className="mb-xs block text-label-md" htmlFor="catalogo-busca">Pesquisar código ou nome</label>
           <input id="catalogo-busca" value={busca} onChange={(event) => setBusca(event.target.value)} className="h-11 w-full rounded-md border border-input bg-background px-md text-body-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
