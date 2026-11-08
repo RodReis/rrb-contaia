@@ -58,6 +58,8 @@ import { PROVEDORES_DA_FILA_DO_PLANO } from './plano-contas/plano-contas.fila';
 import { PlanoContasService } from './plano-contas/plano-contas.service';
 import { CatalogoContabilController } from './plano-contas/catalogo-contabil.controller';
 import { CatalogoContabilService } from './plano-contas/catalogo-contabil.service';
+import { PlanoReferencialController } from './plano-referencial/plano-referencial.controller';
+import { PlanoReferencialService } from './plano-referencial/plano-referencial.service';
 import { LancamentosContabeisController } from './lancamentos-contabeis/lancamentos-contabeis.controller';
 import { LancamentosContabeisService } from './lancamentos-contabeis/lancamentos-contabeis.service';
 import { PartidasAutomaticasController } from './partidas-automaticas/partidas-automaticas.controller';
@@ -129,6 +131,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     DocumentosDaEmpresaController,
     PlanoContasDaEmpresaController,
     CatalogoContabilController,
+    PlanoReferencialController,
     LancamentosContabeisController,
     RazaoContabilController,
     DreGerencialController,
@@ -174,6 +177,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     ...PROVEDORES_DO_SIGNER,
     PlanoContasService,
     CatalogoContabilService,
+    PlanoReferencialService,
     LancamentosContabeisService,
     RazaoContabilService,
     DreGerencialService,

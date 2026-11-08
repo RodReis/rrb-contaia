@@ -150,6 +150,9 @@ export const limparCenario = async (admin: Pool, cenario: Cenario): Promise<void
       ]);
     }
 
+    await cliente.query(`delete from app.reference_accounting_account where package_id=$1`, [`__f47_test_${cenario.sufixo}`]);
+    await cliente.query(`delete from app.reference_accounting_package where id=$1`, [`__f47_test_${cenario.sufixo}`]);
+
     await cliente.query(`delete from app.tenant where id = any($1)`, [
       [cenario.tenantA, cenario.tenantB],
     ]);

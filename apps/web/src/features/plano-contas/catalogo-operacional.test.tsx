@@ -35,4 +35,17 @@ describe('catálogo contábil operacional', () => {
     envolver(<CatalogoOperacional empresaId="empresa-1" somenteLeitura />);
     expect(await screen.findByText('Nenhum item encontrado.')).toBeInTheDocument();
   });
+
+  it('exibe cobertura indeterminada na nova aba sem sugerir pacote alternativo', async () => {
+    ler.mockResolvedValueOnce({ items: [], nextCursor: null, incompleteCount: 0 }).mockResolvedValueOnce({
+      company: { id: 'empresa-1', name: 'Empresa', cnpj: '12345678000190' }, calendarYear: 2025,
+      taxRegime: 'LUCRO_PRESUMIDO', specialSituation: null, applicability: 'INDETERMINATE',
+      selectedPackageId: null, packages: [],
+    });
+    envolver(<CatalogoOperacional empresaId="empresa-1" somenteLeitura />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Plano referencial' }));
+    expect(await screen.findByText('Cobertura oficial indeterminada')).toBeInTheDocument();
+    expect(screen.getByText(/não oferece pacote, rascunho ou publicação/u)).toBeInTheDocument();
+    await waitFor(() => expect(ler).toHaveBeenCalledWith('/empresas/empresa-1/plano-referencial?calendarYear=2025&taxRegime=LUCRO_PRESUMIDO'));
+  });
 });

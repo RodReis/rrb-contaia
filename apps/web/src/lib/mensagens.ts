@@ -97,6 +97,23 @@ const MENSAGENS: Readonly<Record<string, string>> = {
   [CODIGOS_DE_ERRO.CARTEIRA_DESATUALIZADA]:
     'A carteira mudou desde que você a abriu. Recarregue a página e revise antes de salvar.',
   [CODIGOS_DE_ERRO.SEM_AUTORIZACAO]: 'Você não tem permissão para esta ação.',
+  [CODIGOS_DE_ERRO.REFERENCE_PACKAGE_NOT_FOUND]: 'O pacote referencial selecionado não está disponível.',
+  [CODIGOS_DE_ERRO.REFERENCE_PACKAGE_NOT_APPLICABLE]: 'O pacote oficial não cobre o exercício ou a situação informada.',
+  [CODIGOS_DE_ERRO.REFERENCE_PACKAGE_REVOKED]: 'O pacote foi revogado e não aceita novas publicações.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_INDETERMINATE]: 'Não há pacote oficial com cobertura comprovada para esta configuração.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_INCOMPLETE]: 'Mapeie todas as contas analíticas ativas antes de publicar.',
+  [CODIGOS_DE_ERRO.REFERENCE_ACCOUNT_NATURE_MISMATCH]: 'A natureza da conta não corresponde à natureza da conta referencial.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_DUPLICATE_PAIR]: 'Há mais de uma decisão para a mesma conta e centro de custo.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_VERSION_CONFLICT]: 'O rascunho mudou. Atualize os dados antes de tentar novamente.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_CSV_INVALID]: 'O CSV contém erros. Corrija todas as linhas antes de aplicar.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_FORBIDDEN]: 'Você não tem permissão para manter o plano referencial desta empresa.',
+  [CODIGOS_DE_ERRO.REFERENCE_ACCOUNT_NOT_FOUND]: 'A conta referencial não pertence ao pacote selecionado.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_ACCOUNT_INELIGIBLE]: 'A conta da F39 está incompleta, arquivada ou não é analítica.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_COST_CENTER_INELIGIBLE]: 'O centro de custo está arquivado ou não é analítico.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_NOT_APPLICABLE_REVIEW_REQUIRED]: 'Justifique e registre a revisão humana de cada conta não aplicável.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_NOT_APPLICABLE_HAS_REFERENCE]: 'Conta não aplicável não pode apontar para uma conta referencial.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_INVALID_DECISION]: 'A decisão de mapeamento contém campos incompatíveis.',
+  [CODIGOS_DE_ERRO.REFERENCE_MAPPING_ACCOUNT_INCOMPLETE]: 'Complete a classificação da conta na estrutura contábil antes de publicar.',
   // Importação do plano de contas por CSV (SPEC-013).
   [CODIGOS_DE_ERRO.TENTATIVA_NAO_ENCONTRADA]: 'Importação não encontrada nesta empresa.',
   [CODIGOS_DE_ERRO.ESTADO_INVALIDO_PARA_ACAO]:

@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { ler } from '../importacao/api';
 import { useSessao } from '../usuarios/queries';
 import { concede } from './permissoes';
+import { PlanoReferencial } from '../plano-referencial/plano-referencial';
 
 const ItemSchema = z.object({
   code: z.string(),
@@ -33,7 +34,7 @@ const HistoricoSchema = z.object({
 });
 
 type Item = z.infer<typeof ItemSchema>;
-type Aba = 'contas' | 'centros';
+type Aba = 'contas' | 'centros' | 'referencial';
 type Edicao = Readonly<{
   code: string;
   classe: string;
@@ -44,7 +45,7 @@ type Edicao = Readonly<{
 type StatusFiltro = 'ALL' | 'ACTIVE' | 'INCOMPLETE' | 'ARCHIVED';
 
 const rota = (empresaId: string, aba: Aba): string =>
-  `/empresas/${empresaId}/estrutura-contabil/${aba === 'contas' ? 'contas' : 'centros-de-custo'}`;
+  `/empresas/${empresaId}/estrutura-contabil/${aba === 'centros' ? 'centros-de-custo' : 'contas'}`;
 
 const consultarItens = async (empresaId: string, aba: Aba, busca: string, cursor?: string) => {
   const parametros = new URLSearchParams();
@@ -54,7 +55,7 @@ const consultarItens = async (empresaId: string, aba: Aba, busca: string, cursor
   return ListaSchema.parse(await ler(`${rota(empresaId, aba)}${consulta === '' ? '' : `?${consulta}`}`));
 };
 
-const rotuloDaAba = (aba: Aba): string => (aba === 'contas' ? 'Plano de contas' : 'Centros de custo');
+const rotuloDaAba = (aba: Aba): string => ({ contas: 'Plano de contas', centros: 'Centros de custo', referencial: 'Plano referencial' })[aba];
 
 export const CatalogoOperacional = ({
   empresaId,
@@ -77,7 +78,7 @@ export const CatalogoOperacional = ({
   const podeManterCentro = !somenteLeitura && sessao !== undefined && concede(sessao, 'contabil.estrutura_contabil.manter_centros_custo');
   const podeArquivar = !somenteLeitura && sessao !== undefined && concede(sessao, 'contabil.estrutura_contabil.arquivar');
   const podeReativar = !somenteLeitura && sessao !== undefined && concede(sessao, 'contabil.estrutura_contabil.reativar');
-  const podeManter = aba === 'contas' ? podeManterConta : podeManterCentro;
+  const podeManter = aba === 'contas' ? podeManterConta : aba === 'centros' ? podeManterCentro : false;
   const statusDisponiveis = aba === 'contas'
     ? (['ALL', 'ACTIVE', 'INCOMPLETE', 'ARCHIVED'] as const)
     : (['ALL', 'ACTIVE', 'ARCHIVED'] as const);
@@ -85,7 +86,8 @@ export const CatalogoOperacional = ({
 
   const consulta = useInfiniteQuery({
     queryKey: ['catalogo-contabil', empresaId, aba, busca],
-    queryFn: ({ pageParam }) => consultarItens(empresaId, aba, busca, pageParam),
+    enabled: aba !== 'referencial',
+    queryFn: ({ pageParam }) => consultarItens(empresaId, aba === 'centros' ? 'centros' : 'contas', busca, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.nextCursor ?? undefined,
   });
@@ -110,7 +112,7 @@ export const CatalogoOperacional = ({
 
   const consultaHistorico = useQuery({
     queryKey: ['catalogo-contabil', empresaId, 'historico', aba, selecionado?.code],
-    enabled: selecionado !== null,
+    enabled: selecionado !== null && aba !== 'referencial',
     queryFn: async () => {
       const catalogo = aba === 'contas' ? 'CONTA' : 'CENTRO_CUSTO';
       const parametros = new URLSearchParams({ catalogo, codigo: selecionado?.code ?? '' });
@@ -253,12 +255,18 @@ export const CatalogoOperacional = ({
           <p className="mt-xs text-body-sm text-muted-foreground">Catálogos por empresa. Código permanece imutável; contas sem classe precisam de revisão.</p>
         </div>
         <div className="flex flex-wrap gap-xs" role="tablist" aria-label="Catálogos">
-          <Button variante={aba === 'contas' ? 'primaria' : 'contorno'} aria-selected={aba === 'contas'} role="tab" tabIndex={aba === 'contas' ? 0 : -1} onKeyDown={(event) => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { setAba(aba === 'contas' ? 'centros' : 'contas'); setSelecionado(null); setEdicao(null); } }} onClick={() => { setAba('contas'); setSelecionado(null); setEdicao(null); }}>Plano de contas</Button>
-          <Button variante={aba === 'centros' ? 'primaria' : 'contorno'} aria-selected={aba === 'centros'} role="tab" tabIndex={aba === 'centros' ? 0 : -1} onKeyDown={(event) => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { setAba(aba === 'contas' ? 'centros' : 'contas'); setSelecionado(null); setEdicao(null); } }} onClick={() => { setAba('centros'); setSelecionado(null); setEdicao(null); }}>Centros de custo</Button>
+          {(['contas', 'centros', 'referencial'] as const).map((abaTab, index, abas) => <Button key={abaTab} variante={aba === abaTab ? 'primaria' : 'contorno'} aria-selected={aba === abaTab} role="tab" tabIndex={aba === abaTab ? 0 : -1} onKeyDown={(event) => {
+            if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+              event.preventDefault();
+              const delta = event.key === 'ArrowRight' ? 1 : -1;
+              const proxima = abas[(index + delta + abas.length) % abas.length];
+              if (proxima !== undefined) { setAba(proxima); setSelecionado(null); setEdicao(null); }
+            }
+          }} onClick={() => { setAba(abaTab); setSelecionado(null); setEdicao(null); }}>{rotuloDaAba(abaTab)}</Button>)}
         </div>
       </header>
 
-      <div className="mt-lg grid gap-lg lg:grid-cols-[minmax(0,1fr)_20rem]">
+      {aba === 'referencial' ? <div className="mt-lg"><PlanoReferencial empresaId={empresaId} /></div> : <div className="mt-lg grid gap-lg lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0">
           <label className="mb-xs block text-label-md" htmlFor="catalogo-busca">Pesquisar código ou nome</label>
           <input id="catalogo-busca" value={busca} onChange={(event) => setBusca(event.target.value)} className="h-11 w-full rounded-md border border-input bg-background px-md text-body-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
@@ -336,7 +344,7 @@ export const CatalogoOperacional = ({
 
           {selecionado === null && edicao?.code !== '__nova__' ? <p className="text-body-sm text-muted-foreground">Selecione item para consultar ou editar.</p> : null}
         </aside>
-      </div>
+      </div>}
     </section>
   );
 };

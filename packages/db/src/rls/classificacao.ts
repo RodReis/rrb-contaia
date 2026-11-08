@@ -454,6 +454,13 @@ export const CLASSIFICACAO: readonly EntradaDeClassificacao[] = [
   { tabela: 'app.accounting_statement_template_event', classe: 'tenant', origem: 'F46 / SPEC-046', justificativa: 'Auditoria da biblioteca compartilhada do escritório; dados empresariais ficam nas tabelas de origem e aplicação.', appendOnly: true, leitura: 'comum', escrita: 'comum' },
   { tabela: 'app.accounting_statement_template_source', classe: 'empresa', origem: 'F46 / SPEC-046', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   { tabela: 'app.accounting_statement_template_application', classe: 'empresa', origem: 'F46 / SPEC-046', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
+  { tabela: 'app.reference_accounting_package', classe: 'global', origem: 'F47 / SPEC-047', justificativa: 'Catálogo de pacotes e hashes oficiais curados; somente leitura pela aplicação, sem dados de empresa.' },
+  { tabela: 'app.reference_accounting_account', classe: 'global', origem: 'F47 / SPEC-047', justificativa: 'Contas normalizadas de pacotes oficiais imutáveis; somente leitura pela aplicação.' },
+  { tabela: 'app.company_reference_mapping', classe: 'empresa', origem: 'F47 / SPEC-047', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.company_reference_mapping_entry', classe: 'empresa', origem: 'F47 / SPEC-047', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.company_reference_mapping_center_snapshot', classe: 'empresa', origem: 'F47 / SPEC-047', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.company_reference_mapping_import', classe: 'empresa', origem: 'F47 / SPEC-047', colunaEmpresa: 'company_id', exigeIndiceEmpresa: true },
+  { tabela: 'app.company_reference_mapping_event', classe: 'empresa', origem: 'F47 / SPEC-047', colunaEmpresa: 'company_id', appendOnly: true, exigeIndiceEmpresa: true },
   {
     tabela: 'public.__migrations',
     classe: 'global',

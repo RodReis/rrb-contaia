@@ -58,6 +58,35 @@ const unico = async (banco: Consultavel, sql: string, parametros: unknown[]): Pr
   return linha.id;
 };
 
+const garantirPacoteReferencialF47 = async (admin: Consultavel, e: Escopo): Promise<string> => {
+  const packageId = `__f47_test_${e.sufixo}`;
+  await admin.query(`insert into app.reference_accounting_package
+    (id,authority,source_document,source_url,layout,revision,covered_calendar_years,downloaded_at,source_sha256,canonical_sha256,status)
+    values($1,'Fixture','Fixture RLS F47','https://example.invalid/f47','TEST','fixture',ARRAY[2025],now(),repeat('a',64),repeat('b',64),'AVAILABLE')
+    on conflict(id) do nothing`, [packageId]);
+  await admin.query(`insert into app.reference_accounting_account(package_id,code,description,source_nature,normal_balance,status)
+    values($1,'1.01','Fixture F47','1','DEBIT','ACTIVE') on conflict(package_id,code) do nothing`, [packageId]);
+  return packageId;
+};
+
+const prepararMapeamentoF47 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
+  const packageId = await garantirPacoteReferencialF47(admin, e);
+  const mappingId = await unico(admin, `insert into app.company_reference_mapping
+    (tenant_id,company_id,calendar_year,tax_regime,package_id,applicability,status,package_sha256,created_by,correlation_id)
+    values($1,$2,2025,'LUCRO_PRESUMIDO',$3,'APPLICABLE','DRAFT',repeat('b',64),$4,'f47-rls') returning id`,
+  [e.tenantId,e.empresaId,packageId,e.autorId]);
+  return { mappingId, packageId };
+};
+
+const criarContaF47 = (admin: Consultavel, e: Escopo): Promise<string> => unico(admin, `insert into app.conta_contabil
+  (tenant_id,empresa_id,codigo,nome,tipo,natureza,classe_contabil,politica_centro_custo)
+  values($1,$2,$3,'Conta fixture F47','analitica','devedora','ASSET','OPTIONAL') returning id`,
+[e.tenantId,e.empresaId,`f47-${e.sufixo}-${proximo()}`]);
+
+const criarCentroF47 = (admin: Consultavel, e: Escopo): Promise<string> => unico(admin, `insert into app.centro_custo
+  (tenant_id,empresa_id,codigo,nome,tipo) values($1,$2,$3,'Centro fixture F47','analitica') returning id`,
+[e.tenantId,e.empresaId,`f47-${e.sufixo}-${proximo()}`]);
+
 const prepararIdentidadeRegraF41 = async (admin: Consultavel, e: Escopo): Promise<Referencias> => {
   const ruleId = await unico(admin, `insert into app.accounting_rule(tenant_id,empresa_id,nome,origem,criado_por)
     values($1,$2,$3,'DFE',$4) returning id`, [e.tenantId,e.empresaId,`F41 ${e.sufixo}-${proximo()}`,e.autorId]);
@@ -1928,5 +1957,35 @@ export const FIXTURES: Readonly<Record<string, FixtureDeTabela>> = {
   'app.accounting_statement_template_application': {
     preparar:async(admin,e)=>{const templateId=await unico(admin,`insert into app.accounting_statement_template(tenant_id,name,created_by,updated_by) values($1,$2,$3,$3) returning id`,[e.tenantId,`Modelo ${e.sufixo}-${proximo()}`,e.autorId]);const templateVersionId=await unico(admin,`insert into app.accounting_statement_template_version(tenant_id,template_id,version,status,origin,structural_hash,created_by,published_by,published_at,correlation_id) values($1,$2,1,'ACTIVE','MANUAL',repeat('a',64),$3,$3,now(),'f46-rls') returning id`,[e.tenantId,templateId,e.autorId]);const statementVersionId=await criarVersaoDre(admin,e);return {templateId,templateVersionId,statementVersionId};},
     inserir:(banco,e,r)=>unico(banco,`insert into app.accounting_statement_template_application(tenant_id,template_id,template_version_id,company_id,statement_version_id,idempotency_key,request_hash,actor_id,correlation_id) values($1,$2,$3,$4,$5,$6,repeat('b',64),$7,'f46-rls') returning id`,[e.tenantId,r['templateId'],r['templateVersionId'],e.empresaId,r['statementVersionId'],`f46-${e.sufixo}-${proximo()}`,e.autorId]), colunaDeEmpresa:'company_id',
+  },
+  'app.company_reference_mapping': {
+    preparar: prepararMapeamentoF47,
+    inserir: (banco,e,r)=>unico(banco,`insert into app.company_reference_mapping(tenant_id,company_id,calendar_year,tax_regime,package_id,applicability,status,package_sha256,created_by,correlation_id)
+      values($1,$2,2025,'LUCRO_PRESUMIDO',$3,'APPLICABLE','DRAFT',repeat('b',64),$4,'f47-rls-app') returning id`,[e.tenantId,e.empresaId,r['packageId'],e.autorId]),
+    colunaDeAtualizacao:'revision',atualizacao:'revision=revision',colunaDeEmpresa:'company_id',
+  },
+  'app.company_reference_mapping_entry': {
+    preparar:async(admin,e)=>{const refs=await prepararMapeamentoF47(admin,e);const accountId=await criarContaF47(admin,e);const centerId=await criarCentroF47(admin,e);return {...refs,accountId,centerId};},
+    inserir:(banco,e,r)=>unico(banco,`insert into app.company_reference_mapping_entry(tenant_id,company_id,mapping_id,account_id,center_id,kind,reference_package_id,reference_code,author_id)
+      values($1,$2,$3,$4,$5,'MAPPED',$6,'1.01',$7) returning id`,[e.tenantId,e.empresaId,r['mappingId'],r['accountId'],r['centerId'],r['packageId'],e.autorId]),
+    colunaDeAtualizacao:'reason',atualizacao:'reason=reason',colunaDeEmpresa:'company_id',
+  },
+  'app.company_reference_mapping_center_snapshot': {
+    preparar:async(admin,e)=>{const refs=await prepararMapeamentoF47(admin,e);return {...refs,centerId:await criarCentroF47(admin,e)};},
+    inserir:(banco,e,r)=>unico(banco,`insert into app.company_reference_mapping_center_snapshot(tenant_id,company_id,mapping_id,center_id,center_code)
+      values($1,$2,$3,$4,$5) returning center_id as id`,[e.tenantId,e.empresaId,r['mappingId'],r['centerId'],`F47-${e.sufixo}`]),
+    colunaDeLeitura:'center_id',colunaDeChave:'center_id',colunaDeAtualizacao:'center_code',atualizacao:'center_code=center_code',colunaDeEmpresa:'company_id',
+  },
+  'app.company_reference_mapping_import': {
+    preparar:prepararMapeamentoF47,
+    inserir:(banco,e,r)=>unico(banco,`insert into app.company_reference_mapping_import(tenant_id,company_id,mapping_id,file_sha256,expected_revision,status,summary,actor_id,correlation_id)
+      values($1,$2,$3,repeat('c',64),0,'PREVIEW','{}'::jsonb,$4,'f47-rls') returning id`,[e.tenantId,e.empresaId,r['mappingId'],e.autorId]),
+    colunaDeAtualizacao:'status',atualizacao:'status=status',colunaDeEmpresa:'company_id',
+  },
+  'app.company_reference_mapping_event': {
+    preparar:prepararMapeamentoF47,
+    inserir:(banco,e,r)=>unico(banco,`insert into app.company_reference_mapping_event(tenant_id,company_id,mapping_id,actor_id,action,result,correlation_id)
+      values($1,$2,$3,$4,'DRAFT_CREATED','SUCESSO','f47-rls') returning id`,[e.tenantId,e.empresaId,r['mappingId'],e.autorId]),
+    colunaDeEmpresa:'company_id',
   },
 };
