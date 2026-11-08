@@ -33,6 +33,7 @@ const ITENS: readonly ItemDoMenu[] = [
   { href: '/contabil/lancamentos', rotulo: 'Lançamentos', consultas: ['contabil.lancamentos.consultar'] },
   { href: '/contabil/razao', rotulo: 'Razão contábil', consultas: ['contabil.razao.consultar'] },
   { href: '/contabil/dre', rotulo: 'DRE gerencial', consultas: ['contabil.dre_gerencial.consultar'] },
+  { href: '/contabil/modelos-dre', rotulo: 'Modelos de DRE', consultas: ['contabil.dre_gerencial.consultar'] },
   { href: '/contabil/saldos-abertura', rotulo: 'Saldos de abertura', consultas: ['contabil.saldos_abertura.consultar'] },
   { href: '/contabil/automatizacao', rotulo: 'Automatização contábil', consultas: ['contabil.automatizacao.consultar'] },
   // O Histórico de Informações é área global do escritório, não de uma empresa

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { FileDown, Plus, Save, Send } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Campo } from "@/components/ui/campo";
@@ -17,6 +17,7 @@ import {
   exportarDre,
   listarContasDre,
   listarVersoesDre,
+  obterVersaoDre,
   publicarEstruturaDre,
   salvarEstruturaDre,
   type LinhaDre,
@@ -154,6 +155,7 @@ export const DreGerencial = ({
   const [revision, setRevision] = useState(0);
   const [effectiveFrom, setEffectiveFrom] = useState(month);
   const [lines, setLines] = useState<LinhaDre[]>([]);
+  const requestedDraftId = params.get("rascunhoId") ?? "";
   const [validationErrors, setValidationErrors] = useState<readonly string[]>(
     [],
   );
@@ -182,6 +184,22 @@ export const DreGerencial = ({
     queryFn: () => listarContasDre(empresaId),
     enabled: Boolean(empresaId && canEdit),
   });
+  const requestedDraft = useQuery({
+    queryKey: ["dre-applied-draft", empresaId, requestedDraftId],
+    queryFn: () => obterVersaoDre(empresaId, requestedDraftId),
+    enabled: Boolean(empresaId && requestedDraftId && canEdit),
+  });
+  /* eslint-disable react-hooks/set-state-in-effect -- O rascunho da F46 chega por deep link; hidrata uma vez a tela já existente da F45. */
+  useEffect(() => {
+    const draft = requestedDraft.data;
+    if (!draft || draft.version.id === draftId) return;
+    setDraftId(draft.version.id);
+    setRevision(draft.version.revision);
+    setLines([...draft.lines]);
+    setValidationErrors(draft.validation?.errors ?? []);
+    setEditing(draft.version.status === "DRAFT");
+  }, [requestedDraft.data, draftId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   const invalidate = () => {
     void cache.invalidateQueries({ queryKey: ["dre-report", empresaId] });
     void cache.invalidateQueries({ queryKey: ["dre-versions", empresaId] });
@@ -279,6 +297,11 @@ export const DreGerencial = ({
     );
   return (
     <div className="flex min-w-0 flex-col gap-lg">
+      {requestedDraftId && requestedDraft.isError && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-md text-body-sm text-destructive" role="alert">
+          Rascunho aplicado não encontrado ou fora da carteira. Atualize a empresa e tente novamente.
+        </p>
+      )}
       <header className="flex flex-wrap items-start justify-between gap-md">
         <div className="min-w-0">
           <p className="text-label-sm uppercase tracking-wider text-muted-foreground">

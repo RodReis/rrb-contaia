@@ -80,6 +80,8 @@ import { DfeCaptureService } from './dfe-capture/dfe-capture.service';
 import { PROVEDOR_DA_FILA_DFE_CAPTURE } from './dfe-capture/dfe-capture.queue';
 import { FiscalDocumentsController } from './fiscal-documents/fiscal-documents.controller';
 import { FiscalDocumentsService } from './fiscal-documents/fiscal-documents.service';
+import { ModelosDreController } from './modelos-dre/modelos-dre.controller';
+import { ModelosDreService } from './modelos-dre/modelos-dre.service';
 import { IcmsStSettlementsService } from './fiscal-documents/icms-st-settlements.service';
 import { IcmsStHistoryService } from './fiscal-documents/icms-st-history.service';
 import { IcmsStLegalAccrualsService } from './fiscal-documents/icms-st-legal-accruals.service';
@@ -148,6 +150,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     TaxPackagesController,
     DfeCaptureController,
     FiscalDocumentsController,
+    ModelosDreController,
     MonthlyAssessmentsController,
     CorporateTaxAssessmentsController,
     FiscalRiskController,
@@ -197,6 +200,7 @@ import { RfbDubleClient } from './procuracoes/rfb-duble.client';
     DfeCaptureService,
     ...PROVEDOR_DA_FILA_DFE_CAPTURE,
     FiscalDocumentsService,
+    ModelosDreService,
     IcmsStSettlementsService,
     IcmsStHistoryService,
     IcmsStLegalAccrualsService,

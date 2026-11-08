@@ -942,3 +942,10 @@ A rotina completa está em [`AUDIT.md`](AUDIT.md). Em resumo:
 - [ ] `pnpm test:banco` completo local: 37 suítes passaram; 4 suítes legadas falharam em fixtures fixas/colisões no banco persistente compartilhado (`tenant_cnpj_key`, `usuario_email_unico`) e cleanup após setup falho. Nenhuma nova falha F43.
 - [ ] E2E local e prova autenticada F43 `not_run`: Playwright expirou aguardando servidores do ambiente; login seed volta para `/acesso` por incompatibilidade entre sujeito OIDC e usuário fixture do banco. Screenshots de acesso público não contam como prova F43.
 - [ ] Revisão do diff, PR `refs #57`, CI verde no HEAD, merge confirmado, comentário de encerramento e `proplan:done` pendentes. Issue permanece aberta para aceite do PI.
+
+### Card #60 — `[MVP2][SPEC-046][F46]` Modelos de DRE do escritório
+
+- [x] Biblioteca tenant-wide com criação manual ou origem empresarial sanitizada, versionamento imutável, descarte auditável, arquivamento/reativação, aplicação idempotente unitária e proveniência separada.
+- [x] Migrations 0101–0105, RLS contextual, classificação anti-drift, trava de aplicação compartilhada com F45 e confirmação explícita da aplicação; a biblioteca mostra versão, origem, atualização, autor e estado.
+- [x] Validação local: lint/typecheck e build do workspace passaram; regras F46 4/4, tela 3/3, integração API 3/3, anti-drift/RLS 22/22 e E2E autenticada 2/2. A prova visual cobriu CLARO/ESCURO em 768/1024/1440, sem rolagem horizontal nem violação axe crítica.
+- [ ] Revisão final após correções, PR `refs #60`, CI verde no HEAD, merge confirmado, comentário de encerramento e `proplan:done` pendentes. Aplicação local usa Web `15100` e API F46 `15102`; Compose API base `15101`.
