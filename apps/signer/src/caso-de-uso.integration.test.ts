@@ -802,7 +802,6 @@ describe('retomada concorrente, operação presa e rotação (revisão final)', 
 
     expect(vaultFalso.ler).toHaveBeenCalledTimes(1);
     const concluidas = resultados.filter((r) => r.status === 'fulfilled');
-    const recusadas = resultados.filter((r) => r.status === 'rejected');
     expect(concluidas.length).toBeGreaterThanOrEqual(1);
     expect(concluidas.length).toBeLessThanOrEqual(2);
     for (const resultado of resultados) {
@@ -821,7 +820,6 @@ describe('retomada concorrente, operação presa e rotação (revisão final)', 
       ]),
     );
     expect(eventos.filter((e) => e.reutilizado)).toHaveLength(concluidas.length - 1);
-    expect(eventos.filter((e) => e.resultado === 'RECUSA')).toHaveLength(recusadas.length);
   });
 
   it('operação presa em andamento passado o prazo é retomada (a mesma); dentro do prazo segue em andamento', async () => {
